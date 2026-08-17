@@ -1,0 +1,334 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #13233b;
+  --ink-soft: #536072;
+  --cream: #f6f3eb;
+  --paper: #fffdf8;
+  --gold: #c6a867;
+  --line: rgba(19, 35, 59, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--cream);
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--cream);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.selection-page,
+.dashboard-page {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.selection-page {
+  display: grid;
+  place-items: center;
+  padding: 5rem 2rem 4rem;
+}
+
+.selection-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 72rem);
+}
+
+.brand-lockup {
+  margin-bottom: clamp(2.5rem, 6vw, 4.5rem);
+  text-align: center;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 1.25rem;
+  color: #8c7343;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.brand-lockup h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+}
+
+.brand-lockup h1 span,
+.brand-lockup h1 strong {
+  display: block;
+}
+
+.brand-lockup h1 span {
+  font-size: clamp(2.35rem, 7vw, 5.5rem);
+}
+
+.brand-lockup h1 strong {
+  margin-top: 0.55rem;
+  color: var(--gold);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.52em;
+  text-indent: 0.52em;
+}
+
+.brand-lockup p {
+  margin: 1.6rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.broker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.broker-card {
+  position: relative;
+  display: flex;
+  min-height: 14rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.55rem;
+  overflow: hidden;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(255, 253, 248, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  box-shadow: 0 1.25rem 3.5rem rgba(19, 35, 59, 0.06);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.broker-card::after {
+  position: absolute;
+  right: -3.5rem;
+  bottom: -4rem;
+  width: 8rem;
+  height: 8rem;
+  background: var(--ink);
+  border-radius: 50%;
+  content: "";
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.broker-card:hover {
+  background: var(--paper);
+  border-color: rgba(198, 168, 103, 0.65);
+  box-shadow: 0 1.5rem 4rem rgba(19, 35, 59, 0.1);
+  transform: translateY(-4px);
+}
+
+.broker-card:hover::after {
+  opacity: 0.07;
+  transform: scale(1);
+}
+
+.broker-card:focus-visible,
+.change-broker:focus-visible {
+  outline: 3px solid rgba(198, 168, 103, 0.55);
+  outline-offset: 4px;
+}
+
+.card-index {
+  color: #987d49;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.card-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  letter-spacing: -0.035em;
+}
+
+.card-action {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card-action span {
+  color: var(--gold);
+  font-size: 1.15rem;
+  transition: transform 180ms ease;
+}
+
+.broker-card:hover .card-action span {
+  transform: translateX(4px);
+}
+
+.ambient {
+  position: absolute;
+  border: 1px solid rgba(198, 168, 103, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ambient-one {
+  top: -20rem;
+  right: -15rem;
+  width: 42rem;
+  height: 42rem;
+}
+
+.ambient-two {
+  bottom: -24rem;
+  left: -18rem;
+  width: 38rem;
+  height: 38rem;
+}
+
+.site-footer {
+  position: absolute;
+  bottom: 1.4rem;
+  left: 50%;
+  width: 100%;
+  color: rgba(19, 35, 59, 0.48);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.dashboard-page {
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(198, 168, 103, 0.12), transparent 32rem),
+    var(--cream);
+}
+
+.dashboard-card {
+  width: min(100%, 35rem);
+  padding: clamp(2.25rem, 8vw, 4.5rem);
+  text-align: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  box-shadow: 0 2rem 6rem rgba(19, 35, 59, 0.08);
+}
+
+.dashboard-mark {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 2.5rem;
+  place-items: center;
+  color: var(--gold);
+  border: 1px solid rgba(198, 168, 103, 0.55);
+  border-radius: 50%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.85rem;
+}
+
+.dashboard-card .eyebrow {
+  margin-bottom: 1.1rem;
+}
+
+.dashboard-card h1 {
+  margin: 0 0 2.75rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.25rem, 7vw, 3.8rem);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.change-broker {
+  min-height: 3.25rem;
+  padding: 0.85rem 1.5rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.change-broker:hover {
+  color: var(--ink);
+  background: transparent;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 720px) {
+  .selection-page {
+    align-items: start;
+    padding: 3.75rem 1.15rem 4.5rem;
+    overflow: auto;
+  }
+
+  .brand-lockup {
+    margin-bottom: 2.6rem;
+  }
+
+  .brand-lockup p {
+    font-size: 0.88rem;
+  }
+
+  .broker-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .broker-card {
+    min-height: 8.2rem;
+    padding: 1.2rem 1.3rem;
+  }
+
+  .card-name {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .site-footer {
+    position: absolute;
+    bottom: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
