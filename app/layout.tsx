@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AuthProvider } from "./auth-context";
 import { BrokerProvider } from "./broker-context";
+import { CRMDataProvider } from "./crm-data-context";
+import { TransactionsProvider } from "./transactions-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +15,13 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="fr">
       <body>
-        <BrokerProvider>{children}</BrokerProvider>
+        <AuthProvider>
+          <BrokerProvider>
+            <CRMDataProvider>
+              <TransactionsProvider>{children}</TransactionsProvider>
+            </CRMDataProvider>
+          </BrokerProvider>
+        </AuthProvider>
       </body>
     </html>
   );

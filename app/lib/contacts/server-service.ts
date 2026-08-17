@@ -1,0 +1,157 @@
+import type {
+  ContactBroker,
+  ContactUpdate,
+  DraftMergeSelection,
+} from "../../data/contact-types";
+import {
+  deleteCalendarEventForContact,
+  mapServerContact,
+  syncContactFollowUp,
+  type ServerContactRow,
+} from "../google-calendar/service";
+import { getSupabaseAdmin } from "../supabase/server";
+
+type ExistingMergeInput = {
+  targetId: string;
+  sourceId: string;
+  values: ContactUpdate;
+  followUpSource: "target" | "source" | null;
+  mergedByUserId: string | null;
+};
+
+async function getServerContact(id: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("contacts")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data as ServerContactRow;
+}
+
+export async function mergeExistingContacts(input: ExistingMergeInput) {
+  const [target, source] = await Promise.all([
+    getServerContact(input.targetId),
+    getServerContact(input.sourceId),
+  ]);
+  const selected = input.followUpSource === "source" ? source : target;
+  const nextFollowUpDate = input.followUpSource
+    ? selected.next_follow_up_date
+    : null;
+  const canKeepSelectedEvent = Boolean(
+    nextFollowUpDate &&
+      selected.google_calendar_event_id &&
+      selected.google_calendar_event_broker === input.values.broker,
+  );
+  const retainedEventId = canKeepSelectedEvent
+    ? selected.google_calendar_event_id
+    : null;
+  const retainedEventBroker = canKeepSelectedEvent
+    ? selected.google_calendar_event_broker
+    : null;
+  const events = [target, source].filter(
+    (contact) =>
+      contact.google_calendar_event_id &&
+      contact.google_calendar_event_id !== retainedEventId,
+  );
+
+  try {
+    for (const contact of events) {
+      await deleteCalendarEventForContact(mapServerContact(contact));
+    }
+
+    const { data, error } = await getSupabaseAdmin().rpc("merge_contacts", {
+      p_target_id: input.targetId,
+      p_source_id: input.sourceId,
+      p_first_name: input.values.firstName,
+      p_last_name: input.values.lastName,
+      p_phone: input.values.phone,
+      p_email: input.values.email,
+      p_broker: input.values.broker,
+      p_client_type: input.values.clientType,
+      p_priority: input.values.priority,
+      p_status: input.values.status,
+      p_next_follow_up_date: nextFollowUpDate,
+      p_google_event_id: retainedEventId,
+      p_google_event_broker: retainedEventBroker,
+      p_merged_by_user_id: input.mergedByUserId,
+    });
+    if (error) throw error;
+
+    const merged = mapServerContact((Array.isArray(data) ? data[0] : data) as ServerContactRow);
+    if (merged.nextFollowUpDate) {
+      const sync = await syncContactFollowUp(merged.id);
+      return sync.contact ?? merged;
+    }
+    return merged;
+  } catch (error) {
+    // Si Google a été nettoyé mais que Supabase refuse la fusion, les deux
+    // contacts restent la source de vérité et leurs événements sont recréés.
+    await Promise.allSettled([
+      syncContactFollowUp(input.targetId),
+      syncContactFollowUp(input.sourceId),
+    ]);
+    throw error;
+  }
+}
+
+export async function mergeDraftIntoContact(
+  targetId: string,
+  values: DraftMergeSelection,
+  incomingDraft: Record<string, unknown>,
+  mergedByUserId: string | null,
+) {
+  const target = await getServerContact(targetId);
+  const brokerChanged = target.broker !== values.broker;
+  const { data, error } = await getSupabaseAdmin()
+    .from("contacts")
+    .update({
+      first_name: values.firstName.trim(),
+      last_name: values.lastName.trim(),
+      phone: values.phone.trim(),
+      email: values.email.trim(),
+      broker: values.broker,
+      next_follow_up_date: values.nextFollowUpDate,
+      google_calendar_sync_status:
+        brokerChanged || values.nextFollowUpDate ? "pending" : target.google_calendar_sync_status,
+      google_calendar_last_error: null,
+    })
+    .eq("id", targetId)
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const { error: auditError } = await getSupabaseAdmin()
+    .from("contact_merges")
+    .insert({
+      merged_into_contact_id: targetId,
+      merged_from: incomingDraft,
+      merged_by_user_id: mergedByUserId,
+    });
+  if (auditError) throw auditError;
+
+  const merged = mapServerContact(data as ServerContactRow);
+  if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
+    const sync = await syncContactFollowUp(targetId);
+    return sync.contact ?? merged;
+  }
+  return merged;
+}
+
+export async function deleteContactAndCalendar(contactId: string) {
+  const contact = await getServerContact(contactId);
+  const mapped = mapServerContact(contact);
+  if (mapped.googleCalendarEventId) {
+    await deleteCalendarEventForContact(mapped);
+  }
+
+  const { error } = await getSupabaseAdmin().from("contacts").delete().eq("id", contactId);
+  if (error) {
+    await syncContactFollowUp(contactId).catch(() => undefined);
+    throw error;
+  }
+}
+
+export function isAssignedBroker(value: unknown): value is Exclude<ContactBroker, "unassigned"> {
+  return value === "france" || value === "maxime" || value === "sandrine";
+}

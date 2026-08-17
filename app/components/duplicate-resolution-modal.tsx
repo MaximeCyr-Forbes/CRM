@@ -1,0 +1,192 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { Contact, ContactBroker, ContactDraft, DraftMergeSelection } from "../data/contact-types";
+import { BROKER_LABELS, CONTACT_BROKERS, getContactName } from "../data/contact-types";
+import type { DuplicateReason } from "../lib/contact-normalization";
+import { formatFollowUpDate } from "../lib/follow-up";
+import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
+
+type IncomingContact = ContactDraft & {
+  broker: ContactBroker;
+  nextFollowUpDate?: string | null;
+};
+
+type Props = {
+  existing: Contact;
+  incoming: IncomingContact;
+  reasons: DuplicateReason[];
+  existingNotesCount: number;
+  incomingNotesCount?: number;
+  isSaving: boolean;
+  onCancel: () => void;
+  onKeepBoth: () => void | Promise<void>;
+  onMerge: (values: DraftMergeSelection) => void | Promise<void>;
+};
+
+const reasonLabels: Record<DuplicateReason, string> = {
+  phone: "même téléphone",
+  email: "même email",
+  name: "même nom",
+};
+
+export function DuplicateResolutionModal({
+  existing,
+  incoming,
+  reasons,
+  existingNotesCount,
+  incomingNotesCount = 0,
+  isSaving,
+  onCancel,
+  onKeepBoth,
+  onMerge,
+}: Props) {
+  const [phase, setPhase] = useState<"compare" | "merge">("compare");
+  const [sources, setSources] = useState({
+    firstName: existing.firstName ? "existing" : "incoming",
+    lastName: existing.lastName ? "existing" : "incoming",
+    phone: existing.phone ? "existing" : "incoming",
+    email: existing.email ? "existing" : "incoming",
+  } as Record<keyof ContactDraft, "existing" | "incoming">);
+  const [broker, setBroker] = useState<ContactBroker | null>(
+    existing.broker === incoming.broker ? existing.broker : null,
+  );
+  const incomingFollowUp = incoming.nextFollowUpDate ?? null;
+  const [followUpSource, setFollowUpSource] = useState<"existing" | "incoming">(
+    existing.nextFollowUpDate ? "existing" : "incoming",
+  );
+  useDialogLifecycle(true, onCancel);
+
+  const selection = useMemo<DraftMergeSelection | null>(() => {
+    if (!broker) return null;
+    const pick = (field: keyof ContactDraft) =>
+      sources[field] === "existing" ? existing[field] : incoming[field];
+    return {
+      firstName: pick("firstName"),
+      lastName: pick("lastName"),
+      phone: pick("phone"),
+      email: pick("email"),
+      broker,
+      nextFollowUpDate:
+        followUpSource === "existing" ? existing.nextFollowUpDate : incomingFollowUp,
+    };
+  }, [broker, existing, followUpSource, incoming, incomingFollowUp, sources]);
+
+  const rows: Array<{ key: keyof ContactDraft; label: string }> = [
+    { key: "firstName", label: "Prénom" },
+    { key: "lastName", label: "Nom" },
+    { key: "phone", label: "Téléphone" },
+    { key: "email", label: "Email" },
+  ];
+
+  return (
+    <div className="contact-modal-backdrop contact-modal-top" onMouseDown={(event) => event.target === event.currentTarget && onCancel()} role="presentation">
+      <section aria-modal="true" className="contact-modal duplicate-modal" role="dialog">
+        <header className="contact-modal-header">
+          <div>
+            <p className="section-kicker">DOUBLON POSSIBLE</p>
+            <h2>{phase === "compare" ? "Vérifier avant l’ajout" : "Choisir les informations à conserver"}</h2>
+            <small>{reasons.map((reason) => reasonLabels[reason]).join(" · ")}</small>
+          </div>
+          <button aria-label="Fermer" onClick={onCancel} type="button">×</button>
+        </header>
+
+        {phase === "compare" ? (
+          <>
+            <div className="duplicate-comparison">
+              <DuplicateCard
+                broker={existing.broker}
+                email={existing.email}
+                label="CONTACT EXISTANT"
+                name={getContactName(existing)}
+                notes={`${existingNotesCount} note${existingNotesCount > 1 ? "s" : ""}`}
+                phone={existing.phone}
+                followUp={existing.nextFollowUpDate}
+              />
+              <DuplicateCard
+                broker={incoming.broker}
+                email={incoming.email}
+                label="NOUVEAU CONTACT"
+                name={getContactName(incoming)}
+                notes={`${incomingNotesCount} note${incomingNotesCount > 1 ? "s" : ""}`}
+                phone={incoming.phone}
+                followUp={incomingFollowUp}
+              />
+            </div>
+            <div className="duplicate-actions">
+              <button disabled={isSaving} onClick={() => void onKeepBoth()} type="button">CONSERVER LES DEUX</button>
+              <button className="duplicate-merge-primary" onClick={() => setPhase("merge")} type="button">FUSIONNER</button>
+              <button disabled={isSaving} onClick={onCancel} type="button">ANNULER L’AJOUT</button>
+            </div>
+          </>
+        ) : (
+          <div className="merge-fields">
+            {rows.map(({ key, label }) => (
+              <div className="merge-field-row" key={key}>
+                <strong>{label}</strong>
+                <button className={sources[key] === "existing" ? "merge-choice-active" : ""} onClick={() => setSources((current) => ({ ...current, [key]: "existing" }))} type="button">
+                  <span>Existant</span>{existing[key] || "Vide"}
+                </button>
+                <button className={sources[key] === "incoming" ? "merge-choice-active" : ""} onClick={() => setSources((current) => ({ ...current, [key]: "incoming" }))} type="button">
+                  <span>Nouveau</span>{incoming[key] || "Vide"}
+                </button>
+              </div>
+            ))}
+
+            <div className="merge-required-choice">
+              <strong>À QUI ATTRIBUER CE CONTACT ?</strong>
+              <div>
+                {CONTACT_BROKERS.map((item) => (
+                  <button className={broker === item ? "merge-choice-active" : ""} key={item} onClick={() => setBroker(item)} type="button">
+                    {BROKER_LABELS[item]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {existing.nextFollowUpDate && incomingFollowUp && (
+              <div className="merge-required-choice">
+                <strong>CONSERVER UNE SEULE RELANCE</strong>
+                <div>
+                  <button className={followUpSource === "existing" ? "merge-choice-active" : ""} onClick={() => setFollowUpSource("existing")} type="button">CONTACT EXISTANT · {formatFollowUpDate(existing.nextFollowUpDate)}</button>
+                  <button className={followUpSource === "incoming" ? "merge-choice-active" : ""} onClick={() => setFollowUpSource("incoming")} type="button">NOUVEAU CONTACT · {formatFollowUpDate(incomingFollowUp)}</button>
+                </div>
+              </div>
+            )}
+
+            <div className="merge-footer">
+              <button onClick={() => setPhase("compare")} type="button">Retour</button>
+              <button className="duplicate-merge-primary" disabled={!selection || isSaving} onClick={() => selection && void onMerge(selection)} type="button">
+                {isSaving ? "FUSION…" : "CONFIRMER LA FUSION"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function DuplicateCard(props: {
+  label: string;
+  name: string;
+  phone: string;
+  email: string;
+  broker: ContactBroker;
+  notes: string;
+  followUp: string | null;
+}) {
+  return (
+    <article className="duplicate-card">
+      <p>{props.label}</p>
+      <h3>{props.name}</h3>
+      <dl>
+        <div><dt>Téléphone</dt><dd>{props.phone || "Non renseigné"}</dd></div>
+        <div><dt>Email</dt><dd>{props.email || "Non renseigné"}</dd></div>
+        <div><dt>Courtier</dt><dd>{BROKER_LABELS[props.broker]}</dd></div>
+        <div><dt>Notes</dt><dd>{props.notes}</dd></div>
+        <div><dt>Prochaine relance</dt><dd>{props.followUp ? formatFollowUpDate(props.followUp) : "Aucune"}</dd></div>
+      </dl>
+    </article>
+  );
+}

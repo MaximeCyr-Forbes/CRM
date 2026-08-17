@@ -3,8 +3,11 @@
 /.vinext
 /dist
 /.wrangler
+/.vercel
+/.output
 /outputs
 /work
 .env*
+!.env.example
 *.log
 *.tsbuildinfo
