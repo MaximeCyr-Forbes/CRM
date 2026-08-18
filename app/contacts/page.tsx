@@ -19,9 +19,13 @@ import {
 } from "../data/contact-types";
 import {
   analyzeImportDrafts,
+  analyzeCSVContacts,
   decodeContactImportBuffer,
-  parseCSVContacts,
+  parseCSVContactsWithMapping,
   parseVCardContacts,
+  updateCSVMapping,
+  type CSVImportField,
+  type CSVImportMapping,
   type ImportCandidate,
   type ImportCandidateStatus,
 } from "../lib/contact-import";
@@ -44,7 +48,10 @@ type ReviewFilter = "all" | ImportCandidateStatus;
 
 type PendingImport = {
   candidates: ImportCandidate[];
+  csvText: string | null;
   fileName: string;
+  mapping: CSVImportMapping | null;
+  mappingConfirmed: boolean;
   source: Exclude<ImportKind, null>;
   resolutions: Record<string, ImportResolution>;
   merges: Record<string, { targetId: string; values: DraftMergeSelection }>;
@@ -70,6 +77,14 @@ const reviewLabels: Record<ReviewFilter, string> = {
   duplicate: "DOUBLONS",
   incomplete: "INCOMPLETS",
 };
+const csvMappingLabels: Record<CSVImportField, string> = {
+  firstName: "Prénom",
+  lastName: "Nom",
+  fullName: "Nom complet",
+  email: "Email",
+  phone: "Téléphone",
+};
+const csvMappingFields = Object.keys(csvMappingLabels) as CSVImportField[];
 
 function syntheticContact(candidate: ImportCandidate): Contact {
   return {
@@ -196,12 +211,16 @@ export default function ContactsPage() {
     }
     try {
       const text = decodeContactImportBuffer(await file.arrayBuffer());
-      const drafts = importKind === "csv" ? parseCSVContacts(text) : parseVCardContacts(text);
+      const csvAnalysis = importKind === "csv" ? analyzeCSVContacts(text) : null;
+      const drafts = csvAnalysis?.drafts ?? parseVCardContacts(text);
       if (drafts.length === 0) throw new Error("empty");
       const candidates = analyzeImportDrafts(drafts, contacts);
       setPendingImport({
         candidates,
+        csvText: csvAnalysis ? text : null,
         fileName: file.name,
+        mapping: csvAnalysis?.mapping ?? null,
+        mappingConfirmed: !csvAnalysis?.mapping.requiresConfirmation,
         source: importKind,
         resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
         merges: {},
@@ -212,6 +231,23 @@ export default function ContactsPage() {
     } catch {
       setImportError("Le fichier n’a pas pu être analysé. Vérifiez son format.");
     }
+  }
+
+  function remapCSVField(field: CSVImportField, value: string) {
+    setImportError(null);
+    setPendingImport((current) => {
+      if (!current?.mapping || !current.csvText) return current;
+      const mapping = updateCSVMapping(current.mapping, field, value === "" ? null : Number(value));
+      const candidates = analyzeImportDrafts(parseCSVContactsWithMapping(current.csvText, mapping), contacts);
+      return {
+        ...current,
+        candidates,
+        mapping,
+        mappingConfirmed: false,
+        resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
+        merges: {},
+      };
+    });
   }
 
   function updateImportCandidate(candidateId: string, draft: ContactDraft) {
@@ -255,6 +291,10 @@ export default function ContactsPage() {
 
   async function finishImport() {
     if (!pendingImport) return;
+    if (!pendingImport.mappingConfirmed) {
+      setImportError("Confirmez le mapping détecté avant de terminer l’import.");
+      return;
+    }
     const unresolved = pendingImport.candidates.some((candidate) => pendingImport.resolutions[candidate.id] === "unresolved");
     if (unresolved) {
       setImportError("Résolvez chaque doublon et chaque contact incomplet avant de terminer.");
@@ -289,6 +329,9 @@ export default function ContactsPage() {
     incomplete: pendingImport.candidates.filter((candidate) => candidate.status === "incomplete").length,
   } : { all: 0, new: 0, duplicate: 0, incomplete: 0 };
   const reviewCandidates = pendingImport?.candidates.filter((candidate) => reviewFilter === "all" || candidate.status === reviewFilter) ?? [];
+  const mappingWasAdjusted = pendingImport?.mapping
+    ? csvMappingFields.some((field) => pendingImport.mapping?.[field]?.source === "manual")
+    : false;
 
   useEffect(() => {
     setVisibleLimit(100);
@@ -343,6 +386,21 @@ export default function ContactsPage() {
 
       {pendingImport && <div className="import-review-layer"><section className="import-review-shell">
         <header className="import-review-header"><div><p className="section-kicker">{pendingImport.fileName}</p><h2>{reviewCounts.all} CONTACTS DÉTECTÉS</h2><p>{reviewCounts.new} nouveaux · {reviewCounts.duplicate} doublons possibles · {reviewCounts.incomplete} incomplets</p></div><div className="import-review-header-actions"><button onClick={() => setPendingImport(null)} type="button">ANNULER</button><button className="finish-import" disabled={isSaving} onClick={() => void finishImport()} type="button">TERMINER L’IMPORT</button></div></header>
+        {pendingImport.mapping && <section className={`import-mapping-summary ${!pendingImport.mappingConfirmed ? "import-mapping-needs-confirmation" : ""}`}>
+          <div className="import-mapping-heading"><div><strong>{pendingImport.mappingConfirmed ? (mappingWasAdjusted ? "Mapping confirmé ✓" : "Structure détectée automatiquement ✓") : "Vérification du mapping requise"}</strong><span>{pendingImport.mapping.hasHeader ? "Ligne d’en-tête reconnue" : "Fichier sans en-tête · première ligne conservée"}</span></div><small>Profil : {pendingImport.mapping.signature}</small></div>
+          {pendingImport.mappingConfirmed ? <dl className="import-mapping-grid">
+            {csvMappingFields.map((field) => {
+              const match = pendingImport.mapping?.[field];
+              if (!match && field === "fullName") return null;
+              const alternatives = field === "phone" ? pendingImport.mapping?.phoneFallbacks.length ?? 0 : 0;
+              return <div key={field}><dt>{csvMappingLabels[field]}</dt><dd>{match ? `${match.label} · ${Math.round(match.confidence * 100)} %${alternatives > 0 ? ` + ${alternatives} secours` : ""}` : "Non détecté"}</dd></div>;
+            })}
+          </dl> : <div className="import-mapping-confirmation">
+            <p>Deux colonnes sont trop proches pour être départagées avec assez de certitude. Vérifiez seulement ce mapping.</p>
+            <div className="import-mapping-selects">{csvMappingFields.map((field) => <label key={field}><span>{csvMappingLabels[field]}</span><select onChange={(event) => remapCSVField(field, event.target.value)} value={pendingImport.mapping?.[field]?.index ?? ""}><option value="">Non attribué</option>{pendingImport.mapping?.columns.map((column) => <option key={column.index} value={column.index}>{column.label}{column.example ? ` · ${column.example}` : ""}</option>)}</select></label>)}</div>
+            <button onClick={() => { setImportError(null); setPendingImport((current) => current ? { ...current, mappingConfirmed: true } : null); }} type="button">CONFIRMER LE MAPPING</button>
+          </div>}
+        </section>}
         <div className="import-review-filters">{(Object.keys(reviewLabels) as ReviewFilter[]).map((filter) => <button className={reviewFilter === filter ? "contact-filter-active" : ""} key={filter} onClick={() => setReviewFilter(filter)} type="button">{reviewLabels[filter]} <span>{reviewCounts[filter]}</span></button>)}</div>
         {importError && <p className="import-error">{importError}</p>}
         <div className="imported-contacts-list">{reviewCandidates.map((candidate) => {
