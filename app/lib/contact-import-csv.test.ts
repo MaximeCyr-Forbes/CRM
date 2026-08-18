@@ -92,6 +92,7 @@ describe("détection autonome de la structure CSV", () => {
     const analysis = analyzeCSVContacts(csv);
     expect(analysis.mapping.address?.index).toBe(3);
     expect(analysis.mapping.civicNumber).toBeNull();
+    expect(analysis.mapping.requiresConfirmation).toBe(false);
     expect(analysis.drafts[0].address).toBe("125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7");
   });
 
@@ -163,7 +164,6 @@ describe("détection autonome de la structure CSV", () => {
       columns[50] = "Canada";
       columns[52] = "Québec";
       columns[54] = streets[index % streets.length];
-      columns[58] = index % 3 === 0 ? `App ${index % 12 + 1}` : "";
       if (index % 2 === 0) columns[61] = requiredPhones[index % requiredPhones.length];
       if (index % 2 === 1) columns[63] = requiredPhones[index % requiredPhones.length];
       columns[64] = "Deux-Montagnes";
@@ -186,14 +186,16 @@ describe("détection autonome de la structure CSV", () => {
     expect(analysis.mapping).toMatchObject({
       civicNumber: { index: 48 },
       address: { index: 54 },
-      apartment: { index: 58 },
+      apartment: null,
       city: { index: 64 },
       province: { index: 52 },
       postalCode: { index: 34 },
       country: { index: 50 },
     });
     expect(analysis.drafts[0]).toMatchObject({ firstName: "François", lastName: "Béliveau", phone: "514-835-5524" });
-    expect(analysis.drafts[0]).toMatchObject({ civicNumber: "150", address: "Avenue Léo-Lacombe", apartment: "App 1", city: "Deux-Montagnes", province: "Québec", postalCode: "J7R 3W7", country: "Canada" });
+    expect(analysis.mapping.requiresConfirmation).toBe(false);
+    expect(analysis.mapping.confirmationFields).toEqual([]);
+    expect(analysis.drafts[0]).toMatchObject({ civicNumber: "150", address: "Avenue Léo-Lacombe", apartment: "", city: "Deux-Montagnes", province: "Québec", postalCode: "J7R 3W7", country: "Canada" });
     expect(analysis.drafts[1]).toMatchObject({ firstName: "Hélène", lastName: "Côté", phone: "(450) 472-7808" });
     expect(analysis.drafts.every((contact) => Boolean(contact.phone))).toBe(true);
     expect(analysis.drafts.some((contact) => contact.phone === "J7R 3W7" || contact.phone.startsWith("2026-"))).toBe(false);
@@ -227,6 +229,54 @@ describe("détection autonome de la structure CSV", () => {
     expect(analysis.drafts.map((contact) => contact.civicNumber)).toEqual(civicNumbers);
   });
 
+  it("laisse un appartement ambigu vide sans bloquer les champs fiables", () => {
+    const civicNumbers = ["150", "350", "358", "397", "820", "1193", "310", "574", "221", "905"];
+    const rows = civicNumbers.map((civicNumber, index) => [
+      `contact${index}@example.ca`,
+      ["Béliveau", "Côté", "Noël", "Bérubé", "L'Heureux"][index % 5],
+      ["Simon", "Hélène", "André", "François", "Maïté"][index % 5],
+      civicNumber,
+      "Avenue Léo-Lacombe",
+      "Deux-Montagnes",
+      "QC",
+      "J7R 3W7",
+      "Canada",
+      index < 3 ? ["620", "201", "1204"][index] : "",
+      index < 3 ? ["110", "4", "PH2"][index] : "",
+    ].join(";")).join("\n");
+
+    const analysis = analyzeCSVContacts(rows);
+
+    expect(analysis.mapping.requiresConfirmation).toBe(false);
+    expect(analysis.mapping.confirmationFields).toEqual([]);
+    expect(analysis.mapping.apartment).toBeNull();
+    expect(analysis.drafts.every((contact) => contact.apartment === "")).toBe(true);
+    expect(analysis.drafts[0]).toMatchObject({ civicNumber: "150", address: "Avenue Léo-Lacombe", city: "Deux-Montagnes" });
+  });
+
+  it("conserve un appartement numérique rare lorsqu'il est clairement associé à l'adresse", () => {
+    const civicNumbers = ["150", "350", "358", "397", "820", "1193", "310", "574", "221", "905"];
+    const rows = civicNumbers.map((civicNumber, index) => [
+      `contact${index}@example.ca`,
+      ["Béliveau", "Côté", "Noël", "Bérubé", "L'Heureux"][index % 5],
+      ["Simon", "Hélène", "André", "François", "Maïté"][index % 5],
+      civicNumber,
+      "Avenue Léo-Lacombe",
+      "Deux-Montagnes",
+      "QC",
+      "J7R 3W7",
+      "Canada",
+      index < 3 ? ["620", "201", "1204"][index] : "",
+    ].join(";")).join("\n");
+
+    const analysis = analyzeCSVContacts(rows);
+
+    expect(analysis.mapping.requiresConfirmation).toBe(false);
+    expect(analysis.mapping.apartment?.index).toBe(9);
+    expect(analysis.drafts[0].apartment).toBe("620");
+    expect(analysis.drafts[3].apartment).toBe("");
+  });
+
   it("utilise les téléphones secondaires lorsqu'un téléphone principal est vide", () => {
     const csv = [
       "First Name,Last Name,Email,Primary Phone,Mobile Phone,Date,Postal Code",
@@ -255,20 +305,20 @@ describe("détection autonome de la structure CSV", () => {
     expect(analysis.drafts.every((contact) => contact.phone === "")).toBe(true);
   });
 
-  it("demande une confirmation seulement lorsque deux colonnes de noms sont ambiguës", () => {
+  it("demande une petite confirmation seulement pour le nom lorsqu'il est ambigu", () => {
     const csv = [
-      "François;Béliveau",
-      "Hélène;Côté",
-      "André;Noël",
-      "Maïté;Côte-des-Neiges",
+      "Béliveau;François",
+      "Côté;Hélène",
+      "Noël;André",
+      "Côte-des-Neiges;Maïté",
     ].join("\n");
     const analysis = analyzeCSVContacts(csv);
 
     expect(analysis.mapping.hasHeader).toBe(false);
     expect(analysis.mapping.requiresConfirmation).toBe(true);
+    expect(analysis.mapping.confirmationFields).toEqual(["lastName"]);
 
-    const firstNameMapping = updateCSVMapping(analysis.mapping, "firstName", 0);
-    const confirmedMapping = updateCSVMapping(firstNameMapping, "lastName", 1);
+    const confirmedMapping = updateCSVMapping(analysis.mapping, "lastName", 0);
     expect(parseCSVContactsWithMapping(csv, confirmedMapping)[0]).toMatchObject({
       firstName: "François",
       lastName: "Béliveau",

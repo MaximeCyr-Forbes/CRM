@@ -14,6 +14,7 @@ export type CSVImportField =
   | "province"
   | "postalCode"
   | "country";
+export type CSVConfirmationField = Extract<CSVImportField, "firstName" | "lastName" | "fullName" | "email" | "phone">;
 
 export type CSVColumnMatch = {
   index: number;
@@ -34,6 +35,7 @@ export type CSVImportMapping = {
   profileId: string | null;
   signature: string;
   requiresConfirmation: boolean;
+  confirmationFields: CSVConfirmationField[];
   columns: CSVImportColumn[];
   firstName: CSVColumnMatch | null;
   lastName: CSVColumnMatch | null;
@@ -71,6 +73,7 @@ type ColumnProfile = {
   addressRatio: number;
   provinceRatio: number;
   apartmentRatio: number;
+  apartmentCandidateRatio: number;
   countryRatio: number;
   knownCityRatio: number;
   cityScore: number;
@@ -292,6 +295,13 @@ function looksLikeApartment(value: string) {
     || /^#\s*[a-z0-9-]+$/i.test(value.trim());
 }
 
+function looksLikeApartmentCandidate(value: string) {
+  const trimmed = value.trim();
+  if (looksLikeApartment(trimmed)) return true;
+  if (looksLikePhone(trimmed) || looksLikeDate(trimmed) || looksLikeCanadianPostalCode(trimmed)) return false;
+  return /^(?:\d{1,4}|[a-z]|ph\d{1,3}|[a-z]\d{1,4})$/i.test(trimmed);
+}
+
 function looksLikeCountry(value: string) {
   return /^(canada|ca|united states|usa|[eé]tats-unis|france|mexique|mexico)$/i.test(value.trim());
 }
@@ -393,6 +403,7 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
     const addressRatio = ratio(values, looksLikeAddress);
     const provinceRatio = ratio(values, looksLikeProvince);
     const apartmentRatio = ratio(values, looksLikeApartment);
+    const apartmentCandidateRatio = ratio(values, looksLikeApartmentCandidate);
     const countryRatio = ratio(values, looksLikeCountry);
     const knownCityRatio = ratio(values, looksLikeKnownCity);
     const wordShapeScore = averageWords > 0 && averageWords <= 2.5 ? 1 : averageWords <= 4 ? 0.55 : 0;
@@ -414,6 +425,7 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
       addressRatio,
       provinceRatio,
       apartmentRatio,
+      apartmentCandidateRatio,
       countryRatio,
       knownCityRatio,
       cityScore,
@@ -528,6 +540,41 @@ function civicAddressPairScore(
   ));
 }
 
+function apartmentAddressPairScore(
+  rows: ReadonlyArray<ReadonlyArray<string>>,
+  apartmentProfile: ColumnProfile,
+  addressProfile: ColumnProfile,
+  civicProfile: ColumnProfile | null,
+) {
+  const sampleRows = rows.slice(0, MAX_INFERENCE_ROWS);
+  let apartmentRows = 0;
+  let associatedRows = 0;
+
+  for (const row of sampleRows) {
+    const apartment = normalizeImportedValue(row[apartmentProfile.index] ?? "");
+    if (!apartment) continue;
+    apartmentRows += 1;
+    const address = normalizeImportedValue(row[addressProfile.index] ?? "");
+    const civicNumber = civicProfile ? normalizeImportedValue(row[civicProfile.index] ?? "") : "";
+    if (looksLikeApartmentCandidate(apartment) && looksLikeAddress(address) && (!civicProfile || looksLikeCivicNumber(civicNumber))) {
+      associatedRows += 1;
+    }
+  }
+
+  const associationRatio = apartmentRows === 0 ? 0 : associatedRows / apartmentRows;
+  const sparseCoverageScore = apartmentProfile.coverage <= 0.45
+    ? 1
+    : Math.max(0, (0.8 - apartmentProfile.coverage) / 0.35);
+  return Math.max(0, Math.min(1,
+    apartmentProfile.apartmentCandidateRatio * 0.3
+    + associationRatio * 0.3
+    + sparseCoverageScore * 0.2
+    + apartmentProfile.apartmentRatio * 0.15
+    + (1 - apartmentProfile.sequentialNumberRatio) * 0.05
+    - apartmentProfile.sequentialNumberRatio * 0.45,
+  ));
+}
+
 function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"): CSVImportMapping {
   const headerRow = hasHeader ? rows[0] : null;
   const dataRows = hasHeader ? rows.slice(1) : rows;
@@ -587,14 +634,17 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     score: (profile: ColumnProfile) => number,
     threshold: number,
     excluded: ReadonlySet<number> = new Set(),
+    minimumGap = 0,
   ) => {
-    const best = profiles
+    const candidates = profiles
       .filter((profile) => profile.nonEmptyCount > 0 && !excluded.has(profile.index) && score(profile) >= threshold)
-      .sort((first, second) => score(second) - score(first) || second.coverage - first.coverage)[0];
+      .sort((first, second) => score(second) - score(first) || second.coverage - first.coverage);
+    const [best, second] = candidates;
+    if (best && second && score(best) - score(second) < minimumGap) return null;
     return best ? matchColumn(best, headerRow, score(best), "content") : null;
   };
 
-  const address = headerMatch("address") ?? bestContentMatch((profile) => profile.addressRatio, 0.5);
+  const address = headerMatch("address") ?? bestContentMatch((profile) => profile.addressRatio, 0.5, new Set(), 0.08);
   const addressProfile = address ? profileByIndex.get(address.index) ?? null : null;
   const civicHeaderMatch = headerMatch("civicNumber");
   const civicHeaderIsAmbiguous = civicHeaderMatch
@@ -611,7 +661,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
       .filter((candidate) => candidate.score >= 0.68)
       .sort((first, second) => second.score - first.score || second.profile.coverage - first.profile.coverage)
     : [];
-  const inferredCivic = civicCandidates[0]
+  const inferredCivic = civicCandidates[0] && (!civicCandidates[1] || civicCandidates[0].score - civicCandidates[1].score >= 0.08)
     ? matchColumn(civicCandidates[0].profile, headerRow, civicCandidates[0].score, "content")
     : null;
   const civicNumber = civicHeaderMatch && !civicHeaderIsAmbiguous
@@ -620,10 +670,23 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
       ? { ...inferredCivic, source: "header" as const }
       : inferredCivic;
   const addressExcluded = new Set([address?.index, civicNumber?.index].filter((index): index is number => index !== undefined));
-  const apartment = headerMatch("apartment") ?? bestContentMatch((profile) => profile.apartmentRatio, 0.5, addressExcluded);
-  const postalCode = headerMatch("postalCode") ?? bestContentMatch((profile) => profile.postalRatio, 0.6, addressExcluded);
-  const province = headerMatch("province") ?? bestContentMatch((profile) => profile.provinceRatio, 0.6, addressExcluded);
-  const country = headerMatch("country") ?? bestContentMatch((profile) => profile.countryRatio, 0.6, addressExcluded);
+  const civicProfile = civicNumber ? profileByIndex.get(civicNumber.index) ?? null : null;
+  const apartmentHeader = headerMatch("apartment");
+  const apartmentCandidates = !apartmentHeader && addressProfile
+    ? profiles
+      .filter((profile) => !addressExcluded.has(profile.index) && profile.nonEmptyCount > 0)
+      .filter((profile) => profile.emailRatio < 0.2 && profile.phoneRatio < 0.2 && profile.dateRatio < 0.2 && profile.postalRatio < 0.2)
+      .map((profile) => ({ profile, score: apartmentAddressPairScore(dataRows, profile, addressProfile, civicProfile) }))
+      .filter((candidate) => candidate.score >= 0.78)
+      .sort((first, second) => second.score - first.score || second.profile.coverage - first.profile.coverage)
+    : [];
+  const apartment = apartmentHeader
+    ?? (apartmentCandidates[0] && (!apartmentCandidates[1] || apartmentCandidates[0].score - apartmentCandidates[1].score >= 0.08)
+      ? matchColumn(apartmentCandidates[0].profile, headerRow, apartmentCandidates[0].score, "content")
+      : null);
+  const postalCode = headerMatch("postalCode") ?? bestContentMatch((profile) => profile.postalRatio, 0.6, addressExcluded, 0.08);
+  const province = headerMatch("province") ?? bestContentMatch((profile) => profile.provinceRatio, 0.6, addressExcluded, 0.08);
+  const country = headerMatch("country") ?? bestContentMatch((profile) => profile.countryRatio, 0.6, addressExcluded, 0.08);
   const locationIndexes = new Set([
     address?.index,
     civicNumber?.index,
@@ -632,7 +695,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     province?.index,
     country?.index,
   ].filter((index): index is number => index !== undefined));
-  let city = headerMatch("city") ?? bestContentMatch((profile) => profile.cityScore, 0.5, locationIndexes);
+  let city = headerMatch("city") ?? bestContentMatch((profile) => profile.cityScore, 0.5, locationIndexes, 0.08);
   if (!city) {
     const anchors = [...locationIndexes];
     const nearbyCity = profiles
@@ -703,13 +766,24 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     && lastName?.source === "content"
     && Math.abs(firstName.confidence - lastName.confidence) < 0.08;
   const missingIdentityMapping = !email && phoneMatches.length === 0 && !fullName && !firstName && !lastName;
+  const confirmationFields = new Set<CSVConfirmationField>();
+  if (emailAmbiguous) confirmationFields.add("email");
+  if (separateNamesAmbiguous) {
+    confirmationFields.add("lastName");
+  }
+  if (missingIdentityMapping) {
+    confirmationFields.add("fullName");
+    confirmationFields.add("email");
+    confirmationFields.add("phone");
+  }
 
   return {
     delimiter,
     hasHeader,
     profileId,
     signature: `${profileId ?? (hasHeader ? "header" : "data")}:${profiles.map(dominantColumnType).join("|")}`,
-    requiresConfirmation: emailAmbiguous || separateNamesAmbiguous || missingIdentityMapping,
+    requiresConfirmation: confirmationFields.size > 0,
+    confirmationFields: [...confirmationFields],
     columns,
     firstName,
     lastName,
@@ -788,6 +862,11 @@ export function updateCSVMapping(
     updated.lastName = null;
   } else if ((field === "firstName" || field === "lastName") && match) {
     updated.fullName = null;
+    const otherField = field === "firstName" ? "lastName" : "firstName";
+    if (updated[otherField]?.index === match.index) {
+      const previousMatch = mapping[field];
+      updated[otherField] = previousMatch && previousMatch.index !== match.index ? previousMatch : null;
+    }
   } else if (field === "phone") {
     const formerPhones = [mapping.phone, ...mapping.phoneFallbacks]
       .filter((candidate): candidate is CSVColumnMatch => Boolean(candidate))

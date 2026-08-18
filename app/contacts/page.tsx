@@ -439,20 +439,24 @@ export default function ContactsPage() {
 
       {pendingImport && <div className="import-review-layer"><section className="import-review-shell">
         <header className="import-review-header"><div><p className="section-kicker">{pendingImport.fileName}</p><h2>{reviewCounts.all} CONTACTS DÉTECTÉS</h2><p>{reviewCounts.new} nouveaux · {reviewCounts.duplicate} doublons possibles · {reviewCounts.incomplete} incomplets</p></div><div className="import-review-header-actions"><button onClick={() => setPendingImport(null)} type="button">ANNULER</button><button className="finish-import" disabled={isSaving} onClick={() => void finishImport()} type="button">TERMINER L’IMPORT</button></div></header>
-        {pendingImport.mapping && <section className={`import-mapping-summary ${!pendingImport.mappingConfirmed ? "import-mapping-needs-confirmation" : ""}`}>
-          <div className="import-mapping-heading"><div><strong>{pendingImport.mappingConfirmed ? (mappingWasAdjusted ? "Mapping confirmé ✓" : "Structure détectée automatiquement ✓") : "Vérification du mapping requise"}</strong><span>{pendingImport.mapping.hasHeader ? "Ligne d’en-tête reconnue" : "Fichier sans en-tête · première ligne conservée"}</span></div><small>Profil : {pendingImport.mapping.signature}</small></div>
-          {pendingImport.mappingConfirmed ? <dl className="import-mapping-grid">
-            {csvMappingFields.map((field) => {
-              const match = pendingImport.mapping?.[field];
-              if (!match && field === "fullName") return null;
-              const alternatives = field === "phone" ? pendingImport.mapping?.phoneFallbacks.length ?? 0 : 0;
-              return <div key={field}><dt>{csvMappingLabels[field]}</dt><dd>{match ? `${match.label} · ${Math.round(match.confidence * 100)} %${alternatives > 0 ? ` + ${alternatives} secours` : ""}` : "Non détecté"}</dd></div>;
-            })}
-          </dl> : <div className="import-mapping-confirmation">
-            <p>Deux colonnes sont trop proches pour être départagées avec assez de certitude. Vérifiez seulement ce mapping.</p>
-            <div className="import-mapping-selects">{csvMappingFields.map((field) => <label key={field}><span>{csvMappingLabels[field]}</span><select onChange={(event) => remapCSVField(field, event.target.value)} value={pendingImport.mapping?.[field]?.index ?? ""}><option value="">Non attribué</option>{pendingImport.mapping?.columns.map((column) => <option key={column.index} value={column.index}>{column.label}{column.example ? ` · ${column.example}` : ""}</option>)}</select></label>)}</div>
-            <button onClick={() => { setImportError(null); setPendingImport((current) => current ? { ...current, mappingConfirmed: true } : null); }} type="button">CONFIRMER LE MAPPING</button>
-          </div>}
+        {pendingImport.mapping && pendingImport.mappingConfirmed && <details className="import-mapping-auto">
+          <summary><strong>{mappingWasAdjusted ? "Structure du fichier ajustée ✓" : "Structure du fichier détectée automatiquement ✓"}</strong><span>Voir le mapping détecté</span></summary>
+          <div className="import-mapping-details"><div className="import-mapping-heading"><span>{pendingImport.mapping.hasHeader ? "Ligne d’en-tête reconnue" : "Fichier sans en-tête · première ligne conservée"}</span><small>Profil : {pendingImport.mapping.signature}</small></div><dl className="import-mapping-grid">
+              {csvMappingFields.map((field) => {
+                const match = pendingImport.mapping?.[field];
+                if (!match && field === "fullName") return null;
+                const alternatives = field === "phone" ? pendingImport.mapping?.phoneFallbacks.length ?? 0 : 0;
+                return <div key={field}><dt>{csvMappingLabels[field]}</dt><dd>{match ? `${match.label} · ${Math.round(match.confidence * 100)} %${alternatives > 0 ? ` + ${alternatives} secours` : ""}` : "Non détecté"}</dd></div>;
+              })}
+            </dl></div>
+        </details>}
+        {pendingImport.mapping && !pendingImport.mappingConfirmed && <section className="import-mapping-summary import-mapping-needs-confirmation">
+          <div className="import-mapping-heading"><div><strong>Une information essentielle doit être confirmée</strong><span>Vérifiez seulement le ou les champs ci-dessous.</span></div></div>
+          <div className="import-mapping-confirmation">
+            <p>{pendingImport.mapping.confirmationFields.length === 1 && pendingImport.mapping.confirmationFields[0] === "lastName" ? "Nous ne savons pas quelle colonne contient le nom." : pendingImport.mapping.confirmationFields.some((field) => field === "firstName" || field === "lastName" || field === "fullName") ? "Nous ne savons pas distinguer avec certitude le prénom et le nom." : "Deux sources d’identité semblent également probables."}</p>
+            <div className="import-mapping-selects">{pendingImport.mapping.confirmationFields.map((field) => <label key={field}><span>{csvMappingLabels[field]}</span><select onChange={(event) => remapCSVField(field, event.target.value)} value={pendingImport.mapping?.[field]?.index ?? ""}><option value="">Non attribué</option>{pendingImport.mapping?.columns.map((column) => <option key={column.index} value={column.index}>{column.example || (pendingImport.mapping?.hasHeader ? column.label : "Champ disponible")}</option>)}</select></label>)}</div>
+            <button onClick={() => { setImportError(null); setPendingImport((current) => current ? { ...current, mappingConfirmed: true } : null); }} type="button">CONFIRMER</button>
+          </div>
         </section>}
         <div className="import-review-filters">{(Object.keys(reviewLabels) as ReviewFilter[]).map((filter) => <button className={reviewFilter === filter ? "contact-filter-active" : ""} key={filter} onClick={() => setReviewFilter(filter)} type="button">{reviewLabels[filter]} <span>{reviewCounts[filter]}</span></button>)}</div>
         {importError && <p className="import-error">{importError}</p>}
