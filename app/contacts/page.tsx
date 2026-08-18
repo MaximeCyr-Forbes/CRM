@@ -66,11 +66,11 @@ type PendingManualDuplicate = {
 
 const emptyDraft: ContactDraft = {
   firstName: "", lastName: "", phone: "", email: "",
-  address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
+  civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
 };
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email",
-  address: "Adresse", apartment: "Appartement", city: "Ville", province: "Province",
+  civicNumber: "Numéro civique", address: "Rue", apartment: "Appartement", city: "Ville", province: "Province",
   postalCode: "Code postal", country: "Pays",
 };
 const filterOptions: ReadonlyArray<{ label: string; value: ContactFilter }> = [
@@ -92,7 +92,8 @@ const csvMappingLabels: Record<CSVImportField, string> = {
   fullName: "Nom complet",
   email: "Email",
   phone: "Téléphone",
-  address: "Adresse",
+  civicNumber: "Numéro civique",
+  address: "Rue",
   apartment: "Appartement",
   city: "Ville",
   province: "Province",
@@ -405,7 +406,7 @@ export default function ContactsPage() {
         <section className="contacts-directory">
           <div className="contacts-tools">
             <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => setActiveFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
-            <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Nom, téléphone ou email" type="search" value={search} /></label>
+            <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
           </div>
           <div className="contacts-list">
             <div className="contacts-list-head" aria-hidden="true"><span>Contact</span><span>Coordonnées</span><span>Courtier</span><span>Suivi</span><span>Actions</span></div>

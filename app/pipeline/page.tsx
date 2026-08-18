@@ -40,9 +40,10 @@ type PendingDuplicate = {
 
 const emptyDraft: ContactDraft = {
   firstName: "", lastName: "", phone: "", email: "",
-  address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
+  civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
 };
-const draftLabels: Record<keyof ContactDraft, string> = {
+type PipelineDraftField = Exclude<keyof ContactDraft, "civicNumber">;
+const draftLabels: Record<PipelineDraftField, string> = {
   firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email",
   address: "Adresse", apartment: "Appartement", city: "Ville", province: "Province",
   postalCode: "Code postal", country: "Pays",
@@ -155,6 +156,7 @@ export default function PipelinePage() {
       lastName: merged.lastName,
       phone: merged.phone,
       email: merged.email,
+      civicNumber: merged.civicNumber,
       address: merged.address,
       apartment: merged.apartment,
       city: merged.city,
@@ -234,7 +236,7 @@ export default function PipelinePage() {
             </header>
             {addStep === "details" ? (
               <form className="manual-contact-form" onSubmit={submitDetails}>
-                {(Object.keys(draftLabels) as Array<keyof ContactDraft>).map((field) => (
+                {(Object.keys(draftLabels) as PipelineDraftField[]).map((field) => (
                   <label key={field}>
                     <span>{draftLabels[field]}</span>
                     <input onChange={(event) => setDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : "text"} value={draft[field]} />

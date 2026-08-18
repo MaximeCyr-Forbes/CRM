@@ -71,6 +71,7 @@ export function searchableContactText(contact: ContactDraft) {
     normalizeFullName(contact),
     normalizePhone(contact.phone),
     normalizeEmail(contact.email),
+    normalizeName(contact.civicNumber),
     normalizeName(contact.address),
     normalizeName(contact.apartment),
     normalizeName(contact.city),

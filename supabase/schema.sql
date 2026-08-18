@@ -42,6 +42,7 @@ create table if not exists public.contacts (
   last_name text not null default '',
   phone text not null default '',
   email text not null default '',
+  civic_number text not null default '',
   address text not null default '',
   apartment text not null default '',
   city text not null default '',
@@ -82,6 +83,7 @@ create table if not exists public.contacts (
 );
 
 alter table public.contacts
+  add column if not exists civic_number text not null default '',
   add column if not exists address text not null default '',
   add column if not exists apartment text not null default '',
   add column if not exists city text not null default '',
@@ -281,6 +283,12 @@ drop function if exists public.merge_contacts(
   public.contact_status, date, text, public.broker_assignment, uuid
 );
 
+drop function if exists public.merge_contacts(
+  uuid, uuid, text, text, text, text, text, text, text, text, text, text,
+  public.broker_assignment, public.client_type, public.contact_priority,
+  public.contact_status, date, text, public.broker_assignment, uuid
+);
+
 create or replace function public.merge_contacts(
   p_target_id uuid,
   p_source_id uuid,
@@ -288,6 +296,7 @@ create or replace function public.merge_contacts(
   p_last_name text,
   p_phone text,
   p_email text,
+  p_civic_number text,
   p_address text,
   p_apartment text,
   p_city text,
@@ -342,6 +351,7 @@ begin
     last_name = trim(p_last_name),
     phone = trim(p_phone),
     email = trim(p_email),
+    civic_number = trim(p_civic_number),
     address = trim(p_address),
     apartment = trim(p_apartment),
     city = trim(p_city),
@@ -395,6 +405,8 @@ create index if not exists contacts_phone_trgm_idx
   on public.contacts using gin (phone gin_trgm_ops);
 create index if not exists contacts_email_trgm_idx
   on public.contacts using gin (email gin_trgm_ops);
+create index if not exists contacts_civic_number_trgm_idx
+  on public.contacts using gin (civic_number gin_trgm_ops);
 create index if not exists contacts_address_trgm_idx
   on public.contacts using gin (address gin_trgm_ops);
 create index if not exists contacts_city_trgm_idx
@@ -462,7 +474,7 @@ revoke all on public.transaction_deadlines from anon, authenticated;
 revoke all on public.transaction_notes from anon, authenticated;
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment) from public, anon;
 revoke execute on function public.merge_contacts(
-  uuid, uuid, text, text, text, text, text, text, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text, text, text, text,
   public.broker_assignment, public.client_type, public.contact_priority,
   public.contact_status, date, text, public.broker_assignment, uuid
 ) from public, anon, authenticated;
@@ -486,7 +498,7 @@ grant usage on type public.client_type to service_role;
 grant usage on type public.contact_priority to service_role;
 grant usage on type public.contact_status to service_role;
 grant execute on function public.merge_contacts(
-  uuid, uuid, text, text, text, text, text, text, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text, text, text, text,
   public.broker_assignment, public.client_type, public.contact_priority,
   public.contact_status, date, text, public.broker_assignment, uuid
 ) to service_role;

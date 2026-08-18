@@ -20,6 +20,7 @@ function parseValues(value: unknown): ContactUpdate | null {
     typeof data.lastName !== "string" ||
     typeof data.phone !== "string" ||
     typeof data.email !== "string" ||
+    typeof data.civicNumber !== "string" ||
     typeof data.address !== "string" ||
     typeof data.apartment !== "string" ||
     typeof data.city !== "string" ||

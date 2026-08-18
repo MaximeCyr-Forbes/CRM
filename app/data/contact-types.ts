@@ -42,6 +42,7 @@ export type Contact = {
   lastName: string;
   phone: string;
   email: string;
+  civicNumber: string;
   address: string;
   apartment: string;
   city: string;
@@ -70,6 +71,7 @@ export const CONTACT_DRAFT_FIELDS = [
   "lastName",
   "phone",
   "email",
+  "civicNumber",
   "address",
   "apartment",
   "city",
@@ -86,6 +88,7 @@ export type ContactUpdate = Pick<
   | "lastName"
   | "phone"
   | "email"
+  | "civicNumber"
   | "address"
   | "apartment"
   | "city"
@@ -157,11 +160,18 @@ export function getContactName(contact: ContactDraft) {
 }
 
 export function getContactAddressLines(contact: ContactDraft) {
+  const civicNumber = contact.civicNumber.trim();
+  const address = contact.address.trim();
   const apartment = contact.apartment.trim();
   const apartmentLabel = apartment && !/^(app\.?|apt\.?|appartement|unit[eé]|suite|#)/i.test(apartment)
     ? `app. ${apartment}`
     : apartment;
-  const streetLine = [contact.address.trim(), apartmentLabel].filter(Boolean).join(", ");
+  const addressAlreadyContainsNumber = civicNumber
+    && new RegExp(`^${civicNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|,|$)`, "i").test(address);
+  const streetAddress = address
+    ? [addressAlreadyContainsNumber ? "" : civicNumber, address].filter(Boolean).join(" ")
+    : "";
+  const streetLine = [streetAddress, apartmentLabel].filter(Boolean).join(", ");
   const provinceAndPostal = [contact.province.trim(), contact.postalCode.trim()].filter(Boolean).join(" ");
   const localityLine = [contact.city.trim(), provinceAndPostal].filter(Boolean).join(", ");
   return [streetLine, localityLine, contact.country.trim()].filter(Boolean);

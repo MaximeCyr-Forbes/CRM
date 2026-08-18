@@ -26,7 +26,7 @@ const requiredPhones = [
   "+1 (514) 709-6348",
   "+15146076748",
 ] as const;
-const emptyAddress = { address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
+const emptyAddress = { civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -46,43 +46,52 @@ function encodeWindows1252(value: string) {
 describe("détection autonome de la structure CSV", () => {
   it("importe une adresse résidentielle répartie sur plusieurs colonnes", () => {
     const csv = [
-      "Courriel;Nom;Prénom;Adresse;Appartement;Ville;Province;Code postal;Pays",
-      "simon@example.ca;Béliveau;Simon Pierre;125 Avenue Léo-Lacombe;App 4;Deux-Montagnes;QC;J7R 3W7;Canada",
+      "Courriel;Nom;Prénom;Numéro civique;Rue;Appartement;Ville;Province;Code postal;Pays",
+      "simon@example.ca;Béliveau;Simon Pierre;150;Avenue Léo-Lacombe;App 4;Deux-Montagnes;QC;J7R 3W7;Canada",
     ].join("\r\n");
 
     const analysis = analyzeCSVContacts(csv);
 
     expect(analysis.mapping).toMatchObject({
       hasHeader: true,
-      address: { index: 3 },
-      apartment: { index: 4 },
-      city: { index: 5 },
-      province: { index: 6 },
-      postalCode: { index: 7 },
-      country: { index: 8 },
+      civicNumber: { index: 3 },
+      address: { index: 4 },
+      apartment: { index: 5 },
+      city: { index: 6 },
+      province: { index: 7 },
+      postalCode: { index: 8 },
+      country: { index: 9 },
     });
     expect(analysis.drafts[0]).toEqual({
       firstName: "Simon Pierre",
       lastName: "Béliveau",
       phone: "",
       email: "simon@example.ca",
-      address: "125 Avenue Léo-Lacombe",
+      civicNumber: "150",
+      address: "Avenue Léo-Lacombe",
       apartment: "App 4",
       city: "Deux-Montagnes",
       province: "QC",
       postalCode: "J7R 3W7",
       country: "Canada",
     });
+
+    const withoutCivic = updateCSVMapping(analysis.mapping, "civicNumber", null);
+    const remapped = updateCSVMapping(withoutCivic, "civicNumber", 3);
+    expect(remapped.civicNumber).toMatchObject({ index: 3, source: "manual" });
+    expect(parseCSVContactsWithMapping(csv, remapped)[0].civicNumber).toBe("150");
   });
 
   it("conserve une adresse complète provenant d'une seule colonne", () => {
     const csv = [
-      "First Name,Last Name,Email,Full Address",
-      'Hélène,Côté,helene@example.ca,"125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7"',
+      "First Name,Last Name,Email,Full Address,External ID",
+      'Hélène,Côté,helene@example.ca,"125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7",46213',
+      'André,Noël,andre@example.ca,"820 25e Avenue, Deux-Montagnes, QC J7R 3W7",46214',
     ].join("\n");
 
     const analysis = analyzeCSVContacts(csv);
     expect(analysis.mapping.address?.index).toBe(3);
+    expect(analysis.mapping.civicNumber).toBeNull();
     expect(analysis.drafts[0].address).toBe("125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7");
   });
 
@@ -139,19 +148,25 @@ describe("détection autonome de la structure CSV", () => {
   it("conserve exactement 100 contacts sans headers et reconnaît le profil email-nom-prénom", () => {
     const lastNames = ["Béliveau", "Côté", "Noël", "Côte-des-Neiges"];
     const firstNames = ["François", "Hélène", "André", "Maïté", "Jean-François", "Marie-Ève"];
+    const civicNumbers = ["150", "350", "358", "397", "820", "1193", "310", "574"];
+    const streets = ["Avenue Léo-Lacombe", "14e Avenue", "rue des Cerisiers", "60e Avenue", "25e Avenue", "rue Ovila-Forget", "17e Avenue"];
     const rows = Array.from({ length: 100 }, (_, index) => {
       const columns = Array<string>(65).fill("");
       columns[0] = `contact${index}@example.ca`;
       columns[1] = lastNames[index % lastNames.length];
       columns[2] = firstNames[index % firstNames.length];
       columns[10] = `2026-08-${String(index % 28 + 1).padStart(2, "0")}`;
-      columns[11] = index % 2 === 0 ? "J7R 3W7" : "H7N 3Y2";
-      columns[12] = `${100 + index} Avenue Léo-Lacombe`;
-      columns[13] = "Deux-Montagnes";
-      columns[14] = "Québec";
+      columns[12] = String(46213 + index);
       columns[20] = "Français";
+      columns[34] = index % 2 === 0 ? "J7R 3W7" : "H7N 3Y2";
+      columns[48] = civicNumbers[index % civicNumbers.length];
+      columns[50] = "Canada";
+      columns[52] = "Québec";
+      columns[54] = streets[index % streets.length];
+      columns[58] = index % 3 === 0 ? `App ${index % 12 + 1}` : "";
       if (index % 2 === 0) columns[61] = requiredPhones[index % requiredPhones.length];
       if (index % 2 === 1) columns[63] = requiredPhones[index % requiredPhones.length];
+      columns[64] = "Deux-Montagnes";
       return columns.join(";");
     });
 
@@ -169,18 +184,47 @@ describe("détection autonome de la structure CSV", () => {
     });
     expect(analysis.mapping.phoneFallbacks.map((match) => match.index)).toContain(63);
     expect(analysis.mapping).toMatchObject({
-      address: { index: 12 },
-      city: { index: 13 },
-      province: { index: 14 },
-      postalCode: { index: 11 },
+      civicNumber: { index: 48 },
+      address: { index: 54 },
+      apartment: { index: 58 },
+      city: { index: 64 },
+      province: { index: 52 },
+      postalCode: { index: 34 },
+      country: { index: 50 },
     });
     expect(analysis.drafts[0]).toMatchObject({ firstName: "François", lastName: "Béliveau", phone: "514-835-5524" });
-    expect(analysis.drafts[0]).toMatchObject({ address: "100 Avenue Léo-Lacombe", city: "Deux-Montagnes", province: "Québec", postalCode: "J7R 3W7" });
+    expect(analysis.drafts[0]).toMatchObject({ civicNumber: "150", address: "Avenue Léo-Lacombe", apartment: "App 1", city: "Deux-Montagnes", province: "Québec", postalCode: "J7R 3W7", country: "Canada" });
     expect(analysis.drafts[1]).toMatchObject({ firstName: "Hélène", lastName: "Côté", phone: "(450) 472-7808" });
     expect(analysis.drafts.every((contact) => Boolean(contact.phone))).toBe(true);
     expect(analysis.drafts.some((contact) => contact.phone === "J7R 3W7" || contact.phone.startsWith("2026-"))).toBe(false);
     const importedNames = analysis.drafts.flatMap((contact) => [contact.firstName, contact.lastName]);
     expect(requiredNames.every((name) => importedNames.includes(name))).toBe(true);
+  });
+
+  it("écarte téléphone, date, code postal et identifiant séquentiel du numéro civique", () => {
+    const civicNumbers = ["150", "820", "123A", "123-B", "1193"];
+    const streets = ["Avenue Léo-Lacombe", "25e Avenue", "rue des Cerisiers", "17e Avenue", "rue Ovila-Forget"];
+    const csv = civicNumbers.map((civicNumber, index) => [
+      `contact${index}@example.ca`,
+      ["Béliveau", "Côté", "Noël", "Bérubé", "L'Heureux"][index],
+      ["Simon", "Hélène", "André", "François", "Maïté"][index],
+      "5148355524",
+      "2026-08-18",
+      "J7R 3W7",
+      String(46213 + index),
+      civicNumber,
+      streets[index],
+    ].join(";")).join("\n");
+
+    const analysis = analyzeCSVContacts(csv);
+
+    expect(analysis.mapping.hasHeader).toBe(false);
+    expect(analysis.mapping.civicNumber?.index).toBe(7);
+    expect(analysis.mapping.civicNumber?.index).not.toBe(3);
+    expect(analysis.mapping.civicNumber?.index).not.toBe(4);
+    expect(analysis.mapping.civicNumber?.index).not.toBe(5);
+    expect(analysis.mapping.civicNumber?.index).not.toBe(6);
+    expect(analysis.drafts.map((contact) => contact.civicNumber)).toEqual(civicNumbers);
   });
 
   it("utilise les téléphones secondaires lorsqu'un téléphone principal est vide", () => {

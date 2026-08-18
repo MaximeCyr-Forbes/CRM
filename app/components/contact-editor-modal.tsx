@@ -26,6 +26,7 @@ export function ContactEditorModal({
     lastName: contact.lastName,
     phone: contact.phone,
     email: contact.email,
+    civicNumber: contact.civicNumber,
     address: contact.address,
     apartment: contact.apartment,
     city: contact.city,
@@ -62,7 +63,8 @@ export function ContactEditorModal({
           <label><span>Nom</span><input onChange={(event) => setValues((current) => ({ ...current, lastName: event.target.value }))} value={values.lastName} /></label>
           <label><span>Téléphone</span><input onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} type="tel" value={values.phone} /></label>
           <label><span>Email</span><input onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} type="email" value={values.email} /></label>
-          <label className="contact-editor-field-wide"><span>Adresse</span><input onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} /></label>
+          <label><span>Numéro civique</span><input onChange={(event) => setValues((current) => ({ ...current, civicNumber: event.target.value }))} value={values.civicNumber} /></label>
+          <label><span>Rue</span><input onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} /></label>
           <label><span>Appartement / unité</span><input onChange={(event) => setValues((current) => ({ ...current, apartment: event.target.value }))} value={values.apartment} /></label>
           <label><span>Ville</span><input onChange={(event) => setValues((current) => ({ ...current, city: event.target.value }))} value={values.city} /></label>
           <label><span>Province</span><input onChange={(event) => setValues((current) => ({ ...current, province: event.target.value }))} value={values.province} /></label>

@@ -194,6 +194,7 @@ export function parseVCardContacts(text: string): ContactDraft[] {
     let fullName = "";
     let phone = "";
     let email = "";
+    let civicNumber = "";
     let address = "";
     let apartment = "";
     let city = "";
@@ -237,6 +238,7 @@ export function parseVCardContacts(text: string): ContactDraft[] {
       lastName: normalizeImportedValue(lastName),
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(email),
+      civicNumber: normalizeImportedValue(civicNumber),
       address: normalizeImportedValue(address),
       apartment: normalizeImportedValue(apartment),
       city: normalizeImportedValue(city),

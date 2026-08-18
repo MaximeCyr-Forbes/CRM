@@ -32,6 +32,7 @@ type ContactRow = {
   last_name: string;
   phone: string;
   email: string;
+  civic_number: string;
   address: string;
   apartment: string;
   city: string;
@@ -127,6 +128,7 @@ function mapContact(row: ContactRow): Contact {
     lastName: row.last_name,
     phone: row.phone,
     email: row.email,
+    civicNumber: row.civic_number ?? "",
     address: row.address ?? "",
     apartment: row.apartment ?? "",
     city: row.city ?? "",

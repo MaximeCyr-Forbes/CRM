@@ -62,11 +62,11 @@ export async function GET(request: Request) {
 
     let contactsQuery = client
       .from("contacts")
-      .select("id, first_name, last_name, phone, email, address, apartment, city, province, postal_code, country, broker")
+      .select("id, first_name, last_name, phone, email, civic_number, address, apartment, city, province, postal_code, country, broker")
       .limit(8);
     for (const term of terms) {
       contactsQuery = contactsQuery.or(
-        `first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%,address.ilike.%${term}%,apartment.ilike.%${term}%,city.ilike.%${term}%,province.ilike.%${term}%,postal_code.ilike.%${term}%,country.ilike.%${term}%`,
+        `first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%,civic_number.ilike.%${term}%,address.ilike.%${term}%,apartment.ilike.%${term}%,city.ilike.%${term}%,province.ilike.%${term}%,postal_code.ilike.%${term}%,country.ilike.%${term}%`,
       );
     }
     let transactionsQuery = client
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
       id: contact.id as string,
       kind: "contact" as const,
       title: [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact sans nom",
-      detail: [contact.phone, contact.email, [contact.address, contact.city, contact.postal_code].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || `Courtier · ${contact.broker}`,
+      detail: [contact.phone, contact.email, [[contact.civic_number, contact.address].filter(Boolean).join(" "), contact.city, contact.postal_code].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || `Courtier · ${contact.broker}`,
       href: `/contacts/${contact.id}`,
     }));
     const transactionResults = transactionsResult.error ? [] : (transactionsResult.data ?? []).map((transaction) => ({
@@ -125,6 +125,7 @@ export async function POST(request: Request) {
         last_name: textValue(body.draft?.lastName),
         phone: textValue(body.draft?.phone),
         email: textValue(body.draft?.email),
+        civic_number: textValue(body.draft?.civicNumber),
         address: textValue(body.draft?.address),
         apartment: textValue(body.draft?.apartment),
         city: textValue(body.draft?.city),
@@ -150,6 +151,7 @@ export async function POST(request: Request) {
           last_name: textValue(draft.lastName),
           phone: textValue(draft.phone),
           email: textValue(draft.email),
+          civic_number: textValue(draft.civicNumber),
           address: textValue(draft.address),
           apartment: textValue(draft.apartment),
           city: textValue(draft.city),
@@ -204,6 +206,7 @@ export async function POST(request: Request) {
         last_name: textValue(values.lastName),
         phone: textValue(values.phone),
         email: textValue(values.email),
+        civic_number: textValue(values.civicNumber),
         address: textValue(values.address),
         apartment: textValue(values.apartment),
         city: textValue(values.city),

@@ -7,6 +7,7 @@ export type CSVImportField =
   | "fullName"
   | "email"
   | "phone"
+  | "civicNumber"
   | "address"
   | "apartment"
   | "city"
@@ -40,6 +41,7 @@ export type CSVImportMapping = {
   email: CSVColumnMatch | null;
   phone: CSVColumnMatch | null;
   phoneFallbacks: CSVColumnMatch[];
+  civicNumber: CSVColumnMatch | null;
   address: CSVColumnMatch | null;
   apartment: CSVColumnMatch | null;
   city: CSVColumnMatch | null;
@@ -64,6 +66,8 @@ type ColumnProfile = {
   formattedPhoneRatio: number;
   dateRatio: number;
   postalRatio: number;
+  civicNumberRatio: number;
+  sequentialNumberRatio: number;
   addressRatio: number;
   provinceRatio: number;
   apartmentRatio: number;
@@ -86,7 +90,7 @@ type RecognizedNameProfile = {
 const MAX_INFERENCE_ROWS = 200;
 const CSV_IMPORT_FIELDS = new Set<HeaderRole>([
   "firstName", "lastName", "fullName", "email", "phone",
-  "address", "apartment", "city", "province", "postalCode", "country",
+  "civicNumber", "address", "apartment", "city", "province", "postalCode", "country",
 ]);
 
 const HEADER_ALIASES: Record<CSVImportField, ReadonlyArray<string>> = {
@@ -115,6 +119,7 @@ const HEADER_ALIASES: Record<CSVImportField, ReadonlyArray<string>> = {
     "workphone",
     "businessphone",
   ],
+  civicNumber: ["numerocivique", "civicnumber", "streetnumber", "housenumber", "numero", "nocivique"],
   address: ["adresse", "address", "adressecomplete", "fulladdress", "streetaddress", "rue", "street", "addressline1"],
   apartment: ["appartement", "apartment", "app", "apt", "unite", "unit", "suite", "addressline2"],
   city: ["ville", "city", "municipalite", "municipality", "localite", "locality"],
@@ -241,13 +246,44 @@ function looksLikeDate(value: string) {
     || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed);
 }
 
+function looksLikeCivicNumber(value: string) {
+  const trimmed = value.trim();
+  if (
+    !trimmed
+    || looksLikeDate(trimmed)
+    || looksLikeCanadianPostalCode(trimmed)
+    || looksLikeEmail(trimmed)
+    || /[$€£]|\d[.,]\d{2}$/.test(trimmed)
+  ) return false;
+  return /^\d{1,6}(?:[a-z]|-[a-z0-9]{1,6})?$/i.test(trimmed);
+}
+
+function sequentialNumberRatio(values: ReadonlyArray<string>) {
+  const numericValues = values
+    .filter((value) => /^\d{1,6}$/.test(value.trim()))
+    .map(Number);
+  if (numericValues.length < 4) return 0;
+  let sequentialPairs = 0;
+  for (let index = 1; index < numericValues.length; index += 1) {
+    if (Math.abs(numericValues[index] - numericValues[index - 1]) === 1) sequentialPairs += 1;
+  }
+  return sequentialPairs / (numericValues.length - 1);
+}
+
 function looksLikeProvince(value: string) {
   return /^(qc|qu[eé]bec|on|ontario|nb|nouveau-brunswick|ns|nouvelle-[eé]cosse|pe|ipe|mb|manitoba|sk|saskatchewan|ab|alberta|bc|colombie-britannique)$/i.test(value.trim());
+}
+
+function looksLikeAddressWithCivicNumber(value: string) {
+  const trimmed = value.trim();
+  if (/^\d{1,3}(?:e|er|re)\s+(?:avenue|rue|rang)\b/iu.test(trimmed)) return false;
+  return /^\d{1,6}(?:[a-z]|-[a-z0-9]{1,6})?,?\s+\p{L}/iu.test(trimmed);
 }
 
 function looksLikeAddress(value: string) {
   const trimmed = value.trim();
   return /^\d{1,6},?\s+\S+/u.test(trimmed)
+    || /^\d{1,3}(?:e|er|re)\s+(?:avenue|rue|rang)\b/iu.test(trimmed)
     || /^(rue|avenue|av\.?|boulevard|boul\.?|chemin|ch\.?|route|rang|place|mont[eé]e)\b/iu.test(trimmed);
 }
 
@@ -320,6 +356,7 @@ function looksLikeName(value: string) {
     || looksLikePhone(trimmed)
     || looksLikeDate(trimmed)
     || looksLikeCanadianPostalCode(trimmed)
+    || looksLikeCivicNumber(trimmed)
     || looksLikeProvince(trimmed)
     || looksLikeAddress(trimmed)
     || looksLikeApartment(trimmed)
@@ -352,13 +389,14 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
     const phoneRatio = ratio(values, looksLikePhone);
     const dateRatio = ratio(values, looksLikeDate);
     const postalRatio = ratio(values, looksLikeCanadianPostalCode);
+    const civicNumberRatio = ratio(values, looksLikeCivicNumber);
     const addressRatio = ratio(values, looksLikeAddress);
     const provinceRatio = ratio(values, looksLikeProvince);
     const apartmentRatio = ratio(values, looksLikeApartment);
     const countryRatio = ratio(values, looksLikeCountry);
     const knownCityRatio = ratio(values, looksLikeKnownCity);
     const wordShapeScore = averageWords > 0 && averageWords <= 2.5 ? 1 : averageWords <= 4 ? 0.55 : 0;
-    const exclusionPenalty = Math.max(emailRatio, phoneRatio, dateRatio, postalRatio, addressRatio, provinceRatio, apartmentRatio, countryRatio, knownCityRatio);
+    const exclusionPenalty = Math.max(emailRatio, phoneRatio, dateRatio, postalRatio, civicNumberRatio, addressRatio, provinceRatio, apartmentRatio, countryRatio, knownCityRatio);
     const nameScore = Math.max(0, nameRatio * 0.58 + uniqueness * 0.27 + wordShapeScore * 0.15 - exclusionPenalty * 0.8);
     const cityScore = Math.min(1, knownCityRatio * 0.82 + nameRatio * 0.12 + (1 - uniqueness) * 0.06);
 
@@ -371,6 +409,8 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
       formattedPhoneRatio: ratio(values.filter(looksLikePhone), hasPhoneFormatting),
       dateRatio,
       postalRatio,
+      civicNumberRatio,
+      sequentialNumberRatio: sequentialNumberRatio(values),
       addressRatio,
       provinceRatio,
       apartmentRatio,
@@ -421,6 +461,7 @@ function dominantColumnType(profile: ColumnProfile) {
     ["phone", profile.phoneRatio],
     ["date", profile.dateRatio],
     ["postal", profile.postalRatio],
+    ["civicNumber", profile.civicNumberRatio * (1 - profile.sequentialNumberRatio)],
     ["address", profile.addressRatio],
     ["province", profile.provinceRatio],
     ["apartment", profile.apartmentRatio],
@@ -453,6 +494,38 @@ function recognizeKnownNameProfile(
   }
 
   return null;
+}
+
+function civicAddressPairScore(
+  rows: ReadonlyArray<ReadonlyArray<string>>,
+  civicProfile: ColumnProfile,
+  addressProfile: ColumnProfile,
+) {
+  const sampleRows = rows.slice(0, MAX_INFERENCE_ROWS);
+  let pairedRows = 0;
+  let plausiblePairs = 0;
+
+  for (const row of sampleRows) {
+    const civicNumber = normalizeImportedValue(row[civicProfile.index] ?? "");
+    const street = normalizeImportedValue(row[addressProfile.index] ?? "");
+    if (!civicNumber || !street) continue;
+    pairedRows += 1;
+    if (looksLikeCivicNumber(civicNumber) && looksLikeAddress(street) && looksLikeAddress(`${civicNumber} ${street}`)) {
+      plausiblePairs += 1;
+    }
+  }
+
+  const pairRatio = pairedRows === 0 ? 0 : plausiblePairs / pairedRows;
+  const coverageSimilarity = 1 - Math.abs(civicProfile.coverage - addressProfile.coverage);
+  const sharedCoverage = sampleRows.length === 0 ? 0 : pairedRows / sampleRows.length;
+  return Math.max(0, Math.min(1,
+    civicProfile.civicNumberRatio * 0.38
+    + pairRatio * 0.34
+    + coverageSimilarity * 0.12
+    + sharedCoverage * 0.12
+    + addressProfile.addressRatio * 0.04
+    - civicProfile.sequentialNumberRatio * 0.55,
+  ));
 }
 
 function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"): CSVImportMapping {
@@ -522,13 +595,38 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
   };
 
   const address = headerMatch("address") ?? bestContentMatch((profile) => profile.addressRatio, 0.5);
-  const addressExcluded = new Set([address?.index].filter((index): index is number => index !== undefined));
+  const addressProfile = address ? profileByIndex.get(address.index) ?? null : null;
+  const civicHeaderMatch = headerMatch("civicNumber");
+  const civicHeaderIsAmbiguous = civicHeaderMatch
+    ? normalizeHeader(headerRow?.[civicHeaderMatch.index] ?? "") === "numero"
+    : false;
+  const addressValues = addressProfile
+    ? dataRows.map((row) => normalizeImportedValue(row[addressProfile.index] ?? "")).filter(Boolean)
+    : [];
+  const addressAlreadyIncludesCivicNumber = ratio(addressValues, looksLikeAddressWithCivicNumber) >= 0.5;
+  const civicCandidates = addressProfile && !addressAlreadyIncludesCivicNumber
+    ? profiles
+      .filter((profile) => profile.index !== addressProfile.index && profile.nonEmptyCount > 0 && profile.civicNumberRatio >= 0.65)
+      .map((profile) => ({ profile, score: civicAddressPairScore(dataRows, profile, addressProfile) }))
+      .filter((candidate) => candidate.score >= 0.68)
+      .sort((first, second) => second.score - first.score || second.profile.coverage - first.profile.coverage)
+    : [];
+  const inferredCivic = civicCandidates[0]
+    ? matchColumn(civicCandidates[0].profile, headerRow, civicCandidates[0].score, "content")
+    : null;
+  const civicNumber = civicHeaderMatch && !civicHeaderIsAmbiguous
+    ? civicHeaderMatch
+    : civicHeaderMatch && inferredCivic?.index === civicHeaderMatch.index
+      ? { ...inferredCivic, source: "header" as const }
+      : inferredCivic;
+  const addressExcluded = new Set([address?.index, civicNumber?.index].filter((index): index is number => index !== undefined));
   const apartment = headerMatch("apartment") ?? bestContentMatch((profile) => profile.apartmentRatio, 0.5, addressExcluded);
   const postalCode = headerMatch("postalCode") ?? bestContentMatch((profile) => profile.postalRatio, 0.6, addressExcluded);
   const province = headerMatch("province") ?? bestContentMatch((profile) => profile.provinceRatio, 0.6, addressExcluded);
   const country = headerMatch("country") ?? bestContentMatch((profile) => profile.countryRatio, 0.6, addressExcluded);
   const locationIndexes = new Set([
     address?.index,
+    civicNumber?.index,
     apartment?.index,
     postalCode?.index,
     province?.index,
@@ -554,6 +652,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     email?.index,
     ...phoneMatches.map((match) => match.index),
     address?.index,
+    civicNumber?.index,
     apartment?.index,
     city?.index,
     province?.index,
@@ -618,6 +717,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     email,
     phone: phoneMatches[0] ?? null,
     phoneFallbacks: phoneMatches.slice(1),
+    civicNumber,
     address,
     apartment,
     city,
@@ -650,6 +750,7 @@ export function parseCSVContactsWithMapping(text: string, mapping: CSVImportMapp
       lastName: normalizeImportedValue((mapping.lastName ? row[mapping.lastName.index] : "") || splitName.lastName),
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(mapping.email ? row[mapping.email.index] ?? "" : ""),
+      civicNumber: normalizeImportedValue(mapping.civicNumber ? row[mapping.civicNumber.index] ?? "" : ""),
       address: normalizeImportedValue(mapping.address ? row[mapping.address.index] ?? "" : ""),
       apartment: normalizeImportedValue(mapping.apartment ? row[mapping.apartment.index] ?? "" : ""),
       city: normalizeImportedValue(mapping.city ? row[mapping.city.index] ?? "" : ""),
