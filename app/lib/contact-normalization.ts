@@ -1,4 +1,5 @@
 import type { Contact, ContactDraft } from "../data/contact-types";
+import { fallbackAddresses } from "./contact-addresses";
 
 export function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -34,7 +35,12 @@ export type DuplicateReason = "phone" | "email" | "name";
 export type DuplicateMatch = {
   contact: Contact;
   reasons: DuplicateReason[];
+  confidence: "strong" | "possible";
 };
+
+export function duplicateConfidence(reasons: ReadonlyArray<DuplicateReason>) {
+  return reasons.includes("phone") || reasons.includes("email") ? "strong" as const : "possible" as const;
+}
 
 export function getDuplicateReasons(
   candidate: ContactDraft,
@@ -60,11 +66,14 @@ export function findDuplicateMatches(
 ) {
   return contacts.flatMap<DuplicateMatch>((contact) => {
     const reasons = getDuplicateReasons(candidate, contact);
-    return reasons.length > 0 ? [{ contact, reasons }] : [];
+    return reasons.length > 0 ? [{ contact, reasons, confidence: duplicateConfidence(reasons) }] : [];
   });
 }
 
-export function searchableContactText(contact: ContactDraft) {
+export function searchableContactText(contact: ContactDraft & Partial<Pick<Contact, "id" | "addresses">>) {
+  const addressValues = fallbackAddresses(contact).flatMap((item) => [
+    item.civicNumber, item.address, item.apartment, item.city, item.province, item.postalCode, item.country,
+  ]);
   return [
     normalizeName(contact.firstName),
     normalizeName(contact.lastName),
@@ -78,5 +87,6 @@ export function searchableContactText(contact: ContactDraft) {
     normalizeName(contact.province),
     normalizeName(contact.postalCode),
     normalizeName(contact.country),
+    ...addressValues.map(normalizeName),
   ].join(" ");
 }

@@ -72,6 +72,7 @@ type TransactionCalendarResult = {
 };
 
 export function mapServerContact(row: ServerContactRow): Contact {
+  const hasAddress = [row.civic_number, row.address, row.apartment, row.city, row.province, row.postal_code, row.country].some(Boolean);
   return {
     id: row.id,
     firstName: row.first_name,
@@ -98,6 +99,21 @@ export function mapServerContact(row: ServerContactRow): Contact {
     googleCalendarLastError: row.google_calendar_last_error,
     buyerPipelineStage: row.buyer_pipeline_stage ?? "new",
     sellerPipelineStage: row.seller_pipeline_stage ?? "new",
+    addresses: hasAddress ? [{
+      id: `primary:${row.id}`,
+      contactId: row.id,
+      civicNumber: row.civic_number ?? "",
+      address: row.address ?? "",
+      apartment: row.apartment ?? "",
+      city: row.city ?? "",
+      province: row.province ?? "",
+      postalCode: row.postal_code ?? "",
+      country: row.country ?? "",
+      isPrimary: true,
+      label: "Principale",
+      createdAt: row.updated_at,
+      updatedAt: row.updated_at,
+    }] : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

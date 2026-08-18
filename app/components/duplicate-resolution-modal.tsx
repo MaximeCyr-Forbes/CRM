@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import type { Contact, ContactBroker, ContactDraft, DraftMergeSelection } from "../data/contact-types";
 import { BROKER_LABELS, CONTACT_BROKERS, getContactFullAddress, getContactName } from "../data/contact-types";
 import { getDefaultDraftMergeSources, mergeContactDraftFields, type DraftMergeSources } from "../lib/contact-merge";
+import {
+  addressInputFromDraft,
+  fallbackAddresses,
+  mergeAddressCollections,
+  normalizeAddressKey,
+  primaryAddressFields,
+  setPrimaryAddress,
+} from "../lib/contact-addresses";
 import type { DuplicateReason } from "../lib/contact-normalization";
 import { formatFollowUpDate } from "../lib/follow-up";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
@@ -44,6 +52,15 @@ export function DuplicateResolutionModal({
 }: Props) {
   const [phase, setPhase] = useState<"compare" | "merge">("compare");
   const [sources, setSources] = useState<DraftMergeSources>(() => getDefaultDraftMergeSources(existing));
+  const availableAddresses = useMemo(() => mergeAddressCollections(
+    fallbackAddresses(existing),
+    [addressInputFromDraft(incoming, { isPrimary: false })].filter((item) => item !== null),
+  ), [existing, incoming]);
+  const [keptAddressKeys, setKeptAddressKeys] = useState<Set<string>>(
+    () => new Set(availableAddresses.map(normalizeAddressKey)),
+  );
+  const defaultPrimary = availableAddresses.find((address) => address.isPrimary) ?? availableAddresses[0];
+  const [primaryAddressKey, setPrimaryAddressKey] = useState(() => defaultPrimary ? normalizeAddressKey(defaultPrimary) : "");
   const [broker, setBroker] = useState<ContactBroker | null>(
     existing.broker === incoming.broker ? existing.broker : null,
   );
@@ -56,26 +73,25 @@ export function DuplicateResolutionModal({
   const selection = useMemo<DraftMergeSelection | null>(() => {
     if (!broker) return null;
     const mergedDraft = mergeContactDraftFields(existing, incoming, sources);
+    const selectedAddresses = setPrimaryAddress(
+      availableAddresses.filter((address) => keptAddressKeys.has(normalizeAddressKey(address))),
+      primaryAddressKey,
+    );
     return {
       ...mergedDraft,
+      ...primaryAddressFields(selectedAddresses),
       broker,
+      addresses: selectedAddresses,
       nextFollowUpDate:
         followUpSource === "existing" ? existing.nextFollowUpDate : incomingFollowUp,
     };
-  }, [broker, existing, followUpSource, incoming, incomingFollowUp, sources]);
+  }, [availableAddresses, broker, existing, followUpSource, incoming, incomingFollowUp, keptAddressKeys, primaryAddressKey, sources]);
 
   const rows: Array<{ key: keyof ContactDraft; label: string }> = [
     { key: "firstName", label: "Prénom" },
     { key: "lastName", label: "Nom" },
     { key: "phone", label: "Téléphone" },
     { key: "email", label: "Email" },
-    { key: "civicNumber", label: "Numéro civique" },
-    { key: "address", label: "Rue" },
-    { key: "apartment", label: "Appartement" },
-    { key: "city", label: "Ville" },
-    { key: "province", label: "Province" },
-    { key: "postalCode", label: "Code postal" },
-    { key: "country", label: "Pays" },
   ];
 
   return (
@@ -85,7 +101,7 @@ export function DuplicateResolutionModal({
           <div>
             <p className="section-kicker">DOUBLON POSSIBLE</p>
             <h2>{phase === "compare" ? "Vérifier avant l’ajout" : "Choisir les informations à conserver"}</h2>
-            <small>{reasons.map((reason) => reasonLabels[reason]).join(" · ")}</small>
+            <small>{reasons.map((reason) => reasonLabels[reason]).join(" · ")} · {reasons.includes("email") || reasons.includes("phone") ? "DOUBLON FORT" : "VÉRIFICATION HUMAINE REQUISE"}</small>
           </div>
           <button aria-label="Fermer" onClick={onCancel} type="button">×</button>
         </header>
@@ -133,6 +149,37 @@ export function DuplicateResolutionModal({
                 </button>
               </div>
             ))}
+
+            <section className="merge-addresses" aria-labelledby="merge-addresses-title">
+              <div className="merge-addresses-heading">
+                <strong id="merge-addresses-title">ADRESSES À CONSERVER</strong>
+                <button onClick={() => setKeptAddressKeys(new Set(availableAddresses.map(normalizeAddressKey)))} type="button">CONSERVER TOUTES LES ADRESSES</button>
+              </div>
+              {availableAddresses.length === 0 && <p>Aucune adresse structurée.</p>}
+              {availableAddresses.map((address) => {
+                const key = normalizeAddressKey(address);
+                const kept = keptAddressKeys.has(key);
+                return (
+                  <div className="merge-address-option" key={key}>
+                    <label>
+                      <input checked={kept} onChange={(event) => {
+                        const next = new Set(keptAddressKeys);
+                        if (event.target.checked) next.add(key); else next.delete(key);
+                        setKeptAddressKeys(next);
+                        if (!event.target.checked && primaryAddressKey === key) {
+                          setPrimaryAddressKey([...next][0] ?? "");
+                        }
+                      }} type="checkbox" />
+                      <span>{getContactFullAddress(address)}</span>
+                    </label>
+                    <label className="merge-primary-choice">
+                      <input checked={kept && primaryAddressKey === key} disabled={!kept} name="primary-address" onChange={() => setPrimaryAddressKey(key)} type="radio" />
+                      ADRESSE PRINCIPALE
+                    </label>
+                  </div>
+                );
+              })}
+            </section>
 
             <div className="merge-required-choice">
               <strong>À QUI ATTRIBUER CE CONTACT ?</strong>

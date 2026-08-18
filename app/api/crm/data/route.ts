@@ -6,6 +6,7 @@ import {
 } from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
+import { isAddressHistoryUnavailableError } from "../../../lib/contact-addresses";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,8 @@ type CRMActionBody = Record<string, unknown> & {
   brokerChanged?: unknown;
   clientType?: unknown;
   draft?: Record<string, unknown>;
-  drafts?: Array<Record<string, unknown>>;
+  entries?: Array<{ draft?: Record<string, unknown>; addresses?: Array<Record<string, unknown>> }>;
+  addresses?: Array<Record<string, unknown>>;
   values?: Record<string, unknown>;
 };
 
@@ -39,6 +41,37 @@ function textValue(value: unknown) {
   return String(value ?? "").trim().normalize("NFC");
 }
 
+function addressPayload(value: Record<string, unknown>) {
+  return {
+    id: typeof value.id === "string" && !value.id.startsWith("primary:") ? value.id : null,
+    civic_number: textValue(value.civicNumber),
+    address: textValue(value.address),
+    apartment: textValue(value.apartment),
+    city: textValue(value.city),
+    province: textValue(value.province),
+    postal_code: textValue(value.postalCode),
+    country: textValue(value.country),
+    is_primary: value.isPrimary === true,
+    label: typeof value.label === "string" ? value.label : value.isPrimary === true ? "Principale" : "Ancienne adresse",
+  };
+}
+
+async function attachAddresses<T extends Record<string, unknown>>(rows: T[]) {
+  if (rows.length === 0) return rows;
+  const client = getSupabaseAdmin();
+  const { data, error } = await client.from("contact_addresses").select("*").in("contact_id", rows.map((row) => row.id));
+  if (error) {
+    if (isAddressHistoryUnavailableError(error)) return rows;
+    throw error;
+  }
+  const byContact = new Map<string, Record<string, unknown>[]>();
+  for (const address of data ?? []) {
+    const contactId = String(address.contact_id);
+    byContact.set(contactId, [...(byContact.get(contactId) ?? []), address]);
+  }
+  return rows.map((row) => ({ ...row, contact_addresses: byContact.get(String(row.id)) ?? [] }));
+}
+
 export async function GET(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
@@ -49,7 +82,12 @@ export async function GET(request: Request) {
   if (resource === "contacts") {
     const { data, error } = await client.from("contacts").select("*").order("created_at", { ascending: false });
     if (error) return Response.json({ error: "Chargement impossible." }, { status: 502 });
-    return Response.json({ data }, { headers: { "Cache-Control": "private, no-store" } });
+    try {
+      return Response.json({ data: await attachAddresses((data ?? []) as Record<string, unknown>[]) }, { headers: { "Cache-Control": "private, no-store" } });
+    } catch (addressError) {
+      console.error("Chargement des adresses impossible:", addressError instanceof Error ? addressError.message : "erreur inconnue");
+      return Response.json({ error: "Chargement impossible." }, { status: 502 });
+    }
   }
   if (resource === "globalSearch") {
     const rawQuery = (url.searchParams.get("q") ?? "").trim();
@@ -75,12 +113,26 @@ export async function GET(request: Request) {
       .limit(8);
     for (const term of terms) transactionsQuery = transactionsQuery.ilike("address", `%${term}%`);
 
-    const [contactsResult, transactionsResult] = await Promise.all([
+    const addressSearch = client.from("contact_addresses")
+      .select("contact_id,civic_number,address,apartment,city,province,postal_code,country")
+      .or(terms.flatMap((term) => ["civic_number", "address", "apartment", "city", "province", "postal_code", "country"].map((field) => `${field}.ilike.%${term}%`)).join(","))
+      .limit(24);
+    const [contactsResult, transactionsResult, addressResult] = await Promise.all([
       contactsQuery,
       transactionsQuery,
+      addressSearch,
     ]);
     if (contactsResult.error) return Response.json({ error: "Recherche impossible." }, { status: 502 });
-    const contactResults = (contactsResult.data ?? []).map((contact) => ({
+    let historicalContacts: typeof contactsResult.data = [];
+    if (!addressResult.error && (addressResult.data?.length ?? 0) > 0) {
+      const ids = [...new Set((addressResult.data ?? []).map((address) => address.contact_id as string))];
+      const result = await client.from("contacts").select("id, first_name, last_name, phone, email, civic_number, address, apartment, city, province, postal_code, country, broker").in("id", ids);
+      if (!result.error) historicalContacts = result.data ?? [];
+    } else if (addressResult.error && !isAddressHistoryUnavailableError(addressResult.error)) {
+      console.error("Recherche dans les anciennes adresses impossible:", addressResult.error.message);
+    }
+    const uniqueContacts = [...new Map([...(contactsResult.data ?? []), ...(historicalContacts ?? [])].map((contact) => [contact.id, contact])).values()];
+    const contactResults = uniqueContacts.map((contact) => ({
       id: contact.id as string,
       kind: "contact" as const,
       title: [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact sans nom",
@@ -137,16 +189,35 @@ export async function POST(request: Request) {
         client_type: body.clientType ?? null,
       }).select("*").single();
       if (error) throw error;
-      return Response.json({ data });
+      if (data) {
+        const address = addressPayload(body.draft ?? {});
+        if (Object.values(address).some((value) => typeof value === "string" && value.length > 0)) {
+          const { error: addressError } = await client.rpc("save_contact_addresses", { p_contact_id: data.id, p_addresses: [{ ...address, is_primary: true, label: "Principale" }] });
+          if (addressError && !isAddressHistoryUnavailableError(addressError)) throw addressError;
+        }
+      }
+      return Response.json({ data: (await attachAddresses(data ? [data] : []))[0] });
     }
 
     if (body.action === "importContacts") {
       const source = body.source;
-      if (!Array.isArray(body.drafts) || typeof source !== "string" || !["csv", "vcard"].includes(source)) throw new Error("Import invalide");
+      if (!Array.isArray(body.entries) || typeof source !== "string" || !["csv", "vcard"].includes(source)) throw new Error("Import invalide");
       const imported: Record<string, unknown>[] = [];
-      for (let index = 0; index < body.drafts.length; index += 250) {
-        const chunk = body.drafts.slice(index, index + 250);
-        const { data, error } = await client.from("contacts").insert(chunk.map((draft: Record<string, unknown>) => ({
+      for (let index = 0; index < body.entries.length; index += 250) {
+        const chunk = body.entries.slice(index, index + 250);
+        const rpcPayload = chunk.map((entry) => ({
+          contact: entry.draft,
+          addresses: (entry.addresses ?? []).map(addressPayload),
+        }));
+        const rpcResult = await client.rpc("import_contacts_with_addresses", { p_entries: rpcPayload, p_source: source });
+        if (!rpcResult.error) {
+          imported.push(...((rpcResult.data ?? []) as Record<string, unknown>[]));
+          continue;
+        }
+        if (!isAddressHistoryUnavailableError(rpcResult.error)) throw rpcResult.error;
+        const { data, error } = await client.from("contacts").insert(chunk.map((entry) => {
+          const draft = entry.draft ?? {};
+          return {
           first_name: textValue(draft.firstName),
           last_name: textValue(draft.lastName),
           phone: textValue(draft.phone),
@@ -160,11 +231,27 @@ export async function POST(request: Request) {
           country: textValue(draft.country),
           broker: "unassigned",
           source,
-        }))).select("*");
+        };})).select("*");
         if (error) throw error;
         imported.push(...(data ?? []));
       }
-      return Response.json({ data: imported });
+      return Response.json({ data: await attachAddresses(imported) });
+    }
+
+    if (body.action === "saveContactAddresses") {
+      if (typeof body.contactId !== "string" || !Array.isArray(body.addresses)) throw new Error("Adresses invalides");
+      const payload = body.addresses.map(addressPayload);
+      const { data, error } = await client.rpc("save_contact_addresses", { p_contact_id: body.contactId, p_addresses: payload });
+      if (error) {
+        if (!isAddressHistoryUnavailableError(error)) throw error;
+        const primary = payload.find((address) => address.is_primary) ?? payload[0];
+        const fallback = primary ?? { civic_number: "", address: "", apartment: "", city: "", province: "", postal_code: "", country: "" };
+        const result = await client.from("contacts").update(fallback).eq("id", body.contactId).select("*").single();
+        if (result.error) throw result.error;
+        return Response.json({ data: result.data });
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      return Response.json({ data: (await attachAddresses(row ? [row as Record<string, unknown>] : []))[0] });
     }
 
     if (body.action === "assignContacts") {
@@ -220,7 +307,11 @@ export async function POST(request: Request) {
         ...(body.brokerChanged ? { google_calendar_sync_status: "pending", google_calendar_last_error: null } : {}),
       }).eq("id", body.contactId).select("*").single();
       if (error) throw error;
-      return Response.json({ data });
+      if (Array.isArray(body.addresses)) {
+        const addressResult = await client.rpc("save_contact_addresses", { p_contact_id: body.contactId, p_addresses: body.addresses.map(addressPayload) });
+        if (addressResult.error && !isAddressHistoryUnavailableError(addressResult.error)) throw addressResult.error;
+      }
+      return Response.json({ data: (await attachAddresses(data ? [data] : []))[0] });
     }
 
     if (body.action === "updatePipelineStage") {

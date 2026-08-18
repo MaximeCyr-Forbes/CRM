@@ -211,6 +211,7 @@ describe("compatibilité de la détection des doublons", () => {
       googleCalendarLastError: null,
       buyerPipelineStage: "new",
       sellerPipelineStage: "new",
+      addresses: [],
       createdAt: "2026-08-18T12:00:00.000Z",
       updatedAt: "2026-08-18T12:00:00.000Z",
     };

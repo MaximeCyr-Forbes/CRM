@@ -1,4 +1,4 @@
-import type { ContactBroker, ContactUpdate, DraftMergeSelection } from "../../../data/contact-types";
+import type { ContactAddressInput, ContactBroker, ContactUpdate, DraftMergeSelection } from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   mergeDraftIntoContact,
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         values,
         followUpSource,
         mergedByUserId: null,
+        addresses: Array.isArray(body?.addresses) ? body.addresses as ContactAddressInput[] : undefined,
       });
       return Response.json({ contact });
     }
@@ -83,12 +84,16 @@ export async function POST(request: Request) {
         { ...values, nextFollowUpDate } as DraftMergeSelection,
         incomingDraft,
         null,
+        Array.isArray((body?.values as Record<string, unknown> | undefined)?.addresses)
+          ? (body?.values as Record<string, unknown>).addresses as ContactAddressInput[]
+          : undefined,
       );
       return Response.json({ contact });
     }
 
     return Response.json({ error: "Mode de fusion invalide." }, { status: 400 });
-  } catch {
+  } catch (error) {
+    console.error("Fusion contact/adresses impossible:", error instanceof Error ? error.message : "erreur inconnue");
     return Response.json(
       { error: "La fusion n’a pas pu être terminée sans risque de perte." },
       { status: 502 },

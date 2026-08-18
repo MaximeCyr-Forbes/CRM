@@ -18,6 +18,9 @@ import type {
   Contact,
   ContactBroker,
   ContactDraft,
+  ContactAddress,
+  ContactAddressInput,
+  ContactImportInput,
   ContactSource,
   ContactUpdate,
   DraftMergeSelection,
@@ -25,6 +28,7 @@ import type {
   PipelineType,
 } from "./data/contact-types";
 import { BROKER_LABELS } from "./data/contact-types";
+import { addressInputFromDraft, fallbackAddresses, mergeAddressCollections, normalizeAddressKey, setPrimaryAddress } from "./lib/contact-addresses";
 
 type ContactRow = {
   id: string;
@@ -54,6 +58,23 @@ type ContactRow = {
   seller_pipeline_stage: Contact["sellerPipelineStage"];
   created_at: string;
   updated_at: string;
+  contact_addresses?: ContactAddressRow[];
+};
+
+type ContactAddressRow = {
+  id: string;
+  contact_id: string;
+  civic_number: string;
+  address: string;
+  apartment: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  country: string;
+  is_primary: boolean;
+  label: ContactAddress["label"];
+  created_at: string;
+  updated_at: string;
 };
 
 type ClientNoteRow = {
@@ -80,7 +101,7 @@ type CRMDataContextValue = {
     defaults?: { clientType?: Exclude<Contact["clientType"], null> },
   ) => Promise<Contact>;
   importContacts: (
-    drafts: ReadonlyArray<ContactDraft>,
+    entries: ReadonlyArray<ContactImportInput>,
     source: Exclude<ContactSource, "manual">,
   ) => Promise<Contact[]>;
   assignContact: (contactId: string, broker: ContactBroker) => Promise<void>;
@@ -94,6 +115,7 @@ type CRMDataContextValue = {
   ) => Promise<CalendarSyncResult>;
   retryCalendarSync: (contactId: string) => Promise<CalendarSyncResult>;
   updateContact: (contactId: string, values: ContactUpdate) => Promise<Contact>;
+  saveContactAddresses: (contactId: string, addresses: ReadonlyArray<ContactAddressInput>) => Promise<Contact>;
   updatePipelineStage: (
     contactId: string,
     pipeline: PipelineType,
@@ -110,6 +132,7 @@ type CRMDataContextValue = {
     sourceId: string,
     values: ContactUpdate,
     followUpSource: "target" | "source" | null,
+    addresses?: ReadonlyArray<ContactAddressInput>,
   ) => Promise<Contact>;
   addNote: (contactId: string, content: string) => Promise<ClientNote>;
   updateNote: (noteId: string, content: string) => Promise<void>;
@@ -122,6 +145,23 @@ function logDevelopmentWarning(error: unknown) {
 }
 
 function mapContact(row: ContactRow): Contact {
+  const mappedAddresses = (row.contact_addresses ?? []).map((address) => ({
+    id: address.id,
+    contactId: address.contact_id,
+    civicNumber: address.civic_number ?? "",
+    address: address.address ?? "",
+    apartment: address.apartment ?? "",
+    city: address.city ?? "",
+    province: address.province ?? "",
+    postalCode: address.postal_code ?? "",
+    country: address.country ?? "",
+    isPrimary: address.is_primary,
+    label: address.label,
+    createdAt: address.created_at,
+    updatedAt: address.updated_at,
+  }));
+  const fallbackDate = row.updated_at ?? row.created_at;
+  const hasPrimaryAddress = [row.civic_number, row.address, row.apartment, row.city, row.province, row.postal_code, row.country].some(Boolean);
   return {
     id: row.id,
     firstName: row.first_name,
@@ -148,6 +188,21 @@ function mapContact(row: ContactRow): Contact {
     googleCalendarLastError: row.google_calendar_last_error,
     buyerPipelineStage: row.buyer_pipeline_stage ?? "new",
     sellerPipelineStage: row.seller_pipeline_stage ?? "new",
+    addresses: mappedAddresses.length > 0 ? mappedAddresses : hasPrimaryAddress ? [{
+      id: `primary:${row.id}`,
+      contactId: row.id,
+      civicNumber: row.civic_number ?? "",
+      address: row.address ?? "",
+      apartment: row.apartment ?? "",
+      city: row.city ?? "",
+      province: row.province ?? "",
+      postalCode: row.postal_code ?? "",
+      country: row.country ?? "",
+      isPrimary: true,
+      label: "Principale",
+      createdAt: fallbackDate,
+      updatedAt: fallbackDate,
+    }] : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -162,6 +217,10 @@ function mapNote(row: ClientNoteRow): ClientNote {
     createdBy: BROKER_LABELS[row.created_by],
     createdByUserId: row.created_by_user_id,
   };
+}
+
+function preserveAddressHistory(previous: Contact, replacement: Contact) {
+  return { ...replacement, addresses: previous.addresses };
 }
 
 async function crmDataRequest<T>(body: Record<string, unknown>): Promise<T> {
@@ -279,12 +338,23 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   );
 
   const importContacts = useCallback(
-    (drafts: ReadonlyArray<ContactDraft>, source: Exclude<ContactSource, "manual">) =>
-      runWrite("Impossible d’importer les contacts.", async () => {
-        const data = await crmDataRequest<ContactRow[]>({ action: "importContacts", drafts: [...drafts], source });
+    (entries: ReadonlyArray<ContactImportInput>, source: Exclude<ContactSource, "manual">) =>
+      runWrite("L’import n’a pas pu enregistrer les adresses. Aucun contact n’a été perdu.", async () => {
+        const data = await crmDataRequest<ContactRow[]>({ action: "importContacts", entries: [...entries], source });
         const imported = (data ?? []).map(mapContact);
         setContacts((current) => [...imported, ...current]);
         return imported;
+      }),
+    [runWrite],
+  );
+
+  const saveContactAddresses = useCallback(
+    (contactId: string, addresses: ReadonlyArray<ContactAddressInput>) =>
+      runWrite("Les adresses n’ont pas pu être enregistrées. Réessayez.", async () => {
+        const data = await crmDataRequest<ContactRow>({ action: "saveContactAddresses", contactId, addresses: [...addresses] });
+        const updated = mapContact(data);
+        setContacts((current) => current.map((contact) => contact.id === contactId ? updated : contact));
+        return updated;
       }),
     [runWrite],
   );
@@ -308,7 +378,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           ),
         );
         setContacts((current) =>
-          current.map((contact) => syncedContacts.get(contact.id) ?? contact),
+          current.map((contact) => {
+            const replacement = syncedContacts.get(contact.id);
+            return replacement ? preserveAddressHistory(contact, replacement) : contact;
+          }),
         );
         return payload.results;
       } catch {
@@ -346,7 +419,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           }),
         );
         setContacts((current) =>
-          current.map((contact) => updatedContacts.get(contact.id) ?? contact),
+          current.map((contact) => {
+            const replacement = updatedContacts.get(contact.id);
+            return replacement ? preserveAddressHistory(contact, replacement) : contact;
+          }),
         );
         const contactsToSync = [...updatedContacts.values()]
           .filter(
@@ -373,7 +449,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         const updatedContact = mapContact(data);
         setContacts((current) =>
           current.map((contact) =>
-            contact.id === contactId ? updatedContact : contact,
+            contact.id === contactId ? preserveAddressHistory(contact, updatedContact) : contact,
           ),
         );
         const [syncResult] = await requestCalendarSync([contactId]);
@@ -403,7 +479,12 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         if (!currentContact) throw new Error("Contact introuvable.");
         const brokerChanged = currentContact.broker !== values.broker;
         const shouldResync = brokerChanged && Boolean(currentContact.nextFollowUpDate || currentContact.googleCalendarEventId);
-        const data = await crmDataRequest<ContactRow>({ action: "updateContact", contactId, values, brokerChanged: shouldResync });
+        const previousAddresses = fallbackAddresses(currentContact).map((address) => ({ ...address, isPrimary: false, label: address.isPrimary ? "Ancienne adresse" as const : address.label }));
+        const editedPrimary = addressInputFromDraft(values);
+        const addresses = editedPrimary
+          ? setPrimaryAddress(mergeAddressCollections([editedPrimary], previousAddresses), normalizeAddressKey(editedPrimary))
+          : previousAddresses;
+        const data = await crmDataRequest<ContactRow>({ action: "updateContact", contactId, values, addresses, brokerChanged: shouldResync });
         let updated = mapContact(data);
         setContacts((current) => current.map((contact) => contact.id === contactId ? updated : contact));
         if (brokerChanged && (updated.nextFollowUpDate || updated.googleCalendarEventId)) {
@@ -434,7 +515,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
             const data = await crmDataRequest<ContactRow>({ action: "updatePipelineStage", contactId, pipeline, stage, actorBroker });
             const updated = mapContact(data);
             setContacts((current) =>
-              current.map((contact) => contact.id === contactId ? updated : contact),
+              current.map((contact) => contact.id === contactId ? preserveAddressHistory(contact, updated) : contact),
             );
             return updated;
           }),
@@ -496,12 +577,12 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   );
 
   const mergeContacts = useCallback(
-    (targetId: string, sourceId: string, values: ContactUpdate, followUpSource: "target" | "source" | null) =>
+    (targetId: string, sourceId: string, values: ContactUpdate, followUpSource: "target" | "source" | null, addresses?: ReadonlyArray<ContactAddressInput>) =>
       runWrite("Impossible de fusionner les contacts.", async () => {
         const response = await fetch("/api/contacts/merge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "existing", targetId, sourceId, values, followUpSource }),
+          body: JSON.stringify({ mode: "existing", targetId, sourceId, values, followUpSource, addresses }),
         });
         if (!response.ok) throw new Error("Fusion refusée.");
         const payload = (await response.json()) as { contact: Contact };
@@ -567,6 +648,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       updateFollowUp,
       retryCalendarSync,
       updateContact,
+      saveContactAddresses,
       updatePipelineStage,
       deleteContact,
       mergeDraftIntoContact,
@@ -589,6 +671,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       updateFollowUp,
       retryCalendarSync,
       updateContact,
+      saveContactAddresses,
       updatePipelineStage,
       deleteContact,
       mergeDraftIntoContact,

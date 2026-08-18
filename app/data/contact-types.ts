@@ -7,6 +7,28 @@ export type ClientType = "buyer" | "seller" | "buyer_seller" | null;
 export type ContactPriority = "hot" | "warm" | "cold" | null;
 export type ContactStatus = "active" | "inactive";
 export type CalendarSyncStatus = "synced" | "pending" | "error";
+export const CONTACT_ADDRESS_LABELS = ["Principale", "Ancienne adresse", "Résidence secondaire", "Autre"] as const;
+export type ContactAddressLabel = (typeof CONTACT_ADDRESS_LABELS)[number];
+
+export type ContactAddressInput = {
+  id?: string;
+  civicNumber: string;
+  address: string;
+  apartment: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  country: string;
+  isPrimary: boolean;
+  label: ContactAddressLabel;
+};
+
+export type ContactAddress = ContactAddressInput & {
+  id: string;
+  contactId: string;
+  createdAt: string;
+  updatedAt: string;
+};
 export const BUYER_PIPELINE_STAGES = [
   "new",
   "qualified",
@@ -62,6 +84,7 @@ export type Contact = {
   googleCalendarLastError: string | null;
   buyerPipelineStage: BuyerPipelineStage;
   sellerPipelineStage: SellerPipelineStage;
+  addresses: ContactAddress[];
   createdAt: string;
   updatedAt: string;
 };
@@ -104,6 +127,12 @@ export type ContactUpdate = Pick<
 export type DraftMergeSelection = ContactDraft & {
   broker: ContactBroker;
   nextFollowUpDate: string | null;
+  addresses?: ContactAddressInput[];
+};
+
+export type ContactImportInput = {
+  draft: ContactDraft;
+  addresses: ContactAddressInput[];
 };
 
 export const BROKER_LABELS: Record<ContactBroker, string> = {
@@ -159,7 +188,9 @@ export function getContactName(contact: ContactDraft) {
   return [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Contact sans nom";
 }
 
-export function getContactAddressLines(contact: ContactDraft) {
+type ContactAddressFields = Pick<ContactDraft, "civicNumber" | "address" | "apartment" | "city" | "province" | "postalCode" | "country">;
+
+export function getContactAddressLines(contact: ContactAddressFields) {
   const civicNumber = contact.civicNumber.trim();
   const address = contact.address.trim();
   const apartment = contact.apartment.trim();
@@ -177,6 +208,6 @@ export function getContactAddressLines(contact: ContactDraft) {
   return [streetLine, localityLine, contact.country.trim()].filter(Boolean);
 }
 
-export function getContactFullAddress(contact: ContactDraft) {
+export function getContactFullAddress(contact: ContactAddressFields) {
   return getContactAddressLines(contact).join(", ");
 }

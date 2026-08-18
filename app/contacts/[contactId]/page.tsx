@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useClientNotes } from "../../client-notes-context";
 import { ClientHistory } from "../../components/client-history";
 import { ContactEditorModal } from "../../components/contact-editor-modal";
+import { ContactAddressManager } from "../../components/contact-address-manager";
 import { DuplicateResolutionModal } from "../../components/duplicate-resolution-modal";
 import { DataStatus } from "../../components/data-status";
 import { FollowUpSchedulerModal } from "../../components/follow-up-scheduler-modal";
@@ -60,7 +61,7 @@ export default function ContactProfilePage() {
   const params = useParams<{ contactId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { contacts, assignContact, updateContact, updatePipelineStage, deleteContact, mergeContacts } = useContacts();
+  const { contacts, assignContact, updateContact, saveContactAddresses, updatePipelineStage, deleteContact, mergeContacts } = useContacts();
   const { isLoading, isSaving, error, retryCalendarSync } = useCRMData();
   const { getFollowUpDate } = useFollowUps();
   const { getNotesForContact, loadNotesForContact, addNote, updateNote } = useClientNotes();
@@ -73,6 +74,7 @@ export default function ContactProfilePage() {
   >(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [isEditingContact, setIsEditingContact] = useState(false);
+  const [isManagingAddresses, setIsManagingAddresses] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
   const contact = contacts.find((item) => item.id === params.contactId);
@@ -299,6 +301,7 @@ export default function ContactProfilePage() {
         status: existing.status === "active" || contact.status === "active" ? "active" : "inactive",
       },
       followUpSource,
+      selection.addresses,
     );
     setEditDuplicate(null);
     router.replace(`/contacts/${merged.id}`);
@@ -430,6 +433,14 @@ export default function ContactProfilePage() {
           </article>
         </section>
 
+        <section className="profile-addresses-section" aria-labelledby="profile-addresses-title">
+          <div className="profile-section-heading"><div><p className="section-kicker">Historique résidentiel</p><h2 id="profile-addresses-title">ADRESSES</h2></div><button onClick={() => setIsManagingAddresses(true)} type="button">GÉRER LES ADRESSES</button></div>
+          <div className="profile-address-list">
+            {contact.addresses.map((address) => <article key={address.id}><strong>{address.isPrimary ? "PRINCIPALE" : address.label.toLocaleUpperCase("fr-CA")}</strong><address>{getContactAddressLines(address).map((line) => <span key={line}>{line}</span>)}</address></article>)}
+            {contact.addresses.length === 0 && <p>Aucune adresse enregistrée.</p>}
+          </div>
+        </section>
+
         <section className="profile-pipeline-section" aria-labelledby="profile-pipeline-title">
           <div>
             <p className="section-kicker">Suivi commercial</p>
@@ -496,6 +507,7 @@ export default function ContactProfilePage() {
           onSave={saveContact}
         />
       )}
+      {isManagingAddresses && <ContactAddressManager contact={contact} isSaving={isSaving} onCancel={() => setIsManagingAddresses(false)} onSave={async (addresses) => { await saveContactAddresses(contact.id, addresses); setIsManagingAddresses(false); setConfirmation({ title: "Adresses mises à jour" }); }} />}
 
       {editDuplicate && (() => {
         const existing = contacts.find((item) => item.id === editDuplicate.existingId);

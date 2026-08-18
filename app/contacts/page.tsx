@@ -16,6 +16,7 @@ import {
   type Contact,
   type ContactBroker,
   type ContactDraft,
+  type ContactAddressInput,
   type DraftMergeSelection,
 } from "../data/contact-types";
 import {
@@ -40,6 +41,7 @@ import {
   searchableContactText,
   type DuplicateReason,
 } from "../lib/contact-normalization";
+import { addressInputFromDraft, primaryAddressFields } from "../lib/contact-addresses";
 import { formatFollowUpDate } from "../lib/follow-up";
 
 type ContactFilter = "all" | ContactBroker;
@@ -56,6 +58,7 @@ type PendingImport = {
   source: Exclude<ImportKind, null>;
   resolutions: Record<string, ImportResolution>;
   merges: Record<string, { targetId: string; values: DraftMergeSelection }>;
+  addresses: Record<string, ContactAddressInput[]>;
 };
 
 type PendingManualDuplicate = {
@@ -102,7 +105,10 @@ const csvMappingLabels: Record<CSVImportField, string> = {
 };
 const csvMappingFields = Object.keys(csvMappingLabels) as CSVImportField[];
 
-function syntheticContact(candidate: ImportCandidate): Contact {
+function syntheticContact(candidate: ImportCandidate, addressInputs?: ReadonlyArray<ContactAddressInput>): Contact {
+  const address = addressInputFromDraft(candidate.draft);
+  const now = new Date().toISOString();
+  const addresses = addressInputs ?? (address ? [address] : []);
   return {
     id: candidate.id,
     ...candidate.draft,
@@ -119,8 +125,9 @@ function syntheticContact(candidate: ImportCandidate): Contact {
     googleCalendarLastError: null,
     buyerPipelineStage: "new",
     sellerPipelineStage: "new",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    addresses: addresses.map((item, index) => ({ ...item, id: item.id ?? `import:${candidate.id}:${index}`, contactId: candidate.id, createdAt: now, updatedAt: now })),
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -176,7 +183,7 @@ export default function ContactsPage() {
   const batchExistingCandidate = activeImportCandidate?.duplicateDraftIndex !== null && activeImportCandidate?.duplicateDraftIndex !== undefined
     ? pendingImport?.candidates[activeImportCandidate.duplicateDraftIndex] ?? null
     : null;
-  const activeImportExisting = activeImportCandidate?.duplicateMatches[0]?.contact ?? (batchExistingCandidate ? syntheticContact(batchExistingCandidate) : null);
+  const activeImportExisting = activeImportCandidate?.duplicateMatches[0]?.contact ?? (batchExistingCandidate ? syntheticContact(batchExistingCandidate, pendingImport?.addresses[batchExistingCandidate.id]) : null);
   const activeImportReasons = activeImportCandidate && activeImportExisting
     ? getDuplicateReasons(activeImportCandidate.draft, activeImportExisting)
     : [];
@@ -185,7 +192,7 @@ export default function ContactsPage() {
   const reviewedBatchCandidate = reviewedImportCandidate?.duplicateDraftIndex !== null && reviewedImportCandidate?.duplicateDraftIndex !== undefined
     ? pendingImport?.candidates[reviewedImportCandidate.duplicateDraftIndex] ?? null
     : null;
-  const reviewedImportExisting = reviewedImportCandidate?.duplicateMatches[0]?.contact ?? (reviewedBatchCandidate ? syntheticContact(reviewedBatchCandidate) : null);
+  const reviewedImportExisting = reviewedImportCandidate?.duplicateMatches[0]?.contact ?? (reviewedBatchCandidate ? syntheticContact(reviewedBatchCandidate, pendingImport?.addresses[reviewedBatchCandidate.id]) : null);
 
   function showConfirmation(message: string) {
     setConfirmation(message);
@@ -255,6 +262,10 @@ export default function ContactsPage() {
         source: importKind,
         resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
         merges: {},
+        addresses: Object.fromEntries(candidates.map((candidate) => {
+          const address = addressInputFromDraft(candidate.draft);
+          return [candidate.id, address ? [address] : []];
+        })),
       });
       setReviewFilter("all");
       setImportKind(null);
@@ -277,6 +288,10 @@ export default function ContactsPage() {
         mappingConfirmed: false,
         resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
         merges: {},
+        addresses: Object.fromEntries(candidates.map((candidate) => {
+          const address = addressInputFromDraft(candidate.draft);
+          return [candidate.id, address ? [address] : []];
+        })),
       };
     });
   }
@@ -308,6 +323,13 @@ export default function ContactsPage() {
         candidates,
         resolutions,
         merges,
+        addresses: {
+          ...current.addresses,
+          [candidateId]: (() => {
+            const address = addressInputFromDraft(draft);
+            return address ? [address] : [];
+          })(),
+        },
       };
     });
   }
@@ -333,9 +355,22 @@ export default function ContactsPage() {
         },
       } : null);
     } else if (batchExistingCandidate) {
-      updateImportCandidate(batchExistingCandidate.id, {
-        ...batchExistingCandidate.draft,
-        ...Object.fromEntries((Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => [field, values[field]])),
+      setPendingImport((current) => {
+        if (!current) return current;
+        const candidates = current.candidates.map((candidate) => candidate.id === batchExistingCandidate.id ? {
+          ...candidate,
+          draft: {
+            ...candidate.draft,
+            ...Object.fromEntries((Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => [field, values[field]])),
+            ...primaryAddressFields(values.addresses ?? []),
+          },
+        } : candidate);
+        return {
+          ...current,
+          candidates,
+          addresses: { ...current.addresses, [batchExistingCandidate.id]: values.addresses ?? current.addresses[batchExistingCandidate.id] ?? [] },
+          resolutions: { ...current.resolutions, [batchExistingCandidate.id]: "keep", [activeImportCandidate.id]: "merge" },
+        };
       });
     }
     resolveImport(activeImportCandidate.id, "merge");
@@ -353,17 +388,17 @@ export default function ContactsPage() {
       setImportError("Résolvez chaque doublon et chaque contact incomplet avant de terminer.");
       return;
     }
-    const draftsToInsert = pendingImport.candidates
+    const entriesToInsert = pendingImport.candidates
       .filter((candidate) => pendingImport.resolutions[candidate.id] === "keep")
-      .map((candidate) => candidate.draft)
-      .filter(hasMinimumContactIdentity);
+      .filter((candidate) => hasMinimumContactIdentity(candidate.draft))
+      .map((candidate) => ({ draft: candidate.draft, addresses: pendingImport.addresses[candidate.id] ?? [] }));
     for (const candidate of pendingImport.candidates) {
       const merge = pendingImport.merges[candidate.id];
       if (pendingImport.resolutions[candidate.id] === "merge" && merge) {
         await mergeDraftIntoContact(merge.targetId, candidate.draft, merge.values);
       }
     }
-    const imported = draftsToInsert.length > 0 ? await importContacts(draftsToInsert, pendingImport.source) : [];
+    const imported = entriesToInsert.length > 0 ? await importContacts(entriesToInsert, pendingImport.source) : [];
     setPendingImport(null);
     setImportError(null);
     showConfirmation(`${imported.length} nouveau${imported.length > 1 ? "x" : ""} contact${imported.length > 1 ? "s" : ""} importé${imported.length > 1 ? "s" : ""}.`);

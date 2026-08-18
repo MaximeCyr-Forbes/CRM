@@ -2,6 +2,7 @@ import type {
   ContactBroker,
   ContactUpdate,
   DraftMergeSelection,
+  ContactAddressInput,
 } from "../../data/contact-types";
 import {
   deleteCalendarEventForContact,
@@ -10,6 +11,7 @@ import {
   type ServerContactRow,
 } from "../google-calendar/service";
 import { getSupabaseAdmin } from "../supabase/server";
+import { isAddressHistoryUnavailableError } from "../contact-addresses";
 
 type ExistingMergeInput = {
   targetId: string;
@@ -17,7 +19,22 @@ type ExistingMergeInput = {
   values: ContactUpdate;
   followUpSource: "target" | "source" | null;
   mergedByUserId: string | null;
+  addresses?: ReadonlyArray<ContactAddressInput>;
 };
+
+function addressRpcPayload(addresses: ReadonlyArray<ContactAddressInput> | undefined) {
+  return (addresses ?? []).map((address) => ({
+    civic_number: address.civicNumber.trim().normalize("NFC"),
+    address: address.address.trim().normalize("NFC"),
+    apartment: address.apartment.trim().normalize("NFC"),
+    city: address.city.trim().normalize("NFC"),
+    province: address.province.trim().normalize("NFC"),
+    postal_code: address.postalCode.trim().normalize("NFC"),
+    country: address.country.trim().normalize("NFC"),
+    is_primary: address.isPrimary,
+    label: address.label,
+  }));
+}
 
 async function getServerContact(id: string) {
   const { data, error } = await getSupabaseAdmin()
@@ -27,6 +44,25 @@ async function getServerContact(id: string) {
     .single();
   if (error) throw error;
   return data as ServerContactRow;
+}
+
+async function withAddressHistory(contact: ReturnType<typeof mapServerContact>) {
+  const { data, error } = await getSupabaseAdmin().from("contact_addresses").select("*").eq("contact_id", contact.id).order("is_primary", { ascending: false });
+  if (error) {
+    if (isAddressHistoryUnavailableError(error)) return contact;
+    throw error;
+  }
+  return {
+    ...contact,
+    addresses: (data ?? []).map((row) => ({
+      id: row.id as string,
+      contactId: row.contact_id as string,
+      civicNumber: String(row.civic_number ?? ""), address: String(row.address ?? ""), apartment: String(row.apartment ?? ""),
+      city: String(row.city ?? ""), province: String(row.province ?? ""), postalCode: String(row.postal_code ?? ""), country: String(row.country ?? ""),
+      isPrimary: Boolean(row.is_primary), label: row.label as ContactAddressInput["label"],
+      createdAt: String(row.created_at), updatedAt: String(row.updated_at),
+    })),
+  };
 }
 
 export async function mergeExistingContacts(input: ExistingMergeInput) {
@@ -60,9 +96,10 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       await deleteCalendarEventForContact(mapServerContact(contact));
     }
 
-    const { data, error } = await getSupabaseAdmin().rpc("merge_contacts", {
+    const addressRpc = await getSupabaseAdmin().rpc("merge_contacts_with_addresses", {
       p_target_id: input.targetId,
       p_source_id: input.sourceId,
+      p_addresses: addressRpcPayload(input.addresses),
       p_first_name: input.values.firstName,
       p_last_name: input.values.lastName,
       p_phone: input.values.phone,
@@ -83,14 +120,42 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       p_google_event_broker: retainedEventBroker,
       p_merged_by_user_id: input.mergedByUserId,
     });
-    if (error) throw error;
+    let data = addressRpc.data;
+    if (addressRpc.error) {
+      if (!isAddressHistoryUnavailableError(addressRpc.error)) throw addressRpc.error;
+      const fallback = await getSupabaseAdmin().rpc("merge_contacts", {
+        p_target_id: input.targetId,
+        p_source_id: input.sourceId,
+        p_first_name: input.values.firstName,
+        p_last_name: input.values.lastName,
+        p_phone: input.values.phone,
+        p_email: input.values.email,
+        p_civic_number: input.values.civicNumber,
+        p_address: input.values.address,
+        p_apartment: input.values.apartment,
+        p_city: input.values.city,
+        p_province: input.values.province,
+        p_postal_code: input.values.postalCode,
+        p_country: input.values.country,
+        p_broker: input.values.broker,
+        p_client_type: input.values.clientType,
+        p_priority: input.values.priority,
+        p_status: input.values.status,
+        p_next_follow_up_date: nextFollowUpDate,
+        p_google_event_id: retainedEventId,
+        p_google_event_broker: retainedEventBroker,
+        p_merged_by_user_id: input.mergedByUserId,
+      });
+      if (fallback.error) throw fallback.error;
+      data = fallback.data;
+    }
 
     const merged = mapServerContact((Array.isArray(data) ? data[0] : data) as ServerContactRow);
     if (merged.nextFollowUpDate) {
       const sync = await syncContactFollowUp(merged.id);
-      return sync.contact ?? merged;
+      return withAddressHistory(sync.contact ?? merged);
     }
-    return merged;
+    return withAddressHistory(merged);
   } catch (error) {
     // Si Google a été nettoyé mais que Supabase refuse la fusion, les deux
     // contacts restent la source de vérité et leurs événements sont recréés.
@@ -107,9 +172,26 @@ export async function mergeDraftIntoContact(
   values: DraftMergeSelection,
   incomingDraft: Record<string, unknown>,
   mergedByUserId: string | null,
+  addresses?: ReadonlyArray<ContactAddressInput>,
 ) {
   const target = await getServerContact(targetId);
   const brokerChanged = target.broker !== values.broker;
+  const atomic = await getSupabaseAdmin().rpc("merge_draft_into_contact_with_addresses", {
+    p_target_id: targetId,
+    p_values: values,
+    p_addresses: addressRpcPayload(addresses ?? values.addresses),
+    p_incoming_draft: incomingDraft,
+    p_merged_by_user_id: mergedByUserId,
+  });
+  if (!atomic.error) {
+    const merged = mapServerContact((Array.isArray(atomic.data) ? atomic.data[0] : atomic.data) as ServerContactRow);
+    if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
+      const sync = await syncContactFollowUp(targetId);
+      return withAddressHistory(sync.contact ?? merged);
+    }
+    return withAddressHistory(merged);
+  }
+  if (!isAddressHistoryUnavailableError(atomic.error)) throw atomic.error;
   const { data, error } = await getSupabaseAdmin()
     .from("contacts")
     .update({
@@ -147,9 +229,9 @@ export async function mergeDraftIntoContact(
   const merged = mapServerContact(data as ServerContactRow);
   if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
     const sync = await syncContactFollowUp(targetId);
-    return sync.contact ?? merged;
+    return withAddressHistory(sync.contact ?? merged);
   }
-  return merged;
+  return withAddressHistory(merged);
 }
 
 export async function deleteContactAndCalendar(contactId: string) {
