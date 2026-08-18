@@ -43,7 +43,11 @@ export async function GET(request: Request) {
     await saveGoogleConnection(broker, tokens);
     settingsUrl.searchParams.set("google", "connected");
     settingsUrl.searchParams.set("broker", broker);
-  } catch {
+  } catch (caughtError) {
+    console.error(
+      "Erreur callback Google OAuth:",
+      caughtError instanceof Error ? caughtError.message : "Erreur inconnue",
+    );
     settingsUrl.searchParams.set("google", "error");
   }
 
