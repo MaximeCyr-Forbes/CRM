@@ -19,6 +19,7 @@ import {
 } from "../data/contact-types";
 import {
   analyzeImportDrafts,
+  decodeContactImportBuffer,
   parseCSVContacts,
   parseVCardContacts,
   type ImportCandidate,
@@ -194,7 +195,7 @@ export default function ContactsPage() {
       return;
     }
     try {
-      const text = await file.text();
+      const text = decodeContactImportBuffer(await file.arrayBuffer());
       const drafts = importKind === "csv" ? parseCSVContacts(text) : parseVCardContacts(text);
       if (drafts.length === 0) throw new Error("empty");
       const candidates = analyzeImportDrafts(drafts, contacts);
