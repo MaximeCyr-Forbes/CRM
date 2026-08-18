@@ -1,4 +1,4 @@
-import type { Contact, ContactDraft } from "../data/contact-types";
+import { CONTACT_DRAFT_FIELDS, type Contact, type ContactDraft } from "../data/contact-types";
 import {
   findDuplicateMatches,
   getDuplicateReasons,
@@ -48,6 +48,12 @@ function decodeBytes(bytes: Uint8Array, charset?: string) {
 
 export function decodeContactImportBuffer(buffer: ArrayBuffer) {
   return decodeBytes(new Uint8Array(buffer)).normalize("NFC");
+}
+
+export function normalizeContactDraft(draft: ContactDraft): ContactDraft {
+  return Object.fromEntries(
+    CONTACT_DRAFT_FIELDS.map((field) => [field, normalizeImportedValue(draft[field])]),
+  ) as ContactDraft;
 }
 
 function splitFullName(fullName: string) {
@@ -188,6 +194,12 @@ export function parseVCardContacts(text: string): ContactDraft[] {
     let fullName = "";
     let phone = "";
     let email = "";
+    let address = "";
+    let apartment = "";
+    let city = "";
+    let province = "";
+    let postalCode = "";
+    let country = "";
 
     for (const line of card.split("\n")) {
       const property = parseVCardProperty(line);
@@ -203,6 +215,14 @@ export function parseVCardContacts(text: string): ContactDraft[] {
         phone = unescapeVCardValue(property.value);
       } else if (property.key === "EMAIL" && !email) {
         email = unescapeVCardValue(property.value);
+      } else if (property.key === "ADR" && !address) {
+        const parts = splitVCardComponents(property.value).map(unescapeVCardValue);
+        address = [parts[2], parts[0]].filter(Boolean).join(", ");
+        apartment = parts[1] ?? "";
+        city = parts[3] ?? "";
+        province = parts[4] ?? "";
+        postalCode = parts[5] ?? "";
+        country = parts[6] ?? "";
       }
     }
 
@@ -217,6 +237,12 @@ export function parseVCardContacts(text: string): ContactDraft[] {
       lastName: normalizeImportedValue(lastName),
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(email),
+      address: normalizeImportedValue(address),
+      apartment: normalizeImportedValue(apartment),
+      city: normalizeImportedValue(city),
+      province: normalizeImportedValue(province),
+      postalCode: normalizeImportedValue(postalCode),
+      country: normalizeImportedValue(country),
     };
     return [draft];
   });

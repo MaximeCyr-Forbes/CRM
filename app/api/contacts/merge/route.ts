@@ -20,6 +20,12 @@ function parseValues(value: unknown): ContactUpdate | null {
     typeof data.lastName !== "string" ||
     typeof data.phone !== "string" ||
     typeof data.email !== "string" ||
+    typeof data.address !== "string" ||
+    typeof data.apartment !== "string" ||
+    typeof data.city !== "string" ||
+    typeof data.province !== "string" ||
+    typeof data.postalCode !== "string" ||
+    typeof data.country !== "string" ||
     !isBroker(data.broker) ||
     ![null, "buyer", "seller", "buyer_seller"].includes(data.clientType as null | string) ||
     ![null, "hot", "warm", "cold"].includes(data.priority as null | string) ||

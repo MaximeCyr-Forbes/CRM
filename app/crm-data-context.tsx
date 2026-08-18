@@ -32,6 +32,12 @@ type ContactRow = {
   last_name: string;
   phone: string;
   email: string;
+  address: string;
+  apartment: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  country: string;
   broker: ContactBroker;
   client_type: Contact["clientType"];
   priority: Contact["priority"];
@@ -121,6 +127,12 @@ function mapContact(row: ContactRow): Contact {
     lastName: row.last_name,
     phone: row.phone,
     email: row.email,
+    address: row.address ?? "",
+    apartment: row.apartment ?? "",
+    city: row.city ?? "",
+    province: row.province ?? "",
+    postalCode: row.postal_code ?? "",
+    country: row.country ?? "",
     broker: row.broker,
     clientType: row.client_type,
     priority: row.priority,

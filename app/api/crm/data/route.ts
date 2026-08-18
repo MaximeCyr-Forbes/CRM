@@ -35,6 +35,10 @@ function isActorBroker(value: unknown): value is Exclude<ContactBroker, "unassig
   return value === "france" || value === "maxime" || value === "sandrine";
 }
 
+function textValue(value: unknown) {
+  return String(value ?? "").trim().normalize("NFC");
+}
+
 export async function GET(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
@@ -58,11 +62,11 @@ export async function GET(request: Request) {
 
     let contactsQuery = client
       .from("contacts")
-      .select("id, first_name, last_name, phone, email, broker")
+      .select("id, first_name, last_name, phone, email, address, apartment, city, province, postal_code, country, broker")
       .limit(8);
     for (const term of terms) {
       contactsQuery = contactsQuery.or(
-        `first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`,
+        `first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%,address.ilike.%${term}%,apartment.ilike.%${term}%,city.ilike.%${term}%,province.ilike.%${term}%,postal_code.ilike.%${term}%,country.ilike.%${term}%`,
       );
     }
     let transactionsQuery = client
@@ -80,7 +84,7 @@ export async function GET(request: Request) {
       id: contact.id as string,
       kind: "contact" as const,
       title: [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact sans nom",
-      detail: [contact.phone, contact.email].filter(Boolean).join(" · ") || `Courtier · ${contact.broker}`,
+      detail: [contact.phone, contact.email, [contact.address, contact.city, contact.postal_code].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || `Courtier · ${contact.broker}`,
       href: `/contacts/${contact.id}`,
     }));
     const transactionResults = transactionsResult.error ? [] : (transactionsResult.data ?? []).map((transaction) => ({
@@ -117,10 +121,16 @@ export async function POST(request: Request) {
     if (body.action === "addManualContact") {
       if (!isActorBroker(body.broker)) throw new Error("Courtier invalide");
       const { data, error } = await client.from("contacts").insert({
-        first_name: String(body.draft?.firstName ?? "").trim(),
-        last_name: String(body.draft?.lastName ?? "").trim(),
-        phone: String(body.draft?.phone ?? "").trim(),
-        email: String(body.draft?.email ?? "").trim(),
+        first_name: textValue(body.draft?.firstName),
+        last_name: textValue(body.draft?.lastName),
+        phone: textValue(body.draft?.phone),
+        email: textValue(body.draft?.email),
+        address: textValue(body.draft?.address),
+        apartment: textValue(body.draft?.apartment),
+        city: textValue(body.draft?.city),
+        province: textValue(body.draft?.province),
+        postal_code: textValue(body.draft?.postalCode),
+        country: textValue(body.draft?.country),
         broker: body.broker,
         source: "manual",
         client_type: body.clientType ?? null,
@@ -136,10 +146,16 @@ export async function POST(request: Request) {
       for (let index = 0; index < body.drafts.length; index += 250) {
         const chunk = body.drafts.slice(index, index + 250);
         const { data, error } = await client.from("contacts").insert(chunk.map((draft: Record<string, unknown>) => ({
-          first_name: String(draft.firstName ?? "").trim(),
-          last_name: String(draft.lastName ?? "").trim(),
-          phone: String(draft.phone ?? "").trim(),
-          email: String(draft.email ?? "").trim(),
+          first_name: textValue(draft.firstName),
+          last_name: textValue(draft.lastName),
+          phone: textValue(draft.phone),
+          email: textValue(draft.email),
+          address: textValue(draft.address),
+          apartment: textValue(draft.apartment),
+          city: textValue(draft.city),
+          province: textValue(draft.province),
+          postal_code: textValue(draft.postalCode),
+          country: textValue(draft.country),
           broker: "unassigned",
           source,
         }))).select("*");
@@ -184,10 +200,16 @@ export async function POST(request: Request) {
       const values = body.values ?? {};
       if (!isBroker(values.broker)) throw new Error("Courtier invalide");
       const { data, error } = await client.from("contacts").update({
-        first_name: String(values.firstName ?? "").trim(),
-        last_name: String(values.lastName ?? "").trim(),
-        phone: String(values.phone ?? "").trim(),
-        email: String(values.email ?? "").trim(),
+        first_name: textValue(values.firstName),
+        last_name: textValue(values.lastName),
+        phone: textValue(values.phone),
+        email: textValue(values.email),
+        address: textValue(values.address),
+        apartment: textValue(values.apartment),
+        city: textValue(values.city),
+        province: textValue(values.province),
+        postal_code: textValue(values.postalCode),
+        country: textValue(values.country),
         broker: values.broker,
         client_type: values.clientType ?? null,
         priority: values.priority ?? null,

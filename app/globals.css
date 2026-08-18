@@ -1116,6 +1116,19 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
+.profile-address-group address {
+  display: grid;
+  gap: 0.3rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.profile-address-group address strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
 .profile-info-highlight .info-group + .info-group {
   border-color: rgba(255, 253, 248, 0.16);
 }
@@ -2243,7 +2256,7 @@ button:disabled {
 
 .imported-contact-identity {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) minmax(8rem, 0.8fr) minmax(11rem, 1fr) auto;
+  grid-template-columns: minmax(10rem, 1fr) minmax(8rem, 0.8fr) minmax(11rem, 1fr) minmax(8rem, 0.8fr) auto;
   align-items: center;
   gap: 0.7rem;
   min-width: 0;
@@ -2257,6 +2270,29 @@ button:disabled {
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.import-contact-name-button {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(23, 63, 53, 0.28);
+  text-underline-offset: 0.22rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-contact-name-button:hover,
+.import-contact-name-button:focus-visible {
+  color: #2f6758;
+  text-decoration-color: currentColor;
 }
 
 .imported-contact-identity > span {
@@ -4066,6 +4102,201 @@ textarea:focus-visible,
   grid-column: 1 / -1;
 }
 
+.contact-editor-field-wide {
+  grid-column: 1 / -1;
+}
+
+.import-contact-review-backdrop {
+  z-index: 95;
+}
+
+.import-contact-review-modal {
+  width: min(64rem, calc(100% - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.import-contact-review-header h2 {
+  margin-bottom: 0.55rem;
+}
+
+.import-review-metadata,
+.import-contact-review-navigation,
+.import-contact-review-section-heading,
+.import-contact-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.import-review-metadata {
+  flex-wrap: wrap;
+}
+
+.import-review-metadata span {
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  background: #edf1ed;
+  color: #51615b;
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.import-contact-review-navigation {
+  justify-content: space-between;
+  padding: 0.9rem clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid rgba(16, 37, 31, 0.1);
+}
+
+.import-contact-review-navigation button,
+.import-contact-review-actions button {
+  min-height: 2.7rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(16, 37, 31, 0.15);
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #173f35;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.import-contact-review-navigation button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.import-existing-contact,
+.import-contact-review-form {
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.import-existing-contact {
+  background: #f3f1eb;
+  border-bottom: 1px solid rgba(16, 37, 31, 0.1);
+}
+
+.import-existing-contact > p,
+.import-contact-review-section-heading p {
+  margin: 0 0 0.35rem;
+  color: #6c7974;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.import-existing-contact h3 {
+  margin: 0 0 0.85rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.import-existing-contact dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.import-existing-contact dt {
+  color: #6c7974;
+  font-size: 0.68rem;
+}
+
+.import-existing-contact dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.import-contact-review-section-heading {
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.import-contact-review-section-heading strong {
+  font-size: 0.84rem;
+}
+
+.import-contact-review-section-heading > span {
+  color: #27705b;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.import-contact-review-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.import-contact-review-fields label {
+  display: grid;
+  gap: 0.4rem;
+  color: #53635e;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.import-contact-review-fields label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.import-contact-review-fields input {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(16, 37, 31, 0.15);
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #173f35;
+  font: inherit;
+}
+
+.import-review-field-wide {
+  grid-column: 1 / -1;
+}
+
+.field-confidence-high,
+.field-confidence-low {
+  font-size: 0.65rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.field-confidence-high {
+  color: #27705b;
+}
+
+.field-confidence-low {
+  color: #9b5e17;
+}
+
+.import-field-source {
+  color: #87918d;
+  font-size: 0.66rem;
+  font-weight: 500;
+}
+
+.import-contact-review-actions {
+  justify-content: flex-end;
+  margin-top: 1.4rem;
+}
+
+.import-contact-review-actions button:last-child {
+  border-color: #173f35;
+  background: #173f35;
+  color: #fff;
+}
+
 .contact-danger-zone {
   display: flex;
   justify-content: flex-end;
@@ -4921,6 +5152,43 @@ textarea:focus-visible,
 }
 
 @media (max-width: 720px) {
+  .import-contact-review-modal {
+    width: min(100% - 1rem, 64rem);
+    max-height: calc(100vh - 1rem);
+  }
+
+  .import-contact-review-navigation {
+    align-items: stretch;
+  }
+
+  .import-contact-review-navigation button {
+    flex: 1;
+    padding-inline: 0.55rem;
+  }
+
+  .import-existing-contact dl,
+  .import-contact-review-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .import-review-field-wide {
+    grid-column: auto;
+  }
+
+  .import-contact-review-section-heading,
+  .import-contact-review-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .import-contact-review-actions button {
+    width: 100%;
+  }
+
+  .contact-editor-field-wide {
+    grid-column: auto;
+  }
+
   .account-menu {
     top: 0.75rem;
     right: 0.75rem;

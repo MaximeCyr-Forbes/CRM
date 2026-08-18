@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { Contact, ContactBroker, ContactDraft, DraftMergeSelection } from "../data/contact-types";
-import { BROKER_LABELS, CONTACT_BROKERS, getContactName } from "../data/contact-types";
+import { BROKER_LABELS, CONTACT_BROKERS, getContactFullAddress, getContactName } from "../data/contact-types";
+import { getDefaultDraftMergeSources, mergeContactDraftFields, type DraftMergeSources } from "../lib/contact-merge";
 import type { DuplicateReason } from "../lib/contact-normalization";
 import { formatFollowUpDate } from "../lib/follow-up";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
@@ -42,12 +43,7 @@ export function DuplicateResolutionModal({
   onMerge,
 }: Props) {
   const [phase, setPhase] = useState<"compare" | "merge">("compare");
-  const [sources, setSources] = useState({
-    firstName: existing.firstName ? "existing" : "incoming",
-    lastName: existing.lastName ? "existing" : "incoming",
-    phone: existing.phone ? "existing" : "incoming",
-    email: existing.email ? "existing" : "incoming",
-  } as Record<keyof ContactDraft, "existing" | "incoming">);
+  const [sources, setSources] = useState<DraftMergeSources>(() => getDefaultDraftMergeSources(existing));
   const [broker, setBroker] = useState<ContactBroker | null>(
     existing.broker === incoming.broker ? existing.broker : null,
   );
@@ -59,13 +55,9 @@ export function DuplicateResolutionModal({
 
   const selection = useMemo<DraftMergeSelection | null>(() => {
     if (!broker) return null;
-    const pick = (field: keyof ContactDraft) =>
-      sources[field] === "existing" ? existing[field] : incoming[field];
+    const mergedDraft = mergeContactDraftFields(existing, incoming, sources);
     return {
-      firstName: pick("firstName"),
-      lastName: pick("lastName"),
-      phone: pick("phone"),
-      email: pick("email"),
+      ...mergedDraft,
       broker,
       nextFollowUpDate:
         followUpSource === "existing" ? existing.nextFollowUpDate : incomingFollowUp,
@@ -77,6 +69,12 @@ export function DuplicateResolutionModal({
     { key: "lastName", label: "Nom" },
     { key: "phone", label: "Téléphone" },
     { key: "email", label: "Email" },
+    { key: "address", label: "Adresse" },
+    { key: "apartment", label: "Appartement" },
+    { key: "city", label: "Ville" },
+    { key: "province", label: "Province" },
+    { key: "postalCode", label: "Code postal" },
+    { key: "country", label: "Pays" },
   ];
 
   return (
@@ -101,6 +99,7 @@ export function DuplicateResolutionModal({
                 name={getContactName(existing)}
                 notes={`${existingNotesCount} note${existingNotesCount > 1 ? "s" : ""}`}
                 phone={existing.phone}
+                address={getContactFullAddress(existing)}
                 followUp={existing.nextFollowUpDate}
               />
               <DuplicateCard
@@ -110,6 +109,7 @@ export function DuplicateResolutionModal({
                 name={getContactName(incoming)}
                 notes={`${incomingNotesCount} note${incomingNotesCount > 1 ? "s" : ""}`}
                 phone={incoming.phone}
+                address={getContactFullAddress(incoming)}
                 followUp={incomingFollowUp}
               />
             </div>
@@ -172,6 +172,7 @@ function DuplicateCard(props: {
   name: string;
   phone: string;
   email: string;
+  address: string;
   broker: ContactBroker;
   notes: string;
   followUp: string | null;
@@ -183,6 +184,7 @@ function DuplicateCard(props: {
       <dl>
         <div><dt>Téléphone</dt><dd>{props.phone || "Non renseigné"}</dd></div>
         <div><dt>Email</dt><dd>{props.email || "Non renseigné"}</dd></div>
+        <div><dt>Adresse</dt><dd>{props.address || "Non renseignée"}</dd></div>
         <div><dt>Courtier</dt><dd>{BROKER_LABELS[props.broker]}</dd></div>
         <div><dt>Notes</dt><dd>{props.notes}</dd></div>
         <div><dt>Prochaine relance</dt><dd>{props.followUp ? formatFollowUpDate(props.followUp) : "Aucune"}</dd></div>

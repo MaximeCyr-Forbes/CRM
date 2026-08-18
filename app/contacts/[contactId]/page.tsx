@@ -24,6 +24,7 @@ import {
   PRIORITY_LABELS,
   SELLER_PIPELINE_LABELS,
   SELLER_PIPELINE_STAGES,
+  getContactAddressLines,
   getContactName,
   type PipelineStage,
   type PipelineType,
@@ -285,6 +286,12 @@ export default function ContactProfilePage() {
         lastName: selection.lastName,
         phone: selection.phone,
         email: selection.email,
+        address: selection.address,
+        apartment: selection.apartment,
+        city: selection.city,
+        province: selection.province,
+        postalCode: selection.postalCode,
+        country: selection.country,
         broker: selection.broker,
         clientType: existing.clientType ?? contact.clientType,
         priority: existing.priority ?? contact.priority,
@@ -358,6 +365,12 @@ export default function ContactProfilePage() {
             <div className="info-group">
               <span>Email</span>
               {contact.email ? <a className="contact-direct-link" href={`mailto:${contact.email}`}>{contact.email}</a> : <strong>Non renseigné</strong>}
+            </div>
+            <div className="info-group profile-address-group">
+              <span>Adresse résidentielle</span>
+              {getContactAddressLines(contact).length > 0
+                ? <address>{getContactAddressLines(contact).map((line) => <strong key={line}>{line}</strong>)}</address>
+                : <strong>Non renseignée</strong>}
             </div>
           </article>
 
@@ -495,6 +508,12 @@ export default function ContactProfilePage() {
               lastName: editDuplicate.values.lastName,
               phone: editDuplicate.values.phone,
               email: editDuplicate.values.email,
+              address: editDuplicate.values.address,
+              apartment: editDuplicate.values.apartment,
+              city: editDuplicate.values.city,
+              province: editDuplicate.values.province,
+              postalCode: editDuplicate.values.postalCode,
+              country: editDuplicate.values.country,
               broker: editDuplicate.values.broker,
               nextFollowUpDate: contact.nextFollowUpDate,
             }}

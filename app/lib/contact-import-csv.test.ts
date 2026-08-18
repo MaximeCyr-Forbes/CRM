@@ -26,6 +26,7 @@ const requiredPhones = [
   "+1 (514) 709-6348",
   "+15146076748",
 ] as const;
+const emptyAddress = { address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -43,6 +44,48 @@ function encodeWindows1252(value: string) {
 }
 
 describe("détection autonome de la structure CSV", () => {
+  it("importe une adresse résidentielle répartie sur plusieurs colonnes", () => {
+    const csv = [
+      "Courriel;Nom;Prénom;Adresse;Appartement;Ville;Province;Code postal;Pays",
+      "simon@example.ca;Béliveau;Simon Pierre;125 Avenue Léo-Lacombe;App 4;Deux-Montagnes;QC;J7R 3W7;Canada",
+    ].join("\r\n");
+
+    const analysis = analyzeCSVContacts(csv);
+
+    expect(analysis.mapping).toMatchObject({
+      hasHeader: true,
+      address: { index: 3 },
+      apartment: { index: 4 },
+      city: { index: 5 },
+      province: { index: 6 },
+      postalCode: { index: 7 },
+      country: { index: 8 },
+    });
+    expect(analysis.drafts[0]).toEqual({
+      firstName: "Simon Pierre",
+      lastName: "Béliveau",
+      phone: "",
+      email: "simon@example.ca",
+      address: "125 Avenue Léo-Lacombe",
+      apartment: "App 4",
+      city: "Deux-Montagnes",
+      province: "QC",
+      postalCode: "J7R 3W7",
+      country: "Canada",
+    });
+  });
+
+  it("conserve une adresse complète provenant d'une seule colonne", () => {
+    const csv = [
+      "First Name,Last Name,Email,Full Address",
+      'Hélène,Côté,helene@example.ca,"125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7"',
+    ].join("\n");
+
+    const analysis = analyzeCSVContacts(csv);
+    expect(analysis.mapping.address?.index).toBe(3);
+    expect(analysis.drafts[0].address).toBe("125 Avenue Léo-Lacombe, Deux-Montagnes, QC J7R 3W7");
+  });
+
   it("reconnaît des headers français et le délimiteur point-virgule", () => {
     const csv = [
       "Courriel;Nom;Prénom;Téléphone;Date;Code postal",
@@ -62,8 +105,8 @@ describe("détection autonome de la structure CSV", () => {
       phone: { index: 3, source: "header" },
     });
     expect(analysis.drafts).toEqual([
-      { firstName: "François", lastName: "Béliveau", phone: "514-835-5524", email: "francois@example.ca" },
-      { firstName: "Hélène", lastName: "Côté", phone: "(450) 472-7808", email: "helene@example.ca" },
+      { ...emptyAddress, postalCode: "J7R 3W7", firstName: "François", lastName: "Béliveau", phone: "514-835-5524", email: "francois@example.ca" },
+      { ...emptyAddress, postalCode: "H7N 3Y2", firstName: "Hélène", lastName: "Côté", phone: "(450) 472-7808", email: "helene@example.ca" },
     ]);
   });
 
@@ -85,6 +128,7 @@ describe("détection autonome de la structure CSV", () => {
       phone: { index: 3 },
     });
     expect(analysis.drafts[1]).toEqual({
+      ...emptyAddress,
       firstName: "Maïté",
       lastName: "Côte-des-Neiges",
       phone: "+1 (514) 709-6348",
@@ -124,7 +168,14 @@ describe("détection autonome de la structure CSV", () => {
       requiresConfirmation: false,
     });
     expect(analysis.mapping.phoneFallbacks.map((match) => match.index)).toContain(63);
+    expect(analysis.mapping).toMatchObject({
+      address: { index: 12 },
+      city: { index: 13 },
+      province: { index: 14 },
+      postalCode: { index: 11 },
+    });
     expect(analysis.drafts[0]).toMatchObject({ firstName: "François", lastName: "Béliveau", phone: "514-835-5524" });
+    expect(analysis.drafts[0]).toMatchObject({ address: "100 Avenue Léo-Lacombe", city: "Deux-Montagnes", province: "Québec", postalCode: "J7R 3W7" });
     expect(analysis.drafts[1]).toMatchObject({ firstName: "Hélène", lastName: "Côté", phone: "(450) 472-7808" });
     expect(analysis.drafts.every((contact) => Boolean(contact.phone))).toBe(true);
     expect(analysis.drafts.some((contact) => contact.phone === "J7R 3W7" || contact.phone.startsWith("2026-"))).toBe(false);
@@ -183,11 +234,11 @@ describe("détection autonome de la structure CSV", () => {
 
 describe("encodages CSV avec l'inférence autonome", () => {
   it("préserve Windows-1252 et les accents français", () => {
-    const source = "Courriel;Nom;Prénom\r\nfrancois@example.ca;Béliveau;François\r\nmaite@example.ca;Noël;Maïté";
+    const source = "Courriel;Nom;Prénom;Adresse;Ville\r\nfrancois@example.ca;Béliveau;François;125 Avenue Léo-Lacombe;Deux-Montagnes\r\nmaite@example.ca;Noël;Maïté;;Laval";
     const decoded = decodeContactImportBuffer(exactArrayBuffer(encodeWindows1252(source)));
     expect(parseCSVContacts(decoded)).toEqual([
-      { firstName: "François", lastName: "Béliveau", phone: "", email: "francois@example.ca" },
-      { firstName: "Maïté", lastName: "Noël", phone: "", email: "maite@example.ca" },
+      { ...emptyAddress, address: "125 Avenue Léo-Lacombe", city: "Deux-Montagnes", firstName: "François", lastName: "Béliveau", phone: "", email: "francois@example.ca" },
+      { ...emptyAddress, city: "Laval", firstName: "Maïté", lastName: "Noël", phone: "", email: "maite@example.ca" },
     ]);
   });
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { DataStatus } from "../components/data-status";
 import { DuplicateResolutionModal } from "../components/duplicate-resolution-modal";
+import { ImportContactReviewModal } from "../components/import-contact-review-modal";
 import { useContacts } from "../contacts-context";
 import { useCRMData } from "../crm-data-context";
 import {
@@ -63,7 +64,15 @@ type PendingManualDuplicate = {
   reasons: DuplicateReason[];
 };
 
-const emptyDraft: ContactDraft = { firstName: "", lastName: "", phone: "", email: "" };
+const emptyDraft: ContactDraft = {
+  firstName: "", lastName: "", phone: "", email: "",
+  address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
+};
+const contactDraftLabels: Record<keyof ContactDraft, string> = {
+  firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email",
+  address: "Adresse", apartment: "Appartement", city: "Ville", province: "Province",
+  postalCode: "Code postal", country: "Pays",
+};
 const filterOptions: ReadonlyArray<{ label: string; value: ContactFilter }> = [
   { label: "Tous", value: "all" },
   { label: "France", value: "france" },
@@ -83,6 +92,12 @@ const csvMappingLabels: Record<CSVImportField, string> = {
   fullName: "Nom complet",
   email: "Email",
   phone: "Téléphone",
+  address: "Adresse",
+  apartment: "Appartement",
+  city: "Ville",
+  province: "Province",
+  postalCode: "Code postal",
+  country: "Pays",
 };
 const csvMappingFields = Object.keys(csvMappingLabels) as CSVImportField[];
 
@@ -106,6 +121,14 @@ function syntheticContact(candidate: ImportCandidate): Contact {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function importClassificationKey(candidate: ImportCandidate) {
+  return [
+    candidate.status,
+    candidate.duplicateDraftIndex ?? "",
+    ...candidate.duplicateMatches.map((match) => match.contact.id).sort(),
+  ].join("|");
 }
 
 export default function ContactsPage() {
@@ -132,6 +155,7 @@ export default function ContactsPage() {
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [activeImportDuplicateId, setActiveImportDuplicateId] = useState<string | null>(null);
+  const [reviewedImportId, setReviewedImportId] = useState<string | null>(null);
   const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(100);
@@ -155,6 +179,12 @@ export default function ContactsPage() {
   const activeImportReasons = activeImportCandidate && activeImportExisting
     ? getDuplicateReasons(activeImportCandidate.draft, activeImportExisting)
     : [];
+  const reviewedImportIndex = pendingImport?.candidates.findIndex((candidate) => candidate.id === reviewedImportId) ?? -1;
+  const reviewedImportCandidate = reviewedImportIndex >= 0 ? pendingImport?.candidates[reviewedImportIndex] ?? null : null;
+  const reviewedBatchCandidate = reviewedImportCandidate?.duplicateDraftIndex !== null && reviewedImportCandidate?.duplicateDraftIndex !== undefined
+    ? pendingImport?.candidates[reviewedImportCandidate.duplicateDraftIndex] ?? null
+    : null;
+  const reviewedImportExisting = reviewedImportCandidate?.duplicateMatches[0]?.contact ?? (reviewedBatchCandidate ? syntheticContact(reviewedBatchCandidate) : null);
 
   function showConfirmation(message: string) {
     setConfirmation(message);
@@ -251,10 +281,34 @@ export default function ContactsPage() {
   }
 
   function updateImportCandidate(candidateId: string, draft: ContactDraft) {
-    setPendingImport((current) => current ? {
-      ...current,
-      candidates: current.candidates.map((candidate) => candidate.id === candidateId ? { ...candidate, draft } : candidate),
-    } : null);
+    setPendingImport((current) => {
+      if (!current) return null;
+      const drafts = current.candidates.map((candidate) => candidate.id === candidateId ? draft : candidate.draft);
+      const candidates = analyzeImportDrafts(drafts, contacts).map((candidate, index) => ({
+        ...candidate,
+        id: current.candidates[index].id,
+      }));
+      const resolutions = Object.fromEntries(candidates.map((candidate, index) => {
+        const previous = current.candidates[index];
+        const classificationChanged = importClassificationKey(candidate) !== importClassificationKey(previous);
+        const resolution = candidate.id === candidateId || classificationChanged
+          ? candidate.status === "new" ? "keep" : "unresolved"
+          : current.resolutions[candidate.id];
+        return [candidate.id, resolution];
+      }));
+      const merges = Object.fromEntries(Object.entries(current.merges).filter(([id]) => {
+        const index = candidates.findIndex((candidate) => candidate.id === id);
+        return index >= 0
+          && id !== candidateId
+          && importClassificationKey(candidates[index]) === importClassificationKey(current.candidates[index]);
+      }));
+      return {
+        ...current,
+        candidates,
+        resolutions,
+        merges,
+      };
+    });
   }
 
   function resolveImport(candidateId: string, resolution: ImportResolution) {
@@ -279,10 +333,8 @@ export default function ContactsPage() {
       } : null);
     } else if (batchExistingCandidate) {
       updateImportCandidate(batchExistingCandidate.id, {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        phone: values.phone,
-        email: values.email,
+        ...batchExistingCandidate.draft,
+        ...Object.fromEntries((Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => [field, values[field]])),
       });
     }
     resolveImport(activeImportCandidate.id, "merge");
@@ -372,7 +424,7 @@ export default function ContactsPage() {
       {manualStep !== "closed" && <div className="contact-modal-backdrop"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">
         <header className="contact-modal-header"><div><p className="section-kicker">{manualStep === "details" ? "Nouveau contact" : "Attribution obligatoire"}</p><h2>{manualStep === "details" ? "Ajouter un contact" : "À QUI ATTRIBUER CE CONTACT ?"}</h2></div><button aria-label="Fermer" onClick={closeManualModal} type="button">×</button></header>
         {manualStep === "details" ? <form className="manual-contact-form" onSubmit={submitManualDetails}>
-          {(["firstName", "lastName", "phone", "email"] as const).map((field) => <label key={field}><span>{{ firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email" }[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : "text"} value={manualDraft[field]} /></label>)}
+          {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : "text"} value={manualDraft[field]} /></label>)}
           {manualError && <p className="import-error">{manualError}</p>}<button className="manual-contact-continue" type="submit">Continuer vers l’attribution</button>
         </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span aria-hidden="true">→</span></button>)}</div>}
       </section></div>}
@@ -406,7 +458,7 @@ export default function ContactsPage() {
         <div className="imported-contacts-list">{reviewCandidates.map((candidate) => {
           const resolution = pendingImport.resolutions[candidate.id];
           return <article className="imported-contact-row import-quality-row" key={candidate.id}>
-            <div className="imported-contact-identity"><h3>{getContactName(candidate.draft)}</h3><span>{candidate.draft.phone || "Sans téléphone"}</span><span>{candidate.draft.email || "Sans email"}</span><strong className={candidate.status === "duplicate" ? "duplicate-warning" : candidate.status === "incomplete" ? "incomplete-warning" : "new-contact-status"}>{candidate.status === "duplicate" ? "DOUBLON POSSIBLE" : candidate.status === "incomplete" ? "CONTACT INCOMPLET" : "NOUVEAU"}</strong></div>
+            <div className="imported-contact-identity"><h3><button className="import-contact-name-button" onClick={() => setReviewedImportId(candidate.id)} type="button">{getContactName(candidate.draft)}</button></h3><span>{candidate.draft.phone || "Sans téléphone"}</span><span>{candidate.draft.email || "Sans email"}</span><span>{candidate.draft.city || candidate.draft.postalCode || "Adresse non renseignée"}</span><strong className={candidate.status === "duplicate" ? "duplicate-warning" : candidate.status === "incomplete" ? "incomplete-warning" : "new-contact-status"}>{candidate.status === "duplicate" ? "DOUBLON POSSIBLE" : candidate.status === "incomplete" ? "CONTACT INCOMPLET" : "NOUVEAU"}</strong></div>
             {candidate.status === "incomplete" && resolution === "unresolved" && <div className="incomplete-editor"><input onChange={(event) => updateImportCandidate(candidate.id, { ...candidate.draft, firstName: event.target.value })} placeholder="Nom ou prénom" value={candidate.draft.firstName} /><input onChange={(event) => updateImportCandidate(candidate.id, { ...candidate.draft, phone: event.target.value })} placeholder="Téléphone" value={candidate.draft.phone} /><input onChange={(event) => updateImportCandidate(candidate.id, { ...candidate.draft, email: event.target.value })} placeholder="Email" value={candidate.draft.email} /></div>}
             <div className="import-quality-actions">
               {candidate.status === "duplicate" && resolution === "unresolved" && <><button onClick={() => openImportDuplicate(candidate)} type="button">RÉSOUDRE</button><button onClick={() => resolveImport(candidate.id, "skip")} type="button">IGNORER</button></>}
@@ -418,6 +470,7 @@ export default function ContactsPage() {
       </section></div>}
 
       {manualDuplicate && <DuplicateResolutionModal existing={manualDuplicate.existing} existingNotesCount={notes.filter((note) => note.contactId === manualDuplicate.existing.id).length} incoming={{ ...manualDraft, broker: manualDuplicate.broker }} isSaving={isSaving} onCancel={() => { setManualDuplicate(null); setManualStep("details"); }} onKeepBoth={() => createManualContact(manualDuplicate.broker)} onMerge={mergeManual} reasons={manualDuplicate.reasons} />}
+      {reviewedImportCandidate && pendingImport && <ImportContactReviewModal candidate={reviewedImportCandidate} existing={reviewedImportExisting} mapping={pendingImport.mapping} onClose={() => setReviewedImportId(null)} onNext={reviewedImportIndex < pendingImport.candidates.length - 1 ? () => setReviewedImportId(pendingImport.candidates[reviewedImportIndex + 1].id) : undefined} onPrevious={reviewedImportIndex > 0 ? () => setReviewedImportId(pendingImport.candidates[reviewedImportIndex - 1].id) : undefined} onSave={(draft) => updateImportCandidate(reviewedImportCandidate.id, draft)} position={reviewedImportIndex} source={pendingImport.source} total={pendingImport.candidates.length} />}
       {activeImportCandidate && activeImportExisting && <DuplicateResolutionModal existing={activeImportExisting} existingNotesCount={notes.filter((note) => note.contactId === activeImportExisting.id).length} incoming={{ ...activeImportCandidate.draft, broker: "unassigned" }} isSaving={isSaving} onCancel={() => { resolveImport(activeImportCandidate.id, "skip"); setActiveImportDuplicateId(null); }} onKeepBoth={() => { resolveImport(activeImportCandidate.id, "keep"); setActiveImportDuplicateId(null); }} onMerge={mergeImport} reasons={activeImportReasons} />}
 
       {assignmentTarget && <div className="contact-modal-backdrop contact-modal-top"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog"><header className="contact-modal-header"><div><p className="section-kicker">{getContactName(assignmentTarget)}</p><h2>À QUI ATTRIBUER CE CONTACT ?</h2></div><button aria-label="Fermer" onClick={() => setAssignmentTargetId(null)} type="button">×</button></header><div className="broker-choice-grid">{CONTACT_ASSIGNMENTS.map((broker) => <button className={assignmentTarget.broker === broker ? "broker-choice-current" : ""} key={broker} onClick={() => void reassignContact(assignmentTarget, broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span>{assignmentTarget.broker === broker ? "✓" : "→"}</span></button>)}</div></section></div>}

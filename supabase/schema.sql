@@ -42,6 +42,12 @@ create table if not exists public.contacts (
   last_name text not null default '',
   phone text not null default '',
   email text not null default '',
+  address text not null default '',
+  apartment text not null default '',
+  city text not null default '',
+  province text not null default '',
+  postal_code text not null default '',
+  country text not null default '',
   broker public.broker_assignment not null default 'unassigned',
   client_type public.client_type,
   priority public.contact_priority,
@@ -76,6 +82,12 @@ create table if not exists public.contacts (
 );
 
 alter table public.contacts
+  add column if not exists address text not null default '',
+  add column if not exists apartment text not null default '',
+  add column if not exists city text not null default '',
+  add column if not exists province text not null default '',
+  add column if not exists postal_code text not null default '',
+  add column if not exists country text not null default '',
   add column if not exists google_calendar_event_id text,
   add column if not exists google_calendar_event_broker public.broker_assignment,
   add column if not exists google_calendar_sync_status public.calendar_sync_status not null default 'synced',
@@ -263,6 +275,12 @@ $$;
 
 -- Fusion atomique de deux contacts existants. Les appels sont réservés au
 -- serveur: les notes sont déplacées avant la suppression du doublon.
+drop function if exists public.merge_contacts(
+  uuid, uuid, text, text, text, text,
+  public.broker_assignment, public.client_type, public.contact_priority,
+  public.contact_status, date, text, public.broker_assignment, uuid
+);
+
 create or replace function public.merge_contacts(
   p_target_id uuid,
   p_source_id uuid,
@@ -270,6 +288,12 @@ create or replace function public.merge_contacts(
   p_last_name text,
   p_phone text,
   p_email text,
+  p_address text,
+  p_apartment text,
+  p_city text,
+  p_province text,
+  p_postal_code text,
+  p_country text,
   p_broker public.broker_assignment,
   p_client_type public.client_type,
   p_priority public.contact_priority,
@@ -318,6 +342,12 @@ begin
     last_name = trim(p_last_name),
     phone = trim(p_phone),
     email = trim(p_email),
+    address = trim(p_address),
+    apartment = trim(p_apartment),
+    city = trim(p_city),
+    province = trim(p_province),
+    postal_code = trim(p_postal_code),
+    country = trim(p_country),
     broker = p_broker,
     client_type = p_client_type,
     priority = p_priority,
@@ -365,6 +395,12 @@ create index if not exists contacts_phone_trgm_idx
   on public.contacts using gin (phone gin_trgm_ops);
 create index if not exists contacts_email_trgm_idx
   on public.contacts using gin (email gin_trgm_ops);
+create index if not exists contacts_address_trgm_idx
+  on public.contacts using gin (address gin_trgm_ops);
+create index if not exists contacts_city_trgm_idx
+  on public.contacts using gin (city gin_trgm_ops);
+create index if not exists contacts_postal_code_trgm_idx
+  on public.contacts using gin (postal_code gin_trgm_ops);
 create index if not exists client_notes_contact_created_idx
   on public.client_notes (contact_id, created_at desc);
 create index if not exists client_notes_author_idx
@@ -426,7 +462,7 @@ revoke all on public.transaction_deadlines from anon, authenticated;
 revoke all on public.transaction_notes from anon, authenticated;
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment) from public, anon;
 revoke execute on function public.merge_contacts(
-  uuid, uuid, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text, text, text,
   public.broker_assignment, public.client_type, public.contact_priority,
   public.contact_status, date, text, public.broker_assignment, uuid
 ) from public, anon, authenticated;
@@ -450,7 +486,7 @@ grant usage on type public.client_type to service_role;
 grant usage on type public.contact_priority to service_role;
 grant usage on type public.contact_status to service_role;
 grant execute on function public.merge_contacts(
-  uuid, uuid, text, text, text, text,
+  uuid, uuid, text, text, text, text, text, text, text, text, text, text,
   public.broker_assignment, public.client_type, public.contact_priority,
   public.contact_status, date, text, public.broker_assignment, uuid
 ) to service_role;

@@ -20,6 +20,7 @@ const frenchNames = [
   "Côte-des-Neiges",
 ] as const;
 const frenchCharacters = "é è ê ë à â ç î ï ô ù û ü É È À Ç";
+const emptyAddress = { address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -83,6 +84,7 @@ describe("decodeContactImportBuffer et import CSV", () => {
     const text = decodeContactImportBuffer(exactArrayBuffer(new TextEncoder().encode(decomposedCsv)));
 
     expect(parseCSVContacts(text)).toEqual([{
+      ...emptyAddress,
       firstName: "Hélène",
       lastName: "Côté-des-Neiges",
       phone: "",
@@ -92,6 +94,28 @@ describe("decodeContactImportBuffer et import CSV", () => {
 });
 
 describe("import vCard", () => {
+  it("importe l'adresse résidentielle structurée d'une vCard", () => {
+    const vcard = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      "N:Béliveau;Simon Pierre;;;",
+      "FN:Simon Pierre Béliveau",
+      "ADR;TYPE=HOME:;App 4;125 Avenue Léo-Lacombe;Deux-Montagnes;QC;J7R 3W7;Canada",
+      "END:VCARD",
+    ].join("\r\n");
+
+    expect(parseVCardContacts(vcard)[0]).toMatchObject({
+      firstName: "Simon Pierre",
+      lastName: "Béliveau",
+      address: "125 Avenue Léo-Lacombe",
+      apartment: "App 4",
+      city: "Deux-Montagnes",
+      province: "QC",
+      postalCode: "J7R 3W7",
+      country: "Canada",
+    });
+  });
+
   it("décode les valeurs QUOTED-PRINTABLE UTF-8, y compris les lignes repliées", () => {
     const vcard = [
       "BEGIN:VCARD",
@@ -104,6 +128,7 @@ describe("import vCard", () => {
     ].join("\r\n");
 
     expect(parseVCardContacts(vcard)).toEqual([{
+      ...emptyAddress,
       firstName: "François",
       lastName: "Béliveau",
       phone: "",
@@ -146,6 +171,12 @@ describe("import vCard", () => {
       lastName: "Noël",
       phone: "",
       email: "",
+      address: "",
+      apartment: "",
+      city: "",
+      province: "",
+      postalCode: "",
+      country: "",
     }]);
   });
 });
@@ -159,6 +190,12 @@ describe("compatibilité de la détection des doublons", () => {
       lastName: "Béliveau",
       phone: "",
       email: "",
+      address: "",
+      apartment: "",
+      city: "",
+      province: "",
+      postalCode: "",
+      country: "",
       broker: "france",
       clientType: null,
       priority: null,

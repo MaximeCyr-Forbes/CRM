@@ -42,6 +42,12 @@ export type Contact = {
   lastName: string;
   phone: string;
   email: string;
+  address: string;
+  apartment: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  country: string;
   broker: ContactBroker;
   clientType: ClientType;
   priority: ContactPriority;
@@ -59,7 +65,20 @@ export type Contact = {
   updatedAt: string;
 };
 
-export type ContactDraft = Pick<Contact, "firstName" | "lastName" | "phone" | "email">;
+export const CONTACT_DRAFT_FIELDS = [
+  "firstName",
+  "lastName",
+  "phone",
+  "email",
+  "address",
+  "apartment",
+  "city",
+  "province",
+  "postalCode",
+  "country",
+] as const;
+
+export type ContactDraft = Pick<Contact, (typeof CONTACT_DRAFT_FIELDS)[number]>;
 
 export type ContactUpdate = Pick<
   Contact,
@@ -67,6 +86,12 @@ export type ContactUpdate = Pick<
   | "lastName"
   | "phone"
   | "email"
+  | "address"
+  | "apartment"
+  | "city"
+  | "province"
+  | "postalCode"
+  | "country"
   | "broker"
   | "clientType"
   | "priority"
@@ -129,4 +154,19 @@ export const PRIORITY_LABELS: Record<Exclude<ContactPriority, null>, string> = {
 
 export function getContactName(contact: ContactDraft) {
   return [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Contact sans nom";
+}
+
+export function getContactAddressLines(contact: ContactDraft) {
+  const apartment = contact.apartment.trim();
+  const apartmentLabel = apartment && !/^(app\.?|apt\.?|appartement|unit[eé]|suite|#)/i.test(apartment)
+    ? `app. ${apartment}`
+    : apartment;
+  const streetLine = [contact.address.trim(), apartmentLabel].filter(Boolean).join(", ");
+  const provinceAndPostal = [contact.province.trim(), contact.postalCode.trim()].filter(Boolean).join(" ");
+  const localityLine = [contact.city.trim(), provinceAndPostal].filter(Boolean).join(", ");
+  return [streetLine, localityLine, contact.country.trim()].filter(Boolean);
+}
+
+export function getContactFullAddress(contact: ContactDraft) {
+  return getContactAddressLines(contact).join(", ");
 }
