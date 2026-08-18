@@ -90,7 +90,7 @@ export async function setCRMAccessCookie() {
   const cookieStore = await cookies();
   cookieStore.set(CRM_ACCESS_COOKIE, await createCRMAccessToken(), {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_MAX_AGE,
@@ -101,7 +101,7 @@ export async function clearCRMAccessCookie() {
   const cookieStore = await cookies();
   cookieStore.set(CRM_ACCESS_COOKIE, "", {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
