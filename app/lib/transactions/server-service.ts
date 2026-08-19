@@ -8,7 +8,7 @@ import type {
   TransactionType,
 } from "../../data/transaction-types";
 import { getSupabaseAdmin } from "../supabase/server";
-import { transactionContactLinkRows, transactionInsertValues } from "./persistence";
+import { transactionContactChanges, transactionContactLinkRows, transactionInsertValues, transactionUpdateValues } from "./persistence";
 
 export type TransactionRow = {
   id: string;
@@ -172,18 +172,43 @@ export async function createTransaction(draft: TransactionDraft) {
 
 export async function updateTransaction(
   transactionId: string,
-  values: Partial<Pick<Transaction, "status" | "address" | "centrisNumber" | "price" | "promiseDate" | "generalNotes">>,
+  values: Partial<Pick<Transaction, "status" | "address" | "centrisNumber" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "generalNotes">>,
 ) {
-  const payload: Record<string, unknown> = {};
-  if (values.status !== undefined) payload.status = values.status;
-  if (values.address !== undefined) payload.address = values.address.trim();
-  if (values.centrisNumber !== undefined) payload.centris_number = values.centrisNumber.trim();
-  if (values.price !== undefined) payload.price = values.price;
-  if (values.promiseDate !== undefined) payload.promise_date = values.promiseDate;
-  if (values.generalNotes !== undefined) payload.general_notes = values.generalNotes.trim();
-  const { error } = await getSupabaseAdmin().from("transactions").update(payload).eq("id", transactionId);
-  if (error) throw error;
+  const admin = getSupabaseAdmin();
+  const payload = transactionUpdateValues(values);
+  if (Object.keys(payload).length > 0) {
+    const { error } = await admin.from("transactions").update(payload).eq("id", transactionId);
+    if (error) throw error;
+  }
+  if (values.contactIds !== undefined) {
+    const { data, error } = await admin
+      .from("transaction_contacts")
+      .select("contact_id")
+      .eq("transaction_id", transactionId);
+    if (error) throw error;
+    const existingContactIds = (data ?? []).map((row: { contact_id: string }) => row.contact_id);
+    const changes = transactionContactChanges(existingContactIds, values.contactIds);
+    if (changes.removed.length > 0) {
+      const { error: removeError } = await admin
+        .from("transaction_contacts")
+        .delete()
+        .eq("transaction_id", transactionId)
+        .in("contact_id", changes.removed);
+      if (removeError) throw removeError;
+    }
+    if (changes.added.length > 0) {
+      const { error: addError } = await admin
+        .from("transaction_contacts")
+        .insert(transactionContactLinkRows(transactionId, changes.added));
+      if (addError) throw addError;
+    }
+  }
   return getTransaction(transactionId);
+}
+
+export async function deleteTransaction(transactionId: string) {
+  const { error } = await getSupabaseAdmin().from("transactions").delete().eq("id", transactionId);
+  if (error) throw error;
 }
 
 export async function insertDeadline(

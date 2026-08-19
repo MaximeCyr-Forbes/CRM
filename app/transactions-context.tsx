@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useAuth } from "./auth-context";
 import type { Transaction, TransactionDraft, TransactionStatus } from "./data/transaction-types";
+import { removeTransactionFromState, replaceTransactionInState } from "./lib/transactions/state";
 
 type MutationResult = { transaction: Transaction; message?: string };
 
@@ -21,7 +22,9 @@ type TransactionsContextValue = {
   error: string | null;
   retry: () => Promise<void>;
   createTransaction: (draft: TransactionDraft) => Promise<Transaction>;
+  updateTransaction: (transactionId: string, values: TransactionDraft) => Promise<Transaction>;
   updateStatus: (transactionId: string, status: TransactionStatus) => Promise<Transaction>;
+  deleteTransaction: (transactionId: string) => Promise<{ message?: string }>;
   addDeadline: (transactionId: string, title: string, dueDate: string, syncToGoogle: boolean) => Promise<MutationResult>;
   updateDeadline: (transactionId: string, deadlineId: string, values: { title?: string; dueDate?: string; completed?: boolean; syncToGoogle?: boolean }) => Promise<MutationResult>;
   deleteDeadline: (transactionId: string, deadlineId: string) => Promise<MutationResult>;
@@ -87,10 +90,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const replaceTransaction = useCallback((transaction: Transaction) => {
-    setTransactions((current) => [
-      transaction,
-      ...current.filter((item) => item.id !== transaction.id),
-    ]);
+    setTransactions((current) => replaceTransactionInState(current, transaction));
     return transaction;
   }, []);
 
@@ -99,10 +99,21 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return replaceTransaction(payload.data);
   }), [replaceTransaction, runWrite]);
 
-  const updateStatus = useCallback((transactionId: string, transactionStatus: TransactionStatus) => runWrite(async () => {
-    const payload = await transactionRequest<Transaction>({ action: "update", transactionId, values: { status: transactionStatus } });
+  const update = useCallback((transactionId: string, values: Partial<TransactionDraft>) => runWrite(async () => {
+    const payload = await transactionRequest<Transaction>({ action: "update", transactionId, values });
     return replaceTransaction(payload.data);
   }), [replaceTransaction, runWrite]);
+
+  const updateStatus = useCallback(
+    (transactionId: string, transactionStatus: TransactionStatus) => update(transactionId, { status: transactionStatus }),
+    [update],
+  );
+
+  const removeTransaction = useCallback((transactionId: string) => runWrite(async () => {
+    const payload = await transactionRequest<{ transactionId: string }>({ action: "deleteTransaction", transactionId });
+    setTransactions((current) => removeTransactionFromState(current, payload.data.transactionId));
+    return { message: payload.warning };
+  }), [runWrite]);
 
   const addDeadline = useCallback((transactionId: string, title: string, dueDate: string, syncToGoogle: boolean) => runWrite(async () => {
     const payload = await transactionRequest<Transaction>({ action: "addDeadline", transactionId, title, dueDate, syncToGoogle });
@@ -134,12 +145,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     error,
     retry: loadTransactions,
     createTransaction: create,
+    updateTransaction: update,
     updateStatus,
+    deleteTransaction: removeTransaction,
     addDeadline,
     updateDeadline: editDeadline,
     deleteDeadline: removeDeadline,
     addNote,
-  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, updateStatus, addDeadline, editDeadline, removeDeadline, addNote]);
+  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>;
 }

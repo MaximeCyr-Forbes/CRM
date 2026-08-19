@@ -3419,6 +3419,11 @@ button:disabled {
 .transaction-form-error { grid-column: 1 / -1; margin: 0; color: #934c45; font-size: 0.75rem; }
 
 .transaction-detail-nav > button:first-child { display: flex; align-items: center; gap: 0.5rem; }
+.transaction-detail-actions { display: flex; min-height: 4.25rem; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); }
+.transaction-detail-actions > div { display: flex; gap: 0.5rem; }
+.transaction-detail-actions button { min-height: 2.65rem; padding: 0.62rem 0.85rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.transaction-detail-actions > button { display: flex; align-items: center; gap: 0.45rem; border-color: transparent; }
+.transaction-detail-actions .transaction-delete-action { color: #934c45; border-color: #d8b9b2; }
 .transaction-detail-header { align-items: center; }
 .transaction-detail-header > label { display: grid; width: min(100%, 17rem); gap: 0.45rem; color: var(--ink-soft); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
 .transaction-overview { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); background: rgba(255, 253, 248, 0.82); }
@@ -3426,6 +3431,11 @@ button:disabled {
 .transaction-overview article + article { border-left: 1px solid var(--line); }
 .transaction-overview span { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .transaction-overview strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
+.transaction-delete-content { padding-top: 1.5rem; }
+.transaction-delete-content > strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; }
+.transaction-delete-content > p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.65; }
+.transaction-delete-content .transaction-form-actions { margin-top: 1.4rem; }
+.transaction-delete-content .transaction-delete-confirm { color: #fff; background: #934c45; border-color: #934c45; }
 
 .transaction-detail-section,
 .profile-transactions-section { padding-top: clamp(2.5rem, 6vw, 4.5rem); }
@@ -3503,6 +3513,9 @@ button:disabled {
   .transactions-header,
   .transaction-detail-header { align-items: stretch; flex-direction: column; }
   .transaction-detail-header > label { width: 100%; }
+  .transaction-detail-actions { align-items: stretch; flex-direction: column; padding: 4rem 0 1rem; }
+  .transaction-detail-actions > div { width: 100%; }
+  .transaction-detail-actions > div button { flex: 1; }
   .transaction-grid { grid-template-columns: 1fr; }
   .transaction-card { min-height: 19rem; }
   .transaction-form { grid-template-columns: 1fr; }

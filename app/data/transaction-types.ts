@@ -120,3 +120,7 @@ export function getNextTransactionDeadline(transaction: Pick<Transaction, "deadl
 export function statusesForTransaction(type: TransactionType) {
   return type === "purchase" ? PURCHASE_TRANSACTION_STATUSES : SALE_TRANSACTION_STATUSES;
 }
+
+export function validStatusForTransaction(type: TransactionType, status: TransactionStatus): TransactionStatus {
+  return statusesForTransaction(type).includes(status as never) ? status : "new";
+}

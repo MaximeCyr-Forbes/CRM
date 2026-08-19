@@ -1,5 +1,5 @@
 import type { TransactionDraft, TransactionStatus, TransactionType } from "../../data/transaction-types";
-import { statusesForTransaction } from "../../data/transaction-types";
+import { statusesForTransaction, validStatusForTransaction } from "../../data/transaction-types";
 import type { TransactionBroker } from "../../data/transaction-types";
 import { requireApiAccess } from "../../lib/crm-access";
 import { isSameOriginRequest } from "../../lib/google-calendar/config";
@@ -7,9 +7,11 @@ import {
   deleteCalendarEventForTransactionDeadline,
   syncTransactionDeadline,
 } from "../../lib/google-calendar/service";
+import { deleteTransactionWithCalendarCleanup } from "../../lib/transactions/delete-workflow";
 import {
   createTransaction,
   deleteDeadline,
+  deleteTransaction as deleteTransactionRecord,
   getDeadlineRow,
   getTransaction,
   insertDeadline,
@@ -84,19 +86,39 @@ export async function POST(request: Request) {
         : null;
       if (!values) return Response.json({ error: "Modification invalide." }, { status: 400 });
       const allowed: Parameters<typeof updateTransaction>[1] = {};
-      if (typeof values.status === "string") {
-        const existing = await getTransaction(transactionId);
-        if (!statusesForTransaction(existing.type).includes(values.status as never)) {
-          return Response.json({ error: "Statut invalide pour ce type de transaction." }, { status: 400 });
-        }
-        allowed.status = values.status as TransactionStatus;
+      const existing = await getTransaction(transactionId);
+      if (values.type !== undefined && !isType(values.type)) return Response.json({ error: "Type invalide." }, { status: 400 });
+      if (values.broker !== undefined && !isBroker(values.broker)) return Response.json({ error: "Courtier invalide." }, { status: 400 });
+      if (values.contactIds !== undefined && (!Array.isArray(values.contactIds) || !values.contactIds.every((id) => typeof id === "string"))) {
+        return Response.json({ error: "Contacts liés invalides." }, { status: 400 });
       }
+      if (isType(values.type)) allowed.type = values.type;
+      if (isBroker(values.broker)) allowed.broker = values.broker;
+      if (Array.isArray(values.contactIds)) allowed.contactIds = [...new Set(values.contactIds as string[])];
+      const nextType = allowed.type ?? existing.type;
+      const requestedStatus = typeof values.status === "string"
+        ? values.status as TransactionStatus
+        : existing.status;
+      allowed.status = validStatusForTransaction(nextType, requestedStatus);
       if (typeof values.address === "string" && values.address.trim()) allowed.address = values.address;
       if (typeof values.centrisNumber === "string") allowed.centrisNumber = values.centrisNumber;
       if (values.price === null || typeof values.price === "number") allowed.price = values.price;
       if (values.promiseDate === null || isDate(values.promiseDate)) allowed.promiseDate = values.promiseDate;
       if (typeof values.generalNotes === "string") allowed.generalNotes = values.generalNotes;
       return Response.json({ data: await updateTransaction(transactionId, allowed) });
+    }
+
+    if (body.action === "deleteTransaction") {
+      const existing = await getTransaction(transactionId);
+      const result = await deleteTransactionWithCalendarCleanup(
+        existing,
+        (deadline) => deleteCalendarEventForTransactionDeadline({
+          google_calendar_event_id: deadline.googleCalendarEventId,
+          google_calendar_event_broker: deadline.googleCalendarEventBroker,
+        }),
+        deleteTransactionRecord,
+      );
+      return Response.json({ data: { transactionId }, warning: result.warning });
     }
 
     if (body.action === "addDeadline") {

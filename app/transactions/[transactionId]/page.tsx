@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { TransactionEditorModal } from "../../components/transaction-editor-modal";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
 import {
@@ -13,6 +14,7 @@ import {
   type TransactionStatus,
 } from "../../data/transaction-types";
 import { toLocalISODate } from "../../lib/follow-up";
+import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
 import { useTransactions } from "../../transactions-context";
 import { useDialogLifecycle } from "../../lib/use-dialog-lifecycle";
 
@@ -66,14 +68,42 @@ function DeadlineModal({
   </section></div>;
 }
 
+function DeleteTransactionModal({
+  address,
+  isSaving,
+  onClose,
+  onConfirm,
+}: {
+  address: string;
+  isSaving: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  useDialogLifecycle(true, onClose);
+
+  async function confirm() {
+    setError(null);
+    try { await onConfirm(); }
+    catch { setError("La transaction n’a pas pu être supprimée."); }
+  }
+
+  return <div className="transaction-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()} role="presentation"><section aria-labelledby="delete-transaction-title" aria-modal="true" className="transaction-modal transaction-delete-modal" role="dialog">
+    <div className="transaction-modal-heading"><div><p className="section-kicker">Confirmation obligatoire</p><h2 id="delete-transaction-title">SUPPRIMER LA TRANSACTION ?</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></div>
+    <div className="transaction-delete-content"><strong>{address}</strong><p>Cette action supprimera la transaction, ses dates importantes et ses notes.<br />Les contacts liés ne seront <b>pas</b> supprimés.</p>{error && <p className="transaction-form-error" role="alert">{error}</p>}<div className="transaction-form-actions"><button onClick={onClose} type="button">Annuler</button><button className="transaction-delete-confirm" disabled={isSaving} onClick={() => void confirm()} type="button">{isSaving ? "Suppression…" : "Supprimer définitivement"}</button></div></div>
+  </section></div>;
+}
+
 export default function TransactionDetailPage() {
   const params = useParams<{ transactionId: string }>();
   const router = useRouter();
   const { contacts } = useContacts();
-  const { transactions, isLoading, isSaving, error, updateStatus, addDeadline, updateDeadline, deleteDeadline, addNote } = useTransactions();
+  const { transactions, isLoading, isSaving, error, updateTransaction, updateStatus, deleteTransaction, addDeadline, updateDeadline, deleteDeadline, addNote } = useTransactions();
   const transaction = transactions.find((item) => item.id === params.transactionId);
   const linkedContacts = useMemo(() => transaction?.contactIds.map((id) => contacts.find((contact) => contact.id === id)).filter(Boolean) ?? [], [contacts, transaction]);
   const [deadlineModal, setDeadlineModal] = useState<"new" | TransactionDeadline | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [note, setNote] = useState("");
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const today = toLocalISODate(new Date());
@@ -103,9 +133,23 @@ export default function TransactionDetailPage() {
     setConfirmation("Note ajoutée à la transaction.");
   }
 
+  async function saveTransaction(values: Parameters<typeof updateTransaction>[1]) {
+    await updateTransaction(transaction!.id, values);
+    setIsEditing(false);
+    setConfirmation("Transaction modifiée.");
+  }
+
+  async function removeTransaction() {
+    const result = await deleteTransaction(transaction!.id);
+    window.sessionStorage.setItem("transactionNotice", result.message ?? "Transaction supprimée.");
+    router.push("/transactions");
+  }
+
   return <main className="transaction-detail-page"><div className="transaction-detail-shell">
     {error && <div className="transaction-status transaction-status-error" role="alert">{error}</div>}
     {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
+
+    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button><button className="transaction-delete-action" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
 
     <header className="transaction-detail-header"><div><p className="section-kicker">{TRANSACTION_TYPE_LABELS[transaction.type]} · {BROKER_LABELS[transaction.broker]}</p><h1>{transaction.address}</h1><p>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun client lié"}</p></div><label><span>Statut actuel</span><select disabled={isSaving} onChange={(event) => void updateStatus(transaction.id, event.target.value as TransactionStatus)} value={transaction.status}>{statusesForTransaction(transaction.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label></header>
 
@@ -122,5 +166,9 @@ export default function TransactionDetailPage() {
     <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title"><div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">DATES IMPORTANTES</h2></div><button className="transaction-add-deadline" onClick={() => setDeadlineModal("new")} type="button">+ Ajouter une échéance</button></div><div className="transaction-deadlines">{transaction.deadlines.map((deadline) => { const overdue = !deadline.completed && deadline.dueDate < today; return <article className={deadline.completed ? "deadline-completed" : ""} key={deadline.id}><label><input checked={deadline.completed} onChange={(event) => void updateDeadline(transaction.id, deadline.id, { completed: event.target.checked })} type="checkbox" /><span aria-hidden="true" /></label><div><div className="deadline-title-line"><h3>{deadline.title}</h3>{overdue && <strong>EN RETARD</strong>}</div><p>{formatDate(deadline.dueDate)}</p><small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? "Google Agenda · " : ""}{deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}</small></div><div className="deadline-actions"><button onClick={() => setDeadlineModal(deadline)} type="button">Modifier</button><button onClick={async () => { if (window.confirm("Supprimer cette échéance ?")) { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); } }} type="button">Supprimer</button></div></article>; })}{transaction.deadlines.length === 0 && <div className="transaction-section-empty">Aucune échéance pour le moment.</div>}</div></section>
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
-  </div>{deadlineModal && <DeadlineModal initial={deadlineModal === "new" ? undefined : deadlineModal} isSaving={isSaving} onClose={() => setDeadlineModal(null)} onSave={saveDeadline} />}</main>;
+  </div>
+  {deadlineModal && <DeadlineModal initial={deadlineModal === "new" ? undefined : deadlineModal} isSaving={isSaving} onClose={() => setDeadlineModal(null)} onSave={saveDeadline} />}
+  {isEditing && <TransactionEditorModal initial={transactionDraftFromTransaction(transaction)} isSaving={isSaving} mode="edit" onClose={() => setIsEditing(false)} onSave={saveTransaction} />}
+  {isConfirmingDelete && <DeleteTransactionModal address={transaction.address} isSaving={isSaving} onClose={() => setIsConfirmingDelete(false)} onConfirm={removeTransaction} />}
+  </main>;
 }
