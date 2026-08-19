@@ -7,6 +7,7 @@ import {
   attachAddressesInBatches,
   attachAddressesWithFallback,
 } from "../../../lib/contacts/attach-addresses";
+import { normalizeBirthDate } from "../../../lib/birth-date";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ type CRMActionBody = Record<string, unknown> & {
   clientType?: unknown;
   draft?: Record<string, unknown>;
   entries?: Array<{ draft?: Record<string, unknown>; addresses?: Array<Record<string, unknown>> }>;
+  updates?: Array<{ contactId?: unknown; birthDate?: unknown }>;
   addresses?: Array<Record<string, unknown>>;
   values?: Record<string, unknown>;
 };
@@ -37,6 +39,14 @@ function isActorBroker(value: unknown): value is Exclude<ContactBroker, "unassig
 
 function textValue(value: unknown) {
   return String(value ?? "").trim().normalize("NFC");
+}
+
+function birthDateValue(value: unknown) {
+  const raw = textValue(value);
+  if (!raw) return null;
+  const normalized = normalizeBirthDate(raw);
+  if (!normalized) throw new Error("Date de naissance invalide");
+  return normalized;
 }
 
 function addressPayload(value: Record<string, unknown>) {
@@ -185,6 +195,7 @@ export async function POST(request: Request) {
         last_name: textValue(body.draft?.lastName),
         phone: textValue(body.draft?.phone),
         email: textValue(body.draft?.email),
+        birth_date: birthDateValue(body.draft?.birthDate),
         civic_number: textValue(body.draft?.civicNumber),
         address: textValue(body.draft?.address),
         apartment: textValue(body.draft?.apartment),
@@ -214,7 +225,7 @@ export async function POST(request: Request) {
       for (let index = 0; index < body.entries.length; index += 250) {
         const chunk = body.entries.slice(index, index + 250);
         const rpcPayload = chunk.map((entry) => ({
-          contact: entry.draft,
+          contact: { ...entry.draft, birthDate: birthDateValue(entry.draft?.birthDate) ?? "" },
           addresses: (entry.addresses ?? []).map(addressPayload),
         }));
         const rpcResult = await client.rpc("import_contacts_with_addresses", { p_entries: rpcPayload, p_source: source });
@@ -230,6 +241,7 @@ export async function POST(request: Request) {
           last_name: textValue(draft.lastName),
           phone: textValue(draft.phone),
           email: textValue(draft.email),
+          birth_date: birthDateValue(draft.birthDate),
           civic_number: textValue(draft.civicNumber),
           address: textValue(draft.address),
           apartment: textValue(draft.apartment),
@@ -244,6 +256,15 @@ export async function POST(request: Request) {
         imported.push(...(data ?? []));
       }
       return Response.json({ data: await attachAddresses(imported as Array<Record<string, unknown> & { id: unknown }>, true) });
+    }
+
+    if (body.action === "enrichBirthDates") {
+      if (!Array.isArray(body.updates)) throw new Error("Enrichissement invalide");
+      const updates = body.updates.map((item) => ({ contactId: textValue(item.contactId), birthDate: birthDateValue(item.birthDate) }))
+        .filter((item): item is { contactId: string; birthDate: string } => Boolean(item.contactId && item.birthDate));
+      const { data, error } = await client.rpc("enrich_contact_birth_dates", { p_updates: updates });
+      if (error) throw error;
+      return Response.json({ data: data ?? [] });
     }
 
     if (body.action === "saveContactAddresses") {
@@ -301,6 +322,7 @@ export async function POST(request: Request) {
         last_name: textValue(values.lastName),
         phone: textValue(values.phone),
         email: textValue(values.email),
+        birth_date: birthDateValue(values.birthDate),
         civic_number: textValue(values.civicNumber),
         address: textValue(values.address),
         apartment: textValue(values.apartment),

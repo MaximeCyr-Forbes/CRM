@@ -2,14 +2,16 @@ import type {
   CalendarBroker,
   CalendarConnectionStatus,
   CalendarSyncResult,
+  BirthdaySyncSummary,
 } from "../../data/calendar-types";
 import type { Contact, ContactBroker, ContactSource } from "../../data/contact-types";
-import { CLIENT_TYPE_LABELS, PRIORITY_LABELS, getContactName } from "../../data/contact-types";
+import { BROKER_LABELS, CLIENT_TYPE_LABELS, CONTACT_BROKERS, PRIORITY_LABELS, getContactName } from "../../data/contact-types";
 import type { TransactionBroker } from "../../data/transaction-types";
 import type { TransactionDeadlineRow, TransactionRow } from "../transactions/server-service";
 import { getSupabaseAdmin } from "../supabase/server";
 import { getGoogleOAuthConfig } from "./config";
 import { decryptGoogleToken, encryptGoogleToken } from "./token-crypto";
+import { formatBirthDate, normalizeBirthDate } from "../birth-date";
 
 type GoogleConnectionRow = {
   broker: CalendarBroker;
@@ -27,6 +29,7 @@ export type ServerContactRow = {
   last_name: string;
   phone: string;
   email: string;
+  birth_date: string | null;
   civic_number: string;
   address: string;
   apartment: string;
@@ -62,6 +65,20 @@ type GoogleEventPayload = {
   description: string;
   start: { date: string };
   end: { date: string };
+  recurrence?: string[];
+  transparency?: "transparent";
+  visibility?: "private";
+  reminders?: { useDefault: true };
+  extendedProperties?: { private: Record<string, string> };
+};
+
+type BirthdayCalendarRow = {
+  contact_id: string;
+  broker: CalendarBroker;
+  google_calendar_event_id: string | null;
+  synced_birth_date: string | null;
+  sync_status: Contact["googleCalendarSyncStatus"];
+  last_error: string | null;
 };
 
 type TransactionCalendarResult = {
@@ -77,6 +94,7 @@ export function mapServerContact(row: ServerContactRow): Contact {
     lastName: row.last_name,
     phone: row.phone,
     email: row.email,
+    birthDate: row.birth_date ?? "",
     civicNumber: row.civic_number ?? "",
     address: row.address ?? "",
     apartment: row.apartment ?? "",
@@ -123,6 +141,56 @@ function addOneDay(isoDate: string) {
 
 function createGoogleEventId() {
   return `ef${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function isLeapYear(year: number) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+export function nextBirthdayOccurrence(birthDate: string, today = new Date().toISOString().slice(0, 10)) {
+  const normalized = normalizeBirthDate(birthDate, { today });
+  if (!normalized) throw new Error("Date de naissance invalide.");
+  const [, month, day] = normalized.split("-").map(Number);
+  const currentYear = Number(today.slice(0, 4));
+  const occurrenceForYear = (year: number) => {
+    const occurrenceDay = month === 2 && day === 29 ? (isLeapYear(year) ? 29 : 28) : day;
+    return `${year}-${String(month).padStart(2, "0")}-${String(occurrenceDay).padStart(2, "0")}`;
+  };
+  const current = occurrenceForYear(currentYear);
+  return current >= today ? current : occurrenceForYear(currentYear + 1);
+}
+
+export function buildBirthdayEventPayload(
+  contact: ServerContactRow,
+  broker: CalendarBroker,
+  eventId?: string,
+  today?: string,
+): GoogleEventPayload {
+  if (!contact.birth_date) throw new Error("Le contact ne contient aucune date de naissance.");
+  const startDate = nextBirthdayOccurrence(contact.birth_date, today);
+  const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact sans nom";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/$/, "");
+  const details = [
+    "Anniversaire client — Équipe Forbes", "", `Client : ${name}`,
+    `Date de naissance : ${formatBirthDate(contact.birth_date)}`,
+    contact.phone ? `Téléphone : ${contact.phone}` : null,
+    contact.email ? `Email : ${contact.email}` : null,
+    `Courtier CRM : ${BROKER_LABELS[contact.broker]}`,
+    appUrl ? `Fiche CRM : ${appUrl}/contacts/${contact.id}` : null,
+  ].filter((line): line is string => Boolean(line));
+  const isLeapBirthday = contact.birth_date.slice(5) === "02-29";
+  return {
+    ...(eventId ? { id: eventId } : {}),
+    summary: `🎂 Anniversaire — ${name}`,
+    description: details.join("\n"),
+    start: { date: startDate },
+    end: { date: addOneDay(startDate) },
+    recurrence: [isLeapBirthday ? "RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1" : "RRULE:FREQ=YEARLY"],
+    transparency: "transparent",
+    visibility: "private",
+    reminders: { useDefault: true },
+    extendedProperties: { private: { eventKind: "birthday", crmContactId: contact.id, crmBroker: broker } },
+  };
 }
 
 function buildEventPayload(contact: ServerContactRow, eventId?: string): GoogleEventPayload {
@@ -420,6 +488,148 @@ async function upsertGoogleEvent(
   }
 }
 
+async function upsertBirthdayGoogleEvent(
+  connection: GoogleConnectionRow,
+  contact: ServerContactRow,
+  broker: CalendarBroker,
+  eventId: string,
+  eventExists: boolean,
+) {
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const eventPath = `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`;
+  const updateEvent = () => googleCalendarRequest(connection, eventPath, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildBirthdayEventPayload(contact, broker)),
+  });
+  const insertEvent = () => googleCalendarRequest(connection, `/calendars/${calendarId}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildBirthdayEventPayload(contact, broker, eventId)),
+  });
+  let activeEventId = eventId;
+  let response = eventExists ? await updateEvent() : await insertEvent();
+  if (eventExists && (response.status === 404 || response.status === 410)) {
+    activeEventId = createGoogleEventId();
+    response = await googleCalendarRequest(connection, `/calendars/${calendarId}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildBirthdayEventPayload(contact, broker, activeEventId)),
+    });
+  } else if (!eventExists && response.status === 409) response = await updateEvent();
+  if (!response.ok) throw new Error(`Synchronisation anniversaire Google refusée (${response.status}).`);
+  return activeEventId;
+}
+
+async function processBirthdayRow(
+  row: BirthdayCalendarRow,
+  contact: ServerContactRow | undefined,
+  connection: GoogleConnectionRow | undefined,
+): Promise<"synced" | "pending" | "error"> {
+  const admin = getSupabaseAdmin();
+  if (!contact) {
+    await admin.from("contact_birthday_calendar_events").delete().eq("contact_id", row.contact_id).eq("broker", row.broker);
+    return "synced";
+  }
+  if (!connection) {
+    await admin.from("contact_birthday_calendar_events").update({ sync_status: "pending", last_error: "Google Agenda non connecté." }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+    return "pending";
+  }
+  try {
+    if (!contact.birth_date) {
+      if (row.google_calendar_event_id) await deleteGoogleEvent(connection, row.google_calendar_event_id);
+      const { error } = await admin.from("contact_birthday_calendar_events").delete().eq("contact_id", row.contact_id).eq("broker", row.broker);
+      if (error) throw error;
+      return "synced";
+    }
+    const eventExists = Boolean(row.google_calendar_event_id);
+    const eventId = row.google_calendar_event_id ?? createGoogleEventId();
+    if (!eventExists) {
+      const { error } = await admin.from("contact_birthday_calendar_events").update({ google_calendar_event_id: eventId, sync_status: "pending", last_error: null }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+      if (error) throw error;
+    }
+    const activeEventId = await upsertBirthdayGoogleEvent(connection, contact, row.broker, eventId, eventExists);
+    const { error } = await admin.from("contact_birthday_calendar_events").update({
+      google_calendar_event_id: activeEventId,
+      synced_birth_date: contact.birth_date,
+      sync_status: "synced",
+      last_error: null,
+    }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+    if (error) throw error;
+    return "synced";
+  } catch (error) {
+    await admin.from("contact_birthday_calendar_events").update({ sync_status: "error", last_error: calendarFailureMessage(error) }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+    return "error";
+  }
+}
+
+export async function syncContactBirthdays(options: {
+  contactIds?: ReadonlyArray<string>;
+  broker?: CalendarBroker;
+  limit?: number;
+  retryErrors?: boolean;
+} = {}): Promise<BirthdaySyncSummary> {
+  const admin = getSupabaseAdmin();
+  const limit = Math.max(1, Math.min(options.limit ?? 40, 100));
+  const { data: connections, error: connectionsError } = await admin.from("google_calendar_connections").select("*");
+  if (connectionsError) throw connectionsError;
+  const connectionRows = (connections ?? []) as GoogleConnectionRow[];
+  let query = admin.from("contact_birthday_calendar_events").select("*").limit(limit);
+  if (options.broker) query = query.eq("broker", options.broker);
+  if (options.contactIds?.length) query = query.in("contact_id", [...new Set(options.contactIds)].slice(0, 100));
+  else {
+    const connectedBrokers = connectionRows.map((connection) => connection.broker);
+    if (connectedBrokers.length === 0) return { synced: 0, pending: 0, error: 0, processed: 0 };
+    query = query.in("broker", connectedBrokers);
+    query = options.retryErrors === false ? query.eq("sync_status", "pending") : query.in("sync_status", ["pending", "error"]);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  const rows = (data ?? []) as BirthdayCalendarRow[];
+  if (rows.length === 0) return { synced: 0, pending: 0, error: 0, processed: 0 };
+
+  const contactIds = [...new Set(rows.map((row) => row.contact_id))];
+  const { data: contacts, error: contactsError } = await admin.from("contacts").select("*").in("id", contactIds);
+  if (contactsError) throw contactsError;
+  const contactMap = new Map(((contacts ?? []) as ServerContactRow[]).map((contact) => [contact.id, contact]));
+  const connectionMap = new Map(connectionRows.map((connection) => [connection.broker, connection]));
+  const results: Array<"synced" | "pending" | "error"> = [];
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, rows.length) }, async () => {
+    while (cursor < rows.length) {
+      const row = rows[cursor++];
+      results.push(await processBirthdayRow(row, contactMap.get(row.contact_id), connectionMap.get(row.broker)));
+    }
+  }));
+  return {
+    synced: results.filter((status) => status === "synced").length,
+    pending: results.filter((status) => status === "pending").length,
+    error: results.filter((status) => status === "error").length,
+    processed: results.length,
+  };
+}
+
+export async function deleteBirthdayEventsForContact(contactId: string) {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin.from("contact_birthday_calendar_events").select("*").eq("contact_id", contactId);
+  if (error) throw error;
+  const rows = (data ?? []) as BirthdayCalendarRow[];
+  for (const row of rows) {
+    if (!row.google_calendar_event_id) continue;
+    const connection = await getConnection(row.broker);
+    if (!connection) throw new Error(`Google Agenda de ${row.broker} n’est plus connecté.`);
+    await deleteGoogleEvent(connection, row.google_calendar_event_id);
+  }
+  const result = await admin.from("contact_birthday_calendar_events").delete().eq("contact_id", contactId);
+  if (result.error) throw result.error;
+}
+
+export async function queueContactBirthdays(contactId: string) {
+  const rows = CONTACT_BROKERS.map((broker) => ({ contact_id: contactId, broker, sync_status: "pending" as const, last_error: null }));
+  const { error } = await getSupabaseAdmin().from("contact_birthday_calendar_events").upsert(rows, { onConflict: "contact_id,broker" });
+  if (error) throw error;
+}
+
 async function updateContactCalendarState(
   contactId: string,
   values: Record<string, unknown>,
@@ -647,6 +857,10 @@ export async function saveGoogleConnection(
   await syncContactsFollowUps(
     ((contacts ?? []) as Array<{ id: string }>).map((contact) => contact.id),
   );
+  for (;;) {
+    const result = await syncContactBirthdays({ broker, limit: 50, retryErrors: false });
+    if (result.processed < 50 || result.synced + result.error === 0) break;
+  }
 }
 
 export async function listGoogleConnectionStatuses(): Promise<CalendarConnectionStatus[]> {
@@ -662,10 +876,17 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
       google_account_email: string;
     }>).map((connection) => [connection.broker, connection.google_account_email]),
   );
+  const { data: birthdayRows, error: birthdayError } = await getSupabaseAdmin()
+    .from("contact_birthday_calendar_events")
+    .select("broker, sync_status");
+  if (birthdayError) throw birthdayError;
   return (["france", "maxime", "sandrine"] as const).map((broker) => ({
     broker,
     connected: connections.has(broker),
     email: connections.get(broker) ?? null,
+    birthdays: ((birthdayRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
+      .filter((row) => row.broker === broker)
+      .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
   }));
 }
 
@@ -690,6 +911,20 @@ export async function disconnectGoogleCalendar(broker: CalendarBroker) {
   }>) {
     await deleteGoogleEvent(connection, contact.google_calendar_event_id);
   }
+
+  const { data: birthdayRows, error: birthdayError } = await getSupabaseAdmin()
+    .from("contact_birthday_calendar_events")
+    .select("contact_id, google_calendar_event_id")
+    .eq("broker", broker);
+  if (birthdayError) throw birthdayError;
+  for (const row of (birthdayRows ?? []) as Array<{ contact_id: string; google_calendar_event_id: string | null }>) {
+    if (row.google_calendar_event_id) await deleteGoogleEvent(connection, row.google_calendar_event_id);
+  }
+  const { error: birthdayUpdateError } = await getSupabaseAdmin()
+    .from("contact_birthday_calendar_events")
+    .update({ google_calendar_event_id: null, synced_birth_date: null, sync_status: "pending", last_error: "Google Agenda non connecté." })
+    .eq("broker", broker);
+  if (birthdayUpdateError) throw birthdayUpdateError;
 
   const { error: contactsUpdateError } = await getSupabaseAdmin()
     .from("contacts")

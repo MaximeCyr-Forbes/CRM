@@ -19,6 +19,7 @@ function contact(index: number, values: Partial<Contact> = {}): Contact {
     lastName: `Nom${index}`,
     phone: `514555${String(index).padStart(4, "0")}`,
     email: `contact${index}@example.com`,
+    birthDate: "",
     civicNumber: "",
     address: "",
     apartment: "",

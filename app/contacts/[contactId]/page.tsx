@@ -31,6 +31,7 @@ import { findDuplicateMatches, type DuplicateReason } from "../../lib/contact-no
 import { TRANSACTION_STATUS_LABELS, TRANSACTION_TYPE_LABELS } from "../../data/transaction-types";
 import { useTransactions } from "../../transactions-context";
 import { getFollowUpQueue } from "../../lib/follow-up-queue";
+import { formatBirthDate } from "../../lib/birth-date";
 
 type NoteEditorState = {
   mode: "create" | "edit";
@@ -71,6 +72,7 @@ export default function ContactProfilePage() {
   const [isManagingAddresses, setIsManagingAddresses] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
+  const [birthdaySync, setBirthdaySync] = useState({ synced: 0, pending: 0, error: 0 });
   const contact = contacts.find((item) => item.id === params.contactId);
   const contactName = contact ? getContactName(contact) : "";
   const followUpDate = contact ? getFollowUpDate(contact.id) : null;
@@ -78,6 +80,25 @@ export default function ContactProfilePage() {
   const linkedTransactions = contact
     ? transactions.filter((transaction) => transaction.contactIds.includes(contact.id))
     : [];
+
+  async function refreshBirthdaySyncStatus(contactId: string, hasBirthDate: boolean) {
+    if (!hasBirthDate) {
+      const empty = { synced: 0, pending: 0, error: 0 };
+      setBirthdaySync(empty);
+      return empty;
+    }
+    try {
+      const response = await fetch(`/api/google-calendar/birthdays/sync?contactId=${encodeURIComponent(contactId)}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("État indisponible");
+      const counts = (await response.json()) as { synced: number; pending: number; error: number };
+      setBirthdaySync(counts);
+      return counts;
+    } catch {
+      const pending = { synced: 0, pending: 3, error: 0 };
+      setBirthdaySync(pending);
+      return pending;
+    }
+  }
 
   useEffect(() => {
     if (!isLoading && !error && !contact) {
@@ -90,6 +111,10 @@ export default function ContactProfilePage() {
       void loadNotesForContact(contact.id);
     }
   }, [contact, loadNotesForContact]);
+
+  useEffect(() => {
+    if (contact) void refreshBirthdaySyncStatus(contact.id, Boolean(contact.birthDate));
+  }, [contact?.birthDate, contact?.id]);
 
   useEffect(() => {
     if (!confirmation) {
@@ -244,8 +269,14 @@ export default function ContactProfilePage() {
       return;
     }
     await updateContact(params.contactId, values);
+    const birthday = await refreshBirthdaySyncStatus(params.contactId, Boolean(values.birthDate));
     setIsEditingContact(false);
-    setConfirmation({ title: "Contact modifié" });
+    setConfirmation({
+      title: "Contact modifié",
+      detail: values.birthDate
+        ? `Anniversaire synchronisé dans ${birthday.synced} agenda${birthday.synced > 1 ? "s" : ""} · ${birthday.pending} en attente${birthday.error ? ` · ${birthday.error} erreur` : ""}`
+        : "Aucune date d’anniversaire",
+    });
   }
 
   async function confirmDeleteContact() {
@@ -277,6 +308,7 @@ export default function ContactProfilePage() {
         lastName: selection.lastName,
         phone: selection.phone,
         email: selection.email,
+        birthDate: selection.birthDate,
         civicNumber: selection.civicNumber,
         address: selection.address,
         apartment: selection.apartment,
@@ -358,6 +390,11 @@ export default function ContactProfilePage() {
             <div className="info-group">
               <span>Email</span>
               {contact.email ? <a className="contact-direct-link" href={`mailto:${contact.email}`}>{contact.email}</a> : <strong>Non renseigné</strong>}
+            </div>
+            <div className="info-group">
+              <span>Anniversaire</span>
+              <strong>{formatBirthDate(contact.birthDate)}</strong>
+              <small>{!contact.birthDate ? "Aucune date d’anniversaire" : birthdaySync.synced === 3 ? "Anniversaire synchronisé dans 3 agendas" : `${birthdaySync.synced} agenda${birthdaySync.synced > 1 ? "s" : ""} synchronisé${birthdaySync.synced > 1 ? "s" : ""} · ${birthdaySync.pending} en attente${birthdaySync.error ? ` · ${birthdaySync.error} erreur` : ""}`}</small>
             </div>
             <div className="info-group profile-address-group">
               <span>Adresse résidentielle</span>
@@ -478,6 +515,7 @@ export default function ContactProfilePage() {
               lastName: editDuplicate.values.lastName,
               phone: editDuplicate.values.phone,
               email: editDuplicate.values.email,
+              birthDate: editDuplicate.values.birthDate,
               civicNumber: editDuplicate.values.civicNumber,
               address: editDuplicate.values.address,
               apartment: editDuplicate.values.apartment,

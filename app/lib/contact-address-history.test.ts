@@ -12,7 +12,7 @@ import {
 import { analyzeImportDrafts, decodeContactImportBuffer, parseCSVContacts } from "./contact-import";
 import { duplicateConfidence, findDuplicateMatches, searchableContactText } from "./contact-normalization";
 
-const blank: ContactDraft = { firstName: "", lastName: "", phone: "", email: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
+const blank: ContactDraft = { firstName: "", lastName: "", phone: "", email: "", birthDate: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function draft(values: Partial<ContactDraft>): ContactDraft { return { ...blank, ...values }; }
 function address(values: Partial<ContactAddressInput>): ContactAddressInput {

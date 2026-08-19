@@ -33,6 +33,7 @@ type ContactRow = {
   last_name: string;
   phone: string;
   email: string;
+  birth_date: string | null;
   civic_number: string;
   address: string;
   apartment: string;
@@ -99,6 +100,7 @@ type CRMDataContextValue = {
     entries: ReadonlyArray<ContactImportInput>,
     source: Exclude<ContactSource, "manual">,
   ) => Promise<Contact[]>;
+  enrichContactBirthDates: (updates: ReadonlyArray<{ contactId: string; birthDate: string }>) => Promise<Contact[]>;
   assignContact: (contactId: string, broker: ContactBroker) => Promise<void>;
   assignContacts: (
     contactIds: ReadonlyArray<string>,
@@ -158,6 +160,7 @@ function mapContact(row: ContactRow): Contact {
     lastName: row.last_name,
     phone: row.phone,
     email: row.email,
+    birthDate: row.birth_date ?? "",
     civicNumber: row.civic_number ?? "",
     address: row.address ?? "",
     apartment: row.apartment ?? "",
@@ -269,6 +272,11 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authStatus === "authenticated") {
       void loadContacts();
+      void fetch("/api/google-calendar/birthdays/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 40, retryErrors: false }),
+      }).catch(() => undefined);
       return;
     }
     setContacts([]);
@@ -309,6 +317,17 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     [loadedNoteContacts, loadingNoteContacts],
   );
 
+  const requestBirthdaySync = useCallback(async (contactIds: ReadonlyArray<string>) => {
+    const uniqueIds = [...new Set(contactIds)];
+    for (let index = 0; index < uniqueIds.length; index += 25) {
+      await fetch("/api/google-calendar/birthdays/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactIds: uniqueIds.slice(index, index + 25), limit: 100 }),
+      }).catch(() => undefined);
+    }
+  }, []);
+
   const addManualContact = useCallback(
     (
       draft: ContactDraft,
@@ -319,9 +338,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         const data = await crmDataRequest<ContactRow>({ action: "addManualContact", draft, broker, clientType: defaults?.clientType ?? null });
         const contact = mapContact(data);
         setContacts((current) => [contact, ...current]);
+        await requestBirthdaySync([contact.id]);
         return contact;
       }),
-    [runWrite],
+    [requestBirthdaySync, runWrite],
   );
 
   const importContacts = useCallback(
@@ -330,9 +350,27 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         const data = await crmDataRequest<ContactRow[]>({ action: "importContacts", entries: [...entries], source });
         const imported = (data ?? []).map(mapContact);
         setContacts((current) => [...imported, ...current]);
+        void requestBirthdaySync(imported.map((contact) => contact.id));
         return imported;
       }),
-    [runWrite],
+    [requestBirthdaySync, runWrite],
+  );
+
+  const enrichContactBirthDates = useCallback(
+    (updates: ReadonlyArray<{ contactId: string; birthDate: string }>) =>
+      runWrite("Les dates de naissance n’ont pas pu être enrichies.", async () => {
+        if (updates.length === 0) return [];
+        const data = await crmDataRequest<ContactRow[]>({ action: "enrichBirthDates", updates: [...updates] });
+        const enriched = (data ?? []).map(mapContact);
+        const byId = new Map(enriched.map((contact) => [contact.id, contact]));
+        setContacts((current) => current.map((contact) => {
+          const replacement = byId.get(contact.id);
+          return replacement ? preserveAddressHistory(contact, replacement) : contact;
+        }));
+        void requestBirthdaySync(enriched.map((contact) => contact.id));
+        return enriched;
+      }),
+    [requestBirthdaySync, runWrite],
   );
 
   const saveContactAddresses = useCallback(
@@ -478,9 +516,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           const [sync] = await requestCalendarSync([contactId]);
           if (sync?.contact) updated = sync.contact;
         }
+        if (currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId]);
         return updated;
       }),
-    [contacts, requestCalendarSync, runWrite],
+    [contacts, requestBirthdaySync, requestCalendarSync, runWrite],
   );
 
   const deleteContact = useCallback(
@@ -518,9 +557,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         if (!response.ok) throw new Error("Fusion refusée.");
         const payload = (await response.json()) as { contact: Contact };
         setContacts((current) => current.map((contact) => contact.id === targetId ? payload.contact : contact));
+        await requestBirthdaySync([targetId]);
         return payload.contact;
       }),
-    [contacts, runWrite],
+    [contacts, requestBirthdaySync, runWrite],
   );
 
   const mergeContacts = useCallback(
@@ -538,9 +578,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           ...current.filter((contact) => contact.id !== targetId && contact.id !== sourceId),
         ]);
         setNotes((current) => current.map((note) => note.contactId === sourceId ? { ...note, contactId: targetId } : note));
+        await requestBirthdaySync([targetId]);
         return payload.contact;
       }),
-    [runWrite],
+    [requestBirthdaySync, runWrite],
   );
 
   const addNote = useCallback(
@@ -590,6 +631,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       loadNotesForContact,
       addManualContact,
       importContacts,
+      enrichContactBirthDates,
       assignContact,
       assignContacts,
       updateFollowUp,
@@ -612,6 +654,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       loadNotesForContact,
       addManualContact,
       importContacts,
+      enrichContactBirthDates,
       assignContact,
       assignContacts,
       updateFollowUp,

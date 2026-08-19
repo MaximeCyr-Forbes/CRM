@@ -42,6 +42,7 @@ create table if not exists public.contacts (
   last_name text not null default '',
   phone text not null default '',
   email text not null default '',
+  birth_date date,
   civic_number text not null default '',
   address text not null default '',
   apartment text not null default '',
@@ -82,6 +83,7 @@ alter table public.contacts
   add column if not exists province text not null default '',
   add column if not exists postal_code text not null default '',
   add column if not exists country text not null default '',
+  add column if not exists birth_date date,
   add column if not exists google_calendar_event_id text,
   add column if not exists google_calendar_event_broker public.broker_assignment,
   add column if not exists google_calendar_sync_status public.calendar_sync_status not null default 'synced',
@@ -182,6 +184,22 @@ create table if not exists public.google_calendar_connections (
   constraint google_calendar_connections_assigned_broker_check check (broker <> 'unassigned')
 );
 
+create table if not exists public.contact_birthday_calendar_events (
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  broker public.broker_assignment not null check (broker <> 'unassigned'),
+  google_calendar_event_id text,
+  synced_birth_date date,
+  sync_status public.calendar_sync_status not null default 'pending',
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (contact_id, broker)
+);
+
+create index if not exists contact_birthday_events_broker_idx on public.contact_birthday_calendar_events(broker);
+create index if not exists contact_birthday_events_status_idx on public.contact_birthday_calendar_events(sync_status);
+create index if not exists contact_birthday_events_broker_status_idx on public.contact_birthday_calendar_events(broker, sync_status);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -212,6 +230,40 @@ drop trigger if exists google_calendar_connections_set_updated_at on public.goog
 create trigger google_calendar_connections_set_updated_at
 before update on public.google_calendar_connections
 for each row execute function public.set_updated_at();
+
+drop trigger if exists set_contact_birthday_calendar_events_updated_at on public.contact_birthday_calendar_events;
+create trigger set_contact_birthday_calendar_events_updated_at
+before update on public.contact_birthday_calendar_events
+for each row execute function public.set_updated_at();
+
+create or replace function public.queue_contact_birthday_calendar_events()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (tg_op = 'INSERT' and new.birth_date is not null)
+     or (tg_op = 'UPDATE' and new.birth_date is distinct from old.birth_date) then
+    insert into public.contact_birthday_calendar_events(contact_id,broker,sync_status,last_error)
+    select new.id, broker, 'pending'::public.calendar_sync_status, null
+    from unnest(array['france','maxime','sandrine']::public.broker_assignment[]) as brokers(broker)
+    on conflict(contact_id,broker) do update set sync_status='pending',last_error=null,updated_at=now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists queue_contact_birthdays on public.contacts;
+create trigger queue_contact_birthdays after insert or update of birth_date on public.contacts
+for each row execute function public.queue_contact_birthday_calendar_events();
+
+create or replace function public.enrich_contact_birth_dates(p_updates jsonb)
+returns setof public.contacts language sql security definer set search_path = public as $$
+  update public.contacts as contacts set birth_date=updates.birth_date
+  from (
+    select (item->>'contactId')::uuid as contact_id, nullif(item->>'birthDate','')::date as birth_date
+    from jsonb_array_elements(coalesce(p_updates,'[]'::jsonb)) as items(item)
+  ) as updates
+  where contacts.id=updates.contact_id and contacts.birth_date is null and updates.birth_date is not null
+  returning contacts.*;
+$$;
 
 drop function if exists public.add_client_note(uuid, text, public.broker_assignment);
 
@@ -400,6 +452,7 @@ create index if not exists transaction_notes_transaction_created_idx
 alter table public.contacts enable row level security;
 alter table public.client_notes enable row level security;
 alter table public.google_calendar_connections enable row level security;
+alter table public.contact_birthday_calendar_events enable row level security;
 alter table public.contact_merges enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_contacts enable row level security;
@@ -430,9 +483,13 @@ revoke execute on function public.merge_contacts(
 
 -- Les connexions Google restent exclusivement accessibles au serveur avec la clé service_role.
 revoke all on public.google_calendar_connections from anon, authenticated;
+revoke all on public.contact_birthday_calendar_events from public, anon, authenticated;
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment)
 from authenticated;
 grant select, insert, update, delete on public.google_calendar_connections to service_role;
+grant select, insert, update, delete on public.contact_birthday_calendar_events to service_role;
+revoke execute on function public.enrich_contact_birth_dates(jsonb) from public, anon, authenticated;
+grant execute on function public.enrich_contact_birth_dates(jsonb) to service_role;
 grant select, insert, update, delete on public.contacts to service_role;
 grant select, insert, update, delete on public.client_notes to service_role;
 grant select, insert, update, delete on public.contact_merges to service_role;

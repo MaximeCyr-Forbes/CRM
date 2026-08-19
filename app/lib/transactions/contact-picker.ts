@@ -6,6 +6,7 @@ export const EMPTY_TRANSACTION_CONTACT_DRAFT: ContactDraft = {
   lastName: "",
   phone: "",
   email: "",
+  birthDate: "",
   civicNumber: "",
   address: "",
   apartment: "",

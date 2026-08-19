@@ -26,7 +26,7 @@ const requiredPhones = [
   "+1 (514) 709-6348",
   "+15146076748",
 ] as const;
-const emptyAddress = { civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
+const emptyAddress = { birthDate: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -67,6 +67,7 @@ describe("détection autonome de la structure CSV", () => {
       lastName: "Béliveau",
       phone: "",
       email: "simon@example.ca",
+      birthDate: "",
       civicNumber: "150",
       address: "Avenue Léo-Lacombe",
       apartment: "App 4",

@@ -21,6 +21,7 @@ import {
 } from "../data/contact-types";
 import {
   analyzeImportDrafts,
+  getBirthdayImportAction,
   analyzeCSVContacts,
   decodeContactImportBuffer,
   parseCSVContactsWithMapping,
@@ -46,7 +47,7 @@ import { formatFollowUpDate } from "../lib/follow-up";
 
 type ContactFilter = "all" | ContactBroker;
 type ImportKind = "csv" | "vcard";
-type ImportResolution = "keep" | "merge" | "skip" | "unresolved";
+type ImportResolution = "keep" | "merge" | "enrich" | "skip" | "unresolved";
 type ReviewFilter = "all" | ImportCandidateStatus;
 
 type PendingImport = {
@@ -68,11 +69,12 @@ type PendingManualDuplicate = {
 };
 
 const emptyDraft: ContactDraft = {
-  firstName: "", lastName: "", phone: "", email: "",
+  firstName: "", lastName: "", phone: "", email: "", birthDate: "",
   civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
 };
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email",
+  birthDate: "Date de naissance",
   civicNumber: "Numéro civique", address: "Rue", apartment: "Appartement", city: "Ville", province: "Province",
   postalCode: "Code postal", country: "Pays",
 };
@@ -94,6 +96,7 @@ const csvMappingLabels: Record<CSVImportField, string> = {
   lastName: "Nom",
   fullName: "Nom complet",
   email: "Email",
+  birthDate: "Date de naissance",
   phone: "Téléphone",
   civicNumber: "Numéro civique",
   address: "Rue",
@@ -137,12 +140,22 @@ function importClassificationKey(candidate: ImportCandidate) {
   ].join("|");
 }
 
+function automaticImportResolution(candidate: ImportCandidate): ImportResolution {
+  const birthday = getBirthdayImportAction(candidate);
+  if (birthday.action === "enrich") return "enrich";
+  if (birthday.action === "same") return "skip";
+  if (birthday.action === "conflict") return "unresolved";
+  if (candidate.status === "new") return "keep";
+  return "unresolved";
+}
+
 export default function ContactsPage() {
   const router = useRouter();
   const {
     contacts,
     addManualContact,
     importContacts,
+    enrichContactBirthDates,
     assignContact,
     mergeDraftIntoContact,
   } = useContacts();
@@ -258,7 +271,7 @@ export default function ContactsPage() {
         mapping: csvAnalysis?.mapping ?? null,
         mappingConfirmed: !csvAnalysis?.mapping.requiresConfirmation,
         source: importKind,
-        resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
+        resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, automaticImportResolution(candidate)])),
         merges: {},
         addresses: Object.fromEntries(candidates.map((candidate) => {
           const address = addressInputFromDraft(candidate.draft);
@@ -283,8 +296,8 @@ export default function ContactsPage() {
         ...current,
         candidates,
         mapping,
-        mappingConfirmed: false,
-        resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.status === "new" ? "keep" : "unresolved"])),
+        mappingConfirmed: field === "birthDate" ? current.mappingConfirmed : false,
+        resolutions: Object.fromEntries(candidates.map((candidate) => [candidate.id, automaticImportResolution(candidate)])),
         merges: {},
         addresses: Object.fromEntries(candidates.map((candidate) => {
           const address = addressInputFromDraft(candidate.draft);
@@ -306,7 +319,7 @@ export default function ContactsPage() {
         const previous = current.candidates[index];
         const classificationChanged = importClassificationKey(candidate) !== importClassificationKey(previous);
         const resolution = candidate.id === candidateId || classificationChanged
-          ? candidate.status === "new" ? "keep" : "unresolved"
+          ? automaticImportResolution(candidate)
           : current.resolutions[candidate.id];
         return [candidate.id, resolution];
       }));
@@ -390,6 +403,14 @@ export default function ContactsPage() {
       .filter((candidate) => pendingImport.resolutions[candidate.id] === "keep")
       .filter((candidate) => hasMinimumContactIdentity(candidate.draft))
       .map((candidate) => ({ draft: candidate.draft, addresses: pendingImport.addresses[candidate.id] ?? [] }));
+    const enrichments = pendingImport.candidates.flatMap((candidate) => {
+      if (pendingImport.resolutions[candidate.id] !== "enrich") return [];
+      const birthday = getBirthdayImportAction(candidate);
+      return birthday.action === "enrich" && birthday.contact
+        ? [{ contactId: birthday.contact.id, birthDate: candidate.draft.birthDate }]
+        : [];
+    });
+    await enrichContactBirthDates(enrichments);
     for (const candidate of pendingImport.candidates) {
       const merge = pendingImport.merges[candidate.id];
       if (pendingImport.resolutions[candidate.id] === "merge" && merge) {
@@ -399,7 +420,8 @@ export default function ContactsPage() {
     const imported = entriesToInsert.length > 0 ? await importContacts(entriesToInsert, pendingImport.source) : [];
     setPendingImport(null);
     setImportError(null);
-    showConfirmation(`${imported.length} nouveau${imported.length > 1 ? "x" : ""} contact${imported.length > 1 ? "s" : ""} importé${imported.length > 1 ? "s" : ""}.`);
+    const birthdays = pendingImport.candidates.filter((candidate) => candidate.draft.birthDate && pendingImport.resolutions[candidate.id] !== "skip").length;
+    showConfirmation(`${imported.length} nouveau${imported.length > 1 ? "x" : ""} contact${imported.length > 1 ? "s" : ""} importé${imported.length > 1 ? "s" : ""}.${birthdays ? ` ${birthdays} anniversaire${birthdays > 1 ? "s" : ""} en synchronisation.` : ""}`);
   }
 
   async function reassignContact(contact: Contact, broker: ContactBroker) {
@@ -458,7 +480,7 @@ export default function ContactsPage() {
       {manualStep !== "closed" && <div className="contact-modal-backdrop"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">
         <header className="contact-modal-header"><div><p className="section-kicker">{manualStep === "details" ? "Nouveau contact" : "Attribution obligatoire"}</p><h2>{manualStep === "details" ? "Ajouter un contact" : "À QUI ATTRIBUER CE CONTACT ?"}</h2></div><button aria-label="Fermer" onClick={closeManualModal} type="button">×</button></header>
         {manualStep === "details" ? <form className="manual-contact-form" onSubmit={submitManualDetails}>
-          {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : "text"} value={manualDraft[field]} /></label>)}
+          {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" ? "date" : "text"} value={manualDraft[field]} /></label>)}
           {manualError && <p className="import-error">{manualError}</p>}<button className="manual-contact-continue" type="submit">Continuer vers l’attribution</button>
         </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span aria-hidden="true">→</span></button>)}</div>}
       </section></div>}
@@ -479,7 +501,7 @@ export default function ContactsPage() {
                 const match = pendingImport.mapping?.[field];
                 if (!match && field === "fullName") return null;
                 const alternatives = field === "phone" ? pendingImport.mapping?.phoneFallbacks.length ?? 0 : 0;
-                return <div key={field}><dt>{csvMappingLabels[field]}</dt><dd>{match ? `${match.label} · ${Math.round(match.confidence * 100)} %${alternatives > 0 ? ` + ${alternatives} secours` : ""}` : "Non détecté"}</dd></div>;
+                return <div key={field}><dt>{csvMappingLabels[field]}</dt><dd>{field === "birthDate" ? <select aria-label="Colonne de date de naissance" onChange={(event) => remapCSVField(field, event.target.value)} value={match?.index ?? ""}><option value="">Non détecté</option>{pendingImport.mapping?.columns.map((column) => <option key={column.index} value={column.index}>{column.label}{column.example ? ` · ${column.example}` : ""}</option>)}</select> : match ? `${match.label} · ${Math.round(match.confidence * 100)} %${alternatives > 0 ? ` + ${alternatives} secours` : ""}` : "Non détecté"}</dd></div>;
               })}
             </dl></div>
         </details>}
@@ -501,7 +523,7 @@ export default function ContactsPage() {
             <div className="import-quality-actions">
               {candidate.status === "duplicate" && resolution === "unresolved" && <><button onClick={() => openImportDuplicate(candidate)} type="button">RÉSOUDRE</button><button onClick={() => resolveImport(candidate.id, "skip")} type="button">IGNORER</button></>}
               {candidate.status === "incomplete" && resolution === "unresolved" && <><button disabled={!hasMinimumContactIdentity(candidate.draft)} onClick={() => resolveImport(candidate.id, "keep")} type="button">VALIDER</button><button onClick={() => resolveImport(candidate.id, "skip")} type="button">IGNORER</button></>}
-              {resolution !== "unresolved" && <span className="import-resolution">{resolution === "keep" ? "Sera importé ✓" : resolution === "merge" ? "Fusionné ✓" : "Ignoré"}</span>}
+              {resolution !== "unresolved" && <span className="import-resolution">{resolution === "keep" ? "Sera importé ✓" : resolution === "merge" ? "Fusionné ✓" : resolution === "enrich" ? "Date ajoutée au contact existant ✓" : "Ignoré"}</span>}
             </div>
           </article>;
         })}</div>

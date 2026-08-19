@@ -4,6 +4,7 @@ import {
   getDuplicateReasons,
   hasMinimumContactIdentity,
 } from "./contact-normalization";
+import { normalizeBirthDate } from "./birth-date";
 export {
   analyzeCSVContacts,
   parseCSVContacts,
@@ -52,7 +53,7 @@ export function decodeContactImportBuffer(buffer: ArrayBuffer) {
 
 export function normalizeContactDraft(draft: ContactDraft): ContactDraft {
   return Object.fromEntries(
-    CONTACT_DRAFT_FIELDS.map((field) => [field, normalizeImportedValue(draft[field])]),
+    CONTACT_DRAFT_FIELDS.map((field) => [field, field === "birthDate" ? normalizeBirthDate(draft[field]) : normalizeImportedValue(draft[field])]),
   ) as ContactDraft;
 }
 
@@ -194,6 +195,7 @@ export function parseVCardContacts(text: string): ContactDraft[] {
     let fullName = "";
     let phone = "";
     let email = "";
+    let birthDate = "";
     let civicNumber = "";
     let address = "";
     let apartment = "";
@@ -216,6 +218,8 @@ export function parseVCardContacts(text: string): ContactDraft[] {
         phone = unescapeVCardValue(property.value);
       } else if (property.key === "EMAIL" && !email) {
         email = unescapeVCardValue(property.value);
+      } else if (property.key === "BDAY" && !birthDate) {
+        birthDate = normalizeBirthDate(unescapeVCardValue(property.value));
       } else if (property.key === "ADR" && !address) {
         const parts = splitVCardComponents(property.value).map(unescapeVCardValue);
         address = [parts[2], parts[0]].filter(Boolean).join(", ");
@@ -238,6 +242,7 @@ export function parseVCardContacts(text: string): ContactDraft[] {
       lastName: normalizeImportedValue(lastName),
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(email),
+      birthDate,
       civicNumber: normalizeImportedValue(civicNumber),
       address: normalizeImportedValue(address),
       apartment: normalizeImportedValue(apartment),
@@ -275,6 +280,14 @@ export type ImportCandidate = {
   duplicateMatches: ReturnType<typeof findDuplicateMatches>;
   duplicateDraftIndex: number | null;
 };
+
+export function getBirthdayImportAction(candidate: ImportCandidate) {
+  const match = candidate.duplicateMatches.find((item) => item.reasons.includes("email") || item.reasons.includes("phone"));
+  if (!match || !candidate.draft.birthDate) return { action: "none" as const, contact: null };
+  if (!match.contact.birthDate) return { action: "enrich" as const, contact: match.contact };
+  if (match.contact.birthDate === candidate.draft.birthDate) return { action: "same" as const, contact: match.contact };
+  return { action: "conflict" as const, contact: match.contact };
+}
 
 export function analyzeImportDrafts(
   drafts: ReadonlyArray<ContactDraft>,

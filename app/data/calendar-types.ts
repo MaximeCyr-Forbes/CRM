@@ -6,6 +6,14 @@ export type CalendarConnectionStatus = {
   broker: CalendarBroker;
   connected: boolean;
   email: string | null;
+  birthdays: { synced: number; pending: number; error: number };
+};
+
+export type BirthdaySyncSummary = {
+  synced: number;
+  pending: number;
+  error: number;
+  processed: number;
 };
 
 export type CalendarSyncResult = {

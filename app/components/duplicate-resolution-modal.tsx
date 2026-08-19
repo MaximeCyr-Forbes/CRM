@@ -15,6 +15,7 @@ import {
 import type { DuplicateReason } from "../lib/contact-normalization";
 import { formatFollowUpDate } from "../lib/follow-up";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
+import { formatBirthDate } from "../lib/birth-date";
 
 type IncomingContact = ContactDraft & {
   broker: ContactBroker;
@@ -92,6 +93,7 @@ export function DuplicateResolutionModal({
     { key: "lastName", label: "Nom" },
     { key: "phone", label: "Téléphone" },
     { key: "email", label: "Email" },
+    { key: "birthDate", label: "Date de naissance" },
   ];
 
   return (
@@ -142,10 +144,10 @@ export function DuplicateResolutionModal({
               <div className="merge-field-row" key={key}>
                 <strong>{label}</strong>
                 <button className={sources[key] === "existing" ? "merge-choice-active" : ""} onClick={() => setSources((current) => ({ ...current, [key]: "existing" }))} type="button">
-                  <span>Existant</span>{existing[key] || "Vide"}
+                  <span>Existant</span>{key === "birthDate" ? formatBirthDate(existing[key]) : existing[key] || "Vide"}
                 </button>
                 <button className={sources[key] === "incoming" ? "merge-choice-active" : ""} onClick={() => setSources((current) => ({ ...current, [key]: "incoming" }))} type="button">
-                  <span>Nouveau</span>{incoming[key] || "Vide"}
+                  <span>Nouveau</span>{key === "birthDate" ? formatBirthDate(incoming[key]) : incoming[key] || "Vide"}
                 </button>
               </div>
             ))}

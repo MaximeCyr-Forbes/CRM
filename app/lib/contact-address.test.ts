@@ -9,6 +9,7 @@ function draft(values: Partial<ContactDraft> = {}): ContactDraft {
     lastName: "",
     phone: "",
     email: "",
+    birthDate: "",
     civicNumber: "",
     address: "",
     apartment: "",
@@ -90,5 +91,20 @@ describe("adresse résidentielle", () => {
       province: "QC",
       postalCode: "J7R 3W7",
     });
+  });
+
+  it("fusionne une date manquante et conserve un choix humain en cas de conflit", () => {
+    const incoming = draft({ birthDate: "1975-10-06" });
+    const missing = draft();
+    expect(mergeContactDraftFields(missing, incoming, getDefaultDraftMergeSources(missing)).birthDate).toBe("1975-10-06");
+
+    const identical = draft({ birthDate: "1975-10-06" });
+    expect(mergeContactDraftFields(identical, incoming, getDefaultDraftMergeSources(identical)).birthDate).toBe("1975-10-06");
+
+    const different = draft({ birthDate: "1976-10-06" });
+    const sources = getDefaultDraftMergeSources(different);
+    expect(sources.birthDate).toBe("existing");
+    expect(mergeContactDraftFields(different, incoming, sources).birthDate).toBe("1976-10-06");
+    expect(mergeContactDraftFields(different, incoming, { ...sources, birthDate: "incoming" }).birthDate).toBe("1975-10-06");
   });
 });

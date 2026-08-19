@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Contact } from "../data/contact-types";
 import {
   decodeContactImportBuffer,
+  analyzeImportDrafts,
+  getBirthdayImportAction,
   findPotentialDuplicateIndexes,
   parseCSVContacts,
   parseVCardContacts,
@@ -20,7 +22,7 @@ const frenchNames = [
   "Côte-des-Neiges",
 ] as const;
 const frenchCharacters = "é è ê ë à â ç î ï ô ù û ü É È À Ç";
-const emptyAddress = { civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
+const emptyAddress = { birthDate: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -178,6 +180,7 @@ describe("import vCard", () => {
       province: "",
       postalCode: "",
       country: "",
+      birthDate: "",
     }]);
   });
 });
@@ -198,6 +201,7 @@ describe("compatibilité de la détection des doublons", () => {
       province: "",
       postalCode: "",
       country: "",
+      birthDate: "",
       broker: "france",
       clientType: null,
       priority: null,
@@ -215,5 +219,19 @@ describe("compatibilité de la détection des doublons", () => {
     };
 
     expect([...findPotentialDuplicateIndexes(drafts, [existingContact])]).toEqual([0]);
+  });
+
+  it("enrichit uniquement un doublon fort sans écraser une date différente", () => {
+    const baseDraft = parseCSVContacts("Prénom;Nom;Email;Date de naissance\nFrançois;Béliveau;francois@example.ca;1975-10-06")[0];
+    const existing = {
+      id: "contact-2", ...baseDraft, birthDate: "", broker: "france" as const, clientType: null, priority: null,
+      status: "active" as const, source: "manual" as const, lastContactDate: null, nextFollowUpDate: null,
+      googleCalendarEventId: null, googleCalendarEventBroker: null, googleCalendarSyncStatus: "synced" as const,
+      googleCalendarLastError: null, addresses: [], createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z",
+    };
+    expect(getBirthdayImportAction(analyzeImportDrafts([baseDraft], [existing])[0]).action).toBe("enrich");
+    expect(getBirthdayImportAction(analyzeImportDrafts([baseDraft], [{ ...existing, birthDate: "1975-10-06" }])[0]).action).toBe("same");
+    expect(getBirthdayImportAction(analyzeImportDrafts([baseDraft], [{ ...existing, birthDate: "1976-10-06" }])[0]).action).toBe("conflict");
+    expect(getBirthdayImportAction(analyzeImportDrafts([baseDraft], [{ ...existing, email: "other@example.ca", phone: "", firstName: "Autre", lastName: "Personne" }])[0]).action).toBe("none");
   });
 });

@@ -21,6 +21,7 @@ const fieldLabels: Record<keyof ContactDraft, string> = {
   lastName: "Nom",
   phone: "Téléphone",
   email: "Email",
+  birthDate: "Date de naissance",
   civicNumber: "Numéro civique",
   address: "Rue",
   apartment: "Appartement / unité",
@@ -79,6 +80,7 @@ export function ImportContactReviewModal({
   const existingRows = useMemo(() => existing ? [
     ["Téléphone", existing.phone],
     ["Email", existing.email],
+    ["Date de naissance", existing.birthDate],
     ["Adresse", getContactFullAddress(existing)],
   ] : [], [existing]);
 
@@ -131,7 +133,7 @@ export function ImportContactReviewModal({
               const wasEdited = editedFields.has(field);
               return <label className={field === "address" ? "import-review-field-wide" : ""} key={field}>
                 <span>{fieldLabels[field]} <small className={wasEdited || confidence >= 0.72 ? "field-confidence-high" : "field-confidence-low"}>{wasEdited ? "Corrigé ✓" : !hasValue ? "Non détecté" : confidence >= 0.72 ? `✓ ${Math.round(confidence * 100)} %` : "⚠ Vérifier"}</small></span>
-                <input onChange={(event) => updateField(field, event.target.value)} type={field === "email" ? "email" : field === "phone" ? "tel" : "text"} value={values[field]} />
+                <input onChange={(event) => updateField(field, event.target.value)} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" ? "date" : "text"} value={values[field]} />
                 {detected && <small className="import-field-source">{detected.label}</small>}
               </label>;
             })}

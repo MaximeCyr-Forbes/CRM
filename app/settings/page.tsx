@@ -10,7 +10,7 @@ import { BROKER_LABELS } from "../data/contact-types";
 
 const emptyConnections: CalendarConnectionStatus[] = (
   ["france", "maxime", "sandrine"] as const
-).map((broker) => ({ broker, connected: false, email: null }));
+).map((broker) => ({ broker, connected: false, email: null, birthdays: { synced: 0, pending: 0, error: 0 } }));
 
 export default function SettingsPage() {
   const { retry: reloadContacts } = useCRMData();
@@ -19,6 +19,29 @@ export default function SettingsPage() {
   const [activeBroker, setActiveBroker] = useState<CalendarBroker | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSyncingBirthdays, setIsSyncingBirthdays] = useState(false);
+
+  async function syncBirthdays(showResult = true) {
+    setIsSyncingBirthdays(true);
+    let synced = 0;
+    let pending = 0;
+    let errors = 0;
+    try {
+      for (let batch = 0; batch < 20; batch += 1) {
+        const response = await fetch("/api/google-calendar/birthdays/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 40, retryErrors: batch === 0 }) });
+        if (!response.ok) throw new Error("Synchronisation impossible");
+        const result = (await response.json()) as { synced: number; pending: number; error: number; processed: number };
+        synced += result.synced; pending += result.pending; errors += result.error;
+        if (result.processed < 40 || result.synced + result.error === 0) break;
+      }
+      await loadConnections();
+      if (showResult) setMessage(`${synced} anniversaire${synced > 1 ? "s" : ""} synchronisé${synced > 1 ? "s" : ""} · ${pending} en attente · ${errors} erreur${errors > 1 ? "s" : ""}.`);
+    } catch {
+      if (showResult) setError("La reprise des anniversaires n’a pas pu être terminée.");
+    } finally {
+      setIsSyncingBirthdays(false);
+    }
+  }
 
   async function loadConnections() {
     setIsLoading(true);
@@ -53,6 +76,7 @@ export default function SettingsPage() {
       setError("La connexion Google Agenda n’a pas pu être terminée.");
     }
     void loadConnections();
+    void syncBirthdays(false);
   }, []);
 
   function connectCalendar(broker: CalendarBroker) {
@@ -95,6 +119,7 @@ export default function SettingsPage() {
             Chaque courtier connecte son propre calendrier. Les relances restent
             toujours séparées.
           </p>
+          <button className="calendar-connect" disabled={isSyncingBirthdays} onClick={() => void syncBirthdays()} type="button">{isSyncingBirthdays ? "SYNCHRONISATION…" : "SYNCHRONISER LES ANNIVERSAIRES"}</button>
         </header>
 
         {(isLoading || error || message) && (
@@ -125,6 +150,7 @@ export default function SettingsPage() {
                       : "Aucun Google Agenda connecté"}
                   </p>
                   {connection.email && <small>{connection.email}</small>}
+                  <small>{connection.birthdays.synced} anniversaires synchronisés · {connection.birthdays.pending} en attente · {connection.birthdays.error} erreur{connection.birthdays.error > 1 ? "s" : ""}</small>
                 </div>
               </div>
 

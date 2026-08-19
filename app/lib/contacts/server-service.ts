@@ -6,6 +6,8 @@ import type {
 } from "../../data/contact-types";
 import {
   deleteCalendarEventForContact,
+  deleteBirthdayEventsForContact,
+  queueContactBirthdays,
   mapServerContact,
   syncContactFollowUp,
   type ServerContactRow,
@@ -92,11 +94,12 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
   );
 
   try {
+    await deleteBirthdayEventsForContact(input.sourceId);
     for (const contact of events) {
       await deleteCalendarEventForContact(mapServerContact(contact));
     }
 
-    const addressRpc = await getSupabaseAdmin().rpc("merge_contacts_with_addresses", {
+    const addressRpc = await getSupabaseAdmin().rpc("merge_contacts_with_birthdays", {
       p_target_id: input.targetId,
       p_source_id: input.sourceId,
       p_addresses: addressRpcPayload(input.addresses),
@@ -104,6 +107,7 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       p_last_name: input.values.lastName,
       p_phone: input.values.phone,
       p_email: input.values.email,
+      p_birth_date: input.values.birthDate || null,
       p_civic_number: input.values.civicNumber,
       p_address: input.values.address,
       p_apartment: input.values.apartment,
@@ -120,35 +124,8 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       p_google_event_broker: retainedEventBroker,
       p_merged_by_user_id: input.mergedByUserId,
     });
-    let data = addressRpc.data;
-    if (addressRpc.error) {
-      if (!isAddressHistoryUnavailableError(addressRpc.error)) throw addressRpc.error;
-      const fallback = await getSupabaseAdmin().rpc("merge_contacts", {
-        p_target_id: input.targetId,
-        p_source_id: input.sourceId,
-        p_first_name: input.values.firstName,
-        p_last_name: input.values.lastName,
-        p_phone: input.values.phone,
-        p_email: input.values.email,
-        p_civic_number: input.values.civicNumber,
-        p_address: input.values.address,
-        p_apartment: input.values.apartment,
-        p_city: input.values.city,
-        p_province: input.values.province,
-        p_postal_code: input.values.postalCode,
-        p_country: input.values.country,
-        p_broker: input.values.broker,
-        p_client_type: input.values.clientType,
-        p_priority: input.values.priority,
-        p_status: input.values.status,
-        p_next_follow_up_date: nextFollowUpDate,
-        p_google_event_id: retainedEventId,
-        p_google_event_broker: retainedEventBroker,
-        p_merged_by_user_id: input.mergedByUserId,
-      });
-      if (fallback.error) throw fallback.error;
-      data = fallback.data;
-    }
+    if (addressRpc.error) throw addressRpc.error;
+    const data = addressRpc.data;
 
     const merged = mapServerContact((Array.isArray(data) ? data[0] : data) as ServerContactRow);
     if (merged.nextFollowUpDate) {
@@ -162,6 +139,8 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
     await Promise.allSettled([
       syncContactFollowUp(input.targetId),
       syncContactFollowUp(input.sourceId),
+      queueContactBirthdays(input.targetId),
+      queueContactBirthdays(input.sourceId),
     ]);
     throw error;
   }
@@ -199,6 +178,7 @@ export async function mergeDraftIntoContact(
       last_name: values.lastName.trim(),
       phone: values.phone.trim(),
       email: values.email.trim(),
+      birth_date: values.birthDate || null,
       civic_number: values.civicNumber.trim().normalize("NFC"),
       address: values.address.trim().normalize("NFC"),
       apartment: values.apartment.trim().normalize("NFC"),
@@ -240,6 +220,7 @@ export async function deleteContactAndCalendar(contactId: string) {
   if (mapped.googleCalendarEventId) {
     await deleteCalendarEventForContact(mapped);
   }
+  await deleteBirthdayEventsForContact(contactId);
 
   const { error } = await getSupabaseAdmin().from("contacts").delete().eq("id", contactId);
   if (error) {

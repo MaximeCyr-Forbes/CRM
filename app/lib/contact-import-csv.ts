@@ -1,4 +1,5 @@
 import type { ContactDraft } from "../data/contact-types";
+import { inferBirthDateOrder, normalizeBirthDate } from "./birth-date";
 
 export type CSVColumnSource = "header" | "content" | "profile" | "manual";
 export type CSVImportField =
@@ -6,6 +7,7 @@ export type CSVImportField =
   | "lastName"
   | "fullName"
   | "email"
+  | "birthDate"
   | "phone"
   | "civicNumber"
   | "address"
@@ -41,6 +43,7 @@ export type CSVImportMapping = {
   lastName: CSVColumnMatch | null;
   fullName: CSVColumnMatch | null;
   email: CSVColumnMatch | null;
+  birthDate: CSVColumnMatch | null;
   phone: CSVColumnMatch | null;
   phoneFallbacks: CSVColumnMatch[];
   civicNumber: CSVColumnMatch | null;
@@ -67,6 +70,10 @@ type ColumnProfile = {
   phoneRatio: number;
   formattedPhoneRatio: number;
   dateRatio: number;
+  birthDateRatio: number;
+  plausibleBirthRatio: number;
+  recentDateRatio: number;
+  medianDateYear: number | null;
   postalRatio: number;
   civicNumberRatio: number;
   sequentialNumberRatio: number;
@@ -93,6 +100,7 @@ type RecognizedNameProfile = {
 const MAX_INFERENCE_ROWS = 200;
 const CSV_IMPORT_FIELDS = new Set<HeaderRole>([
   "firstName", "lastName", "fullName", "email", "phone",
+  "birthDate",
   "civicNumber", "address", "apartment", "city", "province", "postalCode", "country",
 ]);
 
@@ -101,6 +109,7 @@ const HEADER_ALIASES: Record<CSVImportField, ReadonlyArray<string>> = {
   lastName: ["nom", "nomdefamille", "lastname", "surname", "familyname", "last"],
   fullName: ["nomcomplet", "fullname", "displayname", "contactname", "clientname", "name"],
   email: ["email", "courriel", "mail", "emailaddress", "adresseemail", "adressecourriel"],
+  birthDate: ["datedenaissance", "naissance", "anniversaire", "dateanniversaire", "birthday", "birthdate", "dateofbirth", "dob"],
   phone: [
     "telephone",
     "telephoneprincipal",
@@ -132,7 +141,7 @@ const HEADER_ALIASES: Record<CSVImportField, ReadonlyArray<string>> = {
 };
 
 const IGNORED_HEADER_ALIASES: Record<Exclude<HeaderRole, CSVImportField>, ReadonlyArray<string>> = {
-  date: ["date", "createdat", "updatedat", "datecreation", "datemodification", "birthday", "naissance"],
+  date: ["date", "createdat", "updatedat", "datecreation", "datemodification"],
   other: ["note", "notes", "tag", "tags", "categorie", "category", "langue", "language", "sexe", "gender", "id", "identifiant"],
 };
 
@@ -398,6 +407,15 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
     const emailRatio = ratio(values, looksLikeEmail);
     const phoneRatio = ratio(values, looksLikePhone);
     const dateRatio = ratio(values, looksLikeDate);
+    const birthOrder = inferBirthDateOrder(values);
+    const normalizedDates = values.map((value) => normalizeBirthDate(value, { order: birthOrder })).filter(Boolean);
+    const currentYear = new Date().getFullYear();
+    const dateYears = normalizedDates.map((value) => Number(value.slice(0, 4))).sort((first, second) => first - second);
+    const plausibleBirthRatio = ratio(normalizedDates, (value) => {
+      const age = currentYear - Number(value.slice(0, 4));
+      return age >= 18 && age <= 100;
+    });
+    const recentDateRatio = ratio(normalizedDates, (value) => Number(value.slice(0, 4)) >= currentYear - 10);
     const postalRatio = ratio(values, looksLikeCanadianPostalCode);
     const civicNumberRatio = ratio(values, looksLikeCivicNumber);
     const addressRatio = ratio(values, looksLikeAddress);
@@ -419,6 +437,10 @@ function profileColumns(rows: ReadonlyArray<ReadonlyArray<string>>) {
       phoneRatio,
       formattedPhoneRatio: ratio(values.filter(looksLikePhone), hasPhoneFormatting),
       dateRatio,
+      birthDateRatio: values.length === 0 ? 0 : normalizedDates.length / values.length,
+      plausibleBirthRatio,
+      recentDateRatio,
+      medianDateYear: dateYears.length > 0 ? dateYears[Math.floor(dateYears.length / 2)] : null,
       postalRatio,
       civicNumberRatio,
       sequentialNumberRatio: sequentialNumberRatio(values),
@@ -471,6 +493,7 @@ function dominantColumnType(profile: ColumnProfile) {
   const types: Array<[string, number]> = [
     ["email", profile.emailRatio],
     ["phone", profile.phoneRatio],
+    ["birthDate", profile.birthDateRatio * profile.plausibleBirthRatio],
     ["date", profile.dateRatio],
     ["postal", profile.postalRatio],
     ["civicNumber", profile.civicNumberRatio * (1 - profile.sequentialNumberRatio)],
@@ -644,6 +667,23 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     return best ? matchColumn(best, headerRow, score(best), "content") : null;
   };
 
+  const currentYear = new Date().getFullYear();
+  const newestDateMedian = Math.max(...profiles.flatMap((profile) => profile.medianDateYear === null ? [] : [profile.medianDateYear]), 0);
+  const birthDateScore = (profile: ColumnProfile) => {
+    const medianAge = profile.medianDateYear === null ? 0 : currentYear - profile.medianDateYear;
+    const oldEnoughBonus = medianAge >= 25 && medianAge <= 90 ? 0.12 : 0;
+    const olderThanOperationalDatesBonus = profile.medianDateYear !== null && newestDateMedian - profile.medianDateYear >= 15 ? 0.08 : 0;
+    return Math.max(0, Math.min(1,
+      profile.birthDateRatio * 0.28
+      + profile.plausibleBirthRatio * 0.56
+      + oldEnoughBonus
+      + olderThanOperationalDatesBonus
+      + Math.min(profile.coverage, 0.5) * 0.08
+      - profile.recentDateRatio * 0.65,
+    ));
+  };
+  const birthDate = headerMatch("birthDate") ?? bestContentMatch(birthDateScore, 0.72, new Set(), 0.12);
+
   const address = headerMatch("address") ?? bestContentMatch((profile) => profile.addressRatio, 0.5, new Set(), 0.08);
   const addressProfile = address ? profileByIndex.get(address.index) ?? null : null;
   const civicHeaderMatch = headerMatch("civicNumber");
@@ -713,6 +753,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
 
   const excludedIndexes = new Set<number>([
     email?.index,
+    birthDate?.index,
     ...phoneMatches.map((match) => match.index),
     address?.index,
     civicNumber?.index,
@@ -789,6 +830,7 @@ function inferMapping(rows: string[][], hasHeader: boolean, delimiter: "," | ";"
     lastName,
     fullName,
     email,
+    birthDate,
     phone: phoneMatches[0] ?? null,
     phoneFallbacks: phoneMatches.slice(1),
     civicNumber,
@@ -811,6 +853,10 @@ export function parseCSVContactsWithMapping(text: string, mapping: CSVImportMapp
   const rows = parseDelimitedRows(text.replace(/^\uFEFF/, ""), mapping.delimiter);
   const dataRows = mapping.hasHeader ? rows.slice(1) : rows;
   const phoneColumns = [mapping.phone, ...mapping.phoneFallbacks].filter((match): match is CSVColumnMatch => Boolean(match));
+  const birthDateValues = mapping.birthDate
+    ? dataRows.map((row) => normalizeImportedValue(row[mapping.birthDate?.index ?? -1] ?? "")).filter(Boolean)
+    : [];
+  const birthDateOrder = inferBirthDateOrder(birthDateValues);
 
   return dataRows.map((row) => {
     const fullName = mapping.fullName ? row[mapping.fullName.index] ?? "" : "";
@@ -824,6 +870,7 @@ export function parseCSVContactsWithMapping(text: string, mapping: CSVImportMapp
       lastName: normalizeImportedValue((mapping.lastName ? row[mapping.lastName.index] : "") || splitName.lastName),
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(mapping.email ? row[mapping.email.index] ?? "" : ""),
+      birthDate: normalizeBirthDate(mapping.birthDate ? row[mapping.birthDate.index] ?? "" : "", { order: birthDateOrder }),
       civicNumber: normalizeImportedValue(mapping.civicNumber ? row[mapping.civicNumber.index] ?? "" : ""),
       address: normalizeImportedValue(mapping.address ? row[mapping.address.index] ?? "" : ""),
       apartment: normalizeImportedValue(mapping.apartment ? row[mapping.apartment.index] ?? "" : ""),
