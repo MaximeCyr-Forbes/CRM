@@ -7,6 +7,7 @@ export const LISTING_STATUSES = [
   "offer_received",
   "conditional",
   "sold",
+  "rented",
   "expired",
   "withdrawn",
 ] as const;
@@ -20,6 +21,7 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
   offer_received: "Offre reçue",
   conditional: "Conditionnel",
   sold: "Vendu",
+  rented: "Loué",
   expired: "Expiré",
   withdrawn: "Retiré",
 };
@@ -47,6 +49,14 @@ export const LISTING_PROPERTY_TYPE_LABELS: Record<ListingPropertyType, string> =
 export const LISTING_BROKERS = CONTACT_BROKERS;
 export type ListingBroker = (typeof LISTING_BROKERS)[number];
 
+export const LISTING_PURPOSES = ["sale", "rental"] as const;
+export type ListingPurpose = (typeof LISTING_PURPOSES)[number];
+
+export const LISTING_PURPOSE_LABELS: Record<ListingPurpose, string> = {
+  sale: "Vente",
+  rental: "Location",
+};
+
 export type Listing = {
   id: string;
   civicNumber: string;
@@ -59,7 +69,9 @@ export type Listing = {
   centrisNumber: string;
   broker: ListingBroker;
   status: ListingStatus;
+  purpose: ListingPurpose;
   askingPrice: number | null;
+  monthlyRent: number | null;
   propertyType: ListingPropertyType;
   listingDate: string | null;
   expirationDate: string | null;
@@ -84,7 +96,9 @@ export type ListingDraft = Pick<
   | "centrisNumber"
   | "broker"
   | "status"
+  | "purpose"
   | "askingPrice"
+  | "monthlyRent"
   | "propertyType"
   | "listingDate"
   | "expirationDate"

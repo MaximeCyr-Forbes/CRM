@@ -1,0 +1,23 @@
+import { ListingServiceError } from "./server-service";
+
+export function listingApiError(error: unknown, fallbackMessage: string) {
+  console.error(
+    `Erreur Listings — ${fallbackMessage}`,
+    error,
+  );
+  if (error instanceof ListingServiceError) {
+    if (error.code === "duplicate_centris") {
+      return Response.json({ error: "Numéro Centris déjà utilisé." }, { status: 409 });
+    }
+    if (error.code === "invalid_owner") {
+      return Response.json({ error: "Propriétaire invalide." }, { status: 400 });
+    }
+    if (error.code === "not_found") {
+      return Response.json({ error: "Listing introuvable." }, { status: 404 });
+    }
+    if (error.code === "invalid_listing") {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+  }
+  return Response.json({ error: fallbackMessage }, { status: 502 });
+}

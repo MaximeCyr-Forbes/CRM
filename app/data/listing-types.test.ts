@@ -5,11 +5,14 @@ import {
   LISTING_BROKERS,
   LISTING_PROPERTY_TYPE_LABELS,
   LISTING_PROPERTY_TYPES,
+  LISTING_PURPOSE_LABELS,
+  LISTING_PURPOSES,
   LISTING_STATUSES,
   LISTING_STATUS_LABELS,
   type Listing,
   type ListingDraft,
   type ListingPropertyType,
+  type ListingPurpose,
   type ListingStatus,
 } from "./listing-types";
 
@@ -27,6 +30,7 @@ describe("types Listings", () => {
       "offer_received",
       "conditional",
       "sold",
+      "rented",
       "expired",
       "withdrawn",
     ]);
@@ -37,10 +41,17 @@ describe("types Listings", () => {
       offer_received: "Offre reçue",
       conditional: "Conditionnel",
       sold: "Vendu",
+      rented: "Loué",
       expired: "Expiré",
       withdrawn: "Retiré",
     });
     expectTypeOf<ListingStatus>().toEqualTypeOf<(typeof LISTING_STATUSES)[number]>();
+  });
+
+  it("déclare les finalités Vente et Location avec leurs libellés français", () => {
+    expect(LISTING_PURPOSES).toEqual(["sale", "rental"]);
+    expect(LISTING_PURPOSE_LABELS).toEqual({ sale: "Vente", rental: "Location" });
+    expectTypeOf<ListingPurpose>().toEqualTypeOf<"sale" | "rental">();
   });
 
   it("déclare tous les types de propriétés et leurs libellés français", () => {
@@ -80,7 +91,9 @@ describe("types Listings", () => {
       centrisNumber: "12345678",
       broker: "maxime",
       status: "preparation",
+      purpose: "sale",
       askingPrice: 649000,
+      monthlyRent: null,
       propertyType: "residential",
       listingDate: "2026-08-19",
       expirationDate: "2027-02-19",
@@ -104,11 +117,13 @@ describe("types Listings", () => {
       "expirationDate",
       "generalNotes",
       "listingDate",
+      "monthlyRent",
       "ownerContactIds",
       "postalCode",
       "primaryImageUrl",
       "propertyType",
       "province",
+      "purpose",
       "publicUrl",
       "status",
     ].sort());
@@ -133,6 +148,9 @@ describe("fondations SQL Listings", () => {
     for (const name of [
       "listings_assigned_broker_check",
       "listings_status_check",
+      "listings_purpose_check",
+      "listings_asking_price_check",
+      "listings_monthly_rent_check",
       "listings_property_type_check",
       "listings_date_range_check",
       "listings_centris_number_unique_idx",
@@ -151,6 +169,12 @@ describe("fondations SQL Listings", () => {
     expect(migration).toContain("alter table public.listing_contacts enable row level security");
     expect(migration).toContain("revoke all on public.listings from public, anon, authenticated");
     expect(migration).toContain("grant select, insert, update, delete on public.listings to service_role");
+    expect(migration).toContain("purpose text not null default 'sale'");
+    expect(migration).toContain("monthly_rent numeric(14, 2)");
+    expect(migration).toContain("'rented'");
+    expect(migration).toContain("create or replace function public.create_listing_with_owners");
+    expect(migration).toContain("create or replace function public.update_listing_with_owners");
+    expect(migration).toContain("grant execute on function public.create_listing_with_owners(jsonb, uuid[]) to service_role");
   });
 
   it("normalise le numéro Centris non vide dans un index unique partiel", () => {
