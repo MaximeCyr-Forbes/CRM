@@ -3581,7 +3581,6 @@ button:disabled {
   display: flex;
   min-height: 2.85rem;
   align-items: center;
-  gap: 0.65rem;
   padding: 0;
   color: var(--ink);
   background: transparent;
@@ -3589,23 +3588,16 @@ button:disabled {
   cursor: pointer;
 }
 
-.app-header-brand span {
-  display: grid;
-  width: 2.45rem;
-  height: 2.45rem;
-  place-items: center;
-  color: #8c7343;
-  border: 1px solid rgba(198, 168, 103, 0.5);
-  border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.7rem;
+.app-header-brand-logo {
+  display: block;
+  width: clamp(110px, 9vw, 145px);
+  height: auto;
+  object-fit: contain;
+  transition: opacity 160ms ease;
 }
 
-.app-header-brand strong {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1rem;
-  font-weight: 400;
-  white-space: nowrap;
+.app-header-brand:hover .app-header-brand-logo {
+  opacity: 0.72;
 }
 
 .app-header-links {
@@ -3833,7 +3825,7 @@ textarea:focus-visible,
 
 @media (max-width: 700px) {
   .app-header { position: sticky; grid-template-columns: 1fr auto; gap: 0.5rem; min-height: auto; padding: 0.55rem 4.7rem 0.5rem 0.75rem; }
-  .app-header-brand strong { display: none; }
+  .app-header-brand-logo { width: clamp(100px, 28vw, 120px); }
   .app-header-tools { gap: 0.25rem; }
   .global-search-trigger { width: 2.75rem; padding: 0; justify-content: center; }
   .global-search-trigger > span:last-child,

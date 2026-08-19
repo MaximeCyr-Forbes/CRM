@@ -72,7 +72,13 @@ export function AppHeader() {
   return (
     <header className="app-header" ref={headerRef}>
       <button aria-label="Accueil — Équipe Forbes" className="app-header-brand" onClick={() => navigate("/dashboard")} type="button">
-        <span aria-hidden="true">EF</span><strong>Équipe Forbes</strong>
+        <img
+          alt="Équipe Forbes Team"
+          className="app-header-brand-logo"
+          height="182"
+          src="/branding/equipe-forbes-header-logo.png"
+          width="1337"
+        />
       </button>
       <nav className="app-header-links" aria-label="Navigation principale">
         {appNavigationOrder.map((label) => {
