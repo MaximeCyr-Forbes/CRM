@@ -19,7 +19,16 @@ export function SelectionPage() {
       <section className="selection-shell" aria-labelledby="page-title">
         <header className="brand-lockup">
           <span className="eyebrow">Immobilier</span>
-          <h1 id="page-title"><span>ÉQUIPE FORBES</span><strong>CRM</strong></h1>
+          <h1 id="page-title">
+            <img
+              alt="Équipe Forbes Team"
+              className="selection-brand-logo"
+              height="182"
+              src="/branding/equipe-forbes-logo.png"
+              width="1337"
+            />
+            <strong>CRM</strong>
+          </h1>
           <p>Sélectionnez l’espace à consulter.</p>
         </header>
         <div className="broker-grid" aria-label="Choisir un courtier">

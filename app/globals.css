@@ -134,13 +134,16 @@ button:disabled {
   line-height: 0.92;
 }
 
-.brand-lockup h1 span,
+.brand-lockup h1 img,
 .brand-lockup h1 strong {
   display: block;
 }
 
-.brand-lockup h1 span {
-  font-size: clamp(2.35rem, 7vw, 5.5rem);
+.selection-brand-logo {
+  width: min(100%, 32.5rem);
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
 }
 
 .brand-lockup h1 strong {
