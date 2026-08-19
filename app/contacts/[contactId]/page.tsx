@@ -493,7 +493,7 @@ export default function ContactProfilePage() {
         </section>
 
         <div className="contact-danger-zone">
-          <button onClick={() => setIsDeleteConfirmationOpen(true)} type="button">
+          <button className="destructive-button" onClick={() => setIsDeleteConfirmationOpen(true)} type="button">
             Supprimer le contact
           </button>
         </div>
@@ -553,7 +553,7 @@ export default function ContactProfilePage() {
             <p>Cette action supprimera également son historique et ses relances.</p>
             <div className="delete-contact-actions">
               <button onClick={() => setIsDeleteConfirmationOpen(false)} type="button">ANNULER</button>
-              <button onClick={() => void confirmDeleteContact()} type="button">SUPPRIMER DÉFINITIVEMENT</button>
+              <button className="destructive-button" onClick={() => void confirmDeleteContact()} type="button">SUPPRIMER DÉFINITIVEMENT</button>
             </div>
           </section>
         </div>

@@ -47,7 +47,7 @@ export function ContactAddressManager({ contact, isSaving, onCancel, onSave }: {
         <div className="address-manager-list">
           {addresses.map((address, index) => <article key={`${normalizeAddressKey(address)}:${index}`}>
             <div><strong>{address.isPrimary ? "PRINCIPALE" : address.label.toLocaleUpperCase("fr-CA")}</strong>{getContactAddressLines(address).map((line) => <span key={line}>{line}</span>)}</div>
-            <div><button onClick={() => edit(index)} type="button">MODIFIER</button>{!address.isPrimary && <button onClick={() => setAddresses(setPrimaryAddress(addresses, normalizeAddressKey(address)))} type="button">DÉFINIR PRINCIPALE</button>}<button onClick={() => setAddresses(setPrimaryAddress(addresses.filter((_, itemIndex) => itemIndex !== index), normalizeAddressKey(addresses.find((item, itemIndex) => itemIndex !== index && item.isPrimary) ?? addresses.find((_, itemIndex) => itemIndex !== index) ?? blankAddress)))} type="button">SUPPRIMER</button></div>
+            <div><button onClick={() => edit(index)} type="button">MODIFIER</button>{!address.isPrimary && <button onClick={() => setAddresses(setPrimaryAddress(addresses, normalizeAddressKey(address)))} type="button">DÉFINIR PRINCIPALE</button>}<button className="destructive-button" onClick={() => setAddresses(setPrimaryAddress(addresses.filter((_, itemIndex) => itemIndex !== index), normalizeAddressKey(addresses.find((item, itemIndex) => itemIndex !== index && item.isPrimary) ?? addresses.find((_, itemIndex) => itemIndex !== index) ?? blankAddress)))} type="button">SUPPRIMER</button></div>
           </article>)}
           {addresses.length === 0 && <p>Aucune adresse enregistrée.</p>}
         </div>

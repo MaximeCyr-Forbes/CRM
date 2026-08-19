@@ -3423,7 +3423,6 @@ button:disabled {
 .transaction-detail-actions > div { display: flex; gap: 0.5rem; }
 .transaction-detail-actions button { min-height: 2.65rem; padding: 0.62rem 0.85rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .transaction-detail-actions > button { display: flex; align-items: center; gap: 0.45rem; border-color: transparent; }
-.transaction-detail-actions .transaction-delete-action { color: #934c45; border-color: #d8b9b2; }
 .transaction-detail-header { align-items: center; }
 .transaction-detail-header > label { display: grid; width: min(100%, 17rem); gap: 0.45rem; color: var(--ink-soft); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
 .transaction-overview { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); background: rgba(255, 253, 248, 0.82); }
@@ -3435,7 +3434,6 @@ button:disabled {
 .transaction-delete-content > strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; }
 .transaction-delete-content > p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.65; }
 .transaction-delete-content .transaction-form-actions { margin-top: 1.4rem; }
-.transaction-delete-content .transaction-delete-confirm { color: #fff; background: #934c45; border-color: #934c45; }
 
 .transaction-detail-section,
 .profile-transactions-section { padding-top: clamp(2.5rem, 6vw, 4.5rem); }
@@ -4987,12 +4985,6 @@ textarea:focus-visible,
   }
 }
 
-.delete-contact-actions button:last-child {
-  border-color: #963f36;
-  background: #963f36;
-  color: #fff;
-}
-
 @media (max-width: 760px) {
   .duplicate-comparison,
   .contact-editor-form {
@@ -5035,6 +5027,39 @@ textarea:focus-visible,
   .contact-editor-form .import-error {
     grid-column: auto;
   }
+}
+
+button.destructive-button {
+  min-height: 2.55rem;
+  padding: 0.62rem 0.9rem;
+  border: 1px solid #b42318;
+  border-radius: 0.4rem;
+  background: #b42318;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+button.destructive-button:hover:not(:disabled) {
+  border-color: #8f1c13;
+  background: #8f1c13;
+  color: #fff;
+}
+
+button.destructive-button:focus-visible {
+  outline: 3px solid rgba(180, 35, 24, 0.28);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+button.destructive-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 @media (max-width: 430px) {
