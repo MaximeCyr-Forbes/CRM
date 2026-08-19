@@ -369,6 +369,40 @@ export async function POST(request: Request) {
       return Response.json({ data: true });
     }
 
+    if (body.action === "deleteNote") {
+      const noteId = typeof body.noteId === "string" ? body.noteId.trim() : "";
+      if (!noteId) return Response.json({ error: "Note invalide." }, { status: 400 });
+
+      const { data: note, error: noteError } = await client
+        .from("client_notes")
+        .select("contact_id, created_at")
+        .eq("id", noteId)
+        .single();
+      if (noteError || !note) throw noteError ?? new Error("Note introuvable");
+
+      const { error: deleteError } = await client.from("client_notes").delete().eq("id", noteId);
+      if (deleteError) throw deleteError;
+
+      const { data: latestNotes, error: latestError } = await client
+        .from("client_notes")
+        .select("created_at")
+        .eq("contact_id", note.contact_id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (latestError) throw latestError;
+
+      const lastContactDate = latestNotes?.[0]?.created_at ?? null;
+      const { error: contactError } = await client
+        .from("contacts")
+        .update({ last_contact_date: lastContactDate })
+        .eq("id", note.contact_id);
+      if (contactError) throw contactError;
+
+      return Response.json({
+        data: { noteId, contactId: note.contact_id, lastContactDate },
+      });
+    }
+
     return Response.json({ error: "Action inconnue." }, { status: 400 });
   } catch (error) {
     console.error("Action CRM refusée:", error instanceof Error ? error.message : "erreur inconnue");

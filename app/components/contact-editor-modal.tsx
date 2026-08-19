@@ -10,14 +10,18 @@ import {
 import { hasMinimumContactIdentity } from "../lib/contact-normalization";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
+export type ContactEditorMode = "full" | "coordinates" | "responsibility";
+
 export function ContactEditorModal({
   contact,
   isSaving,
+  mode = "full",
   onCancel,
   onSave,
 }: {
   contact: Contact;
   isSaving: boolean;
+  mode?: ContactEditorMode;
   onCancel: () => void;
   onSave: (values: ContactUpdate) => Promise<void>;
 }) {
@@ -41,6 +45,13 @@ export function ContactEditorModal({
   });
   const [error, setError] = useState<string | null>(null);
   useDialogLifecycle(true, onCancel);
+  const showCoordinates = mode === "full" || mode === "coordinates";
+  const showResponsibility = mode === "full" || mode === "responsibility";
+  const title = mode === "coordinates"
+    ? "MODIFIER LES COORDONNÉES"
+    : mode === "responsibility"
+      ? "MODIFIER LA RESPONSABILITÉ"
+      : "MODIFIER LE CONTACT";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,28 +65,31 @@ export function ContactEditorModal({
 
   return (
     <div className="contact-modal-backdrop contact-modal-top" onMouseDown={(event) => event.target === event.currentTarget && onCancel()} role="presentation">
-      <section aria-modal="true" className="contact-modal contact-editor-modal" role="dialog">
+      <section aria-labelledby="contact-editor-title" aria-modal="true" className={`contact-modal contact-editor-modal${mode === "full" ? "" : " contact-editor-modal-targeted"}`} role="dialog">
         <header className="contact-modal-header">
-          <div><p className="section-kicker">FICHE CLIENT</p><h2>MODIFIER LE CONTACT</h2></div>
+          <div><p className="section-kicker">FICHE CLIENT</p><h2 id="contact-editor-title">{title}</h2></div>
           <button aria-label="Fermer" onClick={onCancel} type="button">×</button>
         </header>
         <form className="contact-editor-form" onSubmit={submit}>
-          <label><span>Prénom</span><input onChange={(event) => setValues((current) => ({ ...current, firstName: event.target.value }))} value={values.firstName} /></label>
-          <label><span>Nom</span><input onChange={(event) => setValues((current) => ({ ...current, lastName: event.target.value }))} value={values.lastName} /></label>
-          <label><span>Téléphone</span><input onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} type="tel" value={values.phone} /></label>
-          <label><span>Email</span><input onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} type="email" value={values.email} /></label>
-          <label><span>Date de naissance</span><input max={new Date().toISOString().slice(0, 10)} onChange={(event) => setValues((current) => ({ ...current, birthDate: event.target.value }))} type="date" value={values.birthDate} /></label>
-          <label><span>Numéro civique</span><input onChange={(event) => setValues((current) => ({ ...current, civicNumber: event.target.value }))} value={values.civicNumber} /></label>
-          <label><span>Rue</span><input onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} /></label>
-          <label><span>Appartement / unité</span><input onChange={(event) => setValues((current) => ({ ...current, apartment: event.target.value }))} value={values.apartment} /></label>
-          <label><span>Ville</span><input onChange={(event) => setValues((current) => ({ ...current, city: event.target.value }))} value={values.city} /></label>
-          <label><span>Province</span><input onChange={(event) => setValues((current) => ({ ...current, province: event.target.value }))} value={values.province} /></label>
-          <label><span>Code postal</span><input onChange={(event) => setValues((current) => ({ ...current, postalCode: event.target.value }))} value={values.postalCode} /></label>
-          <label><span>Pays</span><input onChange={(event) => setValues((current) => ({ ...current, country: event.target.value }))} value={values.country} /></label>
-          <label><span>Type de client</span><select onChange={(event) => setValues((current) => ({ ...current, clientType: event.target.value === "" ? null : event.target.value as ContactUpdate["clientType"] }))} value={values.clientType ?? ""}><option value="">Non renseigné</option><option value="buyer">Acheteur</option><option value="seller">Vendeur</option><option value="buyer_seller">Acheteur + vendeur</option></select></label>
-          <label><span>Priorité</span><select onChange={(event) => setValues((current) => ({ ...current, priority: event.target.value === "" ? null : event.target.value as ContactUpdate["priority"] }))} value={values.priority ?? ""}><option value="">Non renseignée</option><option value="hot">Chaud</option><option value="warm">Tiède</option><option value="cold">Froid</option></select></label>
-          <label><span>Statut</span><select onChange={(event) => setValues((current) => ({ ...current, status: event.target.value as ContactUpdate["status"] }))} value={values.status}><option value="active">Actif</option><option value="inactive">Inactif</option></select></label>
-          <label><span>Courtier responsable</span><select onChange={(event) => setValues((current) => ({ ...current, broker: event.target.value as ContactUpdate["broker"] }))} value={values.broker}>{CONTACT_ASSIGNMENTS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
+          {mode === "full" && <><label><span>Prénom</span><input onChange={(event) => setValues((current) => ({ ...current, firstName: event.target.value }))} value={values.firstName} /></label><label><span>Nom</span><input onChange={(event) => setValues((current) => ({ ...current, lastName: event.target.value }))} value={values.lastName} /></label></>}
+          {showCoordinates && <>
+            <label><span>Téléphone</span><input onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} type="tel" value={values.phone} /></label>
+            <label><span>Courriel</span><input onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} type="email" value={values.email} /></label>
+            <label><span>Date de naissance / anniversaire</span><input max={new Date().toISOString().slice(0, 10)} onChange={(event) => setValues((current) => ({ ...current, birthDate: event.target.value }))} type="date" value={values.birthDate} /></label>
+            <label><span>Numéro civique</span><input onChange={(event) => setValues((current) => ({ ...current, civicNumber: event.target.value }))} value={values.civicNumber} /></label>
+            <label><span>Rue</span><input onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} /></label>
+            <label><span>Appartement / unité</span><input onChange={(event) => setValues((current) => ({ ...current, apartment: event.target.value }))} value={values.apartment} /></label>
+            <label><span>Ville</span><input onChange={(event) => setValues((current) => ({ ...current, city: event.target.value }))} value={values.city} /></label>
+            <label><span>Province</span><input onChange={(event) => setValues((current) => ({ ...current, province: event.target.value }))} value={values.province} /></label>
+            <label><span>Code postal</span><input onChange={(event) => setValues((current) => ({ ...current, postalCode: event.target.value }))} value={values.postalCode} /></label>
+            <label><span>Pays</span><input onChange={(event) => setValues((current) => ({ ...current, country: event.target.value }))} value={values.country} /></label>
+          </>}
+          {showResponsibility && <>
+            <label><span>Courtier responsable</span><select onChange={(event) => setValues((current) => ({ ...current, broker: event.target.value as ContactUpdate["broker"] }))} value={values.broker}>{CONTACT_ASSIGNMENTS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
+            <label><span>Type de client</span><select onChange={(event) => setValues((current) => ({ ...current, clientType: event.target.value === "" ? null : event.target.value as ContactUpdate["clientType"] }))} value={values.clientType ?? ""}><option value="">Non renseigné</option><option value="buyer">Acheteur</option><option value="seller">Vendeur</option><option value="buyer_seller">Acheteur + vendeur</option></select></label>
+            <label><span>Priorité</span><select onChange={(event) => setValues((current) => ({ ...current, priority: event.target.value === "" ? null : event.target.value as ContactUpdate["priority"] }))} value={values.priority ?? ""}><option value="">Non renseignée</option><option value="hot">Chaud</option><option value="warm">Tiède</option><option value="cold">Froid</option></select></label>
+            <label><span>Statut</span><select onChange={(event) => setValues((current) => ({ ...current, status: event.target.value as ContactUpdate["status"] }))} value={values.status}><option value="active">Actif</option><option value="inactive">Inactif</option></select></label>
+          </>}
           {error && <p className="import-error">{error}</p>}
           <div className="contact-editor-actions"><button onClick={onCancel} type="button">ANNULER</button><button disabled={isSaving} type="submit">{isSaving ? "ENREGISTREMENT…" : "ENREGISTRER"}</button></div>
         </form>

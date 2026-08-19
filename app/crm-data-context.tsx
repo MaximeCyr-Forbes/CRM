@@ -82,6 +82,12 @@ type ClientNoteRow = {
   created_by_user_id: string | null;
 };
 
+type DeleteNoteResult = {
+  noteId: string;
+  contactId: string;
+  lastContactDate: string | null;
+};
+
 type CRMDataContextValue = {
   contacts: ReadonlyArray<Contact>;
   notes: ReadonlyArray<ClientNote>;
@@ -128,6 +134,7 @@ type CRMDataContextValue = {
   ) => Promise<Contact>;
   addNote: (contactId: string, content: string) => Promise<ClientNote>;
   updateNote: (noteId: string, content: string) => Promise<void>;
+  deleteNote: (noteId: string) => Promise<void>;
 };
 
 const CRMDataContext = createContext<CRMDataContextValue | null>(null);
@@ -619,6 +626,20 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     [runWrite],
   );
 
+  const deleteNote = useCallback(
+    (noteId: string) =>
+      runWrite("Impossible de supprimer la note.", async () => {
+        const result = await crmDataRequest<DeleteNoteResult>({ action: "deleteNote", noteId });
+        setNotes((current) => current.filter((note) => note.id !== result.noteId));
+        setContacts((current) => current.map((contact) =>
+          contact.id === result.contactId
+            ? { ...contact, lastContactDate: result.lastContactDate }
+            : contact,
+        ));
+      }),
+    [runWrite],
+  );
+
   const value = useMemo<CRMDataContextValue>(
     () => ({
       contacts,
@@ -643,6 +664,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       mergeContacts,
       addNote,
       updateNote,
+      deleteNote,
     }),
     [
       contacts,
@@ -666,6 +688,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       mergeContacts,
       addNote,
       updateNote,
+      deleteNote,
     ],
   );
 

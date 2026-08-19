@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useCRMData } from "./crm-data-context";
 
 export function useClientNotes() {
-  const { notes, addNote, updateNote, loadNotesForContact } = useCRMData();
+  const { notes, addNote, updateNote, deleteNote, loadNotesForContact } = useCRMData();
   const getNotesForContact = useCallback(
     (contactId: string) =>
       notes
@@ -16,5 +16,5 @@ export function useClientNotes() {
     [notes],
   );
 
-  return { notes, getNotesForContact, loadNotesForContact, addNote, updateNote };
+  return { notes, getNotesForContact, loadNotesForContact, addNote, updateNote, deleteNote };
 }

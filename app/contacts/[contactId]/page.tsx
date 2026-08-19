@@ -3,13 +3,15 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useClientNotes } from "../../client-notes-context";
+import { PencilIcon } from "../../components/action-icons";
 import { ClientHistory } from "../../components/client-history";
-import { ContactEditorModal } from "../../components/contact-editor-modal";
+import { ContactEditorModal, type ContactEditorMode } from "../../components/contact-editor-modal";
 import { ContactAddressManager } from "../../components/contact-address-manager";
 import { DuplicateResolutionModal } from "../../components/duplicate-resolution-modal";
 import { DataStatus } from "../../components/data-status";
 import { FollowUpSchedulerModal } from "../../components/follow-up-scheduler-modal";
 import { NoteEditorModal } from "../../components/note-editor-modal";
+import { NoteDeleteConfirmationModal } from "../../components/note-delete-confirmation-modal";
 import { useContacts } from "../../contacts-context";
 import { useCRMData } from "../../crm-data-context";
 import type { CalendarSyncResult } from "../../data/calendar-types";
@@ -59,7 +61,7 @@ export default function ContactProfilePage() {
   const { contacts, assignContact, updateContact, saveContactAddresses, deleteContact, mergeContacts } = useContacts();
   const { isLoading, isSaving, error, retryCalendarSync } = useCRMData();
   const { getFollowUpDate } = useFollowUps();
-  const { getNotesForContact, loadNotesForContact, addNote, updateNote } = useClientNotes();
+  const { getNotesForContact, loadNotesForContact, addNote, updateNote, deleteNote } = useClientNotes();
   const { transactions } = useTransactions();
   const [isDirectFollowUpOpen, setIsDirectFollowUpOpen] = useState(false);
   const [isPostNoteFollowUpOpen, setIsPostNoteFollowUpOpen] = useState(false);
@@ -68,9 +70,10 @@ export default function ContactProfilePage() {
     "note" | "follow-up" | "change" | null
   >(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
-  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactEditorMode, setContactEditorMode] = useState<ContactEditorMode | null>(null);
   const [isManagingAddresses, setIsManagingAddresses] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<ClientNote | null>(null);
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
   const [birthdaySync, setBirthdaySync] = useState({ synced: 0, pending: 0, error: 0 });
   const contact = contacts.find((item) => item.id === params.contactId);
@@ -213,6 +216,13 @@ export default function ContactProfilePage() {
     });
   }
 
+  async function confirmDeleteNote() {
+    if (!noteToDelete) return;
+    await deleteNote(noteToDelete.id);
+    setNoteToDelete(null);
+    setConfirmation({ title: "Note supprimée" });
+  }
+
   function finishDirectFollowUp(
     nextDate: string | null,
     calendarSync: CalendarSyncResult,
@@ -260,7 +270,7 @@ export default function ContactProfilePage() {
       contacts.filter((item) => item.id !== params.contactId),
     )[0];
     if (match) {
-      setIsEditingContact(false);
+      setContactEditorMode(null);
       setEditDuplicate({ existingId: match.contact.id, reasons: match.reasons, values });
       await Promise.all([
         loadNotesForContact(match.contact.id),
@@ -270,7 +280,7 @@ export default function ContactProfilePage() {
     }
     await updateContact(params.contactId, values);
     const birthday = await refreshBirthdaySyncStatus(params.contactId, Boolean(values.birthDate));
-    setIsEditingContact(false);
+    setContactEditorMode(null);
     setConfirmation({
       title: "Contact modifié",
       detail: values.birthDate
@@ -374,7 +384,7 @@ export default function ContactProfilePage() {
             >
               Ajouter une note
             </button>
-            <button className="profile-action profile-action-tertiary" onClick={() => setIsEditingContact(true)} type="button">
+            <button className="profile-action profile-action-tertiary" onClick={() => setContactEditorMode("full")} type="button">
               Action
             </button>
           </div>
@@ -382,7 +392,10 @@ export default function ContactProfilePage() {
 
         <section className="profile-overview" aria-label="Informations principales du contact">
           <article className="profile-info-card">
-            <p className="info-card-label">Coordonnées</p>
+            <div className="profile-card-heading">
+              <p className="info-card-label">Coordonnées</p>
+              <button aria-label="Modifier les coordonnées" className="card-edit-button" onClick={() => setContactEditorMode("coordinates")} title="Modifier les coordonnées" type="button"><PencilIcon /></button>
+            </div>
             <div className="info-group">
               <span>Téléphone</span>
               {contact.phone ? <a className="contact-direct-link" href={`tel:${contact.phone}`}>{contact.phone}</a> : <strong>Non renseigné</strong>}
@@ -405,7 +418,10 @@ export default function ContactProfilePage() {
           </article>
 
           <article className="profile-info-card">
-            <p className="info-card-label">Responsabilité</p>
+            <div className="profile-card-heading">
+              <p className="info-card-label">Responsabilité</p>
+              <button aria-label="Modifier la responsabilité" className="card-edit-button" onClick={() => setContactEditorMode("responsibility")} title="Modifier la responsabilité" type="button"><PencilIcon /></button>
+            </div>
             <div className="info-group">
               <span>Courtier responsable</span>
               <strong>{BROKER_LABELS[contact.broker]}</strong>
@@ -415,6 +431,14 @@ export default function ContactProfilePage() {
               <strong>
                 {contact.clientType ? CLIENT_TYPE_LABELS[contact.clientType] : "Non renseigné"}
               </strong>
+            </div>
+            <div className="info-group">
+              <span>Priorité</span>
+              <strong>{contact.priority ? PRIORITY_LABELS[contact.priority] : "Non renseignée"}</strong>
+            </div>
+            <div className="info-group">
+              <span>Statut</span>
+              <strong>{contact.status === "active" ? "Actif" : "Inactif"}</strong>
             </div>
             <button
               className="contact-profile-reassign"
@@ -426,7 +450,10 @@ export default function ContactProfilePage() {
           </article>
 
           <article className="profile-info-card profile-info-highlight">
-            <p className="info-card-label">Suivi</p>
+            <div className="profile-card-heading">
+              <p className="info-card-label">Suivi</p>
+              <button aria-label="Modifier le suivi" className="card-edit-button card-edit-button-on-dark" onClick={requestFollowUp} title="Modifier la prochaine relance" type="button"><PencilIcon /></button>
+            </div>
             <div className="info-group">
               <span>Dernier contact</span>
               <strong>
@@ -467,7 +494,7 @@ export default function ContactProfilePage() {
           </div>
         </section>
 
-        <ClientHistory notes={notes} onEdit={editNote} />
+        <ClientHistory notes={notes} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
 
         <section className="profile-transactions-section" aria-labelledby="profile-transactions-title">
           <div>
@@ -493,11 +520,12 @@ export default function ContactProfilePage() {
         </div>
       </div>
 
-      {isEditingContact && (
+      {contactEditorMode && (
         <ContactEditorModal
           contact={contact}
           isSaving={isSaving}
-          onCancel={() => setIsEditingContact(false)}
+          mode={contactEditorMode}
+          onCancel={() => setContactEditorMode(null)}
           onSave={saveContact}
         />
       )}
@@ -561,6 +589,13 @@ export default function ContactProfilePage() {
         mode={noteEditor?.mode ?? "create"}
         onCancel={() => setNoteEditor(null)}
         onSave={saveNote}
+      />
+
+      <NoteDeleteConfirmationModal
+        isDeleting={isSaving}
+        note={noteToDelete}
+        onCancel={() => setNoteToDelete(null)}
+        onConfirm={confirmDeleteNote}
       />
 
       <FollowUpSchedulerModal

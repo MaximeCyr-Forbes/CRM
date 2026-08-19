@@ -1087,12 +1087,68 @@ button:disabled {
 }
 
 .profile-info-card {
+  position: relative;
   min-height: 15rem;
   padding: clamp(1.35rem, 3vw, 1.8rem);
   background: rgba(255, 253, 248, 0.82);
   border: 1px solid var(--line);
   border-radius: 0.25rem;
   box-shadow: 0 1.25rem 3.5rem rgba(19, 35, 59, 0.045);
+}
+
+.profile-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.profile-card-heading .info-card-label {
+  margin: 0;
+}
+
+.card-edit-button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  color: #6f5a34;
+  background: rgba(198, 168, 103, 0.1);
+  border: 1px solid rgba(140, 115, 67, 0.28);
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.card-edit-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.card-edit-button:hover {
+  color: var(--ink);
+  background: rgba(198, 168, 103, 0.22);
+  border-color: rgba(140, 115, 67, 0.52);
+}
+
+.card-edit-button:focus-visible {
+  outline: 3px solid rgba(198, 168, 103, 0.48);
+  outline-offset: 3px;
+}
+
+.card-edit-button-on-dark {
+  color: #e0c887;
+  background: rgba(255, 253, 248, 0.08);
+  border-color: rgba(224, 200, 135, 0.36);
+}
+
+.card-edit-button-on-dark:hover {
+  color: var(--paper);
+  background: rgba(224, 200, 135, 0.18);
+  border-color: rgba(224, 200, 135, 0.68);
 }
 
 .profile-info-highlight {
@@ -1188,9 +1244,39 @@ button:disabled {
   letter-spacing: 0.08em;
 }
 
-.notes-heading > span {
+.notes-heading-actions > span {
   color: var(--ink-soft);
   font-size: 0.7rem;
+}
+
+.notes-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.notes-add-button {
+  min-height: 2.4rem;
+  padding: 0.55rem 0.8rem;
+  color: var(--ink);
+  background: rgba(198, 168, 103, 0.12);
+  border: 1px solid rgba(198, 168, 103, 0.42);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.notes-add-button:hover {
+  background: rgba(198, 168, 103, 0.24);
+  border-color: rgba(140, 115, 67, 0.62);
+}
+
+.notes-add-button:focus-visible {
+  outline: 3px solid rgba(198, 168, 103, 0.48);
+  outline-offset: 3px;
 }
 
 .notes-list {
@@ -2486,22 +2572,45 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.note-meta button {
-  padding: 0.35rem 0.5rem;
+.note-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+}
+
+.note-meta .note-actions button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  padding: 0;
   color: var(--ink-soft);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 0.2rem;
+  border-radius: 0.3rem;
   cursor: pointer;
-  font-size: 0.54rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.note-meta button:hover {
+.note-meta .note-actions button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.note-meta .note-actions button:hover {
   color: var(--ink);
   border-color: rgba(198, 168, 103, 0.65);
+  background: rgba(198, 168, 103, 0.1);
+}
+
+.note-meta .note-actions .note-delete-button:hover {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.07);
+  border-color: rgba(180, 35, 24, 0.48);
+}
+
+.note-meta .note-actions button:focus-visible {
+  outline: 3px solid rgba(198, 168, 103, 0.48);
+  outline-offset: 2px;
 }
 
 .notes-empty-state {
@@ -3859,6 +3968,10 @@ textarea:focus-visible,
   overflow-y: auto;
 }
 
+.contact-editor-modal-targeted {
+  width: min(100%, 46rem);
+}
+
 .duplicate-comparison {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4559,9 +4672,37 @@ textarea:focus-visible,
   width: min(100%, 34rem);
 }
 
-.delete-contact-modal > p {
+.delete-note-modal {
+  width: min(100%, 34rem);
+}
+
+.delete-contact-modal > p,
+.delete-note-modal > p {
   color: #5f6c68;
   line-height: 1.6;
+}
+
+.delete-note-preview {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  background: rgba(180, 35, 24, 0.045);
+  border: 1px solid rgba(180, 35, 24, 0.14);
+  border-radius: 0.45rem;
+}
+
+.delete-note-preview time {
+  color: #7a473f;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.delete-note-preview p {
+  margin: 0.65rem 0 0;
+  color: var(--ink);
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 760px) {
@@ -4605,6 +4746,17 @@ textarea:focus-visible,
   .contact-editor-actions,
   .contact-editor-form .import-error {
     grid-column: auto;
+  }
+
+  .notes-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .notes-heading-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
