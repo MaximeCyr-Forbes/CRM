@@ -1,9 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useBroker } from "../broker-context";
+import { ListingEditorModal } from "../components/listing-editor-modal";
 import { useContacts } from "../contacts-context";
 import { BROKER_LABELS } from "../data/contact-types";
+import {
+  emptyListingDraft,
+  listingDraftFromListing,
+} from "../lib/listings/editor";
 import {
   LISTING_BROKERS,
   LISTING_PROPERTY_TYPE_LABELS,
@@ -53,9 +59,13 @@ function ListingImage({ listing }: { listing: Listing }) {
 export default function ListingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { selectedBroker } = useBroker();
   const { contacts } = useContacts();
-  const { listings, isLoading, error, retry } = useListings();
+  const { listings, isLoading, isSaving, error, retry, createListing, updateListing } = useListings();
   const [search, setSearch] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingListing, setEditingListing] = useState<Listing | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const brokerFilter = listingBrokerFilterFromParam(searchParams.get("broker"));
   const purposeFilter = listingPurposeFilterFromParam(searchParams.get("purpose"));
   const statusFilter = listingStatusFilterFromParam(searchParams.get("status"));
@@ -67,6 +77,16 @@ export default function ListingsPage() {
     search,
   }), [brokerFilter, listings, purposeFilter, search, statusFilter]);
   const activeCount = listings.filter((listing) => listing.status === "active").length;
+  const selectedBrokerKey = selectedBroker?.toLowerCase();
+  const defaultBroker = LISTING_BROKERS.includes(selectedBrokerKey as Listing["broker"])
+    ? selectedBrokerKey as Listing["broker"]
+    : LISTING_BROKERS[0];
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const timeout = window.setTimeout(() => setConfirmation(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [confirmation]);
 
   function updateFilter(name: "broker" | "purpose" | "status", value: string) {
     const next = new URLSearchParams(searchParams.toString());
@@ -85,9 +105,12 @@ export default function ListingsPage() {
             <h1>LISTINGS</h1>
             <p>Propriétés actuellement représentées par l’Équipe Forbes.</p>
           </div>
-          <div className="listings-summary" aria-live="polite">
-            <strong>{isLoading || error ? "—" : activeCount}</strong>
-            <span>{isLoading ? "Chargement…" : error ? "Données indisponibles" : `${activeCount === 1 ? "listing actif" : "listings actifs"}`}</span>
+          <div className="listings-header-actions">
+            <div className="listings-summary" aria-live="polite">
+              <strong>{isLoading || error ? "—" : activeCount}</strong>
+              <span>{isLoading ? "Chargement…" : error ? "Données indisponibles" : `${activeCount === 1 ? "listing actif" : "listings actifs"}`}</span>
+            </div>
+            <button className="listing-new" onClick={() => setIsCreating(true)} type="button">+ Nouveau Listing</button>
           </div>
         </header>
 
@@ -183,6 +206,7 @@ export default function ListingsPage() {
                       {listing.centrisNumber && <div><dt>Numéro Centris</dt><dd>{listing.centrisNumber}</dd></div>}
                       <div className="listing-card-owners"><dt>{owners.length > 1 ? "Propriétaires" : "Propriétaire"}</dt><dd>{owners.length ? owners.join(" · ") : "Non renseigné"}</dd></div>
                     </dl>
+                    <button className="listing-card-edit" onClick={() => setEditingListing(listing)} type="button">Modifier <span aria-hidden="true">✎</span></button>
                   </div>
                 </article>
               );
@@ -199,6 +223,30 @@ export default function ListingsPage() {
           </section>
         )}
       </div>
+      {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
+      {isCreating && <ListingEditorModal
+        initial={emptyListingDraft(defaultBroker)}
+        isSaving={isSaving}
+        mode="create"
+        onClose={() => setIsCreating(false)}
+        onSave={async (draft) => {
+          const created = await createListing(draft);
+          setIsCreating(false);
+          setConfirmation(`Listing créé · statut ${LISTING_STATUS_LABELS[created.status]}`);
+        }}
+      />}
+      {editingListing && <ListingEditorModal
+        initial={listingDraftFromListing(editingListing)}
+        isSaving={isSaving}
+        key={editingListing.id}
+        mode="edit"
+        onClose={() => setEditingListing(null)}
+        onSave={async (draft) => {
+          const updated = await updateListing(editingListing.id, draft);
+          setEditingListing(null);
+          setConfirmation(`Listing modifié · statut ${LISTING_STATUS_LABELS[updated.status]}`);
+        }}
+      />}
     </main>
   );
 }

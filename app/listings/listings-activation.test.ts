@@ -19,7 +19,8 @@ describe("activation visuelle Listings", () => {
     expect(existsSync(resolve(root, "app/listings/page.tsx"))).toBe(true);
     expect(source("app/listings/layout.tsx")).toContain("PrivateRouteLayout");
     expect(existsSync(resolve(root, "app/listings/[listingId]/page.tsx"))).toBe(false);
-    expect(source("app/listings/page.tsx")).not.toContain("Nouveau Listing");
+    expect(source("app/listings/page.tsx")).toContain("+ Nouveau Listing");
+    expect(source("app/listings/page.tsx")).toContain("ListingEditorModal");
   });
 
   it("affiche un placeholder d’image et distingue chargement, erreur et état vide", () => {

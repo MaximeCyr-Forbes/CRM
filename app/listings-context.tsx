@@ -68,12 +68,10 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
 
   const runWrite = useCallback(async <T,>(operation: () => Promise<T>) => {
     setPendingWrites((current) => current + 1);
-    setError(null);
     try {
       return await operation();
     } catch (caughtError) {
       logDevelopmentWarning(caughtError);
-      setError(caughtError instanceof Error ? caughtError.message : "Opération Listings impossible.");
       throw caughtError;
     } finally {
       setPendingWrites((current) => Math.max(0, current - 1));
