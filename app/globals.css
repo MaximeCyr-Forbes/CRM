@@ -3575,6 +3575,73 @@ button:disabled {
   border-color: var(--line);
 }
 
+.app-header-links button[aria-expanded="true"] {
+  color: var(--ink);
+  background: rgba(255, 253, 248, 0.78);
+  border-color: var(--line);
+}
+
+.app-software-menu {
+  position: absolute;
+  z-index: 90;
+  top: calc(100% - 0.3rem);
+  width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.45rem;
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  box-shadow: 0 0.8rem 2.2rem rgba(19, 35, 59, 0.11);
+}
+
+.app-software-menu > p {
+  margin: 0;
+  padding: 0.55rem 0.65rem 0.45rem;
+  color: rgba(19, 35, 59, 0.48);
+  font-size: 0.52rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+}
+
+.app-software-menu a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.75rem 0.7rem;
+  color: var(--ink);
+  border-top: 1px solid rgba(19, 35, 59, 0.09);
+  text-decoration: none;
+}
+
+.app-software-menu a:hover,
+.app-software-menu a:focus-visible {
+  background: rgba(198, 168, 103, 0.09);
+}
+
+.app-software-menu a > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.app-software-menu strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.app-software-menu small {
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
+.app-software-menu a > span:last-child {
+  color: #8c7343;
+  font-size: 0.85rem;
+}
+
 .app-header-tools {
   display: flex;
   align-items: center;
