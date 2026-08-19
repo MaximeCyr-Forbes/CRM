@@ -268,3 +268,46 @@ export type ListingTrackingData = {
   activity: ListingActivityEntry[];
   priceHistory: ListingPriceHistoryEntry[];
 };
+
+export type ListingExpirationLevel = "overdue" | "urgent" | "watch" | "upcoming";
+
+export type ListingOverviewItem = {
+  listingId: string;
+  address: string;
+  broker: ListingBroker;
+  purpose: ListingPurpose;
+  kind: "expiration" | "long_market" | "open_offer" | "conditional" | "incomplete_checklist";
+  label: string;
+  level: ListingExpirationLevel | "attention" | "neutral";
+};
+
+export type ListingOverviewExpiration = {
+  listingId: string;
+  address: string;
+  broker: ListingBroker;
+  purpose: ListingPurpose;
+  expirationDate: string;
+  daysUntilExpiration: number;
+  level: ListingExpirationLevel;
+  label: string;
+};
+
+export type ListingOverview = {
+  activeListings: number;
+  activeSaleInventoryValue: number;
+  activeRentalMonthlyTotal: number;
+  openOffers: number;
+  expiringListings: ListingOverviewExpiration[];
+  averageDaysOnMarket: number | null;
+  attentionItems: ListingOverviewItem[];
+};
+
+export type ListingReportData = {
+  listing: Listing;
+  ownerNames: string[];
+  tracking: ListingTrackingData | null;
+  offers: ListingOffer[] | null;
+  transactionLink: ListingTransactionLink | null;
+  trackingAvailable: boolean;
+  offersAvailable: boolean;
+};

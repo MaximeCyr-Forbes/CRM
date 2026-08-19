@@ -530,6 +530,144 @@
   }
 }
 
+/* Tableau de bord et rapport Listings */
+.listing-overview { margin-bottom: 1rem; padding: 1.1rem; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); }
+.listing-overview-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
+.listing-overview-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.55rem, 3vw, 2.2rem); font-weight: 400; }
+.listing-overview-heading > span { color: #8c7343; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.listing-overview-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
+.listing-overview-stats article { display: grid; min-height: 6.6rem; align-content: center; gap: 0.5rem; padding: 0.85rem; }
+.listing-overview-stats article + article { border-left: 1px solid var(--line); }
+.listing-overview-stats span { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.listing-overview-stats strong { overflow-wrap: anywhere; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1rem, 1.6vw, 1.3rem); font-weight: 400; }
+.listing-overview-stat-accent { background: rgba(198, 168, 103, 0.1); }
+.listing-overview-stat-muted { opacity: 0.42; }
+.listing-overview-error { display: flex; min-height: 5rem; align-items: center; justify-content: space-between; gap: 1rem; color: #934c45; }
+.listing-overview-error button { padding: 0.65rem 0.8rem; color: inherit; background: transparent; border: 1px solid currentColor; cursor: pointer; font-size: 0.58rem; font-weight: 850; text-transform: uppercase; }
+.listing-overview-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; margin-top: 0.85rem; }
+.listing-overview-panels > section { min-width: 0; padding: 0.9rem; background: rgba(246, 243, 235, 0.42); border: 1px solid var(--line); }
+.listing-overview-panels > section > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--line); }
+.listing-overview-panels > section > header span { color: var(--ink-soft); font-size: 0.5rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.listing-overview-panels h3 { margin: 0.2rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
+.listing-overview-panels > section > header > strong { color: #8c7343; font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; font-weight: 400; }
+.listing-attention-list, .listing-renewal-list { display: grid; max-height: 23rem; overflow-y: auto; }
+.listing-attention-list > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.35rem 0.65rem; padding: 0.75rem 0; color: var(--ink); text-align: left; background: transparent; border: 0; border-bottom: 1px solid rgba(19, 35, 59, 0.08); cursor: pointer; }
+.listing-attention-list > button strong, .listing-renewal-list article strong { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 0.86rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.listing-attention-list > button small { grid-column: 2; color: var(--ink-soft); font-size: 0.58rem; }
+.listing-attention-list > button b { grid-column: 3; grid-row: 1 / 3; color: #8c7343; font-size: 0.52rem; text-transform: uppercase; }
+.listing-attention-level { display: inline-flex; align-items: center; justify-content: center; padding: 0.25rem 0.4rem; border-radius: 999px; font-size: 0.46rem !important; font-weight: 850; letter-spacing: 0.05em; white-space: nowrap; }
+.listing-attention-overdue, .listing-attention-urgent { color: #934c45 !important; background: #f4dcd8; }
+.listing-attention-watch, .listing-attention-attention { color: #705c2f !important; background: #f3ead3; }
+.listing-attention-upcoming { color: #3f5b55 !important; background: #e0ebe7; }
+.listing-attention-neutral { color: var(--ink-soft) !important; background: rgba(19, 35, 59, 0.07); }
+.listing-renewal-list article { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.7rem 0; border-bottom: 1px solid rgba(19, 35, 59, 0.08); }
+.listing-renewal-list article > div { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0.25rem 0.55rem; }
+.listing-renewal-list article small, .listing-renewal-list article time { grid-column: 2; color: var(--ink-soft); font-size: 0.56rem; }
+.listing-renewal-list article button { flex-shrink: 0; padding: 0.45rem; color: #8c7343; background: transparent; border: 0; cursor: pointer; font-size: 0.52rem; font-weight: 850; text-transform: uppercase; }
+.listing-attention-list > p, .listing-renewal-list > p { margin: 0.8rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
+.listing-card-market-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: -0.2rem 0 1rem; }
+.listing-card-market-meta > span { padding: 0.3rem 0.45rem; color: var(--ink-soft); background: rgba(19, 35, 59, 0.055); border-radius: 999px; font-size: 0.53rem; font-weight: 800; }
+.listing-card-market-meta .listing-card-expiration-overdue, .listing-card-market-meta .listing-card-expiration-urgent { color: #934c45; background: #f4dcd8; }
+.listing-card-market-meta .listing-card-expiration-watch { color: #705c2f; background: #f3ead3; }
+.listing-card-market-meta .listing-card-expiration-upcoming { color: #3f5b55; background: #e0ebe7; }
+
+.listing-market-snapshot { margin-top: 1rem; padding: 1rem; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); }
+.listing-market-snapshot > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--line); }
+.listing-market-snapshot h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.5rem; font-weight: 400; }
+.listing-market-snapshot > header button, .listing-market-snapshot-error button { color: #8c7343; background: transparent; border: 0; cursor: pointer; font-size: 0.56rem; font-weight: 850; letter-spacing: 0.05em; }
+.listing-market-snapshot > div { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.listing-market-snapshot article { display: grid; min-height: 5.7rem; align-content: center; gap: 0.4rem; padding: 0.75rem; }
+.listing-market-snapshot article + article { border-left: 1px solid var(--line); }
+.listing-market-snapshot article span { color: var(--ink-soft); font-size: 0.5rem; font-weight: 850; text-transform: uppercase; }
+.listing-market-snapshot article strong { font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; font-weight: 400; }
+.listing-market-snapshot-loading, .listing-market-snapshot-error { display: flex; min-height: 5rem; align-items: center; justify-content: space-between; color: var(--ink-soft); font-size: 0.7rem; }
+.listing-detail-actions .listing-report-button { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+
+.listing-report-page { min-height: 100vh; padding: clamp(1rem, 3vw, 2.5rem); background: #edeae3; }
+.listing-report-toolbar { display: flex; width: min(100%, 58rem); align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto 1rem; }
+.listing-report-toolbar > div { display: flex; gap: 0.55rem; }
+.listing-report-toolbar button, .listing-report-state button { min-height: 2.8rem; padding: 0.65rem 0.85rem; color: var(--ink); background: #fff; border: 1px solid var(--line); cursor: pointer; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; }
+.listing-report-toolbar .listing-report-print { color: #fff; background: var(--ink); border-color: var(--ink); }
+.listing-report-warning { width: min(100%, 58rem); margin: 0 auto 1rem; padding: 0.8rem; color: #705c2f; background: #f3ead3; border: 1px solid #decea8; font-size: 0.68rem; }
+.listing-report-warning button { padding: 0; color: inherit; background: transparent; border: 0; cursor: pointer; font-weight: 850; text-transform: uppercase; }
+.listing-report-document { width: min(100%, 58rem); margin: 0 auto; padding: clamp(1.5rem, 5vw, 4rem); color: var(--ink); background: #fff; box-shadow: 0 1.5rem 4rem rgba(19, 35, 59, 0.12); }
+.listing-report-header { display: grid; grid-template-columns: minmax(9rem, 14rem) minmax(0, 1fr); align-items: end; gap: 2rem; padding-bottom: 2rem; border-bottom: 2px solid var(--ink); }
+.listing-report-header img { width: 100%; height: auto; }
+.listing-report-header > div { display: grid; gap: 0.45rem; }
+.listing-report-header p { margin: 0; color: #8c7343; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.14em; }
+.listing-report-header h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 400; letter-spacing: -0.05em; }
+.listing-report-header strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 400; }
+.listing-report-header span { color: var(--ink-soft); font-size: 0.65rem; }
+.listing-report-section { padding: 2rem 0; border-bottom: 1px solid var(--line); }
+.listing-report-section-title { display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 1.2rem; }
+.listing-report-section-title span { color: var(--gold); font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; }
+.listing-report-section-title h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; letter-spacing: -0.025em; }
+.listing-report-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid var(--line); }
+.listing-report-facts div { display: grid; gap: 0.3rem; padding: 0.85rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.listing-report-facts dt { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
+.listing-report-facts dd { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 0.88rem; }
+.listing-report-owners { display: grid; gap: 0.3rem; margin-top: 0.8rem; padding: 0.8rem; background: rgba(198, 168, 103, 0.08); }
+.listing-report-owners span { color: #8c7343; font-size: 0.52rem; font-weight: 850; text-transform: uppercase; }
+.listing-report-owners strong { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; }
+.listing-report-performance { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+.listing-report-performance article { display: grid; gap: 0.35rem; padding: 1rem; text-align: center; }
+.listing-report-performance article + article { border-left: 1px solid var(--line); }
+.listing-report-performance strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.55rem; font-weight: 400; }
+.listing-report-performance span { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; text-transform: uppercase; }
+.listing-report-interest-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; color: var(--ink-soft); font-size: 0.65rem; }
+.listing-report-interest-summary strong { color: var(--ink); }
+.listing-report-list, .listing-report-offers, .listing-report-price-history { display: grid; gap: 0.55rem; }
+.listing-report-list article { padding: 0.9rem; background: #faf9f6; border-left: 2px solid var(--gold); break-inside: avoid; }
+.listing-report-list time, .listing-report-offers time, .listing-report-price-history time { color: var(--ink-soft); font-size: 0.58rem; }
+.listing-report-list p { margin: 0.55rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 0.9rem; line-height: 1.55; }
+.listing-report-interest { display: inline-flex; margin-left: 0.6rem; padding: 0.25rem 0.4rem; border-radius: 999px; font-size: 0.5rem; letter-spacing: 0.05em; }
+.listing-report-interest-high { color: #6f302b; background: #f4dcd8; }
+.listing-report-interest-medium { color: #705c2f; background: #f3ead3; }
+.listing-report-interest-low { color: #3f5b55; background: #e0ebe7; }
+.listing-report-offers article, .listing-report-price-history article { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 0.8rem; padding: 0.75rem; background: #faf9f6; break-inside: avoid; }
+.listing-report-offers article strong, .listing-report-price-history article strong { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; }
+.listing-report-offers article span { color: #8c7343; font-size: 0.56rem; font-weight: 850; text-transform: uppercase; }
+.listing-report-price-difference { margin: 0.8rem 0 0; color: #8c7343; font-size: 0.68rem; font-weight: 800; }
+.listing-report-actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.listing-report-actions-grid > div { padding: 1rem; background: #faf9f6; break-inside: avoid; }
+.listing-report-actions-grid h3 { margin: 0 0 0.7rem; color: #8c7343; font-size: 0.58rem; letter-spacing: 0.08em; }
+.listing-report-actions-grid p { margin: 0.4rem 0; font-size: 0.72rem; }
+.listing-report-unavailable { padding: 0.8rem; color: #705c2f; background: #f3ead3; }
+.listing-report-state { display: grid; min-height: 70vh; place-content: center; justify-items: center; gap: 1rem; padding: 2rem; text-align: center; }
+
+@media (max-width: 1050px) {
+  .listing-overview-stats { grid-template-columns: repeat(3, 1fr); }
+  .listing-overview-stats article:nth-child(4) { border-left: 0; }
+  .listing-overview-stats article:nth-child(n + 4) { border-top: 1px solid var(--line); }
+  .listing-market-snapshot > div { grid-template-columns: repeat(3, 1fr); }
+  .listing-market-snapshot article:nth-child(4) { border-left: 0; }
+  .listing-market-snapshot article:nth-child(n + 4) { border-top: 1px solid var(--line); }
+}
+
+@media (max-width: 700px) {
+  .listing-overview-heading, .listing-overview-panels, .listing-report-toolbar, .listing-report-header { grid-template-columns: 1fr; }
+  .listing-overview-heading, .listing-report-toolbar { align-items: stretch; flex-direction: column; }
+  .listing-overview-panels { display: grid; }
+  .listing-overview-stats, .listing-market-snapshot > div, .listing-report-facts, .listing-report-performance, .listing-report-actions-grid { grid-template-columns: 1fr; }
+  .listing-overview-stats article + article, .listing-market-snapshot article + article, .listing-report-performance article + article { border-top: 1px solid var(--line); border-left: 0; }
+  .listing-report-toolbar > div { display: grid; }
+  .listing-report-document { padding: 1.25rem; }
+  .listing-report-header { display: grid; align-items: start; gap: 1rem; }
+  .listing-report-header img { width: min(15rem, 70%); }
+  .listing-report-offers article, .listing-report-price-history article { grid-template-columns: 1fr; }
+  .listing-report-interest-summary { align-items: flex-start; flex-direction: column; }
+}
+
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; }
+  .app-header, .account-menu, .listing-report-toolbar, .listing-report-warning { display: none !important; }
+  .private-route-content { padding: 0 !important; }
+  .listing-report-page { min-height: 0; padding: 0; background: #fff; }
+  .listing-report-document { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+  .listing-report-section, .listing-report-list article, .listing-report-offers article, .listing-report-price-history article, .listing-report-actions-grid > div { break-inside: avoid; }
+}
+
 * {
   box-sizing: border-box;
 }

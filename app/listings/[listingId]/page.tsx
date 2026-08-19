@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ListingDeleteConfirmationModal } from "../../components/listing-delete-confirmation-modal";
 import { ListingEditorModal } from "../../components/listing-editor-modal";
 import { ListingMedia } from "../../components/listing-media";
+import { ListingMarketSnapshot } from "../../components/listing-market-snapshot";
 import { ListingTracking } from "../../components/listing-tracking";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
@@ -100,6 +101,7 @@ export default function ListingDetailPage() {
             <p>{addressLines[1] || "Localité à confirmer"}</p>
           </div>
           <div className="listing-detail-actions">
+            <button className="listing-report-button" onClick={() => router.push(`/listings/${listing.id}/report`)} type="button">{listing.purpose === "sale" ? "Rapport vendeur" : "Rapport propriétaire"}</button>
             <button onClick={() => setIsEditing(true)} type="button">Modifier <span aria-hidden="true">✎</span></button>
             <button className="destructive-button" onClick={() => setIsDeleting(true)} type="button">Supprimer</button>
           </div>
@@ -117,6 +119,8 @@ export default function ListingDetailPage() {
             <p>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</p>
           </div>
         </section>
+
+        <ListingMarketSnapshot listingId={listing.id} />
 
         <section className="listing-detail-section" aria-labelledby="listing-information-title">
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Mandat immobilier</p><h2 id="listing-information-title">INFORMATIONS</h2></div></div>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useBroker } from "../broker-context";
 import { ListingEditorModal } from "../components/listing-editor-modal";
 import { ListingMedia } from "../components/listing-media";
+import { ListingOverview } from "../components/listing-overview";
 import { useContacts } from "../contacts-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
@@ -34,6 +35,7 @@ import {
   type ListingStatusFilter,
 } from "../lib/listings/presentation";
 import { useListings } from "../listings-context";
+import { getListingDaysOnMarket, getListingExpirationInfo } from "../lib/listings/overview";
 
 export default function ListingsPage() {
   const router = useRouter();
@@ -45,6 +47,7 @@ export default function ListingsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [overviewRefreshToken, setOverviewRefreshToken] = useState(0);
   const brokerFilter = listingBrokerFilterFromParam(searchParams.get("broker"));
   const purposeFilter = listingPurposeFilterFromParam(searchParams.get("purpose"));
   const statusFilter = listingStatusFilterFromParam(searchParams.get("status"));
@@ -55,7 +58,9 @@ export default function ListingsPage() {
     status: statusFilter,
     search,
   }), [brokerFilter, listings, purposeFilter, search, statusFilter]);
-  const activeCount = listings.filter((listing) => listing.status === "active").length;
+  const activeCount = listings.filter((listing) => listing.status === "active"
+    && (brokerFilter === "all" || listing.broker === brokerFilter)
+    && (purposeFilter === "all" || listing.purpose === purposeFilter)).length;
   const selectedBrokerKey = selectedBroker?.toLowerCase();
   const defaultBroker = LISTING_BROKERS.includes(selectedBrokerKey as Listing["broker"])
     ? selectedBrokerKey as Listing["broker"]
@@ -104,6 +109,12 @@ export default function ListingsPage() {
             <button className="listing-new" onClick={() => setIsCreating(true)} type="button">+ Nouveau Listing</button>
           </div>
         </header>
+
+        <ListingOverview
+          broker={brokerFilter === "all" ? undefined : brokerFilter}
+          purpose={purposeFilter === "all" ? undefined : purposeFilter}
+          refreshToken={overviewRefreshToken}
+        />
 
         <section className="listings-filters" aria-label="Filtres des Listings">
           <div className="listings-filter-block">
@@ -174,6 +185,8 @@ export default function ListingsPage() {
             {visibleListings.map((listing) => {
               const addressLines = listingAddressLines(listing);
               const owners = listingOwnerNames(listing, contactNames);
+              const daysOnMarket = getListingDaysOnMarket(listing);
+              const expiration = getListingExpirationInfo(listing);
               return (
                 <article className="listing-card" key={listing.id}>
                   <div className="listing-card-media">
@@ -200,6 +213,7 @@ export default function ListingsPage() {
                       <p>{addressLines[1] || "Localité à confirmer"}</p>
                     </div>
                     <strong className="listing-card-price">{listingPriceLabel(listing)}</strong>
+                    {(daysOnMarket !== null || expiration) && <div className="listing-card-market-meta">{daysOnMarket !== null && <span>{daysOnMarket === 1 ? "Jour 1" : `${daysOnMarket} jours en marché`}</span>}{expiration && <span className={`listing-card-expiration listing-card-expiration-${expiration.level}`}>{expiration.label}</span>}</div>}
                     <dl className="listing-card-details">
                       <div><dt>Courtier</dt><dd><span className={`listing-broker listing-broker-${listing.broker}`}>{BROKER_LABELS[listing.broker]}</span></dd></div>
                       <div><dt>Type de propriété</dt><dd>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</dd></div>
@@ -235,6 +249,7 @@ export default function ListingsPage() {
         onSave={async (draft) => {
           const created = await createListing(draft);
           setIsCreating(false);
+          setOverviewRefreshToken((value) => value + 1);
           setConfirmation(`Listing créé · statut ${LISTING_STATUS_LABELS[created.status]}`);
         }}
       />}
@@ -247,6 +262,7 @@ export default function ListingsPage() {
         onSave={async (draft) => {
           const updated = await updateListing(editingListing.id, draft);
           setEditingListing(null);
+          setOverviewRefreshToken((value) => value + 1);
           setConfirmation(`Listing modifié · statut ${LISTING_STATUS_LABELS[updated.status]}`);
         }}
       />}
