@@ -115,3 +115,24 @@ export function listingOwnerNames(listing: Listing, contactNames: ReadonlyMap<st
     .map((contactId) => contactNames.get(contactId))
     .filter((name): name is string => Boolean(name));
 }
+
+export function resolveListingOwners(listing: Listing, contacts: ReadonlyArray<Contact>) {
+  const contactsById = new Map(contacts.map((contact) => [contact.id, contact]));
+  return listing.ownerContactIds.map((contactId) => ({
+    contactId,
+    contact: contactsById.get(contactId) ?? null,
+  }));
+}
+
+const listingDateFormatter = new Intl.DateTimeFormat("fr-CA", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+export function formatListingDate(value: string | null) {
+  if (!value) return "Non renseignée";
+  const date = new Date(`${value}T12:00:00Z`);
+  return Number.isNaN(date.getTime()) ? "Non renseignée" : listingDateFormatter.format(date);
+}

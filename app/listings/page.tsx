@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useBroker } from "../broker-context";
 import { ListingEditorModal } from "../components/listing-editor-modal";
+import { ListingMedia } from "../components/listing-media";
 import { useContacts } from "../contacts-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
@@ -33,28 +34,6 @@ import {
   type ListingStatusFilter,
 } from "../lib/listings/presentation";
 import { useListings } from "../listings-context";
-
-function ListingImage({ listing }: { listing: Listing }) {
-  const [hasImageError, setHasImageError] = useState(false);
-  const address = listingAddressLines(listing)[0];
-  if (!listing.primaryImageUrl || hasImageError) {
-    return (
-      <div className="listing-card-placeholder" role="img" aria-label={`Aucune image disponible pour ${address}`}>
-        <span>ÉQUIPE FORBES</span>
-        <strong>IMMOBILIER</strong>
-      </div>
-    );
-  }
-  return (
-    <img
-      alt={address}
-      className="listing-card-image"
-      loading="lazy"
-      onError={() => setHasImageError(true)}
-      src={listing.primaryImageUrl}
-    />
-  );
-}
 
 export default function ListingsPage() {
   const router = useRouter();
@@ -88,12 +67,24 @@ export default function ListingsPage() {
     return () => window.clearTimeout(timeout);
   }, [confirmation]);
 
+  useEffect(() => {
+    const notice = window.sessionStorage.getItem("listingNotice");
+    if (!notice) return;
+    window.sessionStorage.removeItem("listingNotice");
+    setConfirmation(notice);
+  }, []);
+
   function updateFilter(name: "broker" | "purpose" | "status", value: string) {
     const next = new URLSearchParams(searchParams.toString());
     if (value === "all" && name !== "status") next.delete(name);
     else next.set(name, value);
     const query = next.toString();
     router.push(query ? `/listings?${query}` : "/listings");
+  }
+
+  function openListing(listingId: string) {
+    window.sessionStorage.setItem("listingOriginId", listingId);
+    router.push(`/listings/${listingId}`);
   }
 
   return (
@@ -186,7 +177,7 @@ export default function ListingsPage() {
               return (
                 <article className="listing-card" key={listing.id}>
                   <div className="listing-card-media">
-                    <ListingImage listing={listing} />
+                    <ListingMedia listing={listing} />
                     <span className={`listing-purpose-badge listing-purpose-${listing.purpose}`}>
                       {LISTING_PURPOSE_LABELS[listing.purpose]}
                     </span>
@@ -196,7 +187,16 @@ export default function ListingsPage() {
                   </div>
                   <div className="listing-card-content">
                     <div className="listing-card-address">
-                      <h2>{addressLines[0]}</h2>
+                      <h2>
+                        <button
+                          aria-label={`Ouvrir la fiche du Listing ${addressLines[0]}`}
+                          className="listing-card-address-link"
+                          onClick={() => openListing(listing.id)}
+                          type="button"
+                        >
+                          {addressLines[0]}
+                        </button>
+                      </h2>
                       <p>{addressLines[1] || "Localité à confirmer"}</p>
                     </div>
                     <strong className="listing-card-price">{listingPriceLabel(listing)}</strong>
@@ -206,7 +206,10 @@ export default function ListingsPage() {
                       {listing.centrisNumber && <div><dt>Numéro Centris</dt><dd>{listing.centrisNumber}</dd></div>}
                       <div className="listing-card-owners"><dt>{owners.length > 1 ? "Propriétaires" : "Propriétaire"}</dt><dd>{owners.length ? owners.join(" · ") : "Non renseigné"}</dd></div>
                     </dl>
-                    <button className="listing-card-edit" onClick={() => setEditingListing(listing)} type="button">Modifier <span aria-hidden="true">✎</span></button>
+                    <div className="listing-card-actions">
+                      <button className="listing-card-open" onClick={() => openListing(listing.id)} type="button">Ouvrir <span aria-hidden="true">→</span></button>
+                      <button className="listing-card-edit" onClick={() => setEditingListing(listing)} type="button">Modifier <span aria-hidden="true">✎</span></button>
+                    </div>
                   </div>
                 </article>
               );

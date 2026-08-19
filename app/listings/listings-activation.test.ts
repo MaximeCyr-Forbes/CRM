@@ -15,18 +15,20 @@ describe("activation visuelle Listings", () => {
     expect(layout.indexOf("<TransactionsProvider>")).toBeLessThan(layout.indexOf("<ListingsProvider>"));
   });
 
-  it("ajoute la route privée et la page Listings sans fiche détaillée", () => {
+  it("protège l’inventaire et sa fiche détaillée avec le layout Listings", () => {
     expect(existsSync(resolve(root, "app/listings/page.tsx"))).toBe(true);
     expect(source("app/listings/layout.tsx")).toContain("PrivateRouteLayout");
-    expect(existsSync(resolve(root, "app/listings/[listingId]/page.tsx"))).toBe(false);
+    expect(existsSync(resolve(root, "app/listings/[listingId]/page.tsx"))).toBe(true);
     expect(source("app/listings/page.tsx")).toContain("+ Nouveau Listing");
     expect(source("app/listings/page.tsx")).toContain("ListingEditorModal");
   });
 
   it("affiche un placeholder d’image et distingue chargement, erreur et état vide", () => {
     const page = source("app/listings/page.tsx");
-    expect(page).toContain("listing-card-placeholder");
-    expect(page).toContain("onError={() => setHasImageError(true)}");
+    const media = source("app/components/listing-media.tsx");
+    expect(page).toContain("ListingMedia");
+    expect(media).toContain("listing-card-placeholder");
+    expect(media).toContain("onError={() => setHasImageError(true)}");
     expect(page).toContain("Listings temporairement indisponibles.");
     expect(page).toContain("retry()");
     expect(page).toContain("Chargement de l’inventaire…");

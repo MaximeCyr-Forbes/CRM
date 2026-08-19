@@ -40,7 +40,7 @@ describe("interface de création et modification Listings", () => {
     expect(modal).toContain("Enregistrer et lier");
   });
 
-  it("prévoit les champs complets et ne propose aucune suppression", () => {
+  it("prévoit les champs complets et laisse la suppression à la fiche détaillée", () => {
     for (const field of [
       "purpose", "civicNumber", "address", "apartment", "city", "province", "postalCode", "country",
       "propertyType", "centrisNumber", "broker", "status", "listingDate", "expirationDate", "ownerContactIds",
@@ -48,7 +48,8 @@ describe("interface de création et modification Listings", () => {
     ]) expect(modal).toContain(field);
     expect(page).toContain("Modifier");
     expect(page).not.toContain("Supprimer le Listing");
-    expect(page).not.toContain("/listings/${listing.id}");
+    expect(page).toContain("/listings/${listingId}");
+    expect(modal).not.toContain("Supprimer le Listing");
   });
 
   it("met immédiatement le contexte et la carte à jour avec le même UUID", () => {

@@ -23,10 +23,10 @@ describe("sécurité et activation visuelle des Listings", () => {
     expect(persistence).toContain("getSupabaseAdmin");
   });
 
-  it("monte ListingsProvider et crée seulement la page d’inventaire", () => {
+  it("monte ListingsProvider et conserve la fiche sous le layout privé", () => {
     expect(source("app/layout.tsx")).toContain("ListingsProvider");
     expect(existsSync(resolve(root, "app", "listings", "page.tsx"))).toBe(true);
-    expect(existsSync(resolve(root, "app", "listings", "[listingId]", "page.tsx"))).toBe(false);
+    expect(existsSync(resolve(root, "app", "listings", "[listingId]", "page.tsx"))).toBe(true);
   });
 
   it("active la navigation et le dashboard sans intégrer Listings aux Transactions", () => {

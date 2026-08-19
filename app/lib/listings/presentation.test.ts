@@ -5,6 +5,7 @@ import {
   LISTING_STATUS_FILTERS,
   buildContactNameMap,
   filterListings,
+  formatListingDate,
   listingAddressLines,
   listingBrokerFilterFromParam,
   listingMatchesSearch,
@@ -12,6 +13,7 @@ import {
   listingPriceLabel,
   listingPurposeFilterFromParam,
   listingStatusFilterFromParam,
+  resolveListingOwners,
 } from "./presentation";
 
 function listing(values: Partial<Listing> & Pick<Listing, "id">): Listing {
@@ -164,5 +166,24 @@ describe("présentation des cartes Listings", () => {
     ]);
     expect(listingOwnerNames(listing({ id: "one", ownerContactIds: ["owner-1", "owner-2"] }), names))
       .toEqual(["Jean Tremblay", "Marie Tremblay"]);
+  });
+
+  it("préserve l’ordre des propriétaires et signale une relation temporairement indisponible", () => {
+    const jean = contact("owner-1", "Jean", "Tremblay");
+    const owners = resolveListingOwners(
+      listing({ id: "one", ownerContactIds: ["owner-1", "missing-owner"] }),
+      [jean],
+    );
+    expect(owners).toEqual([
+      { contactId: "owner-1", contact: jean },
+      { contactId: "missing-owner", contact: null },
+    ]);
+    expect(resolveListingOwners(listing({ id: "empty" }), [jean])).toEqual([]);
+  });
+
+  it("formate les dates en français sans décalage de fuseau", () => {
+    expect(formatListingDate("2026-08-19")).toBe("19 août 2026");
+    expect(formatListingDate(null)).toBe("Non renseignée");
+    expect(formatListingDate("date-invalide")).toBe("Non renseignée");
   });
 });
