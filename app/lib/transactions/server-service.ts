@@ -8,10 +8,12 @@ import type {
   TransactionType,
 } from "../../data/transaction-types";
 import { getSupabaseAdmin } from "../supabase/server";
+import { transactionContactLinkRows, transactionInsertValues } from "./persistence";
 
 export type TransactionRow = {
   id: string;
   address: string;
+  centris_number: string;
   type: TransactionType;
   broker: TransactionBroker;
   price: number | string | null;
@@ -69,7 +71,7 @@ function mapNote(row: TransactionNoteRow): TransactionNote {
   };
 }
 
-function mapTransaction(
+export function mapTransaction(
   row: TransactionRow,
   contactRows: TransactionContactRow[],
   deadlineRows: TransactionDeadlineRow[],
@@ -78,6 +80,7 @@ function mapTransaction(
   return {
     id: row.id,
     address: row.address,
+    centrisNumber: row.centris_number ?? "",
     type: row.type,
     broker: row.broker,
     contactIds: contactRows.filter((item) => item.transaction_id === row.id).map((item) => item.contact_id),
@@ -150,22 +153,14 @@ export async function createTransaction(draft: TransactionDraft) {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("transactions")
-    .insert({
-      address: draft.address.trim(),
-      type: draft.type,
-      broker: draft.broker,
-      price: draft.price,
-      promise_date: draft.promiseDate,
-      status: draft.status,
-      general_notes: draft.generalNotes.trim(),
-    })
+    .insert(transactionInsertValues(draft))
     .select("id")
     .single();
   if (error) throw error;
   const transactionId = (data as { id: string }).id;
   if (draft.contactIds.length > 0) {
     const { error: linksError } = await admin.from("transaction_contacts").insert(
-      [...new Set(draft.contactIds)].map((contactId) => ({ transaction_id: transactionId, contact_id: contactId })),
+      transactionContactLinkRows(transactionId, draft.contactIds),
     );
     if (linksError) {
       await admin.from("transactions").delete().eq("id", transactionId);
@@ -177,11 +172,12 @@ export async function createTransaction(draft: TransactionDraft) {
 
 export async function updateTransaction(
   transactionId: string,
-  values: Partial<Pick<Transaction, "status" | "address" | "price" | "promiseDate" | "generalNotes">>,
+  values: Partial<Pick<Transaction, "status" | "address" | "centrisNumber" | "price" | "promiseDate" | "generalNotes">>,
 ) {
   const payload: Record<string, unknown> = {};
   if (values.status !== undefined) payload.status = values.status;
   if (values.address !== undefined) payload.address = values.address.trim();
+  if (values.centrisNumber !== undefined) payload.centris_number = values.centrisNumber.trim();
   if (values.price !== undefined) payload.price = values.price;
   if (values.promiseDate !== undefined) payload.promise_date = values.promiseDate;
   if (values.generalNotes !== undefined) payload.general_notes = values.generalNotes.trim();

@@ -111,6 +111,7 @@ export default function TransactionDetailPage() {
 
     <section className="transaction-overview" aria-label="Résumé de la transaction">
       <article><span>Type</span><strong>{TRANSACTION_TYPE_LABELS[transaction.type]}</strong></article>
+      <article><span>Numéro Centris</span><strong>{transaction.centrisNumber || "Non renseigné"}</strong></article>
       <article><span>Prix</span><strong>{transaction.price === null ? "Non renseigné" : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(transaction.price)}</strong></article>
       <article><span>Date de la PA</span><strong>{transaction.promiseDate ? formatDate(transaction.promiseDate) : "Non renseignée"}</strong></article>
       <article><span>Courtier responsable</span><strong>{BROKER_LABELS[transaction.broker]}</strong></article>

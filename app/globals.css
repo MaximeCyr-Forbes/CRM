@@ -3368,7 +3368,7 @@ button:disabled {
   border-radius: 0.4rem;
   box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.24);
 }
-.transaction-create-modal { width: min(100%, 54rem); }
+.transaction-create-modal { width: min(100%, 58rem); }
 .transaction-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line); }
 .transaction-modal-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.5rem, 4vw, 2.3rem); font-weight: 400; }
 .transaction-modal-heading > button { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1.7rem; line-height: 1; }
@@ -3385,10 +3385,34 @@ button:disabled {
 .transaction-note-form textarea,
 .transaction-detail-header select { width: 100%; min-height: 3rem; padding: 0.65rem 0.75rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 0.2rem; outline: 0; font: inherit; }
 .transaction-contact-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
-.transaction-contact-picker > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 13rem; margin-top: 0.45rem; overflow-y: auto; border: 1px solid var(--line); }
-.transaction-contact-picker label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6rem; min-height: 3rem; padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--line); cursor: pointer; }
-.transaction-contact-picker label:nth-child(odd) { border-right: 1px solid var(--line); }
+.transaction-contact-tools { display: flex; align-items: stretch; justify-content: space-between; gap: 0.65rem; margin-top: 0.45rem; }
+.transaction-contact-search { flex: 1; }
+.transaction-contact-search input { width: 100%; min-height: 3rem; padding: 0.65rem 0.75rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 0.2rem; outline: 0; font: inherit; }
+.transaction-contact-tools > button { min-height: 3rem; padding: 0.65rem 0.9rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.transaction-contact-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 15rem; margin-top: 0.65rem; overflow-y: auto; border: 1px solid var(--line); }
+.transaction-contact-list > label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6rem; min-height: 3.4rem; padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--line); cursor: pointer; }
+.transaction-contact-list > label:nth-child(odd) { border-right: 1px solid var(--line); }
+.transaction-contact-list > label > span { display: grid; min-width: 0; gap: 0.14rem; }
+.transaction-contact-list > label strong { overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
 .transaction-contact-picker small { color: var(--ink-soft); }
+.transaction-contact-count { margin: 0.45rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
+.transaction-new-contact { margin-top: 0.75rem; padding: 1rem; background: rgba(255, 253, 248, 0.75); border: 1px solid var(--line); }
+.transaction-new-contact-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.transaction-new-contact-heading h3 { margin: 0.15rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem; font-weight: 400; }
+.transaction-new-contact-heading > button { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1.4rem; }
+.transaction-new-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-top: 0.9rem; }
+.transaction-new-contact-fields label { display: grid; grid-template-columns: 1fr; align-items: initial; gap: 0.35rem; min-height: 0; padding: 0; border: 0; cursor: default; }
+.transaction-new-contact-fields label > span { color: var(--ink-soft); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.transaction-new-contact-fields input { width: 100%; min-height: 2.75rem; padding: 0.6rem 0.7rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 0.2rem; font: inherit; }
+.transaction-contact-field-wide { grid-column: 1 / -1; }
+.transaction-new-contact-actions,
+.transaction-contact-duplicate > div { display: flex; justify-content: flex-end; gap: 0.55rem; margin-top: 0.85rem; }
+.transaction-new-contact-actions button,
+.transaction-contact-duplicate button { min-height: 2.75rem; padding: 0.65rem 0.9rem; color: var(--ink); background: transparent; border: 1px solid var(--line); cursor: pointer; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.transaction-new-contact-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.transaction-contact-duplicate { margin-top: 0.85rem; padding: 0.85rem; color: #653c35; background: #fbefec; border: 1px solid #d8b9b2; }
+.transaction-contact-duplicate > strong { font-size: 0.68rem; letter-spacing: 0.06em; }
+.transaction-contact-duplicate p { margin: 0.45rem 0 0.15rem; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; }
 .transaction-form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; padding-top: 0.5rem; }
 .transaction-form-actions button { min-height: 3rem; padding: 0.7rem 1rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; }
 .transaction-form-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
@@ -3397,7 +3421,7 @@ button:disabled {
 .transaction-detail-nav > button:first-child { display: flex; align-items: center; gap: 0.5rem; }
 .transaction-detail-header { align-items: center; }
 .transaction-detail-header > label { display: grid; width: min(100%, 17rem); gap: 0.45rem; color: var(--ink-soft); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
-.transaction-overview { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); background: rgba(255, 253, 248, 0.82); }
+.transaction-overview { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); background: rgba(255, 253, 248, 0.82); }
 .transaction-overview article { display: grid; min-height: 7.5rem; align-content: center; gap: 0.5rem; padding: 1.2rem; }
 .transaction-overview article + article { border-left: 1px solid var(--line); }
 .transaction-overview span { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
@@ -3465,6 +3489,7 @@ button:disabled {
   .transaction-overview { grid-template-columns: repeat(2, 1fr); }
   .transaction-overview article:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
   .transaction-overview article:nth-child(4) { border-top: 1px solid var(--line); }
+  .transaction-overview article:nth-child(5) { border-top: 1px solid var(--line); border-left: 0; }
   .transaction-linked-clients { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -3482,8 +3507,11 @@ button:disabled {
   .transaction-card { min-height: 19rem; }
   .transaction-form { grid-template-columns: 1fr; }
   .transaction-field-wide { grid-column: auto; }
-  .transaction-contact-picker > div { grid-template-columns: 1fr; }
-  .transaction-contact-picker label:nth-child(odd) { border-right: 0; }
+  .transaction-contact-tools { display: grid; }
+  .transaction-contact-list,
+  .transaction-new-contact-fields { grid-template-columns: 1fr; }
+  .transaction-contact-list > label:nth-child(odd) { border-right: 0; }
+  .transaction-contact-field-wide { grid-column: auto; }
   .transaction-overview { grid-template-columns: 1fr; }
   .transaction-overview article + article,
   .transaction-overview article:nth-child(3) { border-top: 1px solid var(--line); border-left: 0; }

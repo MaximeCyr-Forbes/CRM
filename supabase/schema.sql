@@ -156,6 +156,7 @@ create table if not exists public.pipeline_history (
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   address text not null check (length(trim(address)) > 0),
+  centris_number text not null default '',
   type text not null check (type = any (array['purchase', 'sale'])),
   broker public.broker_assignment not null check (broker <> 'unassigned'),
   price numeric(14, 2),

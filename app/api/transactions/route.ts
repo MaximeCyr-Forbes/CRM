@@ -38,6 +38,7 @@ function parseDraft(value: unknown): TransactionDraft | null {
   const data = value as Record<string, unknown>;
   if (
     typeof data.address !== "string" || !data.address.trim() ||
+    !(data.centrisNumber === undefined || typeof data.centrisNumber === "string") ||
     !isType(data.type) || !isBroker(data.broker) ||
     !Array.isArray(data.contactIds) || !data.contactIds.every((id) => typeof id === "string") ||
     !(data.price === null || (typeof data.price === "number" && Number.isFinite(data.price))) ||
@@ -46,7 +47,7 @@ function parseDraft(value: unknown): TransactionDraft | null {
     !statusesForTransaction(data.type).includes(data.status as never) ||
     typeof data.generalNotes !== "string"
   ) return null;
-  return data as TransactionDraft;
+  return { ...data, centrisNumber: typeof data.centrisNumber === "string" ? data.centrisNumber : "" } as TransactionDraft;
 }
 
 export async function GET() {
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
         allowed.status = values.status as TransactionStatus;
       }
       if (typeof values.address === "string" && values.address.trim()) allowed.address = values.address;
+      if (typeof values.centrisNumber === "string") allowed.centrisNumber = values.centrisNumber;
       if (values.price === null || typeof values.price === "number") allowed.price = values.price;
       if (values.promiseDate === null || isDate(values.promiseDate)) allowed.promiseDate = values.promiseDate;
       if (typeof values.generalNotes === "string") allowed.generalNotes = values.generalNotes;

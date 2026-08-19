@@ -59,6 +59,7 @@ export type TransactionNote = {
 export type Transaction = {
   id: string;
   address: string;
+  centrisNumber: string;
   type: TransactionType;
   broker: TransactionBroker;
   contactIds: string[];
@@ -74,7 +75,7 @@ export type Transaction = {
 
 export type TransactionDraft = Pick<
   Transaction,
-  "address" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "status" | "generalNotes"
+  "address" | "centrisNumber" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "status" | "generalNotes"
 >;
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
