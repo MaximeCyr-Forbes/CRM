@@ -62,6 +62,9 @@ export type ListingServiceErrorCode =
   | "duplicate_centris"
   | "invalid_owner"
   | "invalid_listing"
+  | "invalid_offer"
+  | "offer_linked"
+  | "listing_already_linked"
   | "not_found";
 
 export class ListingServiceError extends Error {

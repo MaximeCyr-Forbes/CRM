@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useState, type FormEvent } from "react";
 import { BROKER_LABELS } from "../data/contact-types";
-import { LISTING_INTEREST_LABELS, type ListingVisit } from "../data/listing-types";
+import { LISTING_INTEREST_LABELS, type Listing, type ListingVisit } from "../data/listing-types";
 import { useListingTracking } from "../lib/listings/use-listing-tracking";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import { ListingVisitModal } from "./listing-visit-modal";
+import { ListingOffers } from "./listing-offers";
 
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
 const date = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -17,8 +18,8 @@ function VisitDeleteModal({ visit, isSaving, onClose, onConfirm }: { visit: List
   return <div className="listing-editor-backdrop" role="presentation"><section aria-labelledby="delete-visit-title" aria-modal="true" className="listing-delete-modal" role="dialog"><header className="listing-editor-heading"><div><p className="section-kicker">Action irréversible</p><h2 id="delete-visit-title">SUPPRIMER CETTE VISITE ?</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></header><div className="listing-delete-content"><strong>{displayDate(visit.visitDate)}</strong><p>Cette visite et son feedback seront retirés du suivi.</p></div><footer className="listing-delete-actions"><button onClick={onClose} type="button">Annuler</button><button className="destructive-button" disabled={isSaving} onClick={() => void onConfirm()} type="button">{isSaving ? "Suppression…" : "Supprimer"}</button></footer></section></div>;
 }
 
-export function ListingTracking({ listingId }: { listingId: string }) {
-  const tracking = useListingTracking(listingId);
+export function ListingTracking({ listing, ownerNames, onListingChanged }: { listing: Listing; ownerNames: string[]; onListingChanged: () => void | Promise<void> }) {
+  const tracking = useListingTracking(listing.id);
   const [newTask, setNewTask] = useState("");
   const [editingTask, setEditingTask] = useState<{ id: string; title: string } | null>(null);
   const [visitModal, setVisitModal] = useState<ListingVisit | "new" | null>(null);
@@ -29,6 +30,9 @@ export function ListingTracking({ listingId }: { listingId: string }) {
     medium: tracking.data.visits.filter((visit) => visit.interestLevel === "medium").length,
     low: tracking.data.visits.filter((visit) => visit.interestLevel === "low").length,
   }), [tracking.data.visits]);
+  const refreshAfterOffer = useCallback(async () => {
+    await Promise.all([tracking.retry(false), onListingChanged()]);
+  }, [onListingChanged, tracking]);
 
   async function addTask(event: FormEvent) {
     event.preventDefault();
@@ -73,6 +77,8 @@ export function ListingTracking({ listingId }: { listingId: string }) {
             {tracking.data.visits.length === 0 && <p className="listing-detail-empty">Aucune visite enregistrée pour le moment.</p>}
           </div>
         </section>
+
+        <ListingOffers listing={listing} ownerNames={ownerNames} onChanged={refreshAfterOffer} />
 
         <section className="listing-tracking-panel" aria-labelledby="listing-price-history-title">
           <header><div><span>Évolution du mandat</span><h3 id="listing-price-history-title">HISTORIQUE DE PRIX</h3></div></header>

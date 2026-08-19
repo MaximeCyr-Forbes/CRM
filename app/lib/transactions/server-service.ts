@@ -39,6 +39,19 @@ export type TransactionDeadlineRow = {
 };
 
 type TransactionContactRow = { transaction_id: string; contact_id: string };
+type TransactionListingLinkRow = {
+  listing_id: string;
+  offer_id: string;
+  transaction_id: string;
+  listings: {
+    civic_number: string;
+    address: string;
+    apartment: string;
+    city: string;
+    province: string;
+    postal_code: string;
+  } | null;
+};
 type TransactionNoteRow = {
   id: string;
   transaction_id: string;
@@ -76,7 +89,16 @@ export function mapTransaction(
   contactRows: TransactionContactRow[],
   deadlineRows: TransactionDeadlineRow[],
   noteRows: TransactionNoteRow[],
+  listingLinkRows: TransactionListingLinkRow[] = [],
 ): Transaction {
+  const source = listingLinkRows.find((item) => item.transaction_id === row.id);
+  const listing = source?.listings;
+  const sourceStreet = listing
+    ? [listing.civic_number, listing.address].filter(Boolean).join(" ")
+    : "";
+  const sourceLocality = listing
+    ? [listing.city, [listing.province, listing.postal_code].filter(Boolean).join(" ")].filter(Boolean).join(", ")
+    : "";
   return {
     id: row.id,
     address: row.address,
@@ -96,6 +118,11 @@ export function mapTransaction(
       .filter((item) => item.transaction_id === row.id)
       .map(mapNote)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    sourceListing: source ? {
+      listingId: source.listing_id,
+      offerId: source.offer_id,
+      address: [sourceStreet, listing?.apartment ? `app. ${listing.apartment}` : "", sourceLocality].filter(Boolean).join(", "),
+    } : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -106,23 +133,28 @@ async function loadRelations(transactionIds?: string[]) {
   let contactsQuery = admin.from("transaction_contacts").select("transaction_id, contact_id");
   let deadlinesQuery = admin.from("transaction_deadlines").select("*");
   let notesQuery = admin.from("transaction_notes").select("*");
+  let listingLinksQuery = admin.from("listing_transaction_links").select("listing_id, offer_id, transaction_id, listings(civic_number, address, apartment, city, province, postal_code)");
   if (transactionIds) {
     contactsQuery = contactsQuery.in("transaction_id", transactionIds);
     deadlinesQuery = deadlinesQuery.in("transaction_id", transactionIds);
     notesQuery = notesQuery.in("transaction_id", transactionIds);
+    listingLinksQuery = listingLinksQuery.in("transaction_id", transactionIds);
   }
-  const [contactsResult, deadlinesResult, notesResult] = await Promise.all([
+  const [contactsResult, deadlinesResult, notesResult, listingLinksResult] = await Promise.all([
     contactsQuery,
     deadlinesQuery,
     notesQuery,
+    listingLinksQuery,
   ]);
   if (contactsResult.error) throw contactsResult.error;
   if (deadlinesResult.error) throw deadlinesResult.error;
   if (notesResult.error) throw notesResult.error;
+  if (listingLinksResult.error) throw listingLinksResult.error;
   return {
     contactRows: (contactsResult.data ?? []) as TransactionContactRow[],
     deadlineRows: (deadlinesResult.data ?? []) as TransactionDeadlineRow[],
     noteRows: (notesResult.data ?? []) as TransactionNoteRow[],
+    listingLinkRows: (listingLinksResult.data ?? []) as unknown as TransactionListingLinkRow[],
   };
 }
 
@@ -135,7 +167,7 @@ export async function listTransactions() {
   const rows = (data ?? []) as TransactionRow[];
   if (rows.length === 0) return [];
   const relations = await loadRelations(rows.map((row) => row.id));
-  return rows.map((row) => mapTransaction(row, relations.contactRows, relations.deadlineRows, relations.noteRows));
+  return rows.map((row) => mapTransaction(row, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows));
 }
 
 export async function getTransaction(transactionId: string) {
@@ -146,7 +178,7 @@ export async function getTransaction(transactionId: string) {
     .single();
   if (error) throw error;
   const relations = await loadRelations([transactionId]);
-  return mapTransaction(data as TransactionRow, relations.contactRows, relations.deadlineRows, relations.noteRows);
+  return mapTransaction(data as TransactionRow, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows);
 }
 
 export async function createTransaction(draft: TransactionDraft) {

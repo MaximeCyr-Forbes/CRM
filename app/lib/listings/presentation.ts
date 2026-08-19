@@ -95,15 +95,20 @@ const currencyFormatter = new Intl.NumberFormat("fr-CA", {
   maximumFractionDigits: 0,
 });
 
+export function formatListingAmount(amount: number, purpose: ListingPurpose) {
+  const value = currencyFormatter.format(amount);
+  return purpose === "rental" ? `${value} / mois` : value;
+}
+
 export function listingPriceLabel(listing: Listing) {
   if (listing.purpose === "rental") {
     return listing.monthlyRent === null
       ? "Loyer non renseigné"
-      : `${currencyFormatter.format(listing.monthlyRent)} / mois`;
+      : formatListingAmount(listing.monthlyRent, listing.purpose);
   }
   return listing.askingPrice === null
     ? "Prix non renseigné"
-    : currencyFormatter.format(listing.askingPrice);
+    : formatListingAmount(listing.askingPrice, listing.purpose);
 }
 
 export function buildContactNameMap(contacts: ReadonlyArray<Contact>) {

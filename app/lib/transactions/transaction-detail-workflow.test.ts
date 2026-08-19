@@ -19,6 +19,7 @@ function transaction(values: Partial<Transaction> = {}): Transaction {
     generalNotes: "Inspection prévue vendredi.",
     deadlines: [],
     notes: [],
+    sourceListing: null,
     createdAt: "2026-08-19T12:00:00.000Z",
     updatedAt: "2026-08-19T12:00:00.000Z",
     ...values,

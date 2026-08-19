@@ -166,7 +166,7 @@ export default function ListingDetailPage() {
           <p className={listing.generalNotes ? "listing-detail-notes" : "listing-detail-empty"}>{listing.generalNotes || "Aucune note interne pour le moment."}</p>
         </section>
 
-        <ListingTracking listingId={listing.id} />
+        <ListingTracking listing={listing} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
       </div>
 
       {isEditing && <ListingEditorModal

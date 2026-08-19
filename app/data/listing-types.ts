@@ -157,6 +157,69 @@ export type ListingVisitDraft = Pick<
   | "interestLevel"
 >;
 
+export const LISTING_OFFER_STATUSES = [
+  "received",
+  "negotiating",
+  "countered",
+  "accepted",
+  "rejected",
+  "withdrawn",
+  "expired",
+] as const;
+
+export type ListingOfferStatus = (typeof LISTING_OFFER_STATUSES)[number];
+
+export const LISTING_OFFER_STATUS_LABELS: Record<ListingOfferStatus, string> = {
+  received: "Reçue",
+  negotiating: "En négociation",
+  countered: "Contre-offre",
+  accepted: "Acceptée",
+  rejected: "Refusée",
+  withdrawn: "Retirée",
+  expired: "Expirée",
+};
+
+export type ListingOffer = {
+  id: string;
+  listingId: string;
+  purpose: ListingPurpose;
+  offerDate: string;
+  amount: number;
+  status: ListingOfferStatus;
+  buyerNames: string;
+  collaboratingBrokerName: string;
+  collaboratingBrokerAgency: string;
+  notes: string;
+  acceptedAt: string | null;
+  createdBy: ListingBroker | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListingOfferDraft = Pick<
+  ListingOffer,
+  | "offerDate"
+  | "amount"
+  | "status"
+  | "buyerNames"
+  | "collaboratingBrokerName"
+  | "collaboratingBrokerAgency"
+  | "notes"
+>;
+
+export type ListingTransactionLink = {
+  listingId: string;
+  offerId: string;
+  transactionId: string;
+  createdAt: string;
+  transaction: {
+    status: string;
+    price: number | null;
+    promiseDate: string | null;
+    broker: ListingBroker;
+  };
+};
+
 export type ListingActivityEventType =
   | "listing_created"
   | "status_changed"
@@ -172,6 +235,11 @@ export type ListingActivityEventType =
   | "visit_added"
   | "visit_updated"
   | "visit_deleted"
+  | "offer_added"
+  | "offer_updated"
+  | "offer_status_changed"
+  | "offer_deleted"
+  | "transaction_created"
   | "note_updated";
 
 export type ListingActivityEntry = {

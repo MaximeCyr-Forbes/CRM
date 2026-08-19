@@ -69,6 +69,11 @@ export type Transaction = {
   generalNotes: string;
   deadlines: TransactionDeadline[];
   notes: TransactionNote[];
+  sourceListing: {
+    listingId: string;
+    offerId: string;
+    address: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -55,12 +55,13 @@ describe("activation visuelle Listings", () => {
     expect(dashboard).toContain('label: "Transactions actives"');
   });
 
-  it("conserve la fondation et ajoute uniquement la migration de suivi à l’étape 6", () => {
+  it("conserve la fondation, le suivi et ajoute la migration additive des offres", () => {
     const listingsMigrations = readdirSync(resolve(root, "supabase/migrations"))
       .filter((name) => name.includes("listing"));
     expect(listingsMigrations).toEqual([
       "20260819210000_create_listings_foundation.sql",
       "20260819223000_add_listing_marketing_tracking.sql",
+      "20260819234500_add_listing_offers_and_transaction_links.sql",
     ]);
   });
 });

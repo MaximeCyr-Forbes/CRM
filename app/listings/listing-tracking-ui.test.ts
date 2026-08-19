@@ -14,7 +14,7 @@ describe("interface et sécurité du suivi Listings", () => {
   const listingsContext = source("app/listings-context.tsx");
 
   it("charge le tracking seulement depuis la fiche détaillée", () => {
-    expect(detail).toContain("<ListingTracking listingId={listing.id} />");
+    expect(detail).toContain("<ListingTracking listing={listing}");
     expect(hook).toContain("/tracking");
     expect(inventory).not.toContain("/tracking");
     expect(listingsContext).not.toContain("/tracking");
