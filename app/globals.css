@@ -698,6 +698,10 @@ button:disabled {
   background: #8b7b5b;
 }
 
+.metric-listings .metric-topline {
+  background: #8b7b5b;
+}
+
 .metric-transactions .metric-topline {
   background: var(--ink);
 }
@@ -3926,7 +3930,7 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1240px) {
   .app-header { grid-template-columns: auto 1fr; padding-right: 11rem; }
   .app-header-links { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; overflow-x: auto; padding-bottom: 0.2rem; }
   .app-header-tools { justify-self: end; }
@@ -3955,9 +3959,501 @@ textarea:focus-visible,
   .transactions-page,
   .transaction-detail-page,
   .contacts-page,
+  .listings-page,
   .settings-page,
   .client-page,
   .dashboard-page { padding: 0.85rem; }
+}
+
+/* Inventaire Listings */
+.listings-page {
+  min-height: 100svh;
+  padding: clamp(1rem, 3vw, 2.25rem);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(198, 168, 103, 0.14), transparent 36rem),
+    var(--cream);
+}
+
+.listings-shell {
+  width: min(100%, 82rem);
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+
+.listings-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: clamp(3rem, 7vw, 5.5rem) 0 2.5rem;
+}
+
+.listings-header h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 8vw, 5.8rem);
+  font-weight: 400;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+}
+
+.listings-header > div:first-child > p:last-child {
+  margin: 1.1rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+.listings-summary {
+  display: grid;
+  min-width: 9.5rem;
+  gap: 0.35rem;
+  padding: 1rem 1.15rem;
+  background: rgba(255, 253, 248, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  text-align: right;
+}
+
+.listings-summary strong {
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.1rem;
+  font-weight: 400;
+  line-height: 0.85;
+}
+
+.listings-summary span {
+  color: var(--ink-soft);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.listings-filters {
+  display: grid;
+  grid-template-columns: auto minmax(24rem, 1fr) auto;
+  gap: 0.85rem 1rem;
+  padding: 1rem;
+  background: rgba(255, 253, 248, 0.74);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+}
+
+.listings-filter-block,
+.listings-search {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.listings-filter-block > span,
+.listings-search > span:first-child {
+  color: rgba(19, 35, 59, 0.5);
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.listings-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.listings-filter-options button {
+  min-height: 2.55rem;
+  padding: 0.5rem 0.68rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.59rem;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.listings-filter-options button[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.listings-search {
+  grid-column: 1 / -1;
+}
+
+.listings-search-field {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.85rem;
+  color: #8c7343;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.2rem;
+}
+
+.listings-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+}
+
+.listings-grid,
+.listings-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.listing-card {
+  min-width: 0;
+  overflow: hidden;
+  background: rgba(255, 253, 248, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  box-shadow: 0 1.25rem 3rem rgba(19, 35, 59, 0.05);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.listing-card:hover {
+  border-color: rgba(198, 168, 103, 0.62);
+  box-shadow: 0 1.5rem 3.4rem rgba(19, 35, 59, 0.09);
+  transform: translateY(-3px);
+}
+
+.listing-card-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #e9e4d9;
+}
+
+.listing-card-image,
+.listing-card-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.listing-card-image {
+  display: block;
+  object-fit: cover;
+}
+
+.listing-card-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.35rem;
+  color: rgba(255, 253, 248, 0.82);
+  background:
+    linear-gradient(145deg, rgba(198, 168, 103, 0.26), transparent 48%),
+    var(--ink);
+}
+
+.listing-card-placeholder::before {
+  width: 3.25rem;
+  height: 1px;
+  margin-bottom: 0.55rem;
+  background: var(--gold);
+  content: "";
+}
+
+.listing-card-placeholder span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+
+.listing-card-placeholder strong {
+  color: var(--gold);
+  font-size: 0.55rem;
+  letter-spacing: 0.22em;
+}
+
+.listing-purpose-badge,
+.listing-status-badge {
+  position: absolute;
+  top: 0.8rem;
+  padding: 0.38rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.54rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.listing-purpose-badge {
+  left: 0.8rem;
+  color: var(--paper);
+  background: rgba(19, 35, 59, 0.86);
+}
+
+.listing-purpose-rental {
+  color: var(--ink);
+  background: rgba(225, 205, 159, 0.92);
+}
+
+.listing-status-badge {
+  right: 0.8rem;
+  color: #35574f;
+  background: rgba(250, 248, 241, 0.92);
+}
+
+.listing-status-sold,
+.listing-status-rented {
+  color: #fff;
+  background: rgba(72, 99, 92, 0.9);
+}
+
+.listing-status-expired,
+.listing-status-withdrawn {
+  color: #fff;
+  background: rgba(147, 76, 69, 0.88);
+}
+
+.listing-card-content {
+  padding: 1.2rem;
+}
+
+.listing-card-address h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.3rem, 2.4vw, 1.75rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.listing-card-address p {
+  margin: 0.45rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.73rem;
+}
+
+.listing-card-price {
+  display: block;
+  margin-top: 1.25rem;
+  color: #8c7343;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.listing-card-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin: 1.2rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.listing-card-details div {
+  min-width: 0;
+}
+
+.listing-card-details dt {
+  margin-bottom: 0.35rem;
+  color: rgba(19, 35, 59, 0.48);
+  font-size: 0.52rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.listing-card-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.listing-card-owners {
+  grid-column: 1 / -1;
+}
+
+.listing-broker {
+  display: inline-flex;
+  padding: 0.25rem 0.42rem;
+  color: var(--ink);
+  background: rgba(198, 168, 103, 0.12);
+  border: 1px solid rgba(198, 168, 103, 0.28);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.listings-state {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem 1.15rem;
+  background: rgba(255, 253, 248, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+}
+
+.listings-state > div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.listings-state span {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.listings-state-error {
+  color: #934c45;
+  border-color: rgba(189, 102, 93, 0.3);
+}
+
+.listings-state button {
+  min-height: 2.65rem;
+  padding: 0.6rem 0.8rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.listings-loading {
+  padding-top: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.listings-loading-grid {
+  padding-top: 0.8rem;
+}
+
+.listings-loading-grid div {
+  min-height: 27rem;
+  background: linear-gradient(110deg, rgba(255, 253, 248, 0.62) 20%, rgba(255, 255, 255, 0.92) 40%, rgba(255, 253, 248, 0.62) 60%);
+  background-size: 220% 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  animation: listings-loading-shimmer 1.4s linear infinite;
+}
+
+@keyframes listings-loading-shimmer {
+  to { background-position-x: -220%; }
+}
+
+.listings-empty {
+  grid-column: 1 / -1;
+  padding: clamp(3rem, 8vw, 5rem) 1.5rem;
+  color: var(--ink-soft);
+  text-align: center;
+  background: rgba(255, 253, 248, 0.68);
+  border: 1px dashed var(--line);
+  border-radius: 0.25rem;
+}
+
+.listings-empty > span {
+  color: var(--gold);
+  font-size: 1.6rem;
+}
+
+.listings-empty h2 {
+  margin: 0.8rem 0 0.4rem;
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: 400;
+}
+
+.listings-empty p {
+  margin: 0;
+}
+
+@media (max-width: 1050px) {
+  .listings-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .listings-status-filters {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .listings-search {
+    grid-row: 3;
+  }
+
+  .listings-grid,
+  .listings-loading-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 660px) {
+  .listings-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-top: 2.75rem;
+  }
+
+  .listings-summary {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .listings-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .listings-status-filters,
+  .listings-search {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .listings-filter-options {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scrollbar-width: thin;
+  }
+
+  .listings-grid,
+  .listings-loading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .listings-state {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .listings-state button {
+    width: 100%;
+  }
 }
 
 /* Qualité des contacts, doublons et fusion */

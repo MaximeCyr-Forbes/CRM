@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const source = (path: string) => readFileSync(resolve(root, path), "utf8");
 
-describe("sécurité et activation différée des Listings", () => {
+describe("sécurité et activation visuelle des Listings", () => {
   it("protège toutes les routes et impose same-origin aux écritures", () => {
     const collectionRoute = source("app/api/listings/route.ts");
     const detailRoute = source("app/api/listings/[listingId]/route.ts");
@@ -23,15 +23,16 @@ describe("sécurité et activation différée des Listings", () => {
     expect(persistence).toContain("getSupabaseAdmin");
   });
 
-  it("ne monte pas encore ListingsProvider et ne crée aucune page visible", () => {
-    expect(source("app/layout.tsx")).not.toContain("ListingsProvider");
-    expect(existsSync(resolve(root, "app", "listings", "page.tsx"))).toBe(false);
+  it("monte ListingsProvider et crée seulement la page d’inventaire", () => {
+    expect(source("app/layout.tsx")).toContain("ListingsProvider");
+    expect(existsSync(resolve(root, "app", "listings", "page.tsx"))).toBe(true);
     expect(existsSync(resolve(root, "app", "listings", "[listingId]", "page.tsx"))).toBe(false);
   });
 
-  it("ne modifie ni la navigation, ni le dashboard, ni les interfaces Transactions", () => {
-    expect(source("app/data/software-links.ts")).not.toContain('"Listings"');
-    expect(source("app/components/app-header.tsx")).not.toContain('href: "/listings"');
-    expect(source("app/dashboard/page.tsx")).toContain("Vendeurs actifs");
+  it("active la navigation et le dashboard sans intégrer Listings aux Transactions", () => {
+    expect(source("app/data/software-links.ts")).toContain('"Listings"');
+    expect(source("app/components/app-header.tsx")).toContain('href: "/listings"');
+    expect(source("app/dashboard/page.tsx")).toContain("Listings actifs");
+    expect(source("app/transactions/page.tsx")).not.toContain("useListings");
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "../data/contact-types";
 import { toLocalISODate } from "../lib/follow-up";
 import { isTransactionCompleted } from "../data/transaction-types";
+import { useListings } from "../listings-context";
 import { useTransactions } from "../transactions-context";
 import { getFollowUpQueue } from "../lib/follow-up-queue";
 
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { selectedBroker, isBrokerReady } = useBroker();
   const { contacts } = useContacts();
+  const { listings, isLoading: areListingsLoading, error: listingsError } = useListings();
   const { transactions } = useTransactions();
   const today = toLocalISODate(new Date());
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
@@ -52,12 +54,12 @@ export default function Dashboard() {
       href: "/contacts",
     },
     {
-      label: "Vendeurs actifs",
-      value: brokerContacts.filter(
-        (contact) => (contact.clientType === "seller" || contact.clientType === "buyer_seller") && contact.status === "active",
-      ).length,
-      tone: "sellers",
-      href: "/contacts",
+      label: "Listings actifs",
+      value: areListingsLoading || listingsError
+        ? "—"
+        : listings.filter((listing) => listing.broker === brokerKey && listing.status === "active").length,
+      tone: "listings",
+      href: brokerKey && brokerKey !== "unassigned" ? `/listings?broker=${brokerKey}&status=active` : "/listings",
     },
     {
       label: "Transactions actives",

@@ -20,6 +20,7 @@ describe("retrait du parcours commercial des contacts", () => {
     expect(appNavigationOrder).toEqual([
       "Accueil",
       "Contacts",
+      "Listings",
       "Transactions",
       "Logiciels",
       "Paramètres",

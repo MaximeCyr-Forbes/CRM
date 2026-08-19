@@ -9,6 +9,7 @@ import { GlobalSearch } from "./global-search";
 const links = [
   { label: "Accueil", href: "/dashboard", match: "/dashboard" },
   { label: "Contacts", href: "/contacts", match: "/contacts" },
+  { label: "Listings", href: "/listings", match: "/listings" },
   { label: "Transactions", href: "/transactions", match: "/transactions" },
   { label: "Paramètres", href: "/settings", match: "/settings" },
 ] as const;

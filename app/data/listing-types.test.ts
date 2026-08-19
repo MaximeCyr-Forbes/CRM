@@ -192,7 +192,8 @@ describe("fondations SQL Listings", () => {
     expect(migration).not.toMatch(/\balter\s+table\s+public\.contacts\b/i);
   });
 
-  it("ne crée encore aucune page Listings visible", () => {
-    expect(existsSync(resolve(root, "app", "listings", "page.tsx"))).toBe(false);
+  it("active la page d’inventaire sans créer encore de fiche Listing détaillée", () => {
+    expect(existsSync(resolve(root, "app", "listings", "page.tsx"))).toBe(true);
+    expect(existsSync(resolve(root, "app", "listings", "[listingId]", "page.tsx"))).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AuthProvider } from "./auth-context";
 import { BrokerProvider } from "./broker-context";
 import { CRMDataProvider } from "./crm-data-context";
+import { ListingsProvider } from "./listings-context";
 import { TransactionsProvider } from "./transactions-context";
 import "./globals.css";
 
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <AuthProvider>
           <BrokerProvider>
             <CRMDataProvider>
-              <TransactionsProvider>{children}</TransactionsProvider>
+              <TransactionsProvider>
+                <ListingsProvider>{children}</ListingsProvider>
+              </TransactionsProvider>
             </CRMDataProvider>
           </BrokerProvider>
         </AuthProvider>
