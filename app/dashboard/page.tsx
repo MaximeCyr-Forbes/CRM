@@ -49,7 +49,7 @@ export default function Dashboard() {
         (contact) => (contact.clientType === "buyer" || contact.clientType === "buyer_seller") && contact.status === "active",
       ).length,
       tone: "buyers",
-      href: `/pipeline?type=buyer&broker=${brokerKey}`,
+      href: "/contacts",
     },
     {
       label: "Vendeurs actifs",
@@ -57,7 +57,7 @@ export default function Dashboard() {
         (contact) => (contact.clientType === "seller" || contact.clientType === "buyer_seller") && contact.status === "active",
       ).length,
       tone: "sellers",
-      href: `/pipeline?type=seller&broker=${brokerKey}`,
+      href: "/contacts",
     },
     {
       label: "Transactions actives",

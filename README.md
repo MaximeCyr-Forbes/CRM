@@ -1,6 +1,6 @@
 # Équipe Forbes CRM
 
-CRM immobilier privé pour France, Maxime et Sandrine. L’application regroupe les contacts, relances, notes, pipelines acheteurs/vendeurs, transactions et échéances, avec persistance Supabase et synchronisation unidirectionnelle vers Google Agenda.
+CRM immobilier privé pour France, Maxime et Sandrine. L’application regroupe les contacts, relances, notes, transactions et échéances, avec persistance Supabase et synchronisation unidirectionnelle vers Google Agenda.
 
 ## Prérequis
 
@@ -57,7 +57,6 @@ Le schéma complet se trouve dans `supabase/schema.sql`. Il crée et sécurise n
 
 - `contacts`
 - `client_notes`
-- `pipeline_history`
 - `contact_merges`
 - `transactions`
 - `transaction_contacts`
@@ -115,7 +114,6 @@ app/
   components/             navigation, modales et composants partagés
   contacts/               répertoire et fiches contacts
   dashboard/              vue quotidienne par courtier
-  pipeline/               pipelines acheteurs et vendeurs
   settings/               connexions Google Agenda
   transactions/           liste et fiches transactions
   data/                    types et libellés métier

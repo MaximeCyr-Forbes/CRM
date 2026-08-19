@@ -22,7 +22,7 @@ function contact(values: Partial<Contact> = {}): Contact {
   return {
     id: "contact-1", ...blank, broker: "maxime", clientType: null, priority: null, status: "active", source: "manual",
     lastContactDate: null, nextFollowUpDate: null, googleCalendarEventId: null, googleCalendarEventBroker: null,
-    googleCalendarSyncStatus: "synced", googleCalendarLastError: null, buyerPipelineStage: "new", sellerPipelineStage: "new",
+    googleCalendarSyncStatus: "synced", googleCalendarLastError: null,
     addresses: [], createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z", ...values,
   };
 }

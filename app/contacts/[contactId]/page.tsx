@@ -18,17 +18,11 @@ import type { ContactUpdate } from "../../data/contact-types";
 import type { DraftMergeSelection } from "../../data/contact-types";
 import {
   BROKER_LABELS,
-  BUYER_PIPELINE_LABELS,
-  BUYER_PIPELINE_STAGES,
   CLIENT_TYPE_LABELS,
   CONTACT_BROKERS,
   PRIORITY_LABELS,
-  SELLER_PIPELINE_LABELS,
-  SELLER_PIPELINE_STAGES,
   getContactAddressLines,
   getContactName,
-  type PipelineStage,
-  type PipelineType,
 } from "../../data/contact-types";
 import { useFollowUps } from "../../follow-up-context";
 import { formatLastContact } from "../../lib/client-notes";
@@ -61,7 +55,7 @@ export default function ContactProfilePage() {
   const params = useParams<{ contactId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { contacts, assignContact, updateContact, saveContactAddresses, updatePipelineStage, deleteContact, mergeContacts } = useContacts();
+  const { contacts, assignContact, updateContact, saveContactAddresses, deleteContact, mergeContacts } = useContacts();
   const { isLoading, isSaving, error, retryCalendarSync } = useCRMData();
   const { getFollowUpDate } = useFollowUps();
   const { getNotesForContact, loadNotesForContact, addNote, updateNote } = useClientNotes();
@@ -233,11 +227,6 @@ export default function ContactProfilePage() {
   async function retryGoogleCalendarSync() {
     const result = await retryCalendarSync(params.contactId);
     setConfirmation({ title: result.message });
-  }
-
-  async function changePipelineStage(pipeline: PipelineType, stage: PipelineStage) {
-    await updatePipelineStage(params.contactId, pipeline, stage);
-    setConfirmation({ title: "Étape du pipeline mise à jour" });
   }
 
   async function saveContact(values: ContactUpdate) {
@@ -438,38 +427,6 @@ export default function ContactProfilePage() {
           <div className="profile-address-list">
             {contact.addresses.map((address) => <article key={address.id}><strong>{address.isPrimary ? "PRINCIPALE" : address.label.toLocaleUpperCase("fr-CA")}</strong><address>{getContactAddressLines(address).map((line) => <span key={line}>{line}</span>)}</address></article>)}
             {contact.addresses.length === 0 && <p>Aucune adresse enregistrée.</p>}
-          </div>
-        </section>
-
-        <section className="profile-pipeline-section" aria-labelledby="profile-pipeline-title">
-          <div>
-            <p className="section-kicker">Suivi commercial</p>
-            <h2 id="profile-pipeline-title">PIPELINE</h2>
-          </div>
-          <div className="profile-pipeline-fields">
-            {(contact.clientType === "buyer" || contact.clientType === "buyer_seller") && (
-              <label>
-                <span>Parcours acheteur</span>
-                <select
-                  onChange={(event) => void changePipelineStage("buyer", event.target.value as PipelineStage)}
-                  value={contact.buyerPipelineStage}
-                >
-                  {BUYER_PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{BUYER_PIPELINE_LABELS[stage]}</option>)}
-                </select>
-              </label>
-            )}
-            {(contact.clientType === "seller" || contact.clientType === "buyer_seller") && (
-              <label>
-                <span>Parcours vendeur</span>
-                <select
-                  onChange={(event) => void changePipelineStage("seller", event.target.value as PipelineStage)}
-                  value={contact.sellerPipelineStage}
-                >
-                  {SELLER_PIPELINE_STAGES.map((stage) => <option key={stage} value={stage}>{SELLER_PIPELINE_LABELS[stage]}</option>)}
-                </select>
-              </label>
-            )}
-            {!contact.clientType && <p>Renseignez le type de client pour l’ajouter à un pipeline.</p>}
           </div>
         </section>
 

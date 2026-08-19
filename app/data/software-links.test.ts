@@ -6,7 +6,6 @@ describe("navigation des logiciels", () => {
     expect(appNavigationOrder).toEqual([
       "Accueil",
       "Contacts",
-      "Pipeline",
       "Transactions",
       "Logiciels",
       "Paramètres",

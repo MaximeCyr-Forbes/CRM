@@ -14,7 +14,6 @@ export const softwareLinks = [
 export const appNavigationOrder = [
   "Accueil",
   "Contacts",
-  "Pipeline",
   "Transactions",
   "Logiciels",
   "Paramètres",

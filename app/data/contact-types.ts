@@ -29,35 +29,6 @@ export type ContactAddress = ContactAddressInput & {
   createdAt: string;
   updatedAt: string;
 };
-export const BUYER_PIPELINE_STAGES = [
-  "new",
-  "qualified",
-  "search",
-  "visits",
-  "offer",
-  "conditions",
-  "notary",
-  "purchased",
-  "long_term",
-] as const;
-export const SELLER_PIPELINE_STAGES = [
-  "new",
-  "to_contact",
-  "evaluation",
-  "follow_up",
-  "contract_signed",
-  "on_market",
-  "offer_received",
-  "conditions",
-  "notary",
-  "sold",
-  "long_term",
-] as const;
-export type BuyerPipelineStage = (typeof BUYER_PIPELINE_STAGES)[number];
-export type SellerPipelineStage = (typeof SELLER_PIPELINE_STAGES)[number];
-export type PipelineType = "buyer" | "seller";
-export type PipelineStage = BuyerPipelineStage | SellerPipelineStage;
-
 export type Contact = {
   id: string;
   firstName: string;
@@ -82,8 +53,6 @@ export type Contact = {
   googleCalendarEventBroker: Exclude<ContactBroker, "unassigned"> | null;
   googleCalendarSyncStatus: CalendarSyncStatus;
   googleCalendarLastError: string | null;
-  buyerPipelineStage: BuyerPipelineStage;
-  sellerPipelineStage: SellerPipelineStage;
   addresses: ContactAddress[];
   createdAt: string;
   updatedAt: string;
@@ -147,36 +116,6 @@ export const CLIENT_TYPE_LABELS: Record<Exclude<ClientType, null>, string> = {
   seller: "Vendeur",
   buyer_seller: "Acheteur + vendeur",
 };
-
-export const BUYER_PIPELINE_LABELS: Record<BuyerPipelineStage, string> = {
-  new: "NOUVEAU",
-  qualified: "QUALIFIÉ",
-  search: "RECHERCHE",
-  visits: "VISITES",
-  offer: "OFFRE / PA",
-  conditions: "CONDITIONS",
-  notary: "NOTAIRE",
-  purchased: "ACHETÉ",
-  long_term: "LONG TERME",
-};
-
-export const SELLER_PIPELINE_LABELS: Record<SellerPipelineStage, string> = {
-  new: "NOUVEAU",
-  to_contact: "À CONTACTER",
-  evaluation: "ÉVALUATION",
-  follow_up: "SUIVI",
-  contract_signed: "CONTRAT SIGNÉ",
-  on_market: "EN MARCHÉ",
-  offer_received: "OFFRE REÇUE",
-  conditions: "CONDITIONS",
-  notary: "NOTAIRE",
-  sold: "VENDU",
-  long_term: "LONG TERME",
-};
-
-export function contactBelongsToPipeline(contact: Contact, pipeline: PipelineType) {
-  return contact.clientType === pipeline || contact.clientType === "buyer_seller";
-}
 
 export const PRIORITY_LABELS: Record<Exclude<ContactPriority, null>, string> = {
   hot: "Chaud",

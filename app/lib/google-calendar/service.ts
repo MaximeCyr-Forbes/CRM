@@ -45,8 +45,6 @@ export type ServerContactRow = {
   google_calendar_event_broker: CalendarBroker | null;
   google_calendar_sync_status: Contact["googleCalendarSyncStatus"];
   google_calendar_last_error: string | null;
-  buyer_pipeline_stage: Contact["buyerPipelineStage"];
-  seller_pipeline_stage: Contact["sellerPipelineStage"];
   created_at: string;
   updated_at: string;
 };
@@ -97,8 +95,6 @@ export function mapServerContact(row: ServerContactRow): Contact {
     googleCalendarEventBroker: row.google_calendar_event_broker,
     googleCalendarSyncStatus: row.google_calendar_sync_status,
     googleCalendarLastError: row.google_calendar_last_error,
-    buyerPipelineStage: row.buyer_pipeline_stage ?? "new",
-    sellerPipelineStage: row.seller_pipeline_stage ?? "new",
     addresses: hasAddress ? [{
       id: `primary:${row.id}`,
       contactId: row.id,

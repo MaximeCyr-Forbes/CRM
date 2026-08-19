@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -24,8 +23,6 @@ import type {
   ContactSource,
   ContactUpdate,
   DraftMergeSelection,
-  PipelineStage,
-  PipelineType,
 } from "./data/contact-types";
 import { BROKER_LABELS } from "./data/contact-types";
 import { addressInputFromDraft, fallbackAddresses, mergeAddressCollections, normalizeAddressKey, setPrimaryAddress } from "./lib/contact-addresses";
@@ -54,8 +51,6 @@ type ContactRow = {
   google_calendar_event_broker: Contact["googleCalendarEventBroker"];
   google_calendar_sync_status: Contact["googleCalendarSyncStatus"];
   google_calendar_last_error: string | null;
-  buyer_pipeline_stage: Contact["buyerPipelineStage"];
-  seller_pipeline_stage: Contact["sellerPipelineStage"];
   created_at: string;
   updated_at: string;
   contact_addresses?: ContactAddressRow[];
@@ -116,11 +111,6 @@ type CRMDataContextValue = {
   retryCalendarSync: (contactId: string) => Promise<CalendarSyncResult>;
   updateContact: (contactId: string, values: ContactUpdate) => Promise<Contact>;
   saveContactAddresses: (contactId: string, addresses: ReadonlyArray<ContactAddressInput>) => Promise<Contact>;
-  updatePipelineStage: (
-    contactId: string,
-    pipeline: PipelineType,
-    stage: PipelineStage,
-  ) => Promise<Contact>;
   deleteContact: (contactId: string) => Promise<void>;
   mergeDraftIntoContact: (
     targetId: string,
@@ -186,8 +176,6 @@ function mapContact(row: ContactRow): Contact {
     googleCalendarEventBroker: row.google_calendar_event_broker,
     googleCalendarSyncStatus: row.google_calendar_sync_status,
     googleCalendarLastError: row.google_calendar_last_error,
-    buyerPipelineStage: row.buyer_pipeline_stage ?? "new",
-    sellerPipelineStage: row.seller_pipeline_stage ?? "new",
     addresses: mappedAddresses.length > 0 ? mappedAddresses : hasPrimaryAddress ? [{
       id: `primary:${row.id}`,
       contactId: row.id,
@@ -247,7 +235,6 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingWrites, setPendingWrites] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const pipelineQueues = useRef(new Map<string, Promise<Contact>>());
 
   const runWrite = useCallback(async <T,>(message: string, operation: () => Promise<T>) => {
     setPendingWrites((current) => current + 1);
@@ -496,46 +483,6 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     [contacts, requestCalendarSync, runWrite],
   );
 
-  const updatePipelineStage = useCallback(
-    (contactId: string, pipeline: PipelineType, stage: PipelineStage) => {
-      const key = `${contactId}:${pipeline}`;
-      const field = pipeline === "buyer" ? "buyerPipelineStage" : "sellerPipelineStage";
-      setContacts((current) =>
-        current.map((contact) =>
-          contact.id === contactId ? { ...contact, [field]: stage } : contact,
-        ),
-      );
-
-      const previous = pipelineQueues.current.get(key);
-      const operation = (previous ? previous.catch(() => undefined) : Promise.resolve())
-        .then(() =>
-          runWrite("Impossible de déplacer ce contact dans le pipeline.", async () => {
-            const responsibleBroker = contacts.find((contact) => contact.id === contactId)?.broker;
-            const actorBroker = selectedBroker?.toLowerCase() ?? (responsibleBroker === "unassigned" ? undefined : responsibleBroker);
-            const data = await crmDataRequest<ContactRow>({ action: "updatePipelineStage", contactId, pipeline, stage, actorBroker });
-            const updated = mapContact(data);
-            setContacts((current) =>
-              current.map((contact) => contact.id === contactId ? preserveAddressHistory(contact, updated) : contact),
-            );
-            return updated;
-          }),
-        );
-
-      pipelineQueues.current.set(key, operation);
-      const cleanup = () => {
-        if (pipelineQueues.current.get(key) === operation) {
-          pipelineQueues.current.delete(key);
-        }
-      };
-      void operation.then(cleanup, cleanup);
-      return operation.catch(async (caughtError) => {
-        await loadContacts();
-        throw caughtError;
-      });
-    },
-    [contacts, loadContacts, runWrite, selectedBroker],
-  );
-
   const deleteContact = useCallback(
     (contactId: string) =>
       runWrite("Impossible de supprimer le contact.", async () => {
@@ -649,7 +596,6 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       retryCalendarSync,
       updateContact,
       saveContactAddresses,
-      updatePipelineStage,
       deleteContact,
       mergeDraftIntoContact,
       mergeContacts,
@@ -672,7 +618,6 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       retryCalendarSync,
       updateContact,
       saveContactAddresses,
-      updatePipelineStage,
       deleteContact,
       mergeDraftIntoContact,
       mergeContacts,

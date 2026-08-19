@@ -123,8 +123,6 @@ function syntheticContact(candidate: ImportCandidate, addressInputs?: ReadonlyAr
     googleCalendarEventBroker: null,
     googleCalendarSyncStatus: "synced",
     googleCalendarLastError: null,
-    buyerPipelineStage: "new",
-    sellerPipelineStage: "new",
     addresses: addresses.map((item, index) => ({ ...item, id: item.id ?? `import:${candidate.id}:${index}`, contactId: candidate.id, createdAt: now, updatedAt: now })),
     createdAt: now,
     updatedAt: now,

@@ -60,8 +60,6 @@ create table if not exists public.contacts (
   google_calendar_event_broker public.broker_assignment,
   google_calendar_sync_status public.calendar_sync_status not null default 'synced',
   google_calendar_last_error text,
-  buyer_pipeline_stage text not null default 'new',
-  seller_pipeline_stage text not null default 'new',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint contacts_name_or_coordinates_check check (
@@ -73,12 +71,6 @@ create table if not exists public.contacts (
   constraint contacts_google_event_broker_check check (
     google_calendar_event_broker is null
     or google_calendar_event_broker <> 'unassigned'
-  ),
-  constraint contacts_buyer_pipeline_stage_check check (
-    buyer_pipeline_stage = any (array['new', 'qualified', 'search', 'visits', 'offer', 'conditions', 'notary', 'purchased', 'long_term'])
-  ),
-  constraint contacts_seller_pipeline_stage_check check (
-    seller_pipeline_stage = any (array['new', 'to_contact', 'evaluation', 'follow_up', 'contract_signed', 'on_market', 'offer_received', 'conditions', 'notary', 'sold', 'long_term'])
   )
 );
 
@@ -93,31 +85,13 @@ alter table public.contacts
   add column if not exists google_calendar_event_id text,
   add column if not exists google_calendar_event_broker public.broker_assignment,
   add column if not exists google_calendar_sync_status public.calendar_sync_status not null default 'synced',
-  add column if not exists google_calendar_last_error text,
-  add column if not exists buyer_pipeline_stage text not null default 'new',
-  add column if not exists seller_pipeline_stage text not null default 'new';
+  add column if not exists google_calendar_last_error text;
 
 do $$ begin
   alter table public.contacts
     add constraint contacts_google_event_broker_check check (
       google_calendar_event_broker is null
       or google_calendar_event_broker <> 'unassigned'
-    );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  alter table public.contacts
-    add constraint contacts_buyer_pipeline_stage_check check (
-      buyer_pipeline_stage = any (array['new', 'qualified', 'search', 'visits', 'offer', 'conditions', 'notary', 'purchased', 'long_term'])
-    );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  alter table public.contacts
-    add constraint contacts_seller_pipeline_stage_check check (
-      seller_pipeline_stage = any (array['new', 'to_contact', 'evaluation', 'follow_up', 'contract_signed', 'on_market', 'offer_received', 'conditions', 'notary', 'sold', 'long_term'])
     );
 exception when duplicate_object then null;
 end $$;
@@ -140,17 +114,6 @@ create table if not exists public.contact_merges (
   merged_from jsonb not null,
   merged_by_user_id uuid references auth.users(id) on delete set null,
   merged_at timestamptz not null default now()
-);
-
-create table if not exists public.pipeline_history (
-  id uuid primary key default gen_random_uuid(),
-  contact_id uuid not null references public.contacts(id) on delete cascade,
-  pipeline_type text not null check (pipeline_type = any (array['buyer', 'seller'])),
-  from_stage text,
-  to_stage text not null,
-  changed_by_user_id uuid references auth.users(id) on delete set null,
-  changed_by_broker public.broker_assignment,
-  changed_at timestamptz not null default now()
 );
 
 create table if not exists public.transactions (
@@ -203,9 +166,6 @@ create table if not exists public.transaction_notes (
   content text not null check (length(trim(content)) > 0),
   created_at timestamptz not null default now()
 );
-
-alter table public.pipeline_history
-  add column if not exists changed_by_broker public.broker_assignment;
 
 -- Les jetons sont chiffrés par le serveur avant d’être enregistrés ici.
 -- Cette table n’est jamais exposée au rôle anon.
@@ -338,10 +298,6 @@ begin
   set contact_id = p_target_id
   where contact_id = p_source_id;
 
-  update public.pipeline_history
-  set contact_id = p_target_id
-  where contact_id = p_source_id;
-
   select max(created_at) into v_last_contact
   from public.client_notes
   where contact_id = p_target_id;
@@ -427,12 +383,6 @@ create index if not exists contacts_google_event_broker_idx
 create index if not exists contacts_calendar_sync_status_idx
   on public.contacts (google_calendar_sync_status)
   where google_calendar_sync_status <> 'synced';
-create index if not exists contacts_buyer_pipeline_idx
-  on public.contacts (broker, buyer_pipeline_stage) where client_type in ('buyer', 'buyer_seller');
-create index if not exists contacts_seller_pipeline_idx
-  on public.contacts (broker, seller_pipeline_stage) where client_type in ('seller', 'buyer_seller');
-create index if not exists pipeline_history_contact_idx
-  on public.pipeline_history (contact_id, changed_at desc);
 create index if not exists transactions_broker_status_idx
   on public.transactions (broker, status, updated_at desc);
 create index if not exists transactions_address_trgm_idx
@@ -451,7 +401,6 @@ alter table public.contacts enable row level security;
 alter table public.client_notes enable row level security;
 alter table public.google_calendar_connections enable row level security;
 alter table public.contact_merges enable row level security;
-alter table public.pipeline_history enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_contacts enable row level security;
 alter table public.transaction_deadlines enable row level security;
@@ -468,7 +417,6 @@ drop policy if exists "temporary anon notes update" on public.client_notes;
 revoke all on public.contacts from anon, authenticated;
 revoke all on public.client_notes from anon, authenticated;
 revoke all on public.contact_merges from anon, authenticated;
-revoke all on public.pipeline_history from anon, authenticated;
 revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
@@ -488,7 +436,6 @@ grant select, insert, update, delete on public.google_calendar_connections to se
 grant select, insert, update, delete on public.contacts to service_role;
 grant select, insert, update, delete on public.client_notes to service_role;
 grant select, insert, update, delete on public.contact_merges to service_role;
-grant select, insert, update, delete on public.pipeline_history to service_role;
 grant select, insert, update, delete on public.transactions to service_role;
 grant select, insert, update, delete on public.transaction_contacts to service_role;
 grant select, insert, update, delete on public.transaction_deadlines to service_role;
@@ -508,7 +455,6 @@ grant execute on function public.merge_contacts(
 -- Les tables restent sous RLS, sans politique anon/authenticated; seul le
 -- serveur, avec service_role, peut désormais lire ou modifier les données.
 drop function if exists public.add_client_note(uuid, text);
-drop function if exists public.update_pipeline_stage(uuid, text, text);
 drop function if exists public.is_authorized_crm_user() cascade;
 drop table if exists public.profiles cascade;
 drop type if exists public.crm_role cascade;
@@ -520,66 +466,12 @@ drop policy if exists "authorized notes select" on public.client_notes;
 drop policy if exists "authorized notes insert" on public.client_notes;
 drop policy if exists "authorized notes update" on public.client_notes;
 drop policy if exists "authorized merge audit select" on public.contact_merges;
-drop policy if exists "authorized pipeline history select" on public.pipeline_history;
-drop policy if exists "authorized pipeline history insert" on public.pipeline_history;
 
 revoke all on public.contacts from anon, authenticated;
 revoke all on public.client_notes from anon, authenticated;
 revoke all on public.contact_merges from anon, authenticated;
-revoke all on public.pipeline_history from anon, authenticated;
 revoke all on public.google_calendar_connections from anon, authenticated;
 revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
 revoke all on public.transaction_notes from anon, authenticated;
-
-create or replace function public.update_pipeline_stage(
-  p_contact_id uuid,
-  p_pipeline_type text,
-  p_to_stage text,
-  p_changed_by public.broker_assignment
-)
-returns public.contacts
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_contact public.contacts;
-  v_from_stage text;
-begin
-  if p_changed_by = 'unassigned' then raise exception 'Courtier invalide'; end if;
-  select * into v_contact from public.contacts where id = p_contact_id for update;
-  if v_contact.id is null then raise exception 'Contact introuvable'; end if;
-
-  if p_pipeline_type = 'buyer' then
-    if v_contact.client_type not in ('buyer', 'buyer_seller')
-      or not (p_to_stage = any (array['new', 'qualified', 'search', 'visits', 'offer', 'conditions', 'notary', 'purchased', 'long_term']))
-    then raise exception 'Étape acheteur invalide'; end if;
-    v_from_stage := v_contact.buyer_pipeline_stage;
-    if v_from_stage = p_to_stage then return v_contact; end if;
-    update public.contacts set buyer_pipeline_stage = p_to_stage where id = p_contact_id returning * into v_contact;
-  elsif p_pipeline_type = 'seller' then
-    if v_contact.client_type not in ('seller', 'buyer_seller')
-      or not (p_to_stage = any (array['new', 'to_contact', 'evaluation', 'follow_up', 'contract_signed', 'on_market', 'offer_received', 'conditions', 'notary', 'sold', 'long_term']))
-    then raise exception 'Étape vendeur invalide'; end if;
-    v_from_stage := v_contact.seller_pipeline_stage;
-    if v_from_stage = p_to_stage then return v_contact; end if;
-    update public.contacts set seller_pipeline_stage = p_to_stage where id = p_contact_id returning * into v_contact;
-  else
-    raise exception 'Pipeline invalide';
-  end if;
-
-  insert into public.pipeline_history (
-    contact_id, pipeline_type, from_stage, to_stage, changed_by_broker
-  ) values (
-    p_contact_id, p_pipeline_type, v_from_stage, p_to_stage, p_changed_by
-  );
-  return v_contact;
-end;
-$$;
-
-revoke execute on function public.update_pipeline_stage(uuid, text, text, public.broker_assignment)
-from public, anon, authenticated;
-grant execute on function public.update_pipeline_stage(uuid, text, text, public.broker_assignment)
-to service_role;

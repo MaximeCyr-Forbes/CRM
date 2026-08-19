@@ -15,6 +15,9 @@ export async function proxy(request: NextRequest) {
     request.cookies.get(CRM_ACCESS_COOKIE)?.value,
   );
 
+  if (path === "/pipeline") {
+    return NextResponse.redirect(new URL("/contacts", request.url));
+  }
   if (path === "/login" && isAuthorized) {
     return NextResponse.redirect(new URL("/", request.url));
   }

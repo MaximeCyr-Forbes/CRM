@@ -1,9 +1,5 @@
 import { requireApiAccess } from "../../../lib/crm-access";
-import {
-  BUYER_PIPELINE_STAGES,
-  SELLER_PIPELINE_STAGES,
-  type ContactBroker,
-} from "../../../data/contact-types";
+import type { ContactBroker } from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
 import { isAddressHistoryUnavailableError } from "../../../lib/contact-addresses";
@@ -22,8 +18,6 @@ type CRMActionBody = Record<string, unknown> & {
   contactIds?: unknown;
   noteId?: unknown;
   actorBroker?: unknown;
-  pipeline?: unknown;
-  stage?: unknown;
   nextDate?: unknown;
   brokerChanged?: unknown;
   clientType?: unknown;
@@ -326,21 +320,6 @@ export async function POST(request: Request) {
         if (addressResult.error && !isAddressHistoryUnavailableError(addressResult.error)) throw addressResult.error;
       }
       return Response.json({ data: (await attachAddresses(data ? [data] : [], true))[0] });
-    }
-
-    if (body.action === "updatePipelineStage") {
-      const pipeline = body.pipeline;
-      const stage = body.stage;
-      const stages: ReadonlyArray<string> = pipeline === "buyer" ? BUYER_PIPELINE_STAGES : pipeline === "seller" ? SELLER_PIPELINE_STAGES : [];
-      if (typeof stage !== "string" || !stages.includes(stage) || !isActorBroker(body.actorBroker)) throw new Error("Étape invalide");
-      const { data, error } = await client.rpc("update_pipeline_stage", {
-        p_contact_id: body.contactId,
-        p_pipeline_type: pipeline,
-        p_to_stage: stage,
-        p_changed_by: body.actorBroker,
-      });
-      if (error) throw error;
-      return Response.json({ data: Array.isArray(data) ? data[0] : data });
     }
 
     if (body.action === "addNote") {
