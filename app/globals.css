@@ -1775,6 +1775,28 @@ button:disabled {
   white-space: nowrap;
 }
 
+.contact-name-button {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-name-button:hover,
+.contact-name-button:focus-visible {
+  color: #2f6758;
+  text-decoration: underline;
+  text-decoration-color: rgba(47, 103, 88, 0.45);
+  text-underline-offset: 0.2rem;
+}
+
 .contact-main-cell small,
 .contact-coordinates,
 .contact-source {
