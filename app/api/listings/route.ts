@@ -46,12 +46,16 @@ export async function POST(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
-  const body = (await request.json().catch(() => null)) as { draft?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { draft?: unknown; actorBroker?: unknown } | null;
   const draft = parseListingDraft(body?.draft);
   if (!draft) return Response.json({ error: "Listing invalide." }, { status: 400 });
+  const actor = body?.actorBroker === null || body?.actorBroker === undefined
+    ? null
+    : isListingBroker(body.actorBroker) ? body.actorBroker : undefined;
+  if (actor === undefined) return Response.json({ error: "Courtier acteur invalide." }, { status: 400 });
 
   try {
-    return Response.json({ data: await createListing(draft) }, { status: 201 });
+    return Response.json({ data: await createListing(draft, actor) }, { status: 201 });
   } catch (error) {
     return listingApiError(error, "Création du Listing impossible.");
   }

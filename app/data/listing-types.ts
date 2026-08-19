@@ -108,3 +108,95 @@ export type ListingDraft = Pick<
   | "generalNotes"
   | "ownerContactIds"
 >;
+
+export type ListingInterestLevel = "low" | "medium" | "high";
+
+export const LISTING_INTEREST_LABELS: Record<ListingInterestLevel, string> = {
+  low: "Faible",
+  medium: "Moyen",
+  high: "Fort",
+};
+
+export type ListingMarketingTask = {
+  id: string;
+  listingId: string;
+  title: string;
+  taskKey: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  completedBy: ListingBroker | null;
+  sortOrder: number;
+  isCustom: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListingVisit = {
+  id: string;
+  listingId: string;
+  visitDate: string;
+  visitTime: string | null;
+  visitingBrokerName: string;
+  visitingBrokerAgency: string;
+  buyerNames: string;
+  feedback: string;
+  interestLevel: ListingInterestLevel | null;
+  createdBy: ListingBroker | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListingVisitDraft = Pick<
+  ListingVisit,
+  | "visitDate"
+  | "visitTime"
+  | "visitingBrokerName"
+  | "visitingBrokerAgency"
+  | "buyerNames"
+  | "feedback"
+  | "interestLevel"
+>;
+
+export type ListingActivityEventType =
+  | "listing_created"
+  | "status_changed"
+  | "price_changed"
+  | "rent_changed"
+  | "purpose_changed"
+  | "broker_changed"
+  | "marketing_task_completed"
+  | "marketing_task_reopened"
+  | "custom_task_added"
+  | "custom_task_updated"
+  | "custom_task_deleted"
+  | "visit_added"
+  | "visit_updated"
+  | "visit_deleted"
+  | "note_updated";
+
+export type ListingActivityEntry = {
+  id: string;
+  listingId: string;
+  eventType: ListingActivityEventType;
+  title: string;
+  detail: string;
+  actorBroker: ListingBroker | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ListingPriceHistoryEntry = {
+  id: string;
+  listingId: string;
+  purpose: ListingPurpose;
+  amount: number | null;
+  changedBy: ListingBroker | null;
+  changedAt: string;
+};
+
+export type ListingTrackingData = {
+  tasks: ListingMarketingTask[];
+  visits: ListingVisit[];
+  activity: ListingActivityEntry[];
+  priceHistory: ListingPriceHistoryEntry[];
+};

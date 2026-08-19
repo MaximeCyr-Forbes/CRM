@@ -53,8 +53,8 @@ export type ListingRepository = {
   listRows: (filters: ListingFilters) => Promise<ListingRow[]>;
   getRow: (listingId: string) => Promise<ListingRow | null>;
   listOwnerRows: (listingIds: ReadonlyArray<string>) => Promise<ListingOwnerRow[]>;
-  createWithOwners: (draft: ListingDraft) => Promise<ListingRow>;
-  updateWithOwners: (listingId: string, values: ListingUpdate) => Promise<ListingRow>;
+  createWithOwners: (draft: ListingDraft, actor: ListingBroker | null) => Promise<ListingRow>;
+  updateWithOwners: (listingId: string, values: ListingUpdate, actor: ListingBroker | null) => Promise<ListingRow>;
   deleteRow: (listingId: string) => Promise<boolean>;
 };
 
@@ -239,9 +239,9 @@ export function parseListingUpdate(value: unknown): ListingUpdate | null {
   return result;
 }
 
-function rpcValues(values: ListingDraft | ListingUpdate) {
+function rpcValues(values: ListingDraft | ListingUpdate, actor: ListingBroker | null) {
   const { ownerContactIds: _ownerContactIds, ...listingValues } = values;
-  return listingValues;
+  return { ...listingValues, actorBroker: actor };
 }
 
 function throwMappedPersistenceError(error: unknown): never {
@@ -308,9 +308,9 @@ export function createSupabaseListingRepository(): ListingRepository {
       });
     },
 
-    async createWithOwners(draft) {
+    async createWithOwners(draft, actor) {
       const { data, error } = await getSupabaseAdmin().rpc("create_listing_with_owners", {
-        p_values: rpcValues(draft),
+        p_values: rpcValues(draft, actor),
         p_owner_contact_ids: draft.ownerContactIds,
       });
       if (error) throwMappedPersistenceError(error);
@@ -319,10 +319,10 @@ export function createSupabaseListingRepository(): ListingRepository {
       return row;
     },
 
-    async updateWithOwners(listingId, values) {
+    async updateWithOwners(listingId, values, actor) {
       const { data, error } = await getSupabaseAdmin().rpc("update_listing_with_owners", {
         p_listing_id: listingId,
-        p_values: rpcValues(values),
+        p_values: rpcValues(values, actor),
         p_owner_contact_ids: values.ownerContactIds ?? null,
       });
       if (error) throwMappedPersistenceError(error);

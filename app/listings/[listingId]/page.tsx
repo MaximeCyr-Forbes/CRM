@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ListingDeleteConfirmationModal } from "../../components/listing-delete-confirmation-modal";
 import { ListingEditorModal } from "../../components/listing-editor-modal";
 import { ListingMedia } from "../../components/listing-media";
+import { ListingTracking } from "../../components/listing-tracking";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
 import {
@@ -164,6 +165,8 @@ export default function ListingDetailPage() {
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Suivi interne</p><h2 id="listing-notes-title">NOTES INTERNES</h2></div></div>
           <p className={listing.generalNotes ? "listing-detail-notes" : "listing-detail-empty"}>{listing.generalNotes || "Aucune note interne pour le moment."}</p>
         </section>
+
+        <ListingTracking listingId={listing.id} />
       </div>
 
       {isEditing && <ListingEditorModal

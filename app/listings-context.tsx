@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "./auth-context";
+import { useBroker } from "./broker-context";
 import type { Listing, ListingDraft } from "./data/listing-types";
 import type { ListingUpdate } from "./lib/listings/server-service";
 
@@ -41,6 +42,8 @@ async function listingRequest<T>(url: string, init?: RequestInit) {
 
 export function ListingsProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { selectedBroker } = useBroker();
+  const actorBroker = selectedBroker?.toLowerCase() as Listing["broker"] | undefined;
   const [listings, setListings] = useState<ReadonlyArray<Listing>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingWrites, setPendingWrites] = useState(0);
@@ -87,19 +90,19 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     const listing = await listingRequest<Listing>("/api/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ draft }),
+      body: JSON.stringify({ draft, actorBroker: actorBroker ?? null }),
     });
     return replaceListing(listing);
-  }), [replaceListing, runWrite]);
+  }), [actorBroker, replaceListing, runWrite]);
 
   const update = useCallback((listingId: string, values: ListingUpdate) => runWrite(async () => {
     const listing = await listingRequest<Listing>(`/api/listings/${encodeURIComponent(listingId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ values }),
+      body: JSON.stringify({ values, actorBroker: actorBroker ?? null }),
     });
     return replaceListing(listing);
-  }), [replaceListing, runWrite]);
+  }), [actorBroker, replaceListing, runWrite]);
 
   const remove = useCallback((listingId: string) => runWrite(async () => {
     await listingRequest<{ listingId: string }>(`/api/listings/${encodeURIComponent(listingId)}`, {

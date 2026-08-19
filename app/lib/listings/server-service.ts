@@ -1,4 +1,4 @@
-import type { Listing, ListingDraft } from "../../data/listing-types";
+import type { Listing, ListingBroker, ListingDraft } from "../../data/listing-types";
 import {
   createSupabaseListingRepository,
   ListingServiceError,
@@ -69,17 +69,17 @@ export function createListingsService(repository: ListingRepository) {
       return mapListing(row, owners);
     },
 
-    async createListing(input: ListingDraft) {
+    async createListing(input: ListingDraft, actor: ListingBroker | null = null) {
       const draft = parseListingDraft(input);
       if (!draft) throw new ListingServiceError("invalid_listing", "Listing invalide.");
-      const row = await repository.createWithOwners(draft);
+      const row = await repository.createWithOwners(draft, actor);
       return mapListing(row, ownerRows(row.id, draft.ownerContactIds));
     },
 
-    async updateListing(listingId: string, input: ListingUpdate) {
+    async updateListing(listingId: string, input: ListingUpdate, actor: ListingBroker | null = null) {
       const values = parseListingUpdate(input);
       if (!values) throw new ListingServiceError("invalid_listing", "Modification du Listing invalide.");
-      const row = await repository.updateWithOwners(listingId, values);
+      const row = await repository.updateWithOwners(listingId, values, actor);
       const owners = values.ownerContactIds === undefined
         ? await repository.listOwnerRows([listingId])
         : ownerRows(listingId, values.ownerContactIds);
@@ -97,6 +97,6 @@ const defaultService = createListingsService(createSupabaseListingRepository());
 
 export const listListings = (filters: ListingFilters = {}) => defaultService.listListings(filters);
 export const getListing = (listingId: string) => defaultService.getListing(listingId);
-export const createListing = (draft: ListingDraft) => defaultService.createListing(draft);
-export const updateListing = (listingId: string, values: ListingUpdate) => defaultService.updateListing(listingId, values);
+export const createListing = (draft: ListingDraft, actor: ListingBroker | null = null) => defaultService.createListing(draft, actor);
+export const updateListing = (listingId: string, values: ListingUpdate, actor: ListingBroker | null = null) => defaultService.updateListing(listingId, values, actor);
 export const deleteListing = (listingId: string) => defaultService.deleteListing(listingId);

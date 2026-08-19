@@ -1,7 +1,7 @@
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { listingApiError } from "../../../lib/listings/api-response";
-import { isUuid, parseListingUpdate } from "../../../lib/listings/persistence";
+import { isListingBroker, isUuid, parseListingUpdate } from "../../../lib/listings/persistence";
 import {
   deleteListing,
   getListing,
@@ -39,12 +39,16 @@ export async function PATCH(request: Request, context: ListingRouteContext) {
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
   const listingId = await listingIdFrom(context);
   if (!listingId) return Response.json({ error: "Listing invalide." }, { status: 400 });
-  const body = (await request.json().catch(() => null)) as { values?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { values?: unknown; actorBroker?: unknown } | null;
   const values = parseListingUpdate(body?.values);
   if (!values) return Response.json({ error: "Modification du Listing invalide." }, { status: 400 });
+  const actor = body?.actorBroker === null || body?.actorBroker === undefined
+    ? null
+    : isListingBroker(body.actorBroker) ? body.actorBroker : undefined;
+  if (actor === undefined) return Response.json({ error: "Courtier acteur invalide." }, { status: 400 });
 
   try {
-    return Response.json({ data: await updateListing(listingId, values) });
+    return Response.json({ data: await updateListing(listingId, values, actor) });
   } catch (error) {
     return listingApiError(error, "Modification du Listing impossible.");
   }
