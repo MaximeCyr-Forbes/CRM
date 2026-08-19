@@ -7,6 +7,10 @@ import {
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
 import { isAddressHistoryUnavailableError } from "../../../lib/contact-addresses";
+import {
+  attachAddressesInBatches,
+  attachAddressesWithFallback,
+} from "../../../lib/contacts/attach-addresses";
 
 export const dynamic = "force-dynamic";
 
@@ -56,20 +60,26 @@ function addressPayload(value: Record<string, unknown>) {
   };
 }
 
-async function attachAddresses<T extends Record<string, unknown>>(rows: T[]) {
-  if (rows.length === 0) return rows;
+async function loadAddressBatch(contactIds: ReadonlyArray<string>) {
   const client = getSupabaseAdmin();
-  const { data, error } = await client.from("contact_addresses").select("*").in("contact_id", rows.map((row) => row.id));
-  if (error) {
-    if (isAddressHistoryUnavailableError(error)) return rows;
+  const { data, error } = await client
+    .from("contact_addresses")
+    .select("*")
+    .in("contact_id", [...contactIds]);
+  if (error) throw error;
+  return (data ?? []) as Array<Record<string, unknown> & { contact_id: unknown }>;
+}
+
+async function attachAddresses<T extends Record<string, unknown> & { id: unknown }>(
+  rows: ReadonlyArray<T>,
+  allowUnavailableTableFallback = false,
+) {
+  try {
+    return await attachAddressesInBatches(rows, loadAddressBatch);
+  } catch (error) {
+    if (allowUnavailableTableFallback && isAddressHistoryUnavailableError(error)) return [...rows];
     throw error;
   }
-  const byContact = new Map<string, Record<string, unknown>[]>();
-  for (const address of data ?? []) {
-    const contactId = String(address.contact_id);
-    byContact.set(contactId, [...(byContact.get(contactId) ?? []), address]);
-  }
-  return rows.map((row) => ({ ...row, contact_addresses: byContact.get(String(row.id)) ?? [] }));
 }
 
 export async function GET(request: Request) {
@@ -82,12 +92,16 @@ export async function GET(request: Request) {
   if (resource === "contacts") {
     const { data, error } = await client.from("contacts").select("*").order("created_at", { ascending: false });
     if (error) return Response.json({ error: "Chargement impossible." }, { status: 502 });
-    try {
-      return Response.json({ data: await attachAddresses((data ?? []) as Record<string, unknown>[]) }, { headers: { "Cache-Control": "private, no-store" } });
-    } catch (addressError) {
-      console.error("Chargement des adresses impossible:", addressError instanceof Error ? addressError.message : "erreur inconnue");
-      return Response.json({ error: "Chargement impossible." }, { status: 502 });
-    }
+    const contactRows = (data ?? []) as Array<Record<string, unknown> & { id: unknown }>;
+    const contactsWithAddresses = await attachAddressesWithFallback(
+      contactRows,
+      loadAddressBatch,
+      (addressError) => console.error(
+        "Chargement de l'historique des adresses impossible:",
+        addressError instanceof Error ? addressError.message : "erreur inconnue",
+      ),
+    );
+    return Response.json({ data: contactsWithAddresses }, { headers: { "Cache-Control": "private, no-store" } });
   }
   if (resource === "globalSearch") {
     const rawQuery = (url.searchParams.get("q") ?? "").trim();
@@ -196,7 +210,7 @@ export async function POST(request: Request) {
           if (addressError && !isAddressHistoryUnavailableError(addressError)) throw addressError;
         }
       }
-      return Response.json({ data: (await attachAddresses(data ? [data] : []))[0] });
+      return Response.json({ data: (await attachAddresses(data ? [data] : [], true))[0] });
     }
 
     if (body.action === "importContacts") {
@@ -235,7 +249,7 @@ export async function POST(request: Request) {
         if (error) throw error;
         imported.push(...(data ?? []));
       }
-      return Response.json({ data: await attachAddresses(imported) });
+      return Response.json({ data: await attachAddresses(imported as Array<Record<string, unknown> & { id: unknown }>, true) });
     }
 
     if (body.action === "saveContactAddresses") {
@@ -251,7 +265,7 @@ export async function POST(request: Request) {
         return Response.json({ data: result.data });
       }
       const row = Array.isArray(data) ? data[0] : data;
-      return Response.json({ data: (await attachAddresses(row ? [row as Record<string, unknown>] : []))[0] });
+      return Response.json({ data: (await attachAddresses(row ? [row as Record<string, unknown> & { id: unknown }] : [], true))[0] });
     }
 
     if (body.action === "assignContacts") {
@@ -311,7 +325,7 @@ export async function POST(request: Request) {
         const addressResult = await client.rpc("save_contact_addresses", { p_contact_id: body.contactId, p_addresses: body.addresses.map(addressPayload) });
         if (addressResult.error && !isAddressHistoryUnavailableError(addressResult.error)) throw addressResult.error;
       }
-      return Response.json({ data: (await attachAddresses(data ? [data] : []))[0] });
+      return Response.json({ data: (await attachAddresses(data ? [data] : [], true))[0] });
     }
 
     if (body.action === "updatePipelineStage") {
