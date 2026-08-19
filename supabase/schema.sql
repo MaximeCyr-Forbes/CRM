@@ -118,6 +118,67 @@ create table if not exists public.contact_merges (
   merged_at timestamptz not null default now()
 );
 
+create table if not exists public.listings (
+  id uuid primary key default gen_random_uuid(),
+  civic_number text not null default '',
+  address text not null default '',
+  apartment text not null default '',
+  city text not null default '',
+  province text not null default '',
+  postal_code text not null default '',
+  country text not null default '',
+  centris_number text not null default '',
+  broker public.broker_assignment not null,
+  status text not null default 'preparation',
+  asking_price numeric(14, 2),
+  property_type text not null default 'other',
+  listing_date date,
+  expiration_date date,
+  centris_url text not null default '',
+  public_url text not null default '',
+  primary_image_url text not null default '',
+  general_notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint listings_assigned_broker_check check (broker <> 'unassigned'),
+  constraint listings_status_check check (
+    status = any (array[
+      'preparation',
+      'coming_soon',
+      'active',
+      'offer_received',
+      'conditional',
+      'sold',
+      'expired',
+      'withdrawn'
+    ])
+  ),
+  constraint listings_property_type_check check (
+    property_type = any (array[
+      'residential',
+      'condo',
+      'income_property',
+      'land',
+      'commercial',
+      'other'
+    ])
+  ),
+  constraint listings_date_range_check check (
+    listing_date is null
+    or expiration_date is null
+    or expiration_date >= listing_date
+  )
+);
+
+create table if not exists public.listing_contacts (
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  role text not null default 'owner',
+  created_at timestamptz not null default now(),
+  primary key (listing_id, contact_id),
+  constraint listing_contacts_role_check check (role = 'owner')
+);
+
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   address text not null check (length(trim(address)) > 0),
@@ -219,6 +280,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists transactions_set_updated_at on public.transactions;
 create trigger transactions_set_updated_at
 before update on public.transactions
+for each row execute function public.set_updated_at();
+
+drop trigger if exists listings_set_updated_at on public.listings;
+create trigger listings_set_updated_at
+before update on public.listings
 for each row execute function public.set_updated_at();
 
 drop trigger if exists transaction_deadlines_set_updated_at on public.transaction_deadlines;
@@ -439,6 +505,19 @@ create index if not exists transactions_broker_status_idx
   on public.transactions (broker, status, updated_at desc);
 create index if not exists transactions_address_trgm_idx
   on public.transactions using gin (address gin_trgm_ops);
+create unique index if not exists listings_centris_number_unique_idx
+  on public.listings (upper(regexp_replace(trim(centris_number), '\s+', '', 'g')))
+  where length(trim(centris_number)) > 0;
+create index if not exists listings_broker_idx
+  on public.listings (broker);
+create index if not exists listings_status_idx
+  on public.listings (status);
+create index if not exists listings_broker_status_idx
+  on public.listings (broker, status);
+create index if not exists listings_updated_at_idx
+  on public.listings (updated_at desc);
+create index if not exists listing_contacts_contact_idx
+  on public.listing_contacts (contact_id, listing_id);
 create index if not exists transaction_contacts_contact_idx
   on public.transaction_contacts (contact_id, transaction_id);
 create index if not exists transaction_deadlines_transaction_due_idx
@@ -454,6 +533,8 @@ alter table public.client_notes enable row level security;
 alter table public.google_calendar_connections enable row level security;
 alter table public.contact_birthday_calendar_events enable row level security;
 alter table public.contact_merges enable row level security;
+alter table public.listings enable row level security;
+alter table public.listing_contacts enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_contacts enable row level security;
 alter table public.transaction_deadlines enable row level security;
@@ -470,6 +551,8 @@ drop policy if exists "temporary anon notes update" on public.client_notes;
 revoke all on public.contacts from anon, authenticated;
 revoke all on public.client_notes from anon, authenticated;
 revoke all on public.contact_merges from anon, authenticated;
+revoke all on public.listings from public, anon, authenticated;
+revoke all on public.listing_contacts from public, anon, authenticated;
 revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
@@ -493,6 +576,8 @@ grant execute on function public.enrich_contact_birth_dates(jsonb) to service_ro
 grant select, insert, update, delete on public.contacts to service_role;
 grant select, insert, update, delete on public.client_notes to service_role;
 grant select, insert, update, delete on public.contact_merges to service_role;
+grant select, insert, update, delete on public.listings to service_role;
+grant select, insert, update, delete on public.listing_contacts to service_role;
 grant select, insert, update, delete on public.transactions to service_role;
 grant select, insert, update, delete on public.transaction_contacts to service_role;
 grant select, insert, update, delete on public.transaction_deadlines to service_role;
@@ -528,6 +613,8 @@ revoke all on public.contacts from anon, authenticated;
 revoke all on public.client_notes from anon, authenticated;
 revoke all on public.contact_merges from anon, authenticated;
 revoke all on public.google_calendar_connections from anon, authenticated;
+revoke all on public.listings from public, anon, authenticated;
+revoke all on public.listing_contacts from public, anon, authenticated;
 revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
