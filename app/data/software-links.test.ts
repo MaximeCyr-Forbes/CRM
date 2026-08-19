@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { softwareLinks } from "./software-links";
+import { appNavigationOrder, softwareLinks } from "./software-links";
 
 describe("navigation des logiciels", () => {
+  it("place Logiciels entre Transactions et Paramètres", () => {
+    expect(appNavigationOrder).toEqual([
+      "Accueil",
+      "Contacts",
+      "Pipeline",
+      "Transactions",
+      "Logiciels",
+      "Paramètres",
+    ]);
+    expect(appNavigationOrder.at(-1)).toBe("Paramètres");
+  });
+
   it("centralise les deux applications externes attendues", () => {
     expect(softwareLinks).toEqual([
       {

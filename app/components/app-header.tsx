@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useBroker } from "../broker-context";
-import { softwareLinks } from "../data/software-links";
+import { appNavigationOrder, softwareLinks } from "../data/software-links";
 import { GlobalSearch } from "./global-search";
 
 const links = [
@@ -76,29 +76,38 @@ export function AppHeader() {
         <span aria-hidden="true">EF</span><strong>Équipe Forbes</strong>
       </button>
       <nav className="app-header-links" aria-label="Navigation principale">
-        {links.map((link) => (
-          <button
-            aria-current={pathname.startsWith(link.match) ? "page" : undefined}
-            key={link.href}
-            onClick={() => navigate(link.href)}
-            type="button"
-          >
-            {link.label}
-          </button>
-        ))}
-        <button
-          aria-controls="software-menu"
-          aria-expanded={isSoftwareOpen}
-          aria-haspopup="menu"
-          onClick={() => {
-            if (!isSoftwareOpen) positionSoftwareMenu();
-            setIsSoftwareOpen((current) => !current);
-          }}
-          ref={softwareButtonRef}
-          type="button"
-        >
-          Logiciels
-        </button>
+        {appNavigationOrder.map((label) => {
+          if (label === "Logiciels") {
+            return (
+              <button
+                aria-controls="software-menu"
+                aria-expanded={isSoftwareOpen}
+                aria-haspopup="menu"
+                key={label}
+                onClick={() => {
+                  if (!isSoftwareOpen) positionSoftwareMenu();
+                  setIsSoftwareOpen((current) => !current);
+                }}
+                ref={softwareButtonRef}
+                type="button"
+              >
+                Logiciels
+              </button>
+            );
+          }
+          const link = links.find((item) => item.label === label);
+          if (!link) return null;
+          return (
+            <button
+              aria-current={pathname.startsWith(link.match) ? "page" : undefined}
+              key={link.href}
+              onClick={() => navigate(link.href)}
+              type="button"
+            >
+              {link.label}
+            </button>
+          );
+        })}
       </nav>
       <div className="app-header-tools">
         <GlobalSearch />

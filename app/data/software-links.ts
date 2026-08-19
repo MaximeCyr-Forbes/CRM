@@ -10,3 +10,12 @@ export const softwareLinks = [
     href: "https://analyse-plex-quebec.vercel.app/",
   },
 ] as const;
+
+export const appNavigationOrder = [
+  "Accueil",
+  "Contacts",
+  "Pipeline",
+  "Transactions",
+  "Logiciels",
+  "Paramètres",
+] as const;
