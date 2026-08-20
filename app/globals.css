@@ -979,19 +979,6 @@ button:disabled {
   gap: 1.25rem;
 }
 
-.dashboard-mark {
-  display: grid;
-  flex: 0 0 auto;
-  width: 3.35rem;
-  height: 3.35rem;
-  place-items: center;
-  color: var(--gold);
-  border: 1px solid rgba(198, 168, 103, 0.55);
-  border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.85rem;
-}
-
 .dashboard-header .eyebrow {
   margin: 0 0 0.45rem;
 }
@@ -3706,12 +3693,6 @@ button:disabled {
   .dashboard-identity {
     align-items: flex-start;
     gap: 0.85rem;
-  }
-
-  .dashboard-mark {
-    width: 2.65rem;
-    height: 2.65rem;
-    font-size: 0.72rem;
   }
 
   .dashboard-header .eyebrow {

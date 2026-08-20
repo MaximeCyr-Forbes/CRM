@@ -84,7 +84,6 @@ export default function Dashboard() {
       <div className="dashboard-shell">
         <header className="dashboard-header">
           <div className="dashboard-identity">
-            <span className="dashboard-mark" aria-hidden="true">EF</span>
             <div>
               <p className="eyebrow">Équipe Forbes · CRM</p>
               <h1>Bonjour {selectedBroker}</h1>
