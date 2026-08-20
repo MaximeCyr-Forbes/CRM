@@ -29,7 +29,9 @@ describe("interface d’import Centris dans une nouvelle Transaction", () => {
   it("présente les états analyse, erreur, succès, retrait et changement de fiche", () => {
     for (const text of [
       "ANALYSE DE LA FICHE CENTRIS…",
-      "FICHE NON RECONNUE",
+      "ERREUR DE LECTURE DU PDF",
+      "PDF SANS TEXTE LISIBLE",
+      "FICHE CENTRIS NON RECONNUE",
       "FICHE CENTRIS ANALYSÉE",
       "Informations Centris appliquées",
       "Analyser une autre fiche",
@@ -37,6 +39,8 @@ describe("interface d’import Centris dans une nouvelle Transaction", () => {
     ]) expect(importer).toContain(text);
     expect(importer).toContain('aria-live="polite"');
     expect(importer).toContain('role="alert"');
+    expect(importer).toContain('payload.code === "no_text"');
+    expect(importer).toContain('"invalid_pdf", "unsupported_pdf", "pdf_runtime_error", "parse_failed"');
   });
 
   it("garde la création manuelle et tous les champs du formulaire modifiables", () => {

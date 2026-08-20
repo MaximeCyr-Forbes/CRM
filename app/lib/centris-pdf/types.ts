@@ -101,10 +101,11 @@ export type CentrisParseResult = {
 
 export class CentrisPDFError extends Error {
   constructor(
-    public readonly category: "invalid_pdf" | "no_text" | "unsupported_pdf" | "parse_failed",
+    public readonly category: "invalid_pdf" | "no_text" | "unsupported_pdf" | "pdf_runtime_error" | "parse_failed",
     message: string,
     public readonly pageCount = 0,
     public readonly stage = "unknown",
+    public readonly runtimeErrorName = "",
   ) {
     super(message);
     this.name = "CentrisPDFError";

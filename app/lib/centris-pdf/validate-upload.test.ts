@@ -29,6 +29,8 @@ describe("sécurité de l’import PDF Centris", () => {
     expect(route).toContain("size,");
     expect(route).toContain("pageCount:");
     expect(route).toContain("stage:");
+    expect(route).toContain("runtimeErrorName:");
+    expect(route).toContain('code: failure?.category ?? "parse_failed"');
     expect(route).not.toContain("extracted.pages");
     expect(route).not.toContain("console.log");
   });

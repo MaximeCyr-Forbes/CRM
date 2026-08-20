@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     safeName = sanitizedFileName(file.name);
     size = file.size;
     const validation = validateCentrisPDFUpload(file);
-    if (!validation.valid) return noStoreJSON({ error: validation.error }, validation.status);
+    if (!validation.valid) return noStoreJSON({ error: validation.error, code: "invalid_pdf" }, validation.status);
 
     stage = "extraction";
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -53,9 +53,11 @@ export async function POST(request: Request) {
       size,
       pageCount: failure?.pageCount ?? pageCount,
       stage: failure?.stage ?? stage,
+      runtimeErrorName: failure?.runtimeErrorName || undefined,
     });
     return noStoreJSON({
       error: failure?.message ?? "La fiche Centris n’a pas pu être analysée.",
+      code: failure?.category ?? "parse_failed",
     }, failure?.category === "invalid_pdf" || failure?.category === "no_text" ? 422 : 500);
   }
 }

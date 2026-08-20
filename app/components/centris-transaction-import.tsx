@@ -12,6 +12,14 @@ import {
 import type { CentrisConfidence, CentrisParseResult } from "../lib/centris-pdf/types";
 
 type ImportStatus = "idle" | "loading" | "success" | "error";
+type ImportErrorKind = "reading" | "no_text" | "unrecognized";
+
+class CentrisImportError extends Error {
+  constructor(message: string, public readonly kind: ImportErrorKind) {
+    super(message);
+    this.name = "CentrisImportError";
+  }
+}
 
 const fieldLabels: Record<CentrisImportField, string> = {
   address: "Adresse",
@@ -85,10 +93,19 @@ function detectedValueLabel(field: CentrisImportField, value: string | number | 
   return String(value);
 }
 
-function apiErrorMessage(value: unknown) {
-  if (!value || typeof value !== "object") return "La fiche Centris n’a pas pu être analysée.";
-  const error = (value as { error?: unknown }).error;
-  return typeof error === "string" && error.trim() ? error : "La fiche Centris n’a pas pu être analysée.";
+function apiError(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return { message: "La fiche Centris n’a pas pu être analysée.", kind: "reading" as const };
+  }
+  const payload = value as { error?: unknown; code?: unknown };
+  const message = typeof payload.error === "string" && payload.error.trim()
+    ? payload.error
+    : "La fiche Centris n’a pas pu être analysée.";
+  if (payload.code === "no_text") return { message, kind: "no_text" as const };
+  if (["invalid_pdf", "unsupported_pdf", "pdf_runtime_error", "parse_failed"].includes(String(payload.code))) {
+    return { message, kind: "reading" as const };
+  }
+  return { message, kind: "unrecognized" as const };
 }
 
 export function CentrisTransactionImport({
@@ -104,6 +121,7 @@ export function CentrisTransactionImport({
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [fileName, setFileName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [errorKind, setErrorKind] = useState<ImportErrorKind>("reading");
   const [result, setResult] = useState<CentrisParseResult | null>(null);
   const [selection, setSelection] = useState<CentrisImportSelection | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -121,6 +139,7 @@ export function CentrisTransactionImport({
     setStatus("idle");
     setFileName("");
     setErrorMessage("");
+    setErrorKind("reading");
     setResult(null);
     setSelection(null);
     setIsDragging(false);
@@ -132,6 +151,7 @@ export function CentrisTransactionImport({
     setStatus("loading");
     setFileName(file.name);
     setErrorMessage("");
+    setErrorKind("reading");
     setResult(null);
     setSelection(null);
     setIsDragging(false);
@@ -141,7 +161,10 @@ export function CentrisTransactionImport({
     try {
       const response = await fetch("/api/centris/parse", { method: "POST", body: formData });
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(apiErrorMessage(payload));
+      if (!response.ok) {
+        const failure = apiError(payload);
+        throw new CentrisImportError(failure.message, failure.kind);
+      }
       const parsed = (payload as { data?: CentrisParseResult } | null)?.data;
       if (!parsed) throw new Error("La fiche Centris n’a retourné aucune information exploitable.");
       setResult(parsed);
@@ -149,6 +172,7 @@ export function CentrisTransactionImport({
       setStatus("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "La fiche Centris n’a pas pu être analysée.");
+      setErrorKind(error instanceof CentrisImportError ? error.kind : "reading");
       setStatus("error");
     } finally {
       resetInput();
@@ -243,7 +267,7 @@ export function CentrisTransactionImport({
         >
           {status === "error" ? (
             <div className="transaction-centris-error" role="alert">
-              <strong>FICHE NON RECONNUE</strong>
+              <strong>{errorKind === "no_text" ? "PDF SANS TEXTE LISIBLE" : errorKind === "reading" ? "ERREUR DE LECTURE DU PDF" : "FICHE CENTRIS NON RECONNUE"}</strong>
               <p>{errorMessage}</p>
               <span className="transaction-centris-file-button">CHOISIR UN AUTRE PDF</span>
             </div>
@@ -269,7 +293,7 @@ export function CentrisTransactionImport({
         <div className={`transaction-centris-preview${isApplied ? " is-applied" : ""}`}>
           <div className="transaction-centris-preview-heading">
             <div>
-              <strong>FICHE CENTRIS ANALYSÉE <span aria-label="Analyse réussie">✓</span></strong>
+              <strong>{result.isRecognizedCentrisDocument ? "FICHE CENTRIS ANALYSÉE" : "FICHE CENTRIS NON RECONNUE"} <span aria-label="Analyse terminée">✓</span></strong>
               <span>No Centris {result.centrisNumber || "non détecté"}</span>
             </div>
             <span>{fileName}</span>
