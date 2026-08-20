@@ -8,6 +8,7 @@ import {
   syncTransactionDeadline,
 } from "../../lib/google-calendar/service";
 import { deleteTransactionWithCalendarCleanup } from "../../lib/transactions/delete-workflow";
+import { transactionApiErrorMessage, transactionErrorMetadata, type TransactionAction } from "../../lib/transactions/api-error";
 import {
   createTransaction,
   deleteDeadline,
@@ -58,8 +59,8 @@ export async function GET() {
   try {
     return Response.json({ data: await listTransactions() }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error(error);
-    return Response.json({ error: "Impossible de charger les transactions." }, { status: 502 });
+    console.error("Opération transaction impossible", transactionErrorMetadata(error, "list"));
+    return Response.json({ error: transactionApiErrorMessage(error, "list") }, { status: 502 });
   }
 }
 
@@ -69,9 +70,19 @@ export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return Response.json({ error: "Requête invalide." }, { status: 400 });
+  const requestedAction = typeof body.action === "string" ? body.action : "other";
 
   try {
     if (body.action === "create") {
+      const submitted = body.draft && typeof body.draft === "object"
+        ? body.draft as Record<string, unknown>
+        : null;
+      if (!submitted || typeof submitted.address !== "string" || !submitted.address.trim()) {
+        return Response.json({ error: "L’adresse de la transaction est invalide." }, { status: 400 });
+      }
+      if (isType(submitted.type) && typeof submitted.status === "string" && !statusesForTransaction(submitted.type).includes(submitted.status as never)) {
+        return Response.json({ error: "Le statut sélectionné n’est pas accepté." }, { status: 400 });
+      }
       const draft = parseDraft(body.draft);
       if (!draft) return Response.json({ error: "Transaction invalide." }, { status: 400 });
       return Response.json({ data: await createTransaction(draft) });
@@ -175,7 +186,14 @@ export async function POST(request: Request) {
 
     return Response.json({ error: "Action inconnue." }, { status: 400 });
   } catch (error) {
-    console.error(error);
-    return Response.json({ error: "L’opération sur la transaction a échoué." }, { status: 502 });
+    const action: TransactionAction = requestedAction === "create"
+      ? "create"
+      : requestedAction === "update"
+        ? "update"
+        : requestedAction === "deleteTransaction"
+          ? "delete"
+          : "other";
+    console.error("Opération transaction impossible", transactionErrorMetadata(error, requestedAction));
+    return Response.json({ error: transactionApiErrorMessage(error, action) }, { status: 502 });
   }
 }

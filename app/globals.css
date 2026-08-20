@@ -4195,6 +4195,22 @@ button:disabled {
 .transaction-form-actions button { min-height: 3rem; padding: 0.7rem 1rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; }
 .transaction-form-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 .transaction-form-error { grid-column: 1 / -1; margin: 0; color: #934c45; font-size: 0.75rem; }
+.transaction-existing-backdrop { position: fixed; z-index: 140; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(12, 25, 42, 0.64); backdrop-filter: blur(7px); }
+.transaction-existing-dialog { width: min(100%, 38rem); padding: clamp(1.25rem, 4vw, 2rem); background: var(--paper); border: 1px solid var(--line); border-radius: 0.4rem; box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.28); }
+.transaction-existing-dialog h3 { margin: 0.25rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.45rem, 4vw, 2rem); font-weight: 400; }
+.transaction-existing-dialog > p:not(.section-kicker) { margin: 0.9rem 0 0; color: var(--ink-soft); line-height: 1.55; }
+.transaction-existing-dialog article { margin-top: 1.25rem; padding: 1rem; background: rgba(198, 168, 103, 0.08); border: 1px solid rgba(198, 168, 103, 0.35); }
+.transaction-existing-dialog article > strong { color: #8c7343; font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; }
+.transaction-existing-dialog h4 { margin: 0.45rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem; font-weight: 400; }
+.transaction-existing-dialog dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin: 1rem 0 0; }
+.transaction-existing-dialog dl div { display: grid; gap: 0.2rem; }
+.transaction-existing-dialog dt { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.transaction-existing-dialog dd { margin: 0; font-size: 0.8rem; }
+.transaction-existing-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.55rem; margin-top: 1.25rem; }
+.transaction-existing-actions button { min-height: 2.9rem; padding: 0.7rem 0.9rem; color: var(--ink); background: transparent; border: 1px solid var(--line); cursor: pointer; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.transaction-existing-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.transaction-form button:disabled,
+.transaction-existing-actions button:disabled { cursor: wait; opacity: 0.62; }
 
 .transaction-centris-import {
   display: grid;
@@ -4417,6 +4433,8 @@ button:disabled {
   .transaction-centris-details > dl div:not(:nth-child(3n)) { border-right: 0; }
   .transaction-centris-actions { display: grid; }
   .transaction-centris-actions .transaction-centris-apply { margin-right: 0; }
+  .transaction-existing-dialog dl { grid-template-columns: 1fr; }
+  .transaction-existing-actions { display: grid; }
   .transaction-overview { grid-template-columns: 1fr; }
   .transaction-overview article + article,
   .transaction-overview article:nth-child(3) { border-top: 1px solid var(--line); border-left: 0; }

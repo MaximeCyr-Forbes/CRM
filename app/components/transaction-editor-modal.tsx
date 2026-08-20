@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useContacts } from "../contacts-context";
 import {
   BROKER_LABELS,
@@ -11,8 +11,10 @@ import {
 } from "../data/contact-types";
 import {
   TRANSACTION_STATUS_LABELS,
+  TRANSACTION_TYPE_LABELS,
   statusesForTransaction,
   validStatusForTransaction,
+  type Transaction,
   type TransactionBroker,
   type TransactionDraft,
   type TransactionType,
@@ -25,6 +27,7 @@ import {
   findStrongTransactionContactDuplicate,
   linkTransactionContact,
 } from "../lib/transactions/contact-picker";
+import { findTransactionsWithCentris, runSingleTransactionSave } from "../lib/transactions/editor";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import type { CentrisParseResult } from "../lib/centris-pdf/types";
 import { CentrisTransactionImport } from "./centris-transaction-import";
@@ -50,13 +53,17 @@ export function TransactionEditorModal({
   isSaving,
   mode,
   onClose,
+  onOpenExisting,
   onSave,
+  transactions = [],
 }: {
   initial: TransactionDraft;
   isSaving: boolean;
   mode: "create" | "edit";
   onClose: () => void;
+  onOpenExisting?: (transactionId: string) => void;
   onSave: (draft: TransactionDraft) => Promise<void>;
+  transactions?: ReadonlyArray<Transaction>;
 }) {
   const { contacts, addManualContact } = useContacts();
   const [values, setValues] = useState<TransactionDraft>(initial);
@@ -69,7 +76,11 @@ export function TransactionEditorModal({
   const [isCreatingContact, setIsCreatingContact] = useState(false);
   const [appliedCentrisPricing, setAppliedCentrisPricing] = useState<CentrisParseResult["pricing"] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateMatches, setDuplicateMatches] = useState<ReadonlyArray<Transaction>>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const saveLock = useRef(false);
   useDialogLifecycle(true, onClose);
+  const isBusy = isSaving || isSubmitting;
 
   const matchingContacts = useMemo(
     () => filterTransactionContacts(contacts, contactSearch),
@@ -141,20 +152,68 @@ export function TransactionEditorModal({
     }
   }
 
+  function preparedDraft(): TransactionDraft {
+    return {
+      ...values,
+      address: values.address.trim(),
+      centrisNumber: values.centrisNumber.trim(),
+      price: price ? Number(price) : null,
+      generalNotes: values.generalNotes.trim(),
+    };
+  }
+
+  async function saveDraft(draft: TransactionDraft) {
+    if (isBusy) return;
+    setError(null);
+    await runSingleTransactionSave(saveLock, async () => {
+      setIsSubmitting(true);
+      try {
+        await onSave(draft);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : mode === "create"
+              ? "La transaction n’a pas pu être créée."
+              : "La transaction n’a pas pu être modifiée.",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError(null);
-    try {
-      await onSave({
-        ...values,
-        address: values.address.trim(),
-        centrisNumber: values.centrisNumber.trim(),
-        price: price ? Number(price) : null,
-        generalNotes: values.generalNotes.trim(),
-      });
-    } catch {
-      setError(mode === "create" ? "La transaction n’a pas pu être créée." : "La transaction n’a pas pu être modifiée.");
+    if (isBusy || saveLock.current) return;
+    const draft = preparedDraft();
+    if (mode === "create") {
+      const matches = findTransactionsWithCentris(transactions, draft.centrisNumber);
+      if (matches.length > 0) {
+        setDuplicateMatches(matches);
+        return;
+      }
     }
+    await saveDraft(draft);
+  }
+
+  async function createDespiteDuplicate() {
+    if (isBusy || saveLock.current) return;
+    setDuplicateMatches([]);
+    await saveDraft(preparedDraft());
+  }
+
+  function openExisting(transactionId: string) {
+    setDuplicateMatches([]);
+    onOpenExisting?.(transactionId);
+  }
+
+  function formatCreatedAt(value: string) {
+    return new Intl.DateTimeFormat("fr-CA", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(value));
   }
 
   return (
@@ -164,10 +223,10 @@ export function TransactionEditorModal({
           <div><p className="section-kicker">{mode === "create" ? "Nouvelle fiche" : "Informations générales"}</p><h2 id="transaction-editor-title">{mode === "create" ? "CRÉER UNE TRANSACTION" : "MODIFIER LA TRANSACTION"}</h2></div>
           <button aria-label="Fermer" onClick={onClose} type="button">×</button>
         </div>
-        <form className="transaction-form" onSubmit={submit}>
+        <form aria-busy={isBusy} className="transaction-form" onSubmit={submit}>
           {mode === "create" && <CentrisTransactionImport
             currentValues={{ ...values, price: price ? Number(price) : null }}
-            disabled={isSaving}
+            disabled={isBusy}
             onApply={(nextValues, result) => {
               setValues(nextValues);
               setPrice(nextValues.price === null ? "" : String(nextValues.price));
@@ -204,8 +263,30 @@ export function TransactionEditorModal({
           </fieldset>
           <label className="transaction-field transaction-field-wide"><span>Notes générales</span><textarea onChange={(event) => update("generalNotes", event.target.value)} rows={4} value={values.generalNotes} /></label>
           {error && <p className="transaction-form-error" role="alert">{error}</p>}
-          <div className="transaction-form-actions transaction-field-wide"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isSaving} type="submit">{isSaving ? "Enregistrement…" : mode === "create" ? "Créer la transaction" : "Enregistrer les modifications"}</button></div>
+          <div className="transaction-form-actions transaction-field-wide"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isBusy} type="submit">{isBusy ? mode === "create" ? "CRÉATION…" : "ENREGISTREMENT…" : mode === "create" ? "Créer la transaction" : "Enregistrer les modifications"}</button></div>
         </form>
+        {duplicateMatches.length > 0 && <div className="transaction-existing-backdrop" role="presentation">
+          <section aria-labelledby="transaction-existing-title" aria-modal="true" className="transaction-existing-dialog" role="alertdialog">
+            <p className="section-kicker">Vérification du numéro Centris</p>
+            <h3 id="transaction-existing-title">TRANSACTION POSSIBLE DÉJÀ EXISTANTE</h3>
+            {duplicateMatches.length > 1 && <p><strong>{duplicateMatches.length} transactions utilisent déjà ce numéro Centris.</strong> La plus récente est présentée ci-dessous.</p>}
+            <article>
+              <strong>No Centris {duplicateMatches[0].centrisNumber}</strong>
+              <h4>{duplicateMatches[0].address}</h4>
+              <dl>
+                <div><dt>Type</dt><dd>{TRANSACTION_TYPE_LABELS[duplicateMatches[0].type]}</dd></div>
+                <div><dt>Courtier</dt><dd>{BROKER_LABELS[duplicateMatches[0].broker]}</dd></div>
+                <div><dt>Statut</dt><dd>{TRANSACTION_STATUS_LABELS[duplicateMatches[0].status]}</dd></div>
+                <div><dt>Créée le</dt><dd>{formatCreatedAt(duplicateMatches[0].createdAt)}</dd></div>
+              </dl>
+            </article>
+            <div className="transaction-existing-actions">
+              <button disabled={isBusy} onClick={() => setDuplicateMatches([])} type="button">ANNULER</button>
+              <button disabled={isBusy} onClick={() => openExisting(duplicateMatches[0].id)} type="button">OUVRIR LA TRANSACTION EXISTANTE</button>
+              <button className="transaction-submit" disabled={isBusy} onClick={() => void createDespiteDuplicate()} type="button">{isBusy ? "CRÉATION…" : "CRÉER QUAND MÊME"}</button>
+            </div>
+          </section>
+        </div>}
       </section>
     </div>
   );

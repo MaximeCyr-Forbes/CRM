@@ -9,6 +9,7 @@ import type {
 } from "../../data/transaction-types";
 import { getSupabaseAdmin } from "../supabase/server";
 import { transactionContactChanges, transactionContactLinkRows, transactionInsertValues, transactionUpdateValues } from "./persistence";
+import { optionalListingLinkRows } from "./optional-listing-links";
 
 export type TransactionRow = {
   id: string;
@@ -149,12 +150,12 @@ async function loadRelations(transactionIds?: string[]) {
   if (contactsResult.error) throw contactsResult.error;
   if (deadlinesResult.error) throw deadlinesResult.error;
   if (notesResult.error) throw notesResult.error;
-  if (listingLinksResult.error) throw listingLinksResult.error;
+  const listingLinkRows = optionalListingLinkRows(listingLinksResult);
   return {
     contactRows: (contactsResult.data ?? []) as TransactionContactRow[],
     deadlineRows: (deadlinesResult.data ?? []) as TransactionDeadlineRow[],
     noteRows: (notesResult.data ?? []) as TransactionNoteRow[],
-    listingLinkRows: (listingLinksResult.data ?? []) as unknown as TransactionListingLinkRow[],
+    listingLinkRows: listingLinkRows as unknown as TransactionListingLinkRow[],
   };
 }
 
@@ -186,20 +187,34 @@ export async function createTransaction(draft: TransactionDraft) {
   const { data, error } = await admin
     .from("transactions")
     .insert(transactionInsertValues(draft))
-    .select("id")
+    .select("*")
     .single();
   if (error) throw error;
-  const transactionId = (data as { id: string }).id;
+  const row = data as TransactionRow;
+  const transactionId = row.id;
   if (draft.contactIds.length > 0) {
     const { error: linksError } = await admin.from("transaction_contacts").insert(
       transactionContactLinkRows(transactionId, draft.contactIds),
     );
     if (linksError) {
-      await admin.from("transactions").delete().eq("id", transactionId);
+      const { error: cleanupError } = await admin.from("transactions").delete().eq("id", transactionId);
+      if (cleanupError) {
+        console.error("Nettoyage de la transaction partielle impossible", {
+          action: "create-cleanup",
+          code: cleanupError.code,
+          message: cleanupError.message,
+        });
+      }
       throw linksError;
     }
   }
-  return getTransaction(transactionId);
+  return mapTransaction(
+    row,
+    transactionContactLinkRows(transactionId, draft.contactIds),
+    [],
+    [],
+    [],
+  );
 }
 
 export async function updateTransaction(

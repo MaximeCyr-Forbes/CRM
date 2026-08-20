@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Contact } from "../../data/contact-types";
-import type { TransactionDraft } from "../../data/transaction-types";
+import type { Transaction, TransactionDraft } from "../../data/transaction-types";
 import {
   EMPTY_TRANSACTION_CONTACT_DRAFT,
   createAndLinkTransactionContact,
@@ -11,6 +11,7 @@ import {
 import { transactionContactLinkRows, transactionInsertValues } from "./persistence";
 import { transactionMatchesSearch } from "./search";
 import { mapTransaction, type TransactionRow } from "./server-service";
+import { findTransactionsWithCentris, normalizeTransactionCentris, runSingleTransactionSave } from "./editor";
 
 function contact(index: number, values: Partial<Contact> = {}): Contact {
   return {
@@ -60,6 +61,26 @@ function draft(centrisNumber = ""): TransactionDraft {
   };
 }
 
+function transaction(id: string, centrisNumber: string, createdAt = "2026-08-20T12:00:00.000Z"): Transaction {
+  return {
+    id,
+    address: `${id} Av. Laurier E., Montréal`,
+    centrisNumber,
+    type: "sale",
+    broker: "maxime",
+    contactIds: [],
+    price: 500000,
+    promiseDate: null,
+    status: "on_market",
+    generalNotes: "",
+    deadlines: [],
+    notes: [],
+    sourceListing: null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
 describe("numéro Centris d'une transaction", () => {
   it("crée une transaction sans numéro Centris", () => {
     expect(transactionInsertValues(draft()).centris_number).toBe("");
@@ -89,6 +110,37 @@ describe("numéro Centris d'une transaction", () => {
   it("retrouve une transaction par son numéro Centris", () => {
     expect(transactionMatchesSearch({ address: "123, rue Principale", centrisNumber: "12345678" }, "Jean Tremblay", "12345678")).toBe(true);
     expect(transactionMatchesSearch({ address: "123, rue Principale", centrisNumber: "12345678" }, "Jean Tremblay", "87654321")).toBe(false);
+  });
+
+  it("ne signale rien pour un numéro vide ou nouveau", () => {
+    const transactions = [transaction("transaction-1", "20701687")];
+    expect(findTransactionsWithCentris(transactions, "")).toEqual([]);
+    expect(findTransactionsWithCentris(transactions, "99999999")).toEqual([]);
+  });
+
+  it("détecte un numéro existant avec espaces et casse normalisés", () => {
+    const existing = transaction("transaction-1", "ab 20701687");
+    expect(normalizeTransactionCentris(" AB  20701687 ")).toBe("AB20701687");
+    expect(findTransactionsWithCentris([existing], " AB20701687 ")).toEqual([existing]);
+  });
+
+  it("présente la transaction la plus récente lorsqu’il existe plusieurs correspondances", () => {
+    const older = transaction("transaction-1", "20701687", "2026-08-19T12:00:00.000Z");
+    const newest = transaction("transaction-2", "20701687", "2026-08-20T12:00:00.000Z");
+    expect(findTransactionsWithCentris([older, newest], "20701687")).toEqual([newest, older]);
+  });
+
+  it("n’exécute qu’une sauvegarde lors de deux soumissions rapides", async () => {
+    const lock = { current: false };
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const save = vi.fn(() => pending);
+    const first = runSingleTransactionSave(lock, save);
+    const second = runSingleTransactionSave(lock, save);
+    expect(await second).toBe(false);
+    expect(save).toHaveBeenCalledTimes(1);
+    release();
+    expect(await first).toBe(true);
   });
 });
 

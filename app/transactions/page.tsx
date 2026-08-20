@@ -120,11 +120,16 @@ export default function TransactionsPage() {
         isSaving={isSaving}
         mode="create"
         onClose={() => setIsCreating(false)}
+        onOpenExisting={(transactionId) => {
+          setIsCreating(false);
+          router.push(`/transactions/${transactionId}`);
+        }}
         onSave={async (draft) => {
           await createTransaction(draft);
           setIsCreating(false);
           setConfirmation("Transaction enregistrée ✓");
         }}
+        transactions={transactions}
       />}
     </main>
   );

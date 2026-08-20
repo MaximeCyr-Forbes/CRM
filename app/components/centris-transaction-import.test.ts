@@ -6,6 +6,7 @@ const root = process.cwd();
 const source = (path: string) => readFileSync(resolve(root, path), "utf8");
 const modal = source("app/components/transaction-editor-modal.tsx");
 const importer = source("app/components/centris-transaction-import.tsx");
+const transactionsPage = source("app/transactions/page.tsx");
 const styles = source("app/globals.css");
 
 describe("interface d’import Centris dans une nouvelle Transaction", () => {
@@ -48,6 +49,25 @@ describe("interface d’import Centris dans une nouvelle Transaction", () => {
     expect(modal).toContain('mode === "create" ? "Créer la transaction"');
     expect(importer).not.toContain("readOnly");
     expect(importer).not.toContain("onSave");
+  });
+
+  it("confirme un numéro Centris existant sans bloquer la création volontaire", () => {
+    expect(modal).toContain("findTransactionsWithCentris(transactions, draft.centrisNumber)");
+    expect(modal).toContain("TRANSACTION POSSIBLE DÉJÀ EXISTANTE");
+    expect(modal).toContain("OUVRIR LA TRANSACTION EXISTANTE");
+    expect(modal).toContain("CRÉER QUAND MÊME");
+    expect(modal).toContain("createDespiteDuplicate");
+    expect(transactionsPage).toContain("router.push(`/transactions/${transactionId}`)");
+  });
+
+  it("verrouille la soumission et conserve le vrai message retourné par l’API", () => {
+    expect(modal).toContain("runSingleTransactionSave(saveLock");
+    expect(modal).toContain("if (isBusy || saveLock.current) return;");
+    expect(modal).toContain("disabled={isBusy}");
+    expect(modal).toContain("aria-busy={isBusy}");
+    expect(modal).toContain("caughtError instanceof Error");
+    expect(modal).toContain("caughtError.message");
+    expect(modal).toContain("CRÉATION…");
   });
 
   it("affiche les conflits, la confiance et le contexte des locations", () => {
