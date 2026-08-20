@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useBroker } from "../broker-context";
 import { DataStatus } from "../components/data-status";
+import { DailyNotificationsPanel } from "../components/daily-notifications-panel";
 import { useContacts } from "../contacts-context";
 import {
   CLIENT_TYPE_LABELS,
@@ -16,13 +17,14 @@ import { isTransactionCompleted } from "../data/transaction-types";
 import { useListings } from "../listings-context";
 import { useTransactions } from "../transactions-context";
 import { getFollowUpQueue } from "../lib/follow-up-queue";
+import { getDailyNotifications } from "../lib/dashboard/daily-notifications";
 
 export default function Dashboard() {
   const router = useRouter();
   const { selectedBroker, isBrokerReady } = useBroker();
   const { contacts } = useContacts();
   const { listings, isLoading: areListingsLoading, error: listingsError } = useListings();
-  const { transactions } = useTransactions();
+  const { transactions, isLoading: areTransactionsLoading, error: transactionsError } = useTransactions();
   const today = toLocalISODate(new Date());
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
   const brokerContacts = brokerKey
@@ -37,6 +39,12 @@ export default function Dashboard() {
   const followUpQueue = brokerKey && brokerKey !== "unassigned"
     ? getFollowUpQueue(contacts, brokerKey, today)
     : [];
+  const dailyNotifications = useMemo(
+    () => brokerKey && brokerKey !== "unassigned"
+      ? getDailyNotifications({ contacts, transactions, listings, broker: brokerKey, today })
+      : [],
+    [brokerKey, contacts, listings, today, transactions],
+  );
   const metrics = [
     { label: "Relances aujourd’hui", value: todaysClients.length, tone: "today", href: todaysClients[0] ? `/contacts/${todaysClients[0].id}?mode=followups` : "/contacts" },
     {
@@ -120,70 +128,79 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="follow-ups-section" aria-labelledby="follow-ups-title">
-          <div className="follow-ups-heading">
-            <div>
-              <p className="section-kicker">Priorités</p>
-              <h2 id="follow-ups-title">RELANCES DU JOUR</h2>
-            </div>
-            <button
-              className="start-follow-ups"
-              disabled={followUpQueue.length === 0}
-              onClick={() => followUpQueue[0] && router.push(`/contacts/${followUpQueue[0].id}?mode=followups`)}
-              type="button"
-            >
-              <span>Commencer mes relances</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
-
-          <div className="follow-ups-list">
-            {todaysClients.map((client) => (
-              <article className="follow-up-row" key={client.id}>
-                <div className="client-avatar" aria-hidden="true">
-                  {getContactName(client)
-                    .split(" ")
-                    .map((part) => part[0])
-                    .slice(0, 2)
-                    .join("")}
-                </div>
-                <div className="client-name-block">
-                  <h3>{getContactName(client)}</h3>
-                  <span>
-                    {client.clientType ? CLIENT_TYPE_LABELS[client.clientType] : "Type non renseigné"}
-                  </span>
-                </div>
-                <div className="client-detail">
-                  <span className="detail-label">Priorité</span>
-                  <span className={`priority priority-${client.priority ?? "none"}`}>
-                    {client.priority ? PRIORITY_LABELS[client.priority] : "Non renseignée"}
-                  </span>
-                </div>
-                <div className="client-detail">
-                  <span className="detail-label">Téléphone</span>
-                  {client.phone ? <a href={`tel:${client.phone}`}>{client.phone}</a> : <span>Non renseigné</span>}
-                </div>
-                <div className="client-status">
-                  <span className="status-dot" aria-hidden="true" />
-                  Relance aujourd’hui
-                </div>
-                <button
-                  className="open-client"
-                  onClick={() => router.push(`/contacts/${client.id}`)}
-                  type="button"
-                >
-                  Ouvrir
-                </button>
-              </article>
-            ))}
-            {todaysClients.length === 0 && (
-              <div className="follow-ups-empty">
-                <span aria-hidden="true">✓</span>
-                <p>Aucune relance programmée pour aujourd’hui.</p>
+        <div className="dashboard-priorities-grid">
+          <section className="follow-ups-section" aria-labelledby="follow-ups-title">
+            <div className="follow-ups-heading">
+              <div>
+                <p className="section-kicker">Priorités</p>
+                <h2 id="follow-ups-title">RELANCES DU JOUR</h2>
               </div>
-            )}
-          </div>
-        </section>
+              <button
+                className="start-follow-ups"
+                disabled={followUpQueue.length === 0}
+                onClick={() => followUpQueue[0] && router.push(`/contacts/${followUpQueue[0].id}?mode=followups`)}
+                type="button"
+              >
+                <span>Commencer mes relances</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+
+            <div className="follow-ups-list">
+              {todaysClients.map((client) => (
+                <article className="follow-up-row" key={client.id}>
+                  <div className="client-avatar" aria-hidden="true">
+                    {getContactName(client)
+                      .split(" ")
+                      .map((part) => part[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </div>
+                  <div className="client-name-block">
+                    <h3>{getContactName(client)}</h3>
+                    <span>
+                      {client.clientType ? CLIENT_TYPE_LABELS[client.clientType] : "Type non renseigné"}
+                    </span>
+                  </div>
+                  <div className="client-detail">
+                    <span className="detail-label">Priorité</span>
+                    <span className={`priority priority-${client.priority ?? "none"}`}>
+                      {client.priority ? PRIORITY_LABELS[client.priority] : "Non renseignée"}
+                    </span>
+                  </div>
+                  <div className="client-detail">
+                    <span className="detail-label">Téléphone</span>
+                    {client.phone ? <a href={`tel:${client.phone}`}>{client.phone}</a> : <span>Non renseigné</span>}
+                  </div>
+                  <div className="client-status">
+                    <span className="status-dot" aria-hidden="true" />
+                    Relance aujourd’hui
+                  </div>
+                  <button
+                    className="open-client"
+                    onClick={() => router.push(`/contacts/${client.id}`)}
+                    type="button"
+                  >
+                    Ouvrir
+                  </button>
+                </article>
+              ))}
+              {todaysClients.length === 0 && (
+                <div className="follow-ups-empty">
+                  <span aria-hidden="true">✓</span>
+                  <p>Aucune relance programmée pour aujourd’hui.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <DailyNotificationsPanel
+            listingsUnavailable={areListingsLoading || Boolean(listingsError)}
+            notifications={dailyNotifications}
+            onNavigate={(href) => router.push(href)}
+            transactionsUnavailable={areTransactionsLoading || Boolean(transactionsError)}
+          />
+        </div>
       </div>
     </main>
   );

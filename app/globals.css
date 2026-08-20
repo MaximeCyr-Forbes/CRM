@@ -1254,9 +1254,22 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
-.metrics-section,
-.follow-ups-section {
+.metrics-section {
   padding-top: clamp(2.4rem, 5vw, 4.2rem);
+}
+
+.dashboard-priorities-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(18.5rem, 1fr);
+  align-items: stretch;
+  gap: 1.25rem;
+  padding-top: clamp(2.4rem, 5vw, 4.2rem);
+}
+
+.follow-ups-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .section-heading,
@@ -1423,11 +1436,170 @@ button:disabled {
 }
 
 .follow-ups-list {
+  flex: 1;
   overflow: hidden;
   background: rgba(255, 253, 248, 0.8);
   border: 1px solid var(--line);
   border-radius: 0.25rem;
   box-shadow: 0 1.25rem 3.5rem rgba(19, 35, 59, 0.045);
+}
+
+.daily-notifications-panel {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  min-height: 24rem;
+  flex-direction: column;
+  padding: 1.2rem;
+  background: rgba(255, 253, 248, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  box-shadow: 0 1.25rem 3.5rem rgba(19, 35, 59, 0.055);
+}
+
+.daily-notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-notifications-header .section-kicker { margin-bottom: 0.35rem; }
+
+.daily-notifications-header h2 {
+  margin: 0;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.daily-notifications-count {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+}
+
+.daily-notifications-list {
+  max-height: 34rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(19, 35, 59, 0.28) transparent;
+  scrollbar-width: thin;
+}
+
+.daily-notification-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem 0.8rem;
+  padding: 1rem 0.2rem;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color 160ms ease, padding 160ms ease;
+}
+
+.daily-notification-row:hover,
+.daily-notification-row:focus-visible {
+  padding-right: 0.45rem;
+  padding-left: 0.45rem;
+  background: rgba(198, 168, 103, 0.08);
+  outline: 0;
+}
+
+.daily-notification-type {
+  grid-column: 1 / -1;
+  color: #8c7343;
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+}
+
+.daily-notification-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.daily-notification-main strong {
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-notification-main > span,
+.daily-notification-main small {
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.daily-notification-open {
+  align-self: center;
+  color: var(--ink);
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.daily-notification-open span { color: var(--gold); }
+
+.daily-notifications-empty {
+  display: grid;
+  min-height: 15rem;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.daily-notifications-empty > span {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.85rem;
+  place-items: center;
+  color: #587259;
+  background: rgba(88, 114, 89, 0.1);
+  border: 1px solid rgba(88, 114, 89, 0.24);
+  border-radius: 50%;
+}
+
+.daily-notifications-empty strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 500; }
+.daily-notifications-empty p { margin: 0.4rem 0 0; color: var(--ink-soft); font-size: 0.7rem; }
+
+.daily-notifications-data-warning {
+  padding-top: 0.8rem;
+  color: #8c7343;
+  border-top: 1px solid var(--line);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.daily-notifications-data-warning p { margin: 0; }
+.daily-notifications-data-warning p + p { margin-top: 0.3rem; }
+
+@media (max-width: 1020px) {
+  .dashboard-priorities-grid { grid-template-columns: 1fr; }
+  .daily-notifications-panel { height: auto; min-height: 22rem; }
 }
 
 .follow-up-row {
