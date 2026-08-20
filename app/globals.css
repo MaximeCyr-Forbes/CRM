@@ -2890,7 +2890,8 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.manual-contact-form input {
+.manual-contact-form input,
+.manual-contact-form select {
   min-height: 3.25rem;
   padding: 0.75rem 0.85rem;
   color: var(--ink);
@@ -5569,6 +5570,7 @@ textarea:focus-visible,
 .listing-editor-fields select,
 .listing-editor-fields textarea,
 .listing-new-contact-fields input,
+.listing-new-contact-fields select,
 .listing-contact-tools input {
   width: 100%;
   min-width: 0;

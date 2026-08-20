@@ -44,6 +44,7 @@ function contact(index: number, values: Partial<Contact> = {}): Contact {
     createdAt: "2026-08-19T12:00:00.000Z",
     updatedAt: "2026-08-19T12:00:00.000Z",
     ...values,
+    clientProvenance: values.clientProvenance ?? null,
   };
 }
 
@@ -164,9 +165,9 @@ describe("contacts liés à une nouvelle transaction", () => {
     const addManualContact = vi.fn(async () => saved);
     const input = { ...EMPTY_TRANSACTION_CONTACT_DRAFT, firstName: "Marie", lastName: "Gagnon" };
 
-    const result = await createAndLinkTransactionContact(input, "france", ["contact-existant"], addManualContact);
+    const result = await createAndLinkTransactionContact(input, "france", ["contact-existant"], addManualContact, "referral");
 
-    expect(addManualContact).toHaveBeenCalledWith(input, "france");
+    expect(addManualContact).toHaveBeenCalledWith(input, "france", { clientProvenance: "referral" });
     expect(result.contact).toBe(saved);
     expect(result.contactIds).toEqual(["contact-existant", saved.id]);
   });

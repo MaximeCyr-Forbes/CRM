@@ -1,5 +1,5 @@
 import { requireApiAccess } from "../../../lib/crm-access";
-import type { ContactBroker } from "../../../data/contact-types";
+import { normalizeClientProvenance, type ContactBroker } from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
 import { isAddressHistoryUnavailableError } from "../../../lib/contact-addresses";
@@ -23,6 +23,7 @@ type CRMActionBody = Record<string, unknown> & {
   nextDate?: unknown;
   brokerChanged?: unknown;
   clientType?: unknown;
+  clientProvenance?: unknown;
   draft?: Record<string, unknown>;
   entries?: Array<{ draft?: Record<string, unknown>; addresses?: Array<Record<string, unknown>> }>;
   updates?: Array<{ contactId?: unknown; birthDate?: unknown }>;
@@ -216,6 +217,7 @@ export async function POST(request: Request) {
         broker: body.broker,
         source: "manual",
         client_type: body.clientType ?? null,
+        client_provenance: normalizeClientProvenance(body.clientProvenance),
       }).select("*").single();
       if (error) throw error;
       if (data) {
@@ -239,6 +241,7 @@ export async function POST(request: Request) {
             ...entry.draft,
             birthDate: birthDateValue(entry.draft?.birthDate) ?? "",
             mortgageRenewalDate: "",
+            clientProvenance: null,
           },
           addresses: (entry.addresses ?? []).map(addressPayload),
         }));
@@ -266,6 +269,7 @@ export async function POST(request: Request) {
           country: textValue(draft.country),
           broker: "unassigned",
           source,
+          client_provenance: null,
         };})).select("*");
         if (error) throw error;
         imported.push(...(data ?? []));
@@ -348,6 +352,7 @@ export async function POST(request: Request) {
         country: textValue(values.country),
         broker: values.broker,
         client_type: values.clientType ?? null,
+        client_provenance: normalizeClientProvenance(values.clientProvenance),
         priority: values.priority ?? null,
         status: values.status,
         ...(body.brokerChanged ? { google_calendar_sync_status: "pending", google_calendar_last_error: null } : {}),

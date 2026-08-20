@@ -20,6 +20,7 @@ import type { ContactUpdate } from "../../data/contact-types";
 import type { DraftMergeSelection } from "../../data/contact-types";
 import {
   BROKER_LABELS,
+  CLIENT_PROVENANCE_LABELS,
   CLIENT_TYPE_LABELS,
   CONTACT_BROKERS,
   PRIORITY_LABELS,
@@ -362,6 +363,7 @@ export default function ContactProfilePage() {
         country: selection.country,
         broker: selection.broker,
         clientType: existing.clientType ?? contact.clientType,
+        clientProvenance: selection.clientProvenance,
         priority: existing.priority ?? contact.priority,
         status: existing.status === "active" || contact.status === "active" ? "active" : "inactive",
       },
@@ -398,7 +400,7 @@ export default function ContactProfilePage() {
                     Priorité · {PRIORITY_LABELS[contact.priority]}
                   </span>
                 )}
-                <span>Source · {contact.source}</span>
+                {contact.clientProvenance && <span>Provenance · {CLIENT_PROVENANCE_LABELS[contact.clientProvenance]}</span>}
               </div>
             </div>
           </div>
@@ -476,6 +478,10 @@ export default function ContactProfilePage() {
               <strong>
                 {contact.clientType ? CLIENT_TYPE_LABELS[contact.clientType] : "Non renseigné"}
               </strong>
+            </div>
+            <div className="info-group">
+              <span>Provenance</span>
+              <strong>{contact.clientProvenance ? CLIENT_PROVENANCE_LABELS[contact.clientProvenance] : "Non renseignée"}</strong>
             </div>
             <div className="info-group">
               <span>Priorité</span>
@@ -598,6 +604,7 @@ export default function ContactProfilePage() {
               postalCode: editDuplicate.values.postalCode,
               country: editDuplicate.values.country,
               broker: editDuplicate.values.broker,
+              clientProvenance: editDuplicate.values.clientProvenance,
               nextFollowUpDate: contact.nextFollowUpDate,
             }}
             incomingNotesCount={notes.filter((note) => note.contactId === contact.id).length}

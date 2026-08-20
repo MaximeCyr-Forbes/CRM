@@ -6,7 +6,7 @@ const contact: ServerContactRow = {
   phone: "514-555-1234", email: "jay@example.ca", birth_date: "1975-10-06",
   mortgage_renewal_date: null,
   civic_number: "", address: "", apartment: "", city: "", province: "", postal_code: "", country: "",
-  broker: "unassigned", client_type: null, priority: null, status: "active", source: "csv",
+  broker: "unassigned", client_type: null, client_provenance: null, priority: null, status: "active", source: "csv",
   last_contact_date: null, next_follow_up_date: null, google_calendar_event_id: null,
   google_calendar_event_broker: null, google_calendar_sync_status: "synced", google_calendar_last_error: null,
   created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",

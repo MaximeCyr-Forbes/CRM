@@ -1,4 +1,10 @@
-import type { ContactAddressInput, ContactBroker, ContactUpdate, DraftMergeSelection } from "../../../data/contact-types";
+import {
+  normalizeClientProvenance,
+  type ContactAddressInput,
+  type ContactBroker,
+  type ContactUpdate,
+  type DraftMergeSelection,
+} from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   mergeDraftIntoContact,
@@ -15,6 +21,12 @@ function isBroker(value: unknown): value is ContactBroker {
 function parseValues(value: unknown): ContactUpdate | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Record<string, unknown>;
+  let clientProvenance: ContactUpdate["clientProvenance"];
+  try {
+    clientProvenance = normalizeClientProvenance(data.clientProvenance);
+  } catch {
+    return null;
+  }
   if (
     typeof data.firstName !== "string" ||
     typeof data.lastName !== "string" ||
@@ -34,7 +46,7 @@ function parseValues(value: unknown): ContactUpdate | null {
     ![null, "hot", "warm", "cold"].includes(data.priority as null | string) ||
     !["active", "inactive"].includes(data.status as string)
   ) return null;
-  return data as ContactUpdate;
+  return { ...data, clientProvenance } as ContactUpdate;
 }
 
 export async function POST(request: Request) {

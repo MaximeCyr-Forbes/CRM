@@ -4,6 +4,8 @@ export const CONTACT_ASSIGNMENTS = [...CONTACT_BROKERS, "unassigned"] as const;
 export type ContactBroker = (typeof CONTACT_BROKERS)[number] | "unassigned";
 export type ContactSource = "manual" | "csv" | "vcard";
 export type ClientType = "buyer" | "seller" | "buyer_seller" | null;
+export const CLIENT_PROVENANCES = ["friend_family", "referral", "prospecting", "confia"] as const;
+export type ClientProvenance = (typeof CLIENT_PROVENANCES)[number] | null;
 export type ContactPriority = "hot" | "warm" | "cold" | null;
 export type ContactStatus = "active" | "inactive";
 export type CalendarSyncStatus = "synced" | "pending" | "error";
@@ -46,6 +48,7 @@ export type Contact = {
   country: string;
   broker: ContactBroker;
   clientType: ClientType;
+  clientProvenance: ClientProvenance;
   priority: ContactPriority;
   status: ContactStatus;
   source: ContactSource;
@@ -95,12 +98,14 @@ export type ContactUpdate = Pick<
   | "country"
   | "broker"
   | "clientType"
+  | "clientProvenance"
   | "priority"
   | "status"
 >;
 
 export type DraftMergeSelection = ContactDraft & {
   broker: ContactBroker;
+  clientProvenance: ClientProvenance;
   nextFollowUpDate: string | null;
   addresses?: ContactAddressInput[];
 };
@@ -122,6 +127,21 @@ export const CLIENT_TYPE_LABELS: Record<Exclude<ClientType, null>, string> = {
   seller: "Vendeur",
   buyer_seller: "Acheteur + vendeur",
 };
+
+export const CLIENT_PROVENANCE_LABELS: Record<Exclude<ClientProvenance, null>, string> = {
+  friend_family: "Ami/famille",
+  referral: "Référence",
+  prospecting: "Prospection",
+  confia: "Confia",
+};
+
+export function normalizeClientProvenance(value: unknown): ClientProvenance {
+  if (value === null || value === "") return null;
+  if (typeof value === "string" && CLIENT_PROVENANCES.includes(value as Exclude<ClientProvenance, null>)) {
+    return value as Exclude<ClientProvenance, null>;
+  }
+  throw new Error("Provenance du client invalide");
+}
 
 export const PRIORITY_LABELS: Record<Exclude<ContactPriority, null>, string> = {
   hot: "Chaud",

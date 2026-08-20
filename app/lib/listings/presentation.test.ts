@@ -63,6 +63,7 @@ function contact(id: string, firstName: string, lastName: string): Contact {
     country: "",
     broker: "maxime",
     clientType: null,
+    clientProvenance: null,
     priority: null,
     status: "active",
     source: "manual",

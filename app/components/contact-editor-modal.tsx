@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import {
   BROKER_LABELS,
+  CLIENT_PROVENANCES,
+  CLIENT_PROVENANCE_LABELS,
   CONTACT_ASSIGNMENTS,
   type Contact,
   type ContactUpdate,
@@ -41,6 +43,7 @@ export function ContactEditorModal({
     country: contact.country,
     broker: contact.broker,
     clientType: contact.clientType,
+    clientProvenance: contact.clientProvenance,
     priority: contact.priority,
     status: contact.status,
   });
@@ -89,6 +92,7 @@ export function ContactEditorModal({
           {showResponsibility && <>
             <label><span>Courtier responsable</span><select onChange={(event) => setValues((current) => ({ ...current, broker: event.target.value as ContactUpdate["broker"] }))} value={values.broker}>{CONTACT_ASSIGNMENTS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
             <label><span>Type de client</span><select onChange={(event) => setValues((current) => ({ ...current, clientType: event.target.value === "" ? null : event.target.value as ContactUpdate["clientType"] }))} value={values.clientType ?? ""}><option value="">Non renseigné</option><option value="buyer">Acheteur</option><option value="seller">Vendeur</option><option value="buyer_seller">Acheteur + vendeur</option></select></label>
+            <label><span>Provenance du client</span><select onChange={(event) => setValues((current) => ({ ...current, clientProvenance: event.target.value === "" ? null : event.target.value as ContactUpdate["clientProvenance"] }))} value={values.clientProvenance ?? ""}><option value="">Non renseignée</option>{CLIENT_PROVENANCES.map((provenance) => <option key={provenance} value={provenance}>{CLIENT_PROVENANCE_LABELS[provenance]}</option>)}</select></label>
             <label><span>Priorité</span><select onChange={(event) => setValues((current) => ({ ...current, priority: event.target.value === "" ? null : event.target.value as ContactUpdate["priority"] }))} value={values.priority ?? ""}><option value="">Non renseignée</option><option value="hot">Chaud</option><option value="warm">Tiède</option><option value="cold">Froid</option></select></label>
             <label><span>Statut</span><select onChange={(event) => setValues((current) => ({ ...current, status: event.target.value as ContactUpdate["status"] }))} value={values.status}><option value="active">Actif</option><option value="inactive">Inactif</option></select></label>
           </>}

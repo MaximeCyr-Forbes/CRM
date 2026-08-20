@@ -32,7 +32,7 @@ describe("édition rapide de la fiche contact", () => {
     expect(editor).toContain('mode === "coordinates"');
     expect(editor).toContain("MODIFIER LES COORDONNÉES");
     expect(editor).toContain("MODIFIER LA RESPONSABILITÉ");
-    for (const field of ["phone", "email", "birthDate", "mortgageRenewalDate", "civicNumber", "address", "apartment", "city", "province", "postalCode", "country", "broker", "clientType", "priority", "status"]) {
+    for (const field of ["phone", "email", "birthDate", "mortgageRenewalDate", "civicNumber", "address", "apartment", "city", "province", "postalCode", "country", "broker", "clientType", "clientProvenance", "priority", "status"]) {
       expect(editor).toContain(`value={values.${field}`);
     }
   });

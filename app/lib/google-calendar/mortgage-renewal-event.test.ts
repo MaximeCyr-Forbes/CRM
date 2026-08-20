@@ -18,6 +18,7 @@ const contact: ServerContactRow = {
   country: "",
   broker: "unassigned",
   client_type: null,
+  client_provenance: null,
   priority: null,
   status: "active",
   source: "manual",

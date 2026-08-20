@@ -4,9 +4,12 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useContacts } from "../contacts-context";
 import {
   BROKER_LABELS,
+  CLIENT_PROVENANCES,
+  CLIENT_PROVENANCE_LABELS,
   getContactName,
   type Contact,
   type ContactDraft,
+  type ClientProvenance,
 } from "../data/contact-types";
 import {
   LISTING_BROKERS,
@@ -87,6 +90,7 @@ export function ListingEditorModal({
   const [contactSearch, setContactSearch] = useState("");
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState<ContactDraft>(emptyOwnerDraft);
+  const [contactClientProvenance, setContactClientProvenance] = useState<ClientProvenance>(null);
   const [duplicateContact, setDuplicateContact] = useState<Contact | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [isCreatingContact, setIsCreatingContact] = useState(false);
@@ -128,6 +132,7 @@ export function ListingEditorModal({
   function closeContactForm() {
     setIsAddingContact(false);
     setContactDraft(emptyOwnerDraft());
+    setContactClientProvenance(null);
     setDuplicateContact(null);
     setContactError(null);
   }
@@ -159,6 +164,7 @@ export function ListingEditorModal({
         values.broker,
         values.ownerContactIds,
         addManualContact,
+        contactClientProvenance,
       );
       setValues((current) => ({
         ...current,
@@ -257,6 +263,7 @@ export function ListingEditorModal({
                   {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => (
                     <label className={field === "address" ? "listing-contact-field-wide" : ""} key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => { setContactDraft((current) => ({ ...current, [field]: event.target.value })); setDuplicateContact(null); }} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={contactDraft[field]} /></label>
                   ))}
+                  <label><span>Provenance du client</span><select onChange={(event) => setContactClientProvenance(event.target.value === "" ? null : event.target.value as ClientProvenance)} value={contactClientProvenance ?? ""}><option value="">Non renseignée</option>{CLIENT_PROVENANCES.map((provenance) => <option key={provenance} value={provenance}>{CLIENT_PROVENANCE_LABELS[provenance]}</option>)}</select></label>
                 </div>
                 {duplicateContact && <div className="listing-contact-duplicate" role="alert"><strong>CONTACT POSSIBLE DÉJÀ EXISTANT</strong><p>{getContactName(duplicateContact)}</p><small>{[duplicateContact.phone, duplicateContact.email].filter(Boolean).join(" · ")}</small><div><button onClick={() => useExistingContact(duplicateContact)} type="button">Utiliser ce contact</button><button disabled={isCreatingContact} onClick={() => void saveAndLinkContact(true)} type="button">Créer quand même</button></div></div>}
                 {contactError && <p className="listing-editor-error" role="alert">{contactError}</p>}

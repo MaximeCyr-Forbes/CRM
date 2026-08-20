@@ -24,6 +24,7 @@ function contact(values: Partial<Contact> = {}): Contact {
     lastContactDate: null, nextFollowUpDate: null, googleCalendarEventId: null, googleCalendarEventBroker: null,
     googleCalendarSyncStatus: "synced", googleCalendarLastError: null,
     addresses: [], createdAt: "2026-08-18T00:00:00.000Z", updatedAt: "2026-08-18T00:00:00.000Z", ...values,
+    clientProvenance: values.clientProvenance ?? null,
   };
 }
 

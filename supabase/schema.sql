@@ -53,6 +53,7 @@ create table if not exists public.contacts (
   country text not null default '',
   broker public.broker_assignment not null default 'unassigned',
   client_type public.client_type,
+  client_provenance text,
   priority public.contact_priority,
   status public.contact_status not null default 'active',
   source public.contact_source not null default 'manual',
@@ -73,6 +74,10 @@ create table if not exists public.contacts (
   constraint contacts_google_event_broker_check check (
     google_calendar_event_broker is null
     or google_calendar_event_broker <> 'unassigned'
+  ),
+  constraint contacts_client_provenance_check check (
+    client_provenance is null
+    or client_provenance in ('friend_family', 'referral', 'prospecting', 'confia')
   )
 );
 
@@ -86,6 +91,7 @@ alter table public.contacts
   add column if not exists country text not null default '',
   add column if not exists birth_date date,
   add column if not exists mortgage_renewal_date date,
+  add column if not exists client_provenance text,
   add column if not exists google_calendar_event_id text,
   add column if not exists google_calendar_event_broker public.broker_assignment,
   add column if not exists google_calendar_sync_status public.calendar_sync_status not null default 'synced',
@@ -96,6 +102,15 @@ do $$ begin
     add constraint contacts_google_event_broker_check check (
       google_calendar_event_broker is null
       or google_calendar_event_broker <> 'unassigned'
+    );
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter table public.contacts
+    add constraint contacts_client_provenance_check check (
+      client_provenance is null
+      or client_provenance in ('friend_family', 'referral', 'prospecting', 'confia')
     );
 exception when duplicate_object then null;
 end $$;

@@ -206,6 +206,7 @@ describe("compatibilité de la détection des doublons", () => {
       mortgageRenewalDate: "",
       broker: "france",
       clientType: null,
+      clientProvenance: null,
       priority: null,
       status: "active",
       source: "manual",
@@ -226,7 +227,7 @@ describe("compatibilité de la détection des doublons", () => {
   it("enrichit uniquement un doublon fort sans écraser une date différente", () => {
     const baseDraft = parseCSVContacts("Prénom;Nom;Email;Date de naissance\nFrançois;Béliveau;francois@example.ca;1975-10-06")[0];
     const existing = {
-      id: "contact-2", ...baseDraft, birthDate: "", broker: "france" as const, clientType: null, priority: null,
+      id: "contact-2", ...baseDraft, birthDate: "", broker: "france" as const, clientType: null, clientProvenance: null, priority: null,
       status: "active" as const, source: "manual" as const, lastContactDate: null, nextFollowUpDate: null,
       googleCalendarEventId: null, googleCalendarEventBroker: null, googleCalendarSyncStatus: "synced" as const,
       googleCalendarLastError: null, addresses: [], createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z",

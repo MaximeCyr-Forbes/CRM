@@ -54,6 +54,7 @@ function contact(values: Partial<Contact> & Pick<Contact, "id">): Contact {
     createdAt: "2026-08-19T20:00:00.000Z",
     updatedAt: "2026-08-19T20:00:00.000Z",
     ...values,
+    clientProvenance: values.clientProvenance ?? null,
   };
 }
 
@@ -179,8 +180,8 @@ describe("propriétaires liés", () => {
     const draft = { ...contacts[1], id: undefined } as unknown as ContactDraft;
     const saved = contact({ id: "00000000-0000-4000-8000-000000000003", firstName: "Pierre" });
     const addManualContact = vi.fn(async () => saved);
-    const result = await createAndLinkTransactionContact(draft, "france", [owner1], addManualContact);
-    expect(addManualContact).toHaveBeenCalledWith(draft, "france");
+    const result = await createAndLinkTransactionContact(draft, "france", [owner1], addManualContact, "prospecting");
+    expect(addManualContact).toHaveBeenCalledWith(draft, "france", { clientProvenance: "prospecting" });
     expect(result.contact.id).toBe(saved.id);
     expect(result.contactIds).toEqual([owner1, saved.id]);
   });

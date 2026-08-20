@@ -42,6 +42,7 @@ export type ServerContactRow = {
   country: string;
   broker: ContactBroker;
   client_type: Contact["clientType"];
+  client_provenance: Contact["clientProvenance"];
   priority: Contact["priority"];
   status: Contact["status"];
   source: ContactSource;
@@ -117,6 +118,7 @@ export function mapServerContact(row: ServerContactRow): Contact {
     country: row.country ?? "",
     broker: row.broker,
     clientType: row.client_type,
+    clientProvenance: row.client_provenance ?? null,
     priority: row.priority,
     status: row.status,
     source: row.source,

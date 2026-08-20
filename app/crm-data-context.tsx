@@ -44,6 +44,7 @@ type ContactRow = {
   country: string;
   broker: ContactBroker;
   client_type: Contact["clientType"];
+  client_provenance: Contact["clientProvenance"];
   priority: Contact["priority"];
   status: Contact["status"];
   source: ContactSource;
@@ -101,7 +102,10 @@ type CRMDataContextValue = {
   addManualContact: (
     draft: ContactDraft,
     broker: Exclude<ContactBroker, "unassigned">,
-    defaults?: { clientType?: Exclude<Contact["clientType"], null> },
+    defaults?: {
+      clientType?: Exclude<Contact["clientType"], null>;
+      clientProvenance?: Contact["clientProvenance"];
+    },
   ) => Promise<Contact>;
   importContacts: (
     entries: ReadonlyArray<ContactImportInput>,
@@ -179,6 +183,7 @@ function mapContact(row: ContactRow): Contact {
     country: row.country ?? "",
     broker: row.broker,
     clientType: row.client_type,
+    clientProvenance: row.client_provenance ?? null,
     priority: row.priority,
     status: row.status,
     source: row.source,
@@ -357,10 +362,19 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     (
       draft: ContactDraft,
       broker: Exclude<ContactBroker, "unassigned">,
-      defaults?: { clientType?: Exclude<Contact["clientType"], null> },
+      defaults?: {
+        clientType?: Exclude<Contact["clientType"], null>;
+        clientProvenance?: Contact["clientProvenance"];
+      },
     ) =>
       runWrite("Impossible d’enregistrer le contact.", async () => {
-        const data = await crmDataRequest<ContactRow>({ action: "addManualContact", draft, broker, clientType: defaults?.clientType ?? null });
+        const data = await crmDataRequest<ContactRow>({
+          action: "addManualContact",
+          draft,
+          broker,
+          clientType: defaults?.clientType ?? null,
+          clientProvenance: defaults?.clientProvenance ?? null,
+        });
         const contact = mapContact(data);
         setContacts((current) => [contact, ...current]);
         await Promise.all([
@@ -579,6 +593,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
             values: {
               ...values,
               clientType: contacts.find((contact) => contact.id === targetId)?.clientType ?? null,
+              clientProvenance: values.clientProvenance,
               priority: contacts.find((contact) => contact.id === targetId)?.priority ?? null,
               status: contacts.find((contact) => contact.id === targetId)?.status ?? "active",
             },

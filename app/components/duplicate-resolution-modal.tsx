@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Contact, ContactBroker, ContactDraft, DraftMergeSelection } from "../data/contact-types";
-import { BROKER_LABELS, CONTACT_BROKERS, getContactFullAddress, getContactName } from "../data/contact-types";
+import type { ClientProvenance, Contact, ContactBroker, ContactDraft, DraftMergeSelection } from "../data/contact-types";
+import { BROKER_LABELS, CLIENT_PROVENANCE_LABELS, CONTACT_BROKERS, getContactFullAddress, getContactName } from "../data/contact-types";
 import { getDefaultDraftMergeSources, mergeContactDraftFields, type DraftMergeSources } from "../lib/contact-merge";
 import {
   addressInputFromDraft,
@@ -20,6 +20,7 @@ import { formatMortgageRenewalDate } from "../lib/mortgage-renewal-date";
 
 type IncomingContact = ContactDraft & {
   broker: ContactBroker;
+  clientProvenance: ClientProvenance;
   nextFollowUpDate?: string | null;
 };
 
@@ -66,6 +67,9 @@ export function DuplicateResolutionModal({
   const [broker, setBroker] = useState<ContactBroker | null>(
     existing.broker === incoming.broker ? existing.broker : null,
   );
+  const [clientProvenance, setClientProvenance] = useState<ClientProvenance | undefined>(
+    existing.clientProvenance === incoming.clientProvenance ? existing.clientProvenance : undefined,
+  );
   const incomingFollowUp = incoming.nextFollowUpDate ?? null;
   const [followUpSource, setFollowUpSource] = useState<"existing" | "incoming">(
     existing.nextFollowUpDate ? "existing" : "incoming",
@@ -73,7 +77,7 @@ export function DuplicateResolutionModal({
   useDialogLifecycle(true, onCancel);
 
   const selection = useMemo<DraftMergeSelection | null>(() => {
-    if (!broker) return null;
+    if (!broker || clientProvenance === undefined) return null;
     const mergedDraft = mergeContactDraftFields(existing, incoming, sources);
     const selectedAddresses = setPrimaryAddress(
       availableAddresses.filter((address) => keptAddressKeys.has(normalizeAddressKey(address))),
@@ -83,11 +87,12 @@ export function DuplicateResolutionModal({
       ...mergedDraft,
       ...primaryAddressFields(selectedAddresses),
       broker,
+      clientProvenance,
       addresses: selectedAddresses,
       nextFollowUpDate:
         followUpSource === "existing" ? existing.nextFollowUpDate : incomingFollowUp,
     };
-  }, [availableAddresses, broker, existing, followUpSource, incoming, incomingFollowUp, keptAddressKeys, primaryAddressKey, sources]);
+  }, [availableAddresses, broker, clientProvenance, existing, followUpSource, incoming, incomingFollowUp, keptAddressKeys, primaryAddressKey, sources]);
 
   const rows: Array<{ key: keyof ContactDraft; label: string }> = [
     { key: "firstName", label: "Prénom" },
@@ -153,6 +158,16 @@ export function DuplicateResolutionModal({
                 </button>
               </div>
             ))}
+
+            <div className="merge-field-row">
+              <strong>Provenance du client</strong>
+              <button className={clientProvenance !== undefined && clientProvenance === existing.clientProvenance ? "merge-choice-active" : ""} onClick={() => setClientProvenance(existing.clientProvenance)} type="button">
+                <span>Existant</span>{existing.clientProvenance ? CLIENT_PROVENANCE_LABELS[existing.clientProvenance] : "Non renseignée"}
+              </button>
+              <button className={clientProvenance !== undefined && clientProvenance === incoming.clientProvenance ? "merge-choice-active" : ""} onClick={() => setClientProvenance(incoming.clientProvenance)} type="button">
+                <span>Nouveau</span>{incoming.clientProvenance ? CLIENT_PROVENANCE_LABELS[incoming.clientProvenance] : "Non renseignée"}
+              </button>
+            </div>
 
             <section className="merge-addresses" aria-labelledby="merge-addresses-title">
               <div className="merge-addresses-heading">

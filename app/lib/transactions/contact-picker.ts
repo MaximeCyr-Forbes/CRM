@@ -1,4 +1,4 @@
-import type { Contact, ContactBroker, ContactDraft } from "../../data/contact-types";
+import type { ClientProvenance, Contact, ContactBroker, ContactDraft } from "../../data/contact-types";
 import { findDuplicateMatches, normalizeName, searchableContactText } from "../contact-normalization";
 
 export const EMPTY_TRANSACTION_CONTACT_DRAFT: ContactDraft = {
@@ -46,8 +46,13 @@ export async function createAndLinkTransactionContact(
   draft: ContactDraft,
   broker: Exclude<ContactBroker, "unassigned">,
   contactIds: ReadonlyArray<string>,
-  addManualContact: (draft: ContactDraft, broker: Exclude<ContactBroker, "unassigned">) => Promise<Contact>,
+  addManualContact: (
+    draft: ContactDraft,
+    broker: Exclude<ContactBroker, "unassigned">,
+    defaults?: { clientProvenance?: ClientProvenance },
+  ) => Promise<Contact>,
+  clientProvenance: ClientProvenance = null,
 ) {
-  const contact = await addManualContact(draft, broker);
+  const contact = await addManualContact(draft, broker, { clientProvenance });
   return { contact, contactIds: linkTransactionContact(contactIds, contact.id) };
 }

@@ -9,6 +9,8 @@ import { useContacts } from "../contacts-context";
 import { useCRMData } from "../crm-data-context";
 import {
   BROKER_LABELS,
+  CLIENT_PROVENANCES,
+  CLIENT_PROVENANCE_LABELS,
   CONTACT_ASSIGNMENTS,
   CONTACT_BROKERS,
   PRIORITY_LABELS,
@@ -16,6 +18,7 @@ import {
   type Contact,
   type ContactBroker,
   type ContactDraft,
+  type ClientProvenance,
   type ContactAddressInput,
   type DraftMergeSelection,
 } from "../data/contact-types";
@@ -118,6 +121,7 @@ function syntheticContact(candidate: ImportCandidate, addressInputs?: ReadonlyAr
     ...candidate.draft,
     broker: "unassigned",
     clientType: null,
+    clientProvenance: null,
     priority: null,
     status: "active",
     source: "csv",
@@ -167,6 +171,7 @@ export default function ContactsPage() {
   const [search, setSearch] = useState("");
   const [manualStep, setManualStep] = useState<"closed" | "details" | "assignment">("closed");
   const [manualDraft, setManualDraft] = useState<ContactDraft>(emptyDraft);
+  const [manualClientProvenance, setManualClientProvenance] = useState<ClientProvenance>(null);
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualDuplicate, setManualDuplicate] = useState<PendingManualDuplicate | null>(null);
   const [importKind, setImportKind] = useState<ImportKind | null>(null);
@@ -214,6 +219,7 @@ export default function ContactsPage() {
   function closeManualModal() {
     setManualStep("closed");
     setManualDraft(emptyDraft);
+    setManualClientProvenance(null);
     setManualError(null);
   }
 
@@ -238,7 +244,7 @@ export default function ContactsPage() {
   }
 
   async function createManualContact(broker: (typeof CONTACT_BROKERS)[number]) {
-    const contact = await addManualContact(manualDraft, broker);
+    const contact = await addManualContact(manualDraft, broker, { clientProvenance: manualClientProvenance });
     closeManualModal();
     setManualDuplicate(null);
     showConfirmation(`${getContactName(contact)} a été ajouté.`);
@@ -482,6 +488,7 @@ export default function ContactsPage() {
         <header className="contact-modal-header"><div><p className="section-kicker">{manualStep === "details" ? "Nouveau contact" : "Attribution obligatoire"}</p><h2>{manualStep === "details" ? "Ajouter un contact" : "À QUI ATTRIBUER CE CONTACT ?"}</h2></div><button aria-label="Fermer" onClick={closeManualModal} type="button">×</button></header>
         {manualStep === "details" ? <form className="manual-contact-form" onSubmit={submitManualDetails}>
           {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={manualDraft[field]} /></label>)}
+          <label><span>Provenance du client</span><select onChange={(event) => setManualClientProvenance(event.target.value === "" ? null : event.target.value as ClientProvenance)} value={manualClientProvenance ?? ""}><option value="">Non renseignée</option>{CLIENT_PROVENANCES.map((provenance) => <option key={provenance} value={provenance}>{CLIENT_PROVENANCE_LABELS[provenance]}</option>)}</select></label>
           {manualError && <p className="import-error">{manualError}</p>}<button className="manual-contact-continue" type="submit">Continuer vers l’attribution</button>
         </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span aria-hidden="true">→</span></button>)}</div>}
       </section></div>}
@@ -530,9 +537,9 @@ export default function ContactsPage() {
         })}</div>
       </section></div>}
 
-      {manualDuplicate && <DuplicateResolutionModal existing={manualDuplicate.existing} existingNotesCount={notes.filter((note) => note.contactId === manualDuplicate.existing.id).length} incoming={{ ...manualDraft, broker: manualDuplicate.broker }} isSaving={isSaving} onCancel={() => { setManualDuplicate(null); setManualStep("details"); }} onKeepBoth={() => createManualContact(manualDuplicate.broker)} onMerge={mergeManual} reasons={manualDuplicate.reasons} />}
+      {manualDuplicate && <DuplicateResolutionModal existing={manualDuplicate.existing} existingNotesCount={notes.filter((note) => note.contactId === manualDuplicate.existing.id).length} incoming={{ ...manualDraft, broker: manualDuplicate.broker, clientProvenance: manualClientProvenance }} isSaving={isSaving} onCancel={() => { setManualDuplicate(null); setManualStep("details"); }} onKeepBoth={() => createManualContact(manualDuplicate.broker)} onMerge={mergeManual} reasons={manualDuplicate.reasons} />}
       {reviewedImportCandidate && pendingImport && <ImportContactReviewModal candidate={reviewedImportCandidate} existing={reviewedImportExisting} mapping={pendingImport.mapping} onClose={() => setReviewedImportId(null)} onNext={reviewedImportIndex < pendingImport.candidates.length - 1 ? () => setReviewedImportId(pendingImport.candidates[reviewedImportIndex + 1].id) : undefined} onPrevious={reviewedImportIndex > 0 ? () => setReviewedImportId(pendingImport.candidates[reviewedImportIndex - 1].id) : undefined} onSave={(draft) => updateImportCandidate(reviewedImportCandidate.id, draft)} position={reviewedImportIndex} source={pendingImport.source} total={pendingImport.candidates.length} />}
-      {activeImportCandidate && activeImportExisting && <DuplicateResolutionModal existing={activeImportExisting} existingNotesCount={notes.filter((note) => note.contactId === activeImportExisting.id).length} incoming={{ ...activeImportCandidate.draft, broker: "unassigned" }} isSaving={isSaving} onCancel={() => { resolveImport(activeImportCandidate.id, "skip"); setActiveImportDuplicateId(null); }} onKeepBoth={() => { resolveImport(activeImportCandidate.id, "keep"); setActiveImportDuplicateId(null); }} onMerge={mergeImport} reasons={activeImportReasons} />}
+      {activeImportCandidate && activeImportExisting && <DuplicateResolutionModal existing={activeImportExisting} existingNotesCount={notes.filter((note) => note.contactId === activeImportExisting.id).length} incoming={{ ...activeImportCandidate.draft, broker: "unassigned", clientProvenance: null }} isSaving={isSaving} onCancel={() => { resolveImport(activeImportCandidate.id, "skip"); setActiveImportDuplicateId(null); }} onKeepBoth={() => { resolveImport(activeImportCandidate.id, "keep"); setActiveImportDuplicateId(null); }} onMerge={mergeImport} reasons={activeImportReasons} />}
 
       {assignmentTarget && <div className="contact-modal-backdrop contact-modal-top"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog"><header className="contact-modal-header"><div><p className="section-kicker">{getContactName(assignmentTarget)}</p><h2>À QUI ATTRIBUER CE CONTACT ?</h2></div><button aria-label="Fermer" onClick={() => setAssignmentTargetId(null)} type="button">×</button></header><div className="broker-choice-grid">{CONTACT_ASSIGNMENTS.map((broker) => <button className={assignmentTarget.broker === broker ? "broker-choice-current" : ""} key={broker} onClick={() => void reassignContact(assignmentTarget, broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span>{assignmentTarget.broker === broker ? "✓" : "→"}</span></button>)}</div></section></div>}
       {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span>✓</span><strong>{confirmation}</strong></div>}
