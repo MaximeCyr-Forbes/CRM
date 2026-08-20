@@ -16,7 +16,12 @@ import type {
 import { normalizeContactDraft } from "../lib/contact-import";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
-const fieldLabels: Record<keyof ContactDraft, string> = {
+type ImportContactField = Exclude<keyof ContactDraft, "mortgageRenewalDate">;
+const importContactFields = CONTACT_DRAFT_FIELDS.filter(
+  (field): field is ImportContactField => field !== "mortgageRenewalDate",
+);
+
+const fieldLabels: Record<ImportContactField, string> = {
   firstName: "Prénom",
   lastName: "Nom",
   phone: "Téléphone",
@@ -37,7 +42,7 @@ const statusLabels: Record<ImportCandidate["status"], string> = {
   incomplete: "Incomplet",
 };
 
-function fieldMapping(mapping: CSVImportMapping | null, field: keyof ContactDraft): CSVColumnMatch | null {
+function fieldMapping(mapping: CSVImportMapping | null, field: ImportContactField): CSVColumnMatch | null {
   if (!mapping) return null;
   if (field === "firstName" || field === "lastName") return mapping[field] ?? mapping.fullName;
   return mapping[field];
@@ -126,7 +131,7 @@ export function ImportContactReviewModal({
         <form className="import-contact-review-form" onSubmit={submit}>
           <div className="import-contact-review-section-heading"><div><p>INFORMATION IMPORTÉE</p><strong>Corrigez uniquement si nécessaire.</strong></div>{saved && <span>Corrections enregistrées ✓</span>}</div>
           <div className="import-contact-review-fields">
-            {CONTACT_DRAFT_FIELDS.map((field) => {
+            {importContactFields.map((field) => {
               const detected = fieldMapping(mapping, field);
               const hasValue = values[field].trim().length > 0;
               const confidence = detected?.confidence ?? (source === "vcard" && hasValue ? 0.95 : 0);

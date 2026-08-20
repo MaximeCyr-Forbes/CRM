@@ -34,6 +34,7 @@ type ContactRow = {
   phone: string;
   email: string;
   birth_date: string | null;
+  mortgage_renewal_date: string | null;
   civic_number: string;
   address: string;
   apartment: string;
@@ -168,6 +169,7 @@ function mapContact(row: ContactRow): Contact {
     phone: row.phone,
     email: row.email,
     birthDate: row.birth_date ?? "",
+    mortgageRenewalDate: row.mortgage_renewal_date ?? "",
     civicNumber: row.civic_number ?? "",
     address: row.address ?? "",
     apartment: row.apartment ?? "",
@@ -284,6 +286,11 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 40, retryErrors: false }),
       }).catch(() => undefined);
+      void fetch("/api/google-calendar/mortgage-renewals/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 40, retryErrors: false }),
+      }).catch(() => undefined);
       return;
     }
     setContacts([]);
@@ -335,6 +342,17 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const requestMortgageRenewalSync = useCallback(async (contactIds: ReadonlyArray<string>) => {
+    const uniqueIds = [...new Set(contactIds)];
+    for (let index = 0; index < uniqueIds.length; index += 25) {
+      await fetch("/api/google-calendar/mortgage-renewals/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactIds: uniqueIds.slice(index, index + 25), limit: 100 }),
+      }).catch(() => undefined);
+    }
+  }, []);
+
   const addManualContact = useCallback(
     (
       draft: ContactDraft,
@@ -345,10 +363,13 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         const data = await crmDataRequest<ContactRow>({ action: "addManualContact", draft, broker, clientType: defaults?.clientType ?? null });
         const contact = mapContact(data);
         setContacts((current) => [contact, ...current]);
-        await requestBirthdaySync([contact.id]);
+        await Promise.all([
+          requestBirthdaySync([contact.id]),
+          requestMortgageRenewalSync([contact.id]),
+        ]);
         return contact;
       }),
-    [requestBirthdaySync, runWrite],
+    [requestBirthdaySync, requestMortgageRenewalSync, runWrite],
   );
 
   const importContacts = useCallback(
@@ -524,9 +545,12 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           if (sync?.contact) updated = sync.contact;
         }
         if (currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId]);
+        if (currentContact.mortgageRenewalDate !== updated.mortgageRenewalDate) {
+          await requestMortgageRenewalSync([contactId]);
+        }
         return updated;
       }),
-    [contacts, requestBirthdaySync, requestCalendarSync, runWrite],
+    [contacts, requestBirthdaySync, requestCalendarSync, requestMortgageRenewalSync, runWrite],
   );
 
   const deleteContact = useCallback(

@@ -36,6 +36,7 @@ export type Contact = {
   phone: string;
   email: string;
   birthDate: string;
+  mortgageRenewalDate: string;
   civicNumber: string;
   address: string;
   apartment: string;
@@ -65,6 +66,7 @@ export const CONTACT_DRAFT_FIELDS = [
   "phone",
   "email",
   "birthDate",
+  "mortgageRenewalDate",
   "civicNumber",
   "address",
   "apartment",
@@ -83,6 +85,7 @@ export type ContactUpdate = Pick<
   | "phone"
   | "email"
   | "birthDate"
+  | "mortgageRenewalDate"
   | "civicNumber"
   | "address"
   | "apartment"

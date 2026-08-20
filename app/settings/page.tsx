@@ -10,7 +10,13 @@ import { BROKER_LABELS } from "../data/contact-types";
 
 const emptyConnections: CalendarConnectionStatus[] = (
   ["france", "maxime", "sandrine"] as const
-).map((broker) => ({ broker, connected: false, email: null, birthdays: { synced: 0, pending: 0, error: 0 } }));
+).map((broker) => ({
+  broker,
+  connected: false,
+  email: null,
+  birthdays: { synced: 0, pending: 0, error: 0 },
+  mortgageRenewals: { synced: 0, pending: 0, error: 0 },
+}));
 
 export default function SettingsPage() {
   const { retry: reloadContacts } = useCRMData();

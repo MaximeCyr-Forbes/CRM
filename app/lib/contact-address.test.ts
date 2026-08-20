@@ -10,6 +10,7 @@ function draft(values: Partial<ContactDraft> = {}): ContactDraft {
     phone: "",
     email: "",
     birthDate: "",
+    mortgageRenewalDate: "",
     civicNumber: "",
     address: "",
     apartment: "",

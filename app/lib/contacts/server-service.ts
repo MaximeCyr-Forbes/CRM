@@ -7,9 +7,12 @@ import type {
 import {
   deleteCalendarEventForContact,
   deleteBirthdayEventsForContact,
+  deleteMortgageRenewalEventsForContact,
   queueContactBirthdays,
+  queueContactMortgageRenewals,
   mapServerContact,
   syncContactFollowUp,
+  syncContactMortgageRenewals,
   type ServerContactRow,
 } from "../google-calendar/service";
 import { getSupabaseAdmin } from "../supabase/server";
@@ -95,11 +98,12 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
 
   try {
     await deleteBirthdayEventsForContact(input.sourceId);
+    await deleteMortgageRenewalEventsForContact(input.sourceId);
     for (const contact of events) {
       await deleteCalendarEventForContact(mapServerContact(contact));
     }
 
-    const addressRpc = await getSupabaseAdmin().rpc("merge_contacts_with_birthdays", {
+    const addressRpc = await getSupabaseAdmin().rpc("merge_contacts_with_contact_dates", {
       p_target_id: input.targetId,
       p_source_id: input.sourceId,
       p_addresses: addressRpcPayload(input.addresses),
@@ -108,6 +112,7 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       p_phone: input.values.phone,
       p_email: input.values.email,
       p_birth_date: input.values.birthDate || null,
+      p_mortgage_renewal_date: input.values.mortgageRenewalDate || null,
       p_civic_number: input.values.civicNumber,
       p_address: input.values.address,
       p_apartment: input.values.apartment,
@@ -128,6 +133,7 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
     const data = addressRpc.data;
 
     const merged = mapServerContact((Array.isArray(data) ? data[0] : data) as ServerContactRow);
+    await syncContactMortgageRenewals({ contactIds: [merged.id], limit: 3 });
     if (merged.nextFollowUpDate) {
       const sync = await syncContactFollowUp(merged.id);
       return withAddressHistory(sync.contact ?? merged);
@@ -141,6 +147,8 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       syncContactFollowUp(input.sourceId),
       queueContactBirthdays(input.targetId),
       queueContactBirthdays(input.sourceId),
+      queueContactMortgageRenewals(input.targetId),
+      queueContactMortgageRenewals(input.sourceId),
     ]);
     throw error;
   }
@@ -164,6 +172,7 @@ export async function mergeDraftIntoContact(
   });
   if (!atomic.error) {
     const merged = mapServerContact((Array.isArray(atomic.data) ? atomic.data[0] : atomic.data) as ServerContactRow);
+    await syncContactMortgageRenewals({ contactIds: [targetId], limit: 3 });
     if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
       const sync = await syncContactFollowUp(targetId);
       return withAddressHistory(sync.contact ?? merged);
@@ -179,6 +188,7 @@ export async function mergeDraftIntoContact(
       phone: values.phone.trim(),
       email: values.email.trim(),
       birth_date: values.birthDate || null,
+      mortgage_renewal_date: values.mortgageRenewalDate || null,
       civic_number: values.civicNumber.trim().normalize("NFC"),
       address: values.address.trim().normalize("NFC"),
       apartment: values.apartment.trim().normalize("NFC"),
@@ -207,6 +217,7 @@ export async function mergeDraftIntoContact(
   if (auditError) throw auditError;
 
   const merged = mapServerContact(data as ServerContactRow);
+  await syncContactMortgageRenewals({ contactIds: [targetId], limit: 3 });
   if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
     const sync = await syncContactFollowUp(targetId);
     return withAddressHistory(sync.contact ?? merged);
@@ -221,6 +232,7 @@ export async function deleteContactAndCalendar(contactId: string) {
     await deleteCalendarEventForContact(mapped);
   }
   await deleteBirthdayEventsForContact(contactId);
+  await deleteMortgageRenewalEventsForContact(contactId);
 
   const { error } = await getSupabaseAdmin().from("contacts").delete().eq("id", contactId);
   if (error) {

@@ -53,6 +53,7 @@ function contact(id: string, firstName: string, lastName: string): Contact {
     phone: "",
     email: "",
     birthDate: "",
+    mortgageRenewalDate: "",
     civicNumber: "",
     address: "",
     apartment: "",

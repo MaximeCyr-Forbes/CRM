@@ -32,7 +32,7 @@ describe("édition rapide de la fiche contact", () => {
     expect(editor).toContain('mode === "coordinates"');
     expect(editor).toContain("MODIFIER LES COORDONNÉES");
     expect(editor).toContain("MODIFIER LA RESPONSABILITÉ");
-    for (const field of ["phone", "email", "birthDate", "civicNumber", "address", "apartment", "city", "province", "postalCode", "country", "broker", "clientType", "priority", "status"]) {
+    for (const field of ["phone", "email", "birthDate", "mortgageRenewalDate", "civicNumber", "address", "apartment", "city", "province", "postalCode", "country", "broker", "clientType", "priority", "status"]) {
       expect(editor).toContain(`value={values.${field}`);
     }
   });
@@ -45,6 +45,7 @@ describe("édition rapide de la fiche contact", () => {
     expect(dataContext).toContain("setPrimaryAddress(");
     expect(dataContext).toContain("if (brokerChanged && (updated.nextFollowUpDate || updated.googleCalendarEventId))");
     expect(dataContext).toContain("if (currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId])");
+    expect(dataContext).toContain("currentContact.mortgageRenewalDate !== updated.mortgageRenewalDate");
   });
 });
 

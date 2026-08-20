@@ -31,6 +31,7 @@ function contact(values: Partial<Contact> & Pick<Contact, "id">): Contact {
     phone: "514-555-1234",
     email: "jean@example.com",
     birthDate: "",
+    mortgageRenewalDate: "",
     civicNumber: "1403",
     address: "rue de Normandie",
     apartment: "",

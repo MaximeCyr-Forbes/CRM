@@ -31,6 +31,7 @@ export function ContactEditorModal({
     phone: contact.phone,
     email: contact.email,
     birthDate: contact.birthDate,
+    mortgageRenewalDate: contact.mortgageRenewalDate,
     civicNumber: contact.civicNumber,
     address: contact.address,
     apartment: contact.apartment,
@@ -76,6 +77,7 @@ export function ContactEditorModal({
             <label><span>Téléphone</span><input onChange={(event) => setValues((current) => ({ ...current, phone: event.target.value }))} type="tel" value={values.phone} /></label>
             <label><span>Courriel</span><input onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))} type="email" value={values.email} /></label>
             <label><span>Date de naissance / anniversaire</span><input max={new Date().toISOString().slice(0, 10)} onChange={(event) => setValues((current) => ({ ...current, birthDate: event.target.value }))} type="date" value={values.birthDate} /></label>
+            <label><span>Date de renouvellement hypothécaire</span><input onChange={(event) => setValues((current) => ({ ...current, mortgageRenewalDate: event.target.value }))} type="date" value={values.mortgageRenewalDate} /></label>
             <label><span>Numéro civique</span><input onChange={(event) => setValues((current) => ({ ...current, civicNumber: event.target.value }))} value={values.civicNumber} /></label>
             <label><span>Rue</span><input onChange={(event) => setValues((current) => ({ ...current, address: event.target.value }))} value={values.address} /></label>
             <label><span>Appartement / unité</span><input onChange={(event) => setValues((current) => ({ ...current, apartment: event.target.value }))} value={values.apartment} /></label>

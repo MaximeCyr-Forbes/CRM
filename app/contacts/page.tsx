@@ -69,12 +69,13 @@ type PendingManualDuplicate = {
 };
 
 const emptyDraft: ContactDraft = {
-  firstName: "", lastName: "", phone: "", email: "", birthDate: "",
+  firstName: "", lastName: "", phone: "", email: "", birthDate: "", mortgageRenewalDate: "",
   civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "",
 };
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom", lastName: "Nom", phone: "Téléphone", email: "Email",
   birthDate: "Date de naissance",
+  mortgageRenewalDate: "Date de renouvellement hypothécaire",
   civicNumber: "Numéro civique", address: "Rue", apartment: "Appartement", city: "Ville", province: "Province",
   postalCode: "Code postal", country: "Pays",
 };
@@ -480,7 +481,7 @@ export default function ContactsPage() {
       {manualStep !== "closed" && <div className="contact-modal-backdrop"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">
         <header className="contact-modal-header"><div><p className="section-kicker">{manualStep === "details" ? "Nouveau contact" : "Attribution obligatoire"}</p><h2>{manualStep === "details" ? "Ajouter un contact" : "À QUI ATTRIBUER CE CONTACT ?"}</h2></div><button aria-label="Fermer" onClick={closeManualModal} type="button">×</button></header>
         {manualStep === "details" ? <form className="manual-contact-form" onSubmit={submitManualDetails}>
-          {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" ? "date" : "text"} value={manualDraft[field]} /></label>)}
+          {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={manualDraft[field]} /></label>)}
           {manualError && <p className="import-error">{manualError}</p>}<button className="manual-contact-continue" type="submit">Continuer vers l’attribution</button>
         </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span aria-hidden="true">→</span></button>)}</div>}
       </section></div>}

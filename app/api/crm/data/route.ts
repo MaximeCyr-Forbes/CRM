@@ -8,6 +8,7 @@ import {
   attachAddressesWithFallback,
 } from "../../../lib/contacts/attach-addresses";
 import { normalizeBirthDate } from "../../../lib/birth-date";
+import { normalizeMortgageRenewalDate } from "../../../lib/mortgage-renewal-date";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,14 @@ function birthDateValue(value: unknown) {
   if (!raw) return null;
   const normalized = normalizeBirthDate(raw);
   if (!normalized) throw new Error("Date de naissance invalide");
+  return normalized;
+}
+
+function mortgageRenewalDateValue(value: unknown) {
+  const raw = textValue(value);
+  if (!raw) return null;
+  const normalized = normalizeMortgageRenewalDate(raw);
+  if (!normalized) throw new Error("Date de renouvellement hypothécaire invalide");
   return normalized;
 }
 
@@ -196,6 +205,7 @@ export async function POST(request: Request) {
         phone: textValue(body.draft?.phone),
         email: textValue(body.draft?.email),
         birth_date: birthDateValue(body.draft?.birthDate),
+        mortgage_renewal_date: mortgageRenewalDateValue(body.draft?.mortgageRenewalDate),
         civic_number: textValue(body.draft?.civicNumber),
         address: textValue(body.draft?.address),
         apartment: textValue(body.draft?.apartment),
@@ -225,7 +235,11 @@ export async function POST(request: Request) {
       for (let index = 0; index < body.entries.length; index += 250) {
         const chunk = body.entries.slice(index, index + 250);
         const rpcPayload = chunk.map((entry) => ({
-          contact: { ...entry.draft, birthDate: birthDateValue(entry.draft?.birthDate) ?? "" },
+          contact: {
+            ...entry.draft,
+            birthDate: birthDateValue(entry.draft?.birthDate) ?? "",
+            mortgageRenewalDate: "",
+          },
           addresses: (entry.addresses ?? []).map(addressPayload),
         }));
         const rpcResult = await client.rpc("import_contacts_with_addresses", { p_entries: rpcPayload, p_source: source });
@@ -242,6 +256,7 @@ export async function POST(request: Request) {
           phone: textValue(draft.phone),
           email: textValue(draft.email),
           birth_date: birthDateValue(draft.birthDate),
+          mortgage_renewal_date: null,
           civic_number: textValue(draft.civicNumber),
           address: textValue(draft.address),
           apartment: textValue(draft.apartment),
@@ -323,6 +338,7 @@ export async function POST(request: Request) {
         phone: textValue(values.phone),
         email: textValue(values.email),
         birth_date: birthDateValue(values.birthDate),
+        mortgage_renewal_date: mortgageRenewalDateValue(values.mortgageRenewalDate),
         civic_number: textValue(values.civicNumber),
         address: textValue(values.address),
         apartment: textValue(values.apartment),

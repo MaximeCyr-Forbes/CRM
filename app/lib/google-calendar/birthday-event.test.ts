@@ -4,6 +4,7 @@ import { buildBirthdayEventPayload, nextBirthdayOccurrence, type ServerContactRo
 const contact: ServerContactRow = {
   id: "11111111-1111-4111-8111-111111111111", first_name: "Jay", last_name: "Jugbandhan",
   phone: "514-555-1234", email: "jay@example.ca", birth_date: "1975-10-06",
+  mortgage_renewal_date: null,
   civic_number: "", address: "", apartment: "", city: "", province: "", postal_code: "", country: "",
   broker: "unassigned", client_type: null, priority: null, status: "active", source: "csv",
   last_contact_date: null, next_follow_up_date: null, google_calendar_event_id: null,

@@ -21,6 +21,7 @@ function parseValues(value: unknown): ContactUpdate | null {
     typeof data.phone !== "string" ||
     typeof data.email !== "string" ||
     typeof data.birthDate !== "string" ||
+    typeof data.mortgageRenewalDate !== "string" ||
     typeof data.civicNumber !== "string" ||
     typeof data.address !== "string" ||
     typeof data.apartment !== "string" ||

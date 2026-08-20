@@ -33,6 +33,7 @@ const contactDraftLabels: Record<keyof ContactDraft, string> = {
   phone: "Téléphone",
   email: "Courriel",
   birthDate: "Date de naissance",
+  mortgageRenewalDate: "Date de renouvellement hypothécaire",
   civicNumber: "Numéro civique",
   address: "Rue",
   apartment: "Appartement",
@@ -176,7 +177,7 @@ export function TransactionEditorModal({
             </div>
             {isAddingContact && <div className="transaction-new-contact">
               <div className="transaction-new-contact-heading"><div><p className="section-kicker">Contact CRM</p><h3>NOUVEAU CONTACT</h3></div><button aria-label="Annuler l’ajout du contact" onClick={closeContactForm} type="button">×</button></div>
-              <div className="transaction-new-contact-fields">{(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label className={field === "address" ? "transaction-contact-field-wide" : ""} key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => { setContactDraft((current) => ({ ...current, [field]: event.target.value })); setDuplicateContact(null); }} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" ? "date" : "text"} value={contactDraft[field]} /></label>)}</div>
+              <div className="transaction-new-contact-fields">{(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label className={field === "address" ? "transaction-contact-field-wide" : ""} key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => { setContactDraft((current) => ({ ...current, [field]: event.target.value })); setDuplicateContact(null); }} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={contactDraft[field]} /></label>)}</div>
               {duplicateContact && <div className="transaction-contact-duplicate" role="alert"><strong>CONTACT POSSIBLE DÉJÀ EXISTANT</strong><p>{getContactName(duplicateContact)}</p><small>{[duplicateContact.phone, duplicateContact.email].filter(Boolean).join(" · ")}</small><div><button onClick={() => useExistingContact(duplicateContact)} type="button">Utiliser ce contact</button><button disabled={isCreatingContact} onClick={() => void saveAndLinkContact(true)} type="button">Créer quand même</button></div></div>}
               {contactError && <p className="transaction-form-error" role="alert">{contactError}</p>}
               <div className="transaction-new-contact-actions"><button onClick={closeContactForm} type="button">Annuler</button><button className="transaction-submit" disabled={isCreatingContact} onClick={() => void saveAndLinkContact()} type="button">{isCreatingContact ? "Enregistrement…" : "Enregistrer et lier"}</button></div>

@@ -34,6 +34,7 @@ import { TRANSACTION_STATUS_LABELS, TRANSACTION_TYPE_LABELS } from "../../data/t
 import { useTransactions } from "../../transactions-context";
 import { getFollowUpQueue } from "../../lib/follow-up-queue";
 import { formatBirthDate } from "../../lib/birth-date";
+import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
 
 type NoteEditorState = {
   mode: "create" | "edit";
@@ -76,6 +77,7 @@ export default function ContactProfilePage() {
   const [noteToDelete, setNoteToDelete] = useState<ClientNote | null>(null);
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
   const [birthdaySync, setBirthdaySync] = useState({ synced: 0, pending: 0, error: 0 });
+  const [mortgageRenewalSync, setMortgageRenewalSync] = useState({ synced: 0, pending: 0, error: 0 });
   const contact = contacts.find((item) => item.id === params.contactId);
   const contactName = contact ? getContactName(contact) : "";
   const followUpDate = contact ? getFollowUpDate(contact.id) : null;
@@ -103,6 +105,25 @@ export default function ContactProfilePage() {
     }
   }
 
+  async function refreshMortgageRenewalSyncStatus(contactId: string, hasDate: boolean) {
+    if (!hasDate) {
+      const empty = { synced: 0, pending: 0, error: 0 };
+      setMortgageRenewalSync(empty);
+      return empty;
+    }
+    try {
+      const response = await fetch(`/api/google-calendar/mortgage-renewals/sync?contactId=${encodeURIComponent(contactId)}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("État indisponible");
+      const counts = (await response.json()) as { synced: number; pending: number; error: number };
+      setMortgageRenewalSync(counts);
+      return counts;
+    } catch {
+      const pending = { synced: 0, pending: 3, error: 0 };
+      setMortgageRenewalSync(pending);
+      return pending;
+    }
+  }
+
   useEffect(() => {
     if (!isLoading && !error && !contact) {
       router.replace("/contacts");
@@ -118,6 +139,10 @@ export default function ContactProfilePage() {
   useEffect(() => {
     if (contact) void refreshBirthdaySyncStatus(contact.id, Boolean(contact.birthDate));
   }, [contact?.birthDate, contact?.id]);
+
+  useEffect(() => {
+    if (contact) void refreshMortgageRenewalSyncStatus(contact.id, Boolean(contact.mortgageRenewalDate));
+  }, [contact?.id, contact?.mortgageRenewalDate]);
 
   useEffect(() => {
     if (!confirmation) {
@@ -279,13 +304,21 @@ export default function ContactProfilePage() {
       return;
     }
     await updateContact(params.contactId, values);
-    const birthday = await refreshBirthdaySyncStatus(params.contactId, Boolean(values.birthDate));
+    const [birthday, mortgageRenewal] = await Promise.all([
+      refreshBirthdaySyncStatus(params.contactId, Boolean(values.birthDate)),
+      refreshMortgageRenewalSyncStatus(params.contactId, Boolean(values.mortgageRenewalDate)),
+    ]);
     setContactEditorMode(null);
     setConfirmation({
       title: "Contact modifié",
-      detail: values.birthDate
-        ? `Anniversaire synchronisé dans ${birthday.synced} agenda${birthday.synced > 1 ? "s" : ""} · ${birthday.pending} en attente${birthday.error ? ` · ${birthday.error} erreur` : ""}`
-        : "Aucune date d’anniversaire",
+      detail: [
+        values.birthDate
+          ? `Anniversaire : ${birthday.synced} synchronisé${birthday.synced > 1 ? "s" : ""} · ${birthday.pending} en attente${birthday.error ? ` · ${birthday.error} erreur` : ""}`
+          : "Aucune date d’anniversaire",
+        values.mortgageRenewalDate
+          ? `Renouvellement : ${mortgageRenewal.synced} synchronisé${mortgageRenewal.synced > 1 ? "s" : ""} · ${mortgageRenewal.pending} en attente${mortgageRenewal.error ? ` · ${mortgageRenewal.error} erreur` : ""}`
+          : "Aucun renouvellement hypothécaire",
+      ].join(" · "),
     });
   }
 
@@ -319,6 +352,7 @@ export default function ContactProfilePage() {
         phone: selection.phone,
         email: selection.email,
         birthDate: selection.birthDate,
+        mortgageRenewalDate: selection.mortgageRenewalDate,
         civicNumber: selection.civicNumber,
         address: selection.address,
         apartment: selection.apartment,
@@ -408,6 +442,17 @@ export default function ContactProfilePage() {
               <span>Anniversaire</span>
               <strong>{formatBirthDate(contact.birthDate)}</strong>
               <small>{!contact.birthDate ? "Aucune date d’anniversaire" : birthdaySync.synced === 3 ? "Anniversaire synchronisé dans 3 agendas" : `${birthdaySync.synced} agenda${birthdaySync.synced > 1 ? "s" : ""} synchronisé${birthdaySync.synced > 1 ? "s" : ""} · ${birthdaySync.pending} en attente${birthdaySync.error ? ` · ${birthdaySync.error} erreur` : ""}`}</small>
+            </div>
+            <div className="info-group">
+              <span>Renouvellement hypothécaire</span>
+              <strong>{formatMortgageRenewalDate(contact.mortgageRenewalDate)}</strong>
+              {contact.mortgageRenewalDate && (
+                <small>
+                  {mortgageRenewalSync.synced === 3
+                    ? "3 agendas synchronisés ✓"
+                    : `${mortgageRenewalSync.synced} agenda${mortgageRenewalSync.synced > 1 ? "s" : ""} synchronisé${mortgageRenewalSync.synced > 1 ? "s" : ""} · ${mortgageRenewalSync.pending} en attente${mortgageRenewalSync.error ? ` · ${mortgageRenewalSync.error} erreur${mortgageRenewalSync.error > 1 ? "s" : ""}` : ""}`}
+                </small>
+              )}
             </div>
             <div className="info-group profile-address-group">
               <span>Adresse résidentielle</span>
@@ -544,6 +589,7 @@ export default function ContactProfilePage() {
               phone: editDuplicate.values.phone,
               email: editDuplicate.values.email,
               birthDate: editDuplicate.values.birthDate,
+              mortgageRenewalDate: editDuplicate.values.mortgageRenewalDate,
               civicNumber: editDuplicate.values.civicNumber,
               address: editDuplicate.values.address,
               apartment: editDuplicate.values.apartment,

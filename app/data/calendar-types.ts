@@ -7,6 +7,7 @@ export type CalendarConnectionStatus = {
   connected: boolean;
   email: string | null;
   birthdays: { synced: number; pending: number; error: number };
+  mortgageRenewals: { synced: number; pending: number; error: number };
 };
 
 export type BirthdaySyncSummary = {
@@ -15,6 +16,8 @@ export type BirthdaySyncSummary = {
   error: number;
   processed: number;
 };
+
+export type MortgageRenewalSyncSummary = BirthdaySyncSummary;
 
 export type CalendarSyncResult = {
   status: CalendarSyncStatus;

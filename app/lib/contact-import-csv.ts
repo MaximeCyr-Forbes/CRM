@@ -871,6 +871,7 @@ export function parseCSVContactsWithMapping(text: string, mapping: CSVImportMapp
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(mapping.email ? row[mapping.email.index] ?? "" : ""),
       birthDate: normalizeBirthDate(mapping.birthDate ? row[mapping.birthDate.index] ?? "" : "", { order: birthDateOrder }),
+      mortgageRenewalDate: "",
       civicNumber: normalizeImportedValue(mapping.civicNumber ? row[mapping.civicNumber.index] ?? "" : ""),
       address: normalizeImportedValue(mapping.address ? row[mapping.address.index] ?? "" : ""),
       apartment: normalizeImportedValue(mapping.apartment ? row[mapping.apartment.index] ?? "" : ""),

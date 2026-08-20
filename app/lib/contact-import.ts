@@ -53,7 +53,14 @@ export function decodeContactImportBuffer(buffer: ArrayBuffer) {
 
 export function normalizeContactDraft(draft: ContactDraft): ContactDraft {
   return Object.fromEntries(
-    CONTACT_DRAFT_FIELDS.map((field) => [field, field === "birthDate" ? normalizeBirthDate(draft[field]) : normalizeImportedValue(draft[field])]),
+    CONTACT_DRAFT_FIELDS.map((field) => [
+      field,
+      field === "mortgageRenewalDate"
+        ? ""
+        : field === "birthDate"
+          ? normalizeBirthDate(draft[field])
+          : normalizeImportedValue(draft[field]),
+    ]),
   ) as ContactDraft;
 }
 
@@ -243,6 +250,7 @@ export function parseVCardContacts(text: string): ContactDraft[] {
       phone: normalizeImportedValue(phone),
       email: normalizeImportedValue(email),
       birthDate,
+      mortgageRenewalDate: "",
       civicNumber: normalizeImportedValue(civicNumber),
       address: normalizeImportedValue(address),
       apartment: normalizeImportedValue(apartment),

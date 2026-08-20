@@ -39,6 +39,7 @@ const contactDraftLabels: Record<keyof ContactDraft, string> = {
   phone: "Téléphone",
   email: "Courriel",
   birthDate: "Date de naissance",
+  mortgageRenewalDate: "Date de renouvellement hypothécaire",
   civicNumber: "Numéro civique",
   address: "Rue",
   apartment: "Appartement",
@@ -55,6 +56,7 @@ function emptyOwnerDraft(): ContactDraft {
     phone: "",
     email: "",
     birthDate: "",
+    mortgageRenewalDate: "",
     civicNumber: "",
     address: "",
     apartment: "",
@@ -253,7 +255,7 @@ export function ListingEditorModal({
                 <div className="listing-new-contact-heading"><div><p className="section-kicker">Contact CRM permanent</p><h3>NOUVEAU PROPRIÉTAIRE</h3></div><button aria-label="Annuler l’ajout du contact" onClick={closeContactForm} type="button">×</button></div>
                 <div className="listing-new-contact-fields">
                   {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => (
-                    <label className={field === "address" ? "listing-contact-field-wide" : ""} key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => { setContactDraft((current) => ({ ...current, [field]: event.target.value })); setDuplicateContact(null); }} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" ? "date" : "text"} value={contactDraft[field]} /></label>
+                    <label className={field === "address" ? "listing-contact-field-wide" : ""} key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => { setContactDraft((current) => ({ ...current, [field]: event.target.value })); setDuplicateContact(null); }} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={contactDraft[field]} /></label>
                   ))}
                 </div>
                 {duplicateContact && <div className="listing-contact-duplicate" role="alert"><strong>CONTACT POSSIBLE DÉJÀ EXISTANT</strong><p>{getContactName(duplicateContact)}</p><small>{[duplicateContact.phone, duplicateContact.email].filter(Boolean).join(" · ")}</small><div><button onClick={() => useExistingContact(duplicateContact)} type="button">Utiliser ce contact</button><button disabled={isCreatingContact} onClick={() => void saveAndLinkContact(true)} type="button">Créer quand même</button></div></div>}

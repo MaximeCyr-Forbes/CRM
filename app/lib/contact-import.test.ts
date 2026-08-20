@@ -22,7 +22,7 @@ const frenchNames = [
   "Côte-des-Neiges",
 ] as const;
 const frenchCharacters = "é è ê ë à â ç î ï ô ù û ü É È À Ç";
-const emptyAddress = { birthDate: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
+const emptyAddress = { birthDate: "", mortgageRenewalDate: "", civicNumber: "", address: "", apartment: "", city: "", province: "", postalCode: "", country: "" };
 
 function exactArrayBuffer(bytes: Uint8Array) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -181,6 +181,7 @@ describe("import vCard", () => {
       postalCode: "",
       country: "",
       birthDate: "",
+      mortgageRenewalDate: "",
     }]);
   });
 });
@@ -202,6 +203,7 @@ describe("compatibilité de la détection des doublons", () => {
       postalCode: "",
       country: "",
       birthDate: "",
+      mortgageRenewalDate: "",
       broker: "france",
       clientType: null,
       priority: null,
