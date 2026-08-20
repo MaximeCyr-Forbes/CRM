@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBroker } from "../broker-context";
 import { DataStatus } from "../components/data-status";
 import { DailyNotificationsPanel } from "../components/daily-notifications-panel";
@@ -18,13 +18,23 @@ import { useListings } from "../listings-context";
 import { useTransactions } from "../transactions-context";
 import { getFollowUpQueue } from "../lib/follow-up-queue";
 import { getDailyNotifications } from "../lib/dashboard/daily-notifications";
+import { useFollowUps } from "../follow-up-context";
+
+type FollowUpNotice = {
+  message: string;
+  tone: "success" | "error";
+};
 
 export default function Dashboard() {
   const router = useRouter();
   const { selectedBroker, isBrokerReady } = useBroker();
   const { contacts } = useContacts();
+  const { completeFollowUp } = useFollowUps();
   const { listings, isLoading: areListingsLoading, error: listingsError } = useListings();
   const { transactions, isLoading: areTransactionsLoading, error: transactionsError } = useTransactions();
+  const completingFollowUpIdsRef = useRef(new Set<string>());
+  const [completingFollowUpIds, setCompletingFollowUpIds] = useState<ReadonlySet<string>>(new Set());
+  const [followUpNotice, setFollowUpNotice] = useState<FollowUpNotice | null>(null);
   const today = toLocalISODate(new Date());
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
   const brokerContacts = brokerKey
@@ -83,6 +93,43 @@ export default function Dashboard() {
     }
   }, [isBrokerReady, router, selectedBroker]);
 
+  useEffect(() => {
+    if (!followUpNotice) return;
+    const timeout = window.setTimeout(() => setFollowUpNotice(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [followUpNotice]);
+
+  async function finishFollowUp(contactId: string, contactName: string) {
+    if (completingFollowUpIdsRef.current.has(contactId)) return;
+    completingFollowUpIdsRef.current.add(contactId);
+    setCompletingFollowUpIds((current) => new Set(current).add(contactId));
+
+    try {
+      const { calendarSync } = await completeFollowUp(contactId);
+      setFollowUpNotice(calendarSync.status === "error"
+        ? {
+            message: "Relance retirée du CRM · suppression Google Agenda à resynchroniser.",
+            tone: "error",
+          }
+        : {
+            message: `Relance de ${contactName} terminée.`,
+            tone: "success",
+          });
+    } catch {
+      setFollowUpNotice({
+        message: "Impossible de terminer cette relance. Réessayez.",
+        tone: "error",
+      });
+    } finally {
+      completingFollowUpIdsRef.current.delete(contactId);
+      setCompletingFollowUpIds((current) => {
+        const next = new Set(current);
+        next.delete(contactId);
+        return next;
+      });
+    }
+  }
+
   if (!isBrokerReady || !selectedBroker) {
     return null;
   }
@@ -135,15 +182,21 @@ export default function Dashboard() {
                 <p className="section-kicker">Priorités</p>
                 <h2 id="follow-ups-title">RELANCES DU JOUR</h2>
               </div>
-              <button
-                className="start-follow-ups"
-                disabled={followUpQueue.length === 0}
-                onClick={() => followUpQueue[0] && router.push(`/contacts/${followUpQueue[0].id}?mode=followups`)}
-                type="button"
-              >
-                <span>Commencer mes relances</span>
-                <span aria-hidden="true">→</span>
-              </button>
+              {followUpQueue.length > 0 ? (
+                <button
+                  className="start-follow-ups start-follow-ups-button"
+                  onClick={() => router.push(`/contacts/${followUpQueue[0].id}?mode=followups`)}
+                  type="button"
+                >
+                  <span>Commencer mes relances</span>
+                  <span aria-hidden="true">→</span>
+                </button>
+              ) : (
+                <div aria-disabled="true" className="start-follow-ups start-follow-ups-inactive">
+                  <span>Aucune relance à commencer</span>
+                  <span aria-hidden="true">✓</span>
+                </div>
+              )}
             </div>
 
             <div className="follow-ups-list">
@@ -176,13 +229,26 @@ export default function Dashboard() {
                     <span className="status-dot" aria-hidden="true" />
                     Relance aujourd’hui
                   </div>
-                  <button
-                    className="open-client"
-                    onClick={() => router.push(`/contacts/${client.id}`)}
-                    type="button"
-                  >
-                    Ouvrir
-                  </button>
+                  <div className="follow-up-actions">
+                    <button
+                      className="open-client"
+                      onClick={() => router.push(`/contacts/${client.id}`)}
+                      type="button"
+                    >
+                      Ouvrir
+                    </button>
+                    <button
+                      aria-busy={completingFollowUpIds.has(client.id)}
+                      aria-label={`Marquer la relance de ${getContactName(client)} comme faite`}
+                      className="complete-follow-up"
+                      disabled={completingFollowUpIds.has(client.id)}
+                      onClick={() => void finishFollowUp(client.id, getContactName(client))}
+                      type="button"
+                    >
+                      <span aria-hidden="true">✓</span>
+                      {completingFollowUpIds.has(client.id) ? "Traitement…" : "Fait"}
+                    </button>
+                  </div>
                 </article>
               ))}
               {todaysClients.length === 0 && (
@@ -202,6 +268,12 @@ export default function Dashboard() {
           />
         </div>
       </div>
+      {followUpNotice && (
+        <div aria-live="polite" className={`follow-up-confirmation dashboard-follow-up-notice dashboard-follow-up-notice-${followUpNotice.tone}`} role="status">
+          <span aria-hidden="true">{followUpNotice.tone === "success" ? "✓" : "!"}</span>
+          <strong>{followUpNotice.message}</strong>
+        </div>
+      )}
     </main>
   );
 }

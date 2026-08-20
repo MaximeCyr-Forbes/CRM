@@ -166,6 +166,13 @@ describe("notifications quotidiennes du dashboard", () => {
     expect(results).toMatchObject([{ id: "followup:maxime", href: "/contacts/maxime?mode=followups" }]);
   });
 
+  it("retire naturellement la notification de relance lorsque la date devient null", () => {
+    const active = notifications({ contacts: [contact({ nextFollowUpDate: today })] });
+    const completed = notifications({ contacts: [contact({ nextFollowUpDate: null })] });
+    expect(active.some((item) => item.type === "follow_up")).toBe(true);
+    expect(completed.some((item) => item.type === "follow_up")).toBe(false);
+  });
+
   it("crée une notification par échéance Transaction active non complétée aujourd’hui", () => {
     const results = notifications({ transactions: [transaction({ deadlines: [
       deadline({ id: "inspection", title: "Inspection" }),

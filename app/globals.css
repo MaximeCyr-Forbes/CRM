@@ -1424,7 +1424,7 @@ button:disabled {
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.start-follow-ups:hover {
+.start-follow-ups-button:hover {
   color: var(--ink);
   background: transparent;
   transform: translateY(-2px);
@@ -1433,6 +1433,18 @@ button:disabled {
 .start-follow-ups span:last-child {
   color: var(--gold);
   font-size: 1rem;
+}
+
+.start-follow-ups-inactive {
+  color: var(--ink-soft);
+  background: rgba(255, 253, 248, 0.58);
+  border-color: rgba(19, 35, 59, 0.13);
+  cursor: default;
+  transition: none;
+}
+
+.start-follow-ups-inactive span:last-child {
+  color: #607560;
 }
 
 .follow-ups-list {
@@ -1604,7 +1616,7 @@ button:disabled {
 
 .follow-up-row {
   display: grid;
-  grid-template-columns: auto minmax(11rem, 1.45fr) minmax(6.5rem, 0.7fr) minmax(8.5rem, 0.9fr) minmax(9rem, 1fr) auto;
+  grid-template-columns: auto minmax(11rem, 1.45fr) minmax(6.5rem, 0.7fr) minmax(8.5rem, 0.9fr) minmax(9rem, 1fr) minmax(10.5rem, auto);
   align-items: center;
   gap: 1rem;
   padding: 1.2rem 1.35rem;
@@ -1703,6 +1715,57 @@ button:disabled {
 .open-client:hover {
   background: var(--cream);
   border-color: rgba(198, 168, 103, 0.7);
+}
+
+.follow-up-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.follow-up-actions button {
+  min-height: 2.5rem;
+  white-space: nowrap;
+}
+
+.complete-follow-up {
+  display: inline-flex;
+  min-width: 4.9rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  padding: 0.65rem 0.8rem;
+  color: #39543d;
+  background: rgba(96, 117, 96, 0.1);
+  border: 1px solid rgba(96, 117, 96, 0.28);
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.complete-follow-up:hover:not(:disabled) {
+  background: rgba(96, 117, 96, 0.17);
+  border-color: rgba(96, 117, 96, 0.48);
+}
+
+.complete-follow-up:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.complete-follow-up:focus-visible {
+  outline: 3px solid rgba(96, 117, 96, 0.3);
+  outline-offset: 3px;
+}
+
+.dashboard-follow-up-notice-error span {
+  color: var(--paper);
+  background: #8b5b51;
 }
 
 .follow-ups-empty {
@@ -3959,7 +4022,7 @@ button:disabled {
   }
 
   .follow-up-row {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     gap: 0.85rem;
     padding: 1rem;
     background: rgba(255, 253, 248, 0.8);
@@ -3977,9 +4040,13 @@ button:disabled {
     display: none;
   }
 
-  .open-client {
-    grid-column: 3;
-    grid-row: 1;
+  .follow-up-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .follow-up-actions button {
+    flex: 1 1 0;
   }
 
   .client-page {

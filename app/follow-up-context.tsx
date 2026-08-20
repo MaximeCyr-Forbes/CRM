@@ -28,5 +28,13 @@ export function useFollowUps() {
     [updateFollowUp],
   );
 
-  return { followUpDates, getFollowUpDate, scheduleFollowUp };
+  const completeFollowUp = useCallback(
+    async (clientId: string) => {
+      const calendarSync = await updateFollowUp(clientId, null);
+      return { calendarSync };
+    },
+    [updateFollowUp],
+  );
+
+  return { completeFollowUp, followUpDates, getFollowUpDate, scheduleFollowUp };
 }
