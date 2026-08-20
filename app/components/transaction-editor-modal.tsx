@@ -26,6 +26,8 @@ import {
   linkTransactionContact,
 } from "../lib/transactions/contact-picker";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
+import type { CentrisParseResult } from "../lib/centris-pdf/types";
+import { CentrisTransactionImport } from "./centris-transaction-import";
 
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom",
@@ -65,6 +67,7 @@ export function TransactionEditorModal({
   const [contactError, setContactError] = useState<string | null>(null);
   const [duplicateContact, setDuplicateContact] = useState<Contact | null>(null);
   const [isCreatingContact, setIsCreatingContact] = useState(false);
+  const [appliedCentrisPricing, setAppliedCentrisPricing] = useState<CentrisParseResult["pricing"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useDialogLifecycle(true, onClose);
 
@@ -162,11 +165,23 @@ export function TransactionEditorModal({
           <button aria-label="Fermer" onClick={onClose} type="button">×</button>
         </div>
         <form className="transaction-form" onSubmit={submit}>
+          {mode === "create" && <CentrisTransactionImport
+            currentValues={{ ...values, price: price ? Number(price) : null }}
+            disabled={isSaving}
+            onApply={(nextValues, result) => {
+              setValues(nextValues);
+              setPrice(nextValues.price === null ? "" : String(nextValues.price));
+              setAppliedCentrisPricing(result.pricing);
+            }}
+          />}
           <label className="transaction-field transaction-field-wide"><span>Adresse *</span><input autoFocus onChange={(event) => update("address", event.target.value)} required value={values.address} /></label>
           <label className="transaction-field transaction-field-wide"><span>Numéro Centris</span><input onChange={(event) => update("centrisNumber", event.target.value)} value={values.centrisNumber} /></label>
           <label className="transaction-field"><span>Type *</span><select onChange={(event) => changeType(event.target.value as TransactionType)} value={values.type}><option value="purchase">Achat</option><option value="sale">Vente</option></select></label>
           <label className="transaction-field"><span>Courtier *</span><select onChange={(event) => update("broker", event.target.value as TransactionBroker)} value={values.broker}>{CONTACT_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
-          <label className="transaction-field"><span>Prix</span><input min="0" onChange={(event) => setPrice(event.target.value)} step="0.01" type="number" value={price} /></label>
+          <label className="transaction-field"><span>Prix</span><input min="0" onChange={(event) => setPrice(event.target.value)} step="0.01" type="number" value={price} />
+            {appliedCentrisPricing?.mode === "monthly_rent" && <small className="transaction-centris-price-context">Valeur provenant d’une fiche de LOCATION : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.monthlyAmount ?? 0)} $ / mois.</small>}
+            {appliedCentrisPricing?.mode === "annual_per_square_foot" && <small className="transaction-centris-price-context is-warning">Tarif détecté : {new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(appliedCentrisPricing.annualPerSquareFootAmount ?? 0)} $ / année / pi². Entrez manuellement le montant approprié.</small>}
+          </label>
           <label className="transaction-field"><span>Date de la PA</span><input onChange={(event) => update("promiseDate", event.target.value || null)} type="date" value={values.promiseDate ?? ""} /></label>
           <label className="transaction-field transaction-field-wide"><span>Statut actuel</span><select onChange={(event) => update("status", event.target.value as TransactionDraft["status"])} value={values.status}>{statusesForTransaction(values.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label>
           <fieldset className="transaction-contact-picker transaction-field-wide">
