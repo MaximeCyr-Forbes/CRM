@@ -27,6 +27,7 @@ describe("parseur Centris synthétique", () => {
     const annual = parse(fixtures.commercialPerSquareFoot);
     expect(sale.pricing).toMatchObject({ detectedPurpose: "sale", amount: 325000, taxesApplicable: true });
     expect(monthly.pricing).toMatchObject({ mode: "monthly_rent", monthlyAmount: 5000, leaseTermMonths: 36, taxesApplicable: true });
+    expect(monthly.property.availableAreaSqFt).toBe(1700);
     expect(annual.pricing).toMatchObject({ mode: "annual_per_square_foot", annualPerSquareFootAmount: 26, monthlyAmount: null, taxesApplicable: true });
     expect(annual.suggestedTransactionValues.price).toBeNull();
     expect(annual.warnings).toContain("Tarif annuel au pied carré détecté. Le prix de la Transaction doit être confirmé manuellement.");

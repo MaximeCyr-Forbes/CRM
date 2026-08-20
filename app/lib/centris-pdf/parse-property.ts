@@ -59,6 +59,7 @@ export function parseCentrisProperty(text: string): {
   const rooms = parseRoomSummary(text);
   const landArea = /([\d\s]+(?:[,.]\d+)?)\s*(?:pc|pi\s*[²2])\s+Superficie du terrain/i.exec(text)?.[1];
   const buildingArea = /([\d\s]+(?:[,.]\d+)?)\s*(?:pc|pi\s*[²2])\s+Superficie du bâtiment/i.exec(text)?.[1];
+  const availableArea = /Superficie disponible(?:\s+de)?\s+([\d\s]+(?:[,.]\d+)?)\s*(?:pc|pi\s*[²2])/i.exec(text)?.[1];
   const livingArea = /([\d\s]+(?:[,.]\d+)?)\s*(?:pc|pi\s*[²2])\s+(?:Sup\. habitable|Superficie habitable)/i.exec(text)?.[1];
   const unitCount = /Revenus mensuels \(résidentiel\)\s*-\s*(\d+)\s+unité/i.exec(text)?.[1]
     ?? /Nombre total d'unités[\s\S]{0,120}?\b(\d+)\b/i.exec(text)?.[1];
@@ -94,6 +95,7 @@ export function parseCentrisProperty(text: string): {
       intergenerational: /Intergénération\s+Oui\b/i.test(text) ? true : /Intergénération\s+Non\b/i.test(text) ? false : null,
       livingAreaSqFt: normalizeArea(livingArea),
       buildingAreaSqFt: normalizeArea(buildingArea),
+      availableAreaSqFt: normalizeArea(availableArea),
       landAreaSqFt: normalizeArea(landArea),
     },
     financial: {

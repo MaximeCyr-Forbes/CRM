@@ -47,6 +47,7 @@ export type CentrisParseResult = {
     intergenerational: boolean | null;
     livingAreaSqFt: number | null;
     buildingAreaSqFt: number | null;
+    availableAreaSqFt: number | null;
     landAreaSqFt: number | null;
   };
   pricing: {
