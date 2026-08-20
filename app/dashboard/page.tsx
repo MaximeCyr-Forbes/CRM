@@ -214,6 +214,10 @@ export default function Dashboard() {
                     <span>
                       {client.clientType ? CLIENT_TYPE_LABELS[client.clientType] : "Type non renseigné"}
                     </span>
+                    <div className="client-follow-up-status">
+                      <span className="status-dot" aria-hidden="true" />
+                      Relance aujourd’hui
+                    </div>
                   </div>
                   <div className="client-detail">
                     <span className="detail-label">Priorité</span>
@@ -224,10 +228,6 @@ export default function Dashboard() {
                   <div className="client-detail">
                     <span className="detail-label">Téléphone</span>
                     {client.phone ? <a href={`tel:${client.phone}`}>{client.phone}</a> : <span>Non renseigné</span>}
-                  </div>
-                  <div className="client-status">
-                    <span className="status-dot" aria-hidden="true" />
-                    Relance aujourd’hui
                   </div>
                   <div className="follow-up-actions">
                     <button
@@ -246,7 +246,7 @@ export default function Dashboard() {
                       type="button"
                     >
                       <span aria-hidden="true">✓</span>
-                      {completingFollowUpIds.has(client.id) ? "Traitement…" : "Fait"}
+                      {completingFollowUpIds.has(client.id) ? "…" : "Fait"}
                     </button>
                   </div>
                 </article>

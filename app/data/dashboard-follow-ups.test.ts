@@ -60,7 +60,23 @@ describe("relances du jour sur le dashboard", () => {
     expect(dashboard).toContain('type="button"');
   });
 
-  it("réserve le hover à l’état actif et empile les actions sans débordement sur mobile", () => {
+  it("place le statut dans le bloc client et réserve une colonne compacte aux deux actions", () => {
+    expect(dashboard).toContain('className="client-follow-up-status"');
+    expect(dashboard).not.toContain('className="client-status"');
+    expect(dashboard).toContain('completingFollowUpIds.has(client.id) ? "…" : "Fait"');
+
+    const rowRule = css.match(/\.follow-up-row\s*\{([^}]*)\}/)?.[1] ?? "";
+    const actionsRule = css.match(/\.follow-up-actions\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rowRule).toContain("minmax(0, 1.35fr)");
+    expect(rowRule.trimEnd()).toMatch(/auto;$/m);
+    expect(rowRule).not.toContain("minmax(11rem, 1.45fr)");
+    expect(rowRule).not.toContain("minmax(9rem, 1fr)");
+    expect(rowRule).not.toContain("minmax(10.5rem, auto)");
+    expect(actionsRule).toContain("width: min(100%, 10.5rem)");
+    expect(actionsRule).toContain("justify-self: end");
+  });
+
+  it("réserve le hover à l’état actif et empile les données puis les actions sans débordement sur mobile", () => {
     const inactiveBlock = css.match(/\.start-follow-ups-inactive\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(css).toContain(".start-follow-ups-button:hover");
     expect(css).not.toContain(".start-follow-ups-inactive:hover");
@@ -69,6 +85,7 @@ describe("relances du jour sur le dashboard", () => {
     expect(css).toContain(".follow-up-actions");
     expect(css).toContain("grid-column: 1 / -1");
     expect(css).toContain("flex: 1 1 0");
+    expect(css).toContain("grid-template-columns: minmax(6.5rem, 0.45fr) minmax(0, 1fr)");
   });
 });
 
