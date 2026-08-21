@@ -1,0 +1,244 @@
+"use client";
+
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { type Broker, useBroker } from "../broker-context";
+import { BROKER_LABELS } from "../data/contact-types";
+import {
+  acquireRecommendationSubmissionLock,
+  formatRecommendationDate,
+  releaseRecommendationSubmissionLock,
+  sortRecommendations,
+  validateRecommendationText,
+  type CRMRecommendation,
+  type RecommendationAuthor,
+} from "../data/recommendation-types";
+import { RecommendationDetailModal } from "./recommendation-detail-modal";
+
+const BROKER_KEYS: Record<Broker, RecommendationAuthor> = {
+  France: "france",
+  Maxime: "maxime",
+  Sandrine: "sandrine",
+};
+
+export function SettingsRecommendations() {
+  const { selectedBroker } = useBroker();
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionLock = useRef(false);
+  const [recommendations, setRecommendations] = useState<CRMRecommendation[]>([]);
+  const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [reloadAdminKey, setReloadAdminKey] = useState(0);
+  const [openedRecommendation, setOpenedRecommendation] = useState<CRMRecommendation | null>(null);
+
+  const submittedBy = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
+  // TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur
+  // lorsque l’authentification individuelle sera ajoutée.
+  const showAdministration = selectedBroker === "Maxime";
+
+  useEffect(() => {
+    if (!showAdministration) {
+      setRecommendations([]);
+      setAdminError(null);
+      setIsLoadingAdmin(false);
+      setOpenedRecommendation(null);
+      return;
+    }
+
+    let isCurrent = true;
+    setIsLoadingAdmin(true);
+    setAdminError(null);
+    void fetch("/api/recommendations", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Chargement impossible");
+        return response.json() as Promise<{ data: CRMRecommendation[] }>;
+      })
+      .then((payload) => {
+        if (isCurrent) setRecommendations(sortRecommendations(payload.data));
+      })
+      .catch(() => {
+        if (isCurrent) setAdminError("Les recommandations n’ont pas pu être chargées.");
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingAdmin(false);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [reloadAdminKey, showAdministration]);
+
+  async function submitRecommendation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setConfirmation(false);
+    const validationError = validateRecommendationText(title, content);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+    if (!submittedBy) {
+      setFormError("Sélectionnez d’abord le courtier consulté pour envoyer une recommandation.");
+      return;
+    }
+    if (!acquireRecommendationSubmissionLock(submissionLock)) return;
+
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      const response = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content, submittedBy }),
+      });
+      const payload = await response.json().catch(() => null) as {
+        data?: CRMRecommendation;
+      } | null;
+      if (!response.ok || !payload?.data) throw new Error("Envoi impossible");
+
+      setTitle("");
+      setContent("");
+      setConfirmation(true);
+      if (showAdministration) {
+        setRecommendations((current) => sortRecommendations([payload.data!, ...current]));
+      }
+    } catch {
+      setFormError("La recommandation n’a pas pu être envoyée. Réessayez.");
+    } finally {
+      releaseRecommendationSubmissionLock(submissionLock);
+      setIsSubmitting(false);
+    }
+  }
+
+  async function openRecommendation(recommendation: CRMRecommendation) {
+    setOpenedRecommendation(recommendation);
+    if (recommendation.status === "read") return;
+    setAdminError(null);
+    try {
+      const response = await fetch(`/api/recommendations/${recommendation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = await response.json().catch(() => null) as {
+        data?: CRMRecommendation;
+      } | null;
+      if (!response.ok || !payload?.data) throw new Error("Ouverture impossible");
+      const updated = payload.data;
+      setRecommendations((current) => sortRecommendations(
+        current.map((item) => item.id === updated.id ? updated : item),
+      ));
+      setOpenedRecommendation(updated);
+    } catch {
+      setAdminError("La recommandation n’a pas pu être marquée comme lue.");
+    }
+  }
+
+  const unreadCount = recommendations.filter((recommendation) => recommendation.status === "unread").length;
+
+  return (
+    <section className="settings-recommendations" aria-labelledby="recommendations-title">
+      <header className="settings-recommendations-heading">
+        <p className="section-kicker">Amélioration du CRM</p>
+        <h2 id="recommendations-title">RECOMMANDATIONS</h2>
+        <p>Vous avez une idée pour améliorer le CRM? Envoyez-la directement à l’administration.</p>
+      </header>
+
+      <article className="recommendation-submit-card">
+        <form className="recommendation-form" noValidate onSubmit={submitRecommendation}>
+          <label>
+            <span>Titre *</span>
+            <input
+              maxLength={120}
+              onChange={(event) => { setTitle(event.target.value); setFormError(null); setConfirmation(false); }}
+              placeholder="Titre de la recommandation"
+              type="text"
+              value={title}
+            />
+          </label>
+          <label>
+            <span>Recommandation *</span>
+            <textarea
+              maxLength={4000}
+              onChange={(event) => { setContent(event.target.value); setFormError(null); setConfirmation(false); }}
+              placeholder="Décrivez votre suggestion..."
+              rows={7}
+              value={content}
+            />
+            <small>{content.length} / 4000</small>
+          </label>
+
+          {!selectedBroker && (
+            <p className="recommendation-broker-required">
+              Sélectionnez d’abord le courtier consulté pour envoyer une recommandation.
+            </p>
+          )}
+          {formError && <p className="recommendation-form-error" role="alert">{formError}</p>}
+          {confirmation && (
+            <div className="recommendation-confirmation" role="status">
+              <strong>✓ Recommandation envoyée.</strong>
+              <span>Merci, elle a été transmise à l’administration.</span>
+            </div>
+          )}
+
+          <button
+            aria-busy={isSubmitting}
+            disabled={!selectedBroker || isSubmitting}
+            type="submit"
+          >
+            {isSubmitting ? "ENVOI…" : "ENVOYER LA RECOMMANDATION"}
+          </button>
+        </form>
+      </article>
+
+      {showAdministration && (
+        <section className="recommendation-admin" aria-labelledby="recommendation-admin-title">
+          <header className="recommendation-admin-header">
+            <div>
+              <p className="section-kicker">Administration</p>
+              <h3 id="recommendation-admin-title">RECOMMANDATIONS REÇUES</h3>
+            </div>
+            <strong>{unreadCount === 0 ? "AUCUNE NON LUE" : `${unreadCount} NON LUE${unreadCount > 1 ? "S" : ""}`}</strong>
+          </header>
+
+          {adminError && (
+            <div className="recommendation-admin-error" role="alert">
+              <span>{adminError}</span>
+              <button onClick={() => setReloadAdminKey((key) => key + 1)} type="button">Réessayer</button>
+            </div>
+          )}
+          {isLoadingAdmin && <p className="recommendation-admin-state">Chargement des recommandations...</p>}
+          {!isLoadingAdmin && recommendations.length === 0 && !adminError && (
+            <p className="recommendation-admin-state">Aucune recommandation reçue pour le moment.</p>
+          )}
+
+          <div className="recommendation-list">
+            {recommendations.map((recommendation) => (
+              <article className={`recommendation-row recommendation-row-${recommendation.status}`} key={recommendation.id}>
+                <span className={`recommendation-status recommendation-status-${recommendation.status}`}>
+                  <i aria-hidden="true" />
+                  {recommendation.status === "unread" ? "NOUVELLE" : "LUE"}
+                </span>
+                <div className="recommendation-row-summary">
+                  <h4>{recommendation.title}</h4>
+                  <dl>
+                    <div><dt>Envoyé par</dt><dd>{BROKER_LABELS[recommendation.submittedBy]}</dd></div>
+                    <div><dt>Date</dt><dd>{formatRecommendationDate(recommendation.createdAt)}</dd></div>
+                  </dl>
+                </div>
+                <button onClick={() => void openRecommendation(recommendation)} type="button">OUVRIR →</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {openedRecommendation && (
+        <RecommendationDetailModal
+          onClose={() => setOpenedRecommendation(null)}
+          recommendation={openedRecommendation}
+        />
+      )}
+    </section>
+  );
+}

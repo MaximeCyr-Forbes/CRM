@@ -7,6 +7,7 @@ import type {
   CalendarConnectionStatus,
 } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
+import { SettingsRecommendations } from "../components/settings-recommendations";
 
 const emptyConnections: CalendarConnectionStatus[] = (
   ["france", "maxime", "sandrine"] as const
@@ -182,6 +183,8 @@ export default function SettingsPage() {
             </article>
           ))}
         </div>
+
+        <SettingsRecommendations />
       </section>
     </main>
   );

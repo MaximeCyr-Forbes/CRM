@@ -284,6 +284,27 @@ create table if not exists public.google_calendar_connections (
   constraint google_calendar_connections_assigned_broker_check check (broker <> 'unassigned')
 );
 
+create table if not exists public.crm_recommendations (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  content text not null,
+  submitted_by public.broker_assignment not null,
+  status text not null default 'unread',
+  created_at timestamptz not null default now(),
+  opened_at timestamptz,
+  opened_by public.broker_assignment,
+  constraint crm_recommendations_title_length_check
+    check (length(trim(title)) between 1 and 120),
+  constraint crm_recommendations_content_length_check
+    check (length(trim(content)) between 1 and 4000),
+  constraint crm_recommendations_submitted_by_check
+    check (submitted_by <> 'unassigned'),
+  constraint crm_recommendations_status_check
+    check (status = any (array['unread', 'read'])),
+  constraint crm_recommendations_opened_by_check
+    check (opened_by is null or opened_by <> 'unassigned')
+);
+
 create table if not exists public.contact_birthday_calendar_events (
   contact_id uuid not null references public.contacts(id) on delete cascade,
   broker public.broker_assignment not null check (broker <> 'unassigned'),
@@ -315,6 +336,10 @@ create index if not exists contact_mortgage_renewal_events_broker_idx on public.
 create index if not exists contact_mortgage_renewal_events_status_idx on public.contact_mortgage_renewal_calendar_events(sync_status);
 create index if not exists contact_mortgage_renewal_events_broker_status_idx on public.contact_mortgage_renewal_calendar_events(broker, sync_status);
 create index if not exists contacts_mortgage_renewal_date_idx on public.contacts(mortgage_renewal_date) where mortgage_renewal_date is not null;
+create index if not exists crm_recommendations_created_at_idx
+  on public.crm_recommendations (created_at desc);
+create index if not exists crm_recommendations_status_created_idx
+  on public.crm_recommendations (status, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -807,6 +832,7 @@ alter table public.transactions enable row level security;
 alter table public.transaction_contacts enable row level security;
 alter table public.transaction_deadlines enable row level security;
 alter table public.transaction_notes enable row level security;
+alter table public.crm_recommendations enable row level security;
 
 -- Retire d'abord toutes les anciennes politiques publiques.
 drop policy if exists "temporary anon contacts select" on public.contacts;
@@ -827,6 +853,7 @@ revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
 revoke all on public.transaction_notes from anon, authenticated;
+revoke all on public.crm_recommendations from public, anon, authenticated;
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment) from public, anon;
 revoke execute on function public.merge_contacts(
   uuid, uuid, text, text, text, text, text, text, text, text, text, text, text,
@@ -865,6 +892,7 @@ grant select, insert, update, delete on public.transactions to service_role;
 grant select, insert, update, delete on public.transaction_contacts to service_role;
 grant select, insert, update, delete on public.transaction_deadlines to service_role;
 grant select, insert, update, delete on public.transaction_notes to service_role;
+grant select, insert, update on public.crm_recommendations to service_role;
 grant usage on type public.broker_assignment to service_role;
 grant usage on type public.calendar_sync_status to service_role;
 grant usage on type public.client_type to service_role;

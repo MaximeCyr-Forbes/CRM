@@ -1254,6 +1254,426 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
+.settings-recommendations {
+  display: grid;
+  gap: 1rem;
+  padding-top: clamp(3.5rem, 7vw, 6rem);
+}
+
+.settings-recommendations-heading {
+  max-width: 44rem;
+}
+
+.settings-recommendations-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.settings-recommendations-heading > p:last-child {
+  max-width: 38rem;
+  margin: 1rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.recommendation-submit-card {
+  margin-top: 1rem;
+  padding: clamp(1.25rem, 4vw, 2.4rem);
+  background: rgba(255, 253, 248, 0.92);
+  border: 1px solid var(--line);
+  border-top: 3px solid rgba(198, 168, 103, 0.82);
+  box-shadow: 0 1.35rem 3.4rem rgba(19, 35, 59, 0.06);
+}
+
+.recommendation-form {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.recommendation-form label {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.recommendation-form label > span,
+.recommendation-row dt,
+.recommendation-detail-meta dt {
+  color: var(--ink-soft);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.recommendation-form input,
+.recommendation-form textarea {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.15rem;
+  outline: 0;
+  font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.recommendation-form input {
+  min-height: 3.25rem;
+}
+
+.recommendation-form textarea {
+  min-height: 11rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.recommendation-form input:focus,
+.recommendation-form textarea:focus {
+  border-color: rgba(198, 168, 103, 0.8);
+  box-shadow: 0 0 0 3px rgba(198, 168, 103, 0.12);
+}
+
+.recommendation-form label > small {
+  justify-self: end;
+  color: var(--ink-soft);
+  font-size: 0.6rem;
+}
+
+.recommendation-form > button {
+  min-height: 3.35rem;
+  justify-self: start;
+  padding: 0.8rem 1.25rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0.15rem;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.recommendation-form > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.recommendation-broker-required,
+.recommendation-form-error,
+.recommendation-confirmation {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.72rem;
+}
+
+.recommendation-broker-required {
+  color: #705c2f;
+  background: rgba(198, 168, 103, 0.1);
+  border-left: 2px solid var(--gold);
+}
+
+.recommendation-form-error {
+  color: #934c45;
+  background: rgba(189, 102, 93, 0.08);
+  border-left: 2px solid #bd665d;
+}
+
+.recommendation-confirmation {
+  display: grid;
+  gap: 0.25rem;
+  color: #436249;
+  background: rgba(88, 114, 89, 0.09);
+  border-left: 2px solid #587259;
+}
+
+.recommendation-confirmation span {
+  color: #587259;
+}
+
+.recommendation-admin {
+  margin-top: clamp(2.75rem, 6vw, 4.75rem);
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+
+.recommendation-admin-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-admin-header h3 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 4vw, 2.8rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.recommendation-admin-header > strong {
+  color: #8c7343;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.recommendation-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.recommendation-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.2rem;
+  min-width: 0;
+  padding: 1rem 1.15rem;
+  background: rgba(255, 253, 248, 0.9);
+  border: 1px solid var(--line);
+  box-shadow: 0 0.75rem 2rem rgba(19, 35, 59, 0.035);
+}
+
+.recommendation-row-unread {
+  border-left: 3px solid var(--gold);
+}
+
+.recommendation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.55rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.recommendation-status i {
+  width: 0.48rem;
+  height: 0.48rem;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.recommendation-status-unread {
+  color: #8c7343;
+}
+
+.recommendation-status-read {
+  color: #788084;
+}
+
+.recommendation-row-summary {
+  min-width: 0;
+}
+
+.recommendation-row h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.12rem;
+  font-weight: 400;
+}
+
+.recommendation-row dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.recommendation-row dl div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.recommendation-row dd,
+.recommendation-detail-meta dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+}
+
+.recommendation-row > button,
+.recommendation-admin-error button {
+  min-height: 2.6rem;
+  padding: 0.6rem 0.8rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.recommendation-admin-state,
+.recommendation-admin-error {
+  margin: 0;
+  padding: 1rem;
+  color: var(--ink-soft);
+  background: rgba(255, 253, 248, 0.7);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+}
+
+.recommendation-admin-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+  color: #934c45;
+}
+
+.recommendation-detail-backdrop {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(7, 18, 32, 0.68);
+  backdrop-filter: blur(7px);
+}
+
+.recommendation-detail-modal {
+  width: min(100%, 46rem);
+  max-height: calc(100svh - 2rem);
+  overflow-y: auto;
+  padding: clamp(1.4rem, 4vw, 2.4rem);
+  background: var(--paper);
+  border-top: 3px solid var(--gold);
+  box-shadow: 0 2.5rem 7rem rgba(7, 18, 32, 0.34);
+}
+
+.recommendation-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.recommendation-detail-header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 5vw, 2.75rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.recommendation-detail-header > button {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.recommendation-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.6rem 0 0;
+}
+
+.recommendation-detail-meta div {
+  padding: 0.85rem;
+  background: rgba(246, 243, 235, 0.6);
+}
+
+.recommendation-detail-meta dd {
+  margin-top: 0.3rem;
+  color: var(--ink);
+}
+
+.recommendation-detail-content {
+  margin-top: 1rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 0.86rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.recommendation-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.recommendation-detail-actions button {
+  min-height: 3rem;
+  padding: 0.7rem 1.2rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .settings-recommendations {
+    padding-top: 3.5rem;
+  }
+
+  .recommendation-form > button,
+  .recommendation-detail-actions button {
+    width: 100%;
+  }
+
+  .recommendation-admin-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recommendation-row {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .recommendation-row > button {
+    width: 100%;
+  }
+
+  .recommendation-detail-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .recommendation-detail-modal {
+    width: 100%;
+    max-height: 92svh;
+    border-radius: 0.65rem 0.65rem 0 0;
+  }
+
+  .recommendation-detail-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .metrics-section {
   padding-top: clamp(2.4rem, 5vw, 4.2rem);
 }
