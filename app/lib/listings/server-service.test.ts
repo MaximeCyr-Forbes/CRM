@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ListingDraft } from "../../data/listing-types";
+import type { ListingDraft, ListingSaleCompletion } from "../../data/listing-types";
 import {
   LISTING_OWNER_BATCH_SIZE,
   ListingServiceError,
@@ -60,6 +60,9 @@ function rowFromDraft(id: string, draft: ListingDraft): ListingRow {
     purpose: draft.purpose,
     asking_price: draft.askingPrice,
     monthly_rent: draft.monthlyRent,
+    sold_price: null,
+    notary_date: null,
+    collaborating_broker_name: "",
     property_type: draft.propertyType,
     listing_date: draft.listingDate,
     expiration_date: draft.expirationDate,
@@ -78,6 +81,7 @@ class MemoryListingRepository implements ListingRepository {
   readonly contacts = new Set([owner1, owner2, owner3]);
   ownerLoadCalls = 0;
   nextId = 1;
+  activity: Array<{ eventType: string; listingId: string }> = [];
 
   async listRows(filters: ListingFilters) {
     return this.rows.filter((row) =>
@@ -141,6 +145,31 @@ class MemoryListingRepository implements ListingRepository {
     return this.rows[index];
   }
 
+  async completeSale(listingId: string, values: ListingSaleCompletion) {
+    const index = this.rows.findIndex((row) => row.id === listingId);
+    if (index < 0) throw new ListingServiceError("not_found", "Listing introuvable.");
+    const current = this.rows[index];
+    if (current.purpose !== "sale") {
+      throw new ListingServiceError("invalid_purpose", "Seul un Listing en vente peut être marqué comme vendu.");
+    }
+    if (current.status === "sold") {
+      throw new ListingServiceError("already_sold", "Ce Listing est déjà marqué comme vendu.");
+    }
+    this.rows[index] = {
+      ...current,
+      status: "sold",
+      sold_price: values.soldPrice,
+      notary_date: values.notaryDate,
+      collaborating_broker_name: values.collaboratingBrokerName,
+      updated_at: "2026-08-21T15:00:00.000Z",
+    };
+    this.activity.push(
+      { eventType: "sale_completed", listingId },
+      { eventType: "status_changed", listingId },
+    );
+    return this.rows[index];
+  }
+
   async deleteRow(listingId: string) {
     const existed = this.rows.some((row) => row.id === listingId);
     this.rows = this.rows.filter((row) => row.id !== listingId);
@@ -165,7 +194,16 @@ describe("mapping et propriétaires Listings", () => {
     const row = rowFromDraft("listing-1", listingDraft());
     row.asking_price = "799000.00";
     row.monthly_rent = "2450.00";
-    expect(mapListing(row, [])).toMatchObject({ askingPrice: 799000, monthlyRent: 2450 });
+    row.sold_price = "775000.00";
+    row.notary_date = "2026-09-15";
+    row.collaborating_broker_name = "Jean Tremblay";
+    expect(mapListing(row, [])).toMatchObject({
+      askingPrice: 799000,
+      monthlyRent: 2450,
+      soldPrice: 775000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+    });
   });
 });
 
@@ -223,7 +261,6 @@ describe("CRUD Listings", () => {
     }));
 
     await expect(service.updateListing(created.id, {
-      status: "sold",
       ownerContactIds: [owner1, missingOwner],
     })).rejects.toMatchObject({ code: "invalid_owner" });
 
@@ -231,6 +268,94 @@ describe("CRUD Listings", () => {
       status: "active",
       ownerContactIds: [owner1, owner2],
     });
+  });
+
+  it("finalise atomiquement une vente et conserve le prix demandé", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const created = await service.createListing(listingDraft({
+      status: "active",
+      askingPrice: 569000,
+      ownerContactIds: [owner1],
+    }));
+    const sold = await service.completeListingSale(created.id, {
+      soldPrice: 550000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
+    }, "maxime");
+
+    expect(sold).toMatchObject({
+      status: "sold",
+      askingPrice: 569000,
+      soldPrice: 550000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+    });
+    expect(sold.ownerContactIds).toEqual([owner1]);
+    expect(repository.activity.map((entry) => entry.eventType)).toEqual(["sale_completed", "status_changed"]);
+  });
+
+  it("accepte une date future et l’absence explicite de courtier collaborateur", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const created = await service.createListing(listingDraft({ status: "conditional" }));
+    const sold = await service.completeListingSale(created.id, {
+      soldPrice: 500000,
+      notaryDate: "2030-01-15",
+      collaboratingBrokerName: "Texte ignoré",
+      noCollaboratingBroker: true,
+    });
+    expect(sold).toMatchObject({ notaryDate: "2030-01-15", collaboratingBrokerName: "" });
+  });
+
+  it("refuse la finalisation d’une Location et une seconde finalisation", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const rental = await service.createListing(listingDraft({ purpose: "rental", status: "active" }));
+    const completion = {
+      soldPrice: 500000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
+    };
+    await expect(service.completeListingSale(rental.id, completion)).rejects.toMatchObject({ code: "invalid_purpose" });
+
+    const sale = await service.createListing(listingDraft({ status: "active" }));
+    await service.completeListingSale(sale.id, completion);
+    await expect(service.completeListingSale(sale.id, completion)).rejects.toMatchObject({ code: "already_sold" });
+  });
+
+  it("refuse prix nul, négatif, non numérique, date invalide et collaborateur implicite", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const created = await service.createListing(listingDraft({ status: "active" }));
+    const base = {
+      soldPrice: 550000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
+    };
+    for (const invalid of [
+      { ...base, soldPrice: 0 },
+      { ...base, soldPrice: -1 },
+      { ...base, soldPrice: Number.NaN },
+      { ...base, notaryDate: "2026-02-30" },
+      { ...base, collaboratingBrokerName: "" },
+    ]) {
+      await expect(service.completeListingSale(created.id, invalid)).rejects.toMatchObject({ code: "invalid_sale_completion" });
+    }
+    expect((await service.getListing(created.id)).status).toBe("active");
+  });
+
+  it("refuse le contournement générique vers sold mais autorise la création historique", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const active = await service.createListing(listingDraft({ status: "active" }));
+    await expect(service.updateListing(active.id, { status: "sold" }))
+      .rejects.toMatchObject({ code: "invalid_listing" });
+    expect((await service.getListing(active.id)).status).toBe("active");
+    expect((await service.createListing(listingDraft({ status: "sold" }))).status).toBe("sold");
   });
 
   it("refuse un numéro Centris déjà utilisé avec une erreur métier", async () => {

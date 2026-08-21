@@ -150,6 +150,9 @@ create table if not exists public.listings (
   purpose text not null default 'sale',
   asking_price numeric(14, 2),
   monthly_rent numeric(14, 2),
+  sold_price numeric(14, 2),
+  notary_date date,
+  collaborating_broker_name text not null default '',
   property_type text not null default 'other',
   listing_date date,
   expiration_date date,
@@ -176,6 +179,7 @@ create table if not exists public.listings (
   constraint listings_purpose_check check (purpose = any (array['sale', 'rental'])),
   constraint listings_asking_price_check check (asking_price is null or asking_price >= 0),
   constraint listings_monthly_rent_check check (monthly_rent is null or monthly_rent >= 0),
+  constraint listings_sold_price_check check (sold_price is null or sold_price >= 0),
   constraint listings_property_type_check check (
     property_type = any (array[
       'residential',
@@ -192,6 +196,18 @@ create table if not exists public.listings (
     or expiration_date >= listing_date
   )
 );
+
+alter table public.listings
+  add column if not exists sold_price numeric(14, 2),
+  add column if not exists notary_date date,
+  add column if not exists collaborating_broker_name text not null default '';
+
+do $$ begin
+  alter table public.listings
+    add constraint listings_sold_price_check
+    check (sold_price is null or sold_price >= 0);
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.listing_contacts (
   listing_id uuid not null references public.listings(id) on delete cascade,

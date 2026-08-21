@@ -6,6 +6,7 @@ import { ListingDeleteConfirmationModal } from "../../components/listing-delete-
 import { ListingEditorModal } from "../../components/listing-editor-modal";
 import { ListingMedia } from "../../components/listing-media";
 import { ListingMarketSnapshot } from "../../components/listing-market-snapshot";
+import { ListingSoldModal } from "../../components/listing-sold-modal";
 import { ListingTracking } from "../../components/listing-tracking";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
@@ -14,8 +15,9 @@ import {
   LISTING_PURPOSE_LABELS,
   LISTING_STATUS_LABELS,
 } from "../../data/listing-types";
-import { listingDraftFromListing } from "../../lib/listings/editor";
+import { canMarkListingSold, listingDraftFromListing } from "../../lib/listings/editor";
 import {
+  formatListingAmount,
   formatListingDate,
   listingAddressLines,
   listingPriceLabel,
@@ -27,9 +29,11 @@ export default function ListingDetailPage() {
   const params = useParams<{ listingId: string }>();
   const router = useRouter();
   const { contacts } = useContacts();
-  const { listings, isLoading, isSaving, error, retry, updateListing, deleteListing } = useListings();
+  const { listings, isLoading, isSaving, error, retry, updateListing, markListingSold, deleteListing } = useListings();
   const [isEditing, setIsEditing] = useState(false);
+  const [isMarkingSold, setIsMarkingSold] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [cameFromInventory, setCameFromInventory] = useState(false);
   const listingId = Array.isArray(params.listingId) ? params.listingId[0] : params.listingId;
   const listing = listings.find((item) => item.id === listingId);
@@ -43,6 +47,12 @@ export default function ListingDetailPage() {
     window.sessionStorage.removeItem("listingOriginId");
     setCameFromInventory(originId === listingId);
   }, [listingId]);
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const timeout = window.setTimeout(() => setConfirmation(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [confirmation]);
 
   function returnToListings() {
     if (cameFromInventory) {
@@ -103,6 +113,7 @@ export default function ListingDetailPage() {
           <div className="listing-detail-actions">
             <button className="listing-report-button" onClick={() => router.push(`/listings/${listing.id}/report`)} type="button">{listing.purpose === "sale" ? "Rapport vendeur" : "Rapport propriétaire"}</button>
             <button onClick={() => setIsEditing(true)} type="button">Modifier <span aria-hidden="true">✎</span></button>
+            {canMarkListingSold(listing) && <button className="listing-sold-button" onClick={() => setIsMarkingSold(true)} type="button">VENDU</button>}
             <button className="destructive-button" onClick={() => setIsDeleting(true)} type="button">Supprimer</button>
           </div>
         </header>
@@ -114,8 +125,8 @@ export default function ListingDetailPage() {
             <span className={`listing-status-badge listing-status-${listing.status}`}>{LISTING_STATUS_LABELS[listing.status]}</span>
           </div>
           <div className="listing-detail-price-panel">
-            <span>{listing.purpose === "sale" ? "Prix demandé" : "Loyer mensuel"}</span>
-            <strong>{listingPriceLabel(listing)}</strong>
+            <span>{listing.status === "sold" && listing.soldPrice !== null ? "Prix vendu" : listing.purpose === "sale" ? "Prix demandé" : "Loyer mensuel"}</span>
+            <strong>{listing.status === "sold" && listing.soldPrice !== null ? formatListingAmount(listing.soldPrice, "sale") : listingPriceLabel(listing)}</strong>
             <p>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</p>
           </div>
         </section>
@@ -133,6 +144,17 @@ export default function ListingDetailPage() {
             <div><dt>Date de mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div>
             <div><dt>Date d’expiration</dt><dd>{formatListingDate(listing.expirationDate)}</dd></div>
           </dl>
+          {listing.status === "sold" && (
+            <div className="listing-sale-result">
+              <h3>RÉSULTAT DE LA VENTE</h3>
+              <dl className="listing-detail-information">
+                <div><dt>Prix demandé</dt><dd>{listing.askingPrice === null ? "Non renseigné" : formatListingAmount(listing.askingPrice, "sale")}</dd></div>
+                <div><dt>Prix vendu</dt><dd>{listing.soldPrice === null ? "Non renseigné" : formatListingAmount(listing.soldPrice, "sale")}</dd></div>
+                <div><dt>Date du notaire</dt><dd>{formatListingDate(listing.notaryDate)}</dd></div>
+                <div><dt>Courtier collaborateur</dt><dd>{listing.collaboratingBrokerName || "Aucun"}</dd></div>
+              </dl>
+            </div>
+          )}
           {(listing.centrisUrl || listing.publicUrl) && (
             <div className="listing-detail-links-block">
               <h3>LIENS</h3>
@@ -170,8 +192,10 @@ export default function ListingDetailPage() {
           <p className={listing.generalNotes ? "listing-detail-notes" : "listing-detail-empty"}>{listing.generalNotes || "Aucune note interne pour le moment."}</p>
         </section>
 
-        <ListingTracking listing={listing} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
+        <ListingTracking listing={listing} key={listing.updatedAt} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
       </div>
+
+      {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
 
       {isEditing && <ListingEditorModal
         initial={listingDraftFromListing(listing)}
@@ -192,6 +216,16 @@ export default function ListingDetailPage() {
           await deleteListing(listing.id);
           window.sessionStorage.setItem("listingNotice", "Listing supprimé.");
           router.push("/listings");
+        }}
+      />}
+      {isMarkingSold && <ListingSoldModal
+        address={addressLines[0]}
+        askingPrice={listing.askingPrice}
+        isSaving={isSaving}
+        onClose={() => setIsMarkingSold(false)}
+        onConfirm={async (values) => {
+          await markListingSold(listing.id, values);
+          setConfirmation("Listing marqué comme vendu.");
         }}
       />}
     </main>

@@ -29,7 +29,7 @@ import {
   findListingWithCentrisNumber,
   prepareListingDraft,
   releaseListingSubmissionLock,
-  statusesForListingPurpose,
+  statusesForListingEditor,
   toggleListingOwner,
   validStatusForListingPurpose,
 } from "../lib/listings/editor";
@@ -282,7 +282,7 @@ export function ListingEditorModal({
             <div className="listing-editor-fields">
               <label><span>Numéro Centris</span><input onChange={(event) => update("centrisNumber", event.target.value)} value={values.centrisNumber} /></label>
               <label><span>Courtier responsable *</span><select onChange={(event) => update("broker", event.target.value as ListingDraft["broker"])} required value={values.broker}>{LISTING_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
-              <label><span>Statut</span><select onChange={(event) => update("status", event.target.value as ListingDraft["status"])} value={values.status}>{statusesForListingPurpose(values.purpose).map((status) => <option key={status} value={status}>{LISTING_STATUS_LABELS[status]}</option>)}</select></label>
+              <label><span>Statut</span><select onChange={(event) => update("status", event.target.value as ListingDraft["status"])} value={values.status}>{statusesForListingEditor(values.purpose, mode, initial.status).map((status) => <option key={status} value={status}>{LISTING_STATUS_LABELS[status]}</option>)}</select>{mode === "edit" && values.purpose === "sale" && initial.status !== "sold" && <small>Utilisez le bouton VENDU sur la fiche pour finaliser une vente.</small>}</label>
               {values.purpose === "sale" ? (
                 <label><span>Prix demandé</span><span className="listing-money-field"><input min="0" onChange={(event) => setAskingPrice(event.target.value)} step="0.01" type="number" value={askingPrice} /><strong>$</strong></span>{appliedCentrisPricing?.mode === "sale_price" && <small className="transaction-centris-price-context">Prix provenant de la fiche Centris : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.amount ?? 0)} $.</small>}</label>
               ) : (

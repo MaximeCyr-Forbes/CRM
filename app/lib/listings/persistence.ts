@@ -4,6 +4,7 @@ import type {
   ListingDraft,
   ListingPropertyType,
   ListingPurpose,
+  ListingSaleCompletion,
   ListingStatus,
 } from "../../data/listing-types";
 import {
@@ -29,6 +30,9 @@ export type ListingRow = {
   purpose: ListingPurpose;
   asking_price: number | string | null;
   monthly_rent: number | string | null;
+  sold_price: number | string | null;
+  notary_date: string | null;
+  collaborating_broker_name: string;
   property_type: ListingPropertyType;
   listing_date: string | null;
   expiration_date: string | null;
@@ -55,6 +59,7 @@ export type ListingRepository = {
   listOwnerRows: (listingIds: ReadonlyArray<string>) => Promise<ListingOwnerRow[]>;
   createWithOwners: (draft: ListingDraft, actor: ListingBroker | null) => Promise<ListingRow>;
   updateWithOwners: (listingId: string, values: ListingUpdate, actor: ListingBroker | null) => Promise<ListingRow>;
+  completeSale: (listingId: string, values: ListingSaleCompletion, actor: ListingBroker | null) => Promise<ListingRow>;
   deleteRow: (listingId: string) => Promise<boolean>;
 };
 
@@ -62,6 +67,9 @@ export type ListingServiceErrorCode =
   | "duplicate_centris"
   | "invalid_owner"
   | "invalid_listing"
+  | "invalid_sale_completion"
+  | "invalid_purpose"
+  | "already_sold"
   | "invalid_offer"
   | "offer_linked"
   | "listing_already_linked"
@@ -106,6 +114,37 @@ function isNullableAmount(value: unknown): value is number | null {
 
 function isNullableDate(value: unknown): value is string | null {
   return value === null || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function isValidDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+}
+
+export function parseListingSaleCompletion(value: unknown): ListingSaleCompletion | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const data = value as Record<string, unknown>;
+  if (
+    typeof data.soldPrice !== "number"
+    || !Number.isFinite(data.soldPrice)
+    || data.soldPrice <= 0
+    || !isValidDate(data.notaryDate)
+    || typeof data.collaboratingBrokerName !== "string"
+    || typeof data.noCollaboratingBroker !== "boolean"
+  ) return null;
+  const collaboratingBrokerName = data.collaboratingBrokerName.trim();
+  if (!data.noCollaboratingBroker && !collaboratingBrokerName) return null;
+  if (collaboratingBrokerName.length > 240) return null;
+  return {
+    soldPrice: data.soldPrice,
+    notaryDate: data.notaryDate,
+    collaboratingBrokerName: data.noCollaboratingBroker ? "" : collaboratingBrokerName,
+    noCollaboratingBroker: data.noCollaboratingBroker,
+  };
 }
 
 function uniqueOwnerIds(value: unknown): string[] | null {
@@ -259,6 +298,15 @@ function throwMappedPersistenceError(error: unknown): never {
   if (/listing introuvable/i.test(message)) {
     throw new ListingServiceError("not_found", "Listing introuvable.");
   }
+  if (/seul un listing en vente/i.test(message)) {
+    throw new ListingServiceError("invalid_purpose", "Seul un Listing en vente peut être marqué comme vendu.");
+  }
+  if (/déjà marqué comme vendu|déjà vendu/i.test(message)) {
+    throw new ListingServiceError("already_sold", "Ce Listing est déjà marqué comme vendu.");
+  }
+  if (/prix vendu invalide|date du notaire|courtier collaborateur/i.test(message)) {
+    throw new ListingServiceError("invalid_sale_completion", "Finalisation de la vente invalide.");
+  }
   throw error;
 }
 
@@ -327,6 +375,21 @@ export function createSupabaseListingRepository(): ListingRepository {
         p_listing_id: listingId,
         p_values: rpcValues(values, actor),
         p_owner_contact_ids: values.ownerContactIds ?? null,
+      });
+      if (error) throwMappedPersistenceError(error);
+      const row = (Array.isArray(data) ? data[0] : data) as ListingRow | null;
+      if (!row) throw new ListingServiceError("not_found", "Listing introuvable.");
+      return row;
+    },
+
+    async completeSale(listingId, values, actor) {
+      const { data, error } = await getSupabaseAdmin().rpc("complete_listing_sale", {
+        p_listing_id: listingId,
+        p_sold_price: values.soldPrice,
+        p_notary_date: values.notaryDate,
+        p_collaborating_broker_name: values.collaboratingBrokerName,
+        p_no_collaborating_broker: values.noCollaboratingBroker,
+        p_actor_broker: actor,
       });
       if (error) throwMappedPersistenceError(error);
       const row = (Array.isArray(data) ? data[0] : data) as ListingRow | null;

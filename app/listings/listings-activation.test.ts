@@ -62,6 +62,7 @@ describe("activation visuelle Listings", () => {
       "20260819210000_create_listings_foundation.sql",
       "20260819223000_add_listing_marketing_tracking.sql",
       "20260819234500_add_listing_offers_and_transaction_links.sql",
+      "20260821110000_add_listing_sale_completion.sql",
     ]);
   });
 });

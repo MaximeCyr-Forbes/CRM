@@ -72,6 +72,9 @@ export type Listing = {
   purpose: ListingPurpose;
   askingPrice: number | null;
   monthlyRent: number | null;
+  soldPrice: number | null;
+  notaryDate: string | null;
+  collaboratingBrokerName: string;
   propertyType: ListingPropertyType;
   listingDate: string | null;
   expirationDate: string | null;
@@ -82,6 +85,13 @@ export type Listing = {
   ownerContactIds: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ListingSaleCompletion = {
+  soldPrice: number;
+  notaryDate: string;
+  collaboratingBrokerName: string;
+  noCollaboratingBroker: boolean;
 };
 
 export type ListingDraft = Pick<
@@ -240,6 +250,7 @@ export type ListingActivityEventType =
   | "offer_status_changed"
   | "offer_deleted"
   | "transaction_created"
+  | "sale_completed"
   | "note_updated";
 
 export type ListingActivityEntry = {

@@ -9,10 +9,14 @@ describe("sécurité et activation visuelle des Listings", () => {
   it("protège toutes les routes et impose same-origin aux écritures", () => {
     const collectionRoute = source("app/api/listings/route.ts");
     const detailRoute = source("app/api/listings/[listingId]/route.ts");
+    const completeSaleRoute = source("app/api/listings/[listingId]/complete-sale/route.ts");
     expect(collectionRoute).toContain("requireApiAccess()");
     expect(detailRoute).toContain("requireApiAccess()");
     expect(collectionRoute).toContain("isSameOriginRequest(request)");
     expect(detailRoute.match(/isSameOriginRequest\(request\)/g)).toHaveLength(2);
+    expect(completeSaleRoute).toContain("requireApiAccess()");
+    expect(completeSaleRoute).toContain("isSameOriginRequest(request)");
+    expect(completeSaleRoute).toContain("parseListingSaleCompletion");
   });
 
   it("garde service_role dans la couche serveur et hors du contexte navigateur", () => {

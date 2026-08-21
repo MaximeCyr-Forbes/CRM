@@ -19,7 +19,8 @@ function listing(values: Partial<Listing> = {}): Listing {
     civicNumber: "1403", address: "rue de Normandie", apartment: "", city: "Montréal",
     province: "QC", postalCode: "H1H 1H1", country: "Canada", centrisNumber: "12345678",
     broker: "maxime", status: "active", purpose: "sale", askingPrice: 799000,
-    monthlyRent: null, propertyType: "residential", listingDate: "2026-08-06",
+    monthlyRent: null, soldPrice: null, notaryDate: null, collaboratingBrokerName: "",
+    propertyType: "residential", listingDate: "2026-08-06",
     expirationDate: "2026-09-10", centrisUrl: "", publicUrl: "", primaryImageUrl: "",
     generalNotes: "", ownerContactIds: [], createdAt: "2026-08-01T12:00:00Z",
     updatedAt: "2026-08-19T12:00:00Z", ...values,
@@ -105,6 +106,18 @@ describe("calculs du tableau de bord Listings", () => {
     const current = listing({ listingDate: "2026-06-01", expirationDate: "2026-08-25", status: "conditional" });
     const data = calculateListingOverview([current], [{ listing_id: current.id, status: "negotiating" }], [{ listing_id: current.id, completed: true }, { listing_id: current.id, completed: false }], today);
     expect(data.attentionItems.map((item) => item.kind)).toEqual(expect.arrayContaining(["expiration", "open_offer", "conditional", "incomplete_checklist"]));
+  });
+
+  it("retire un Listing vendu de toutes les priorités, même avec offre et checklist ouvertes", () => {
+    const sold = listing({ status: "sold", soldPrice: 550000, notaryDate: "2026-09-15" });
+    const data = calculateListingOverview(
+      [sold],
+      [{ listing_id: sold.id, status: "negotiating" }],
+      [{ listing_id: sold.id, completed: false }],
+      today,
+    );
+    expect(data.activeListings).toBe(0);
+    expect(data.attentionItems).toEqual([]);
   });
 });
 

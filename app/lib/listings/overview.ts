@@ -98,6 +98,7 @@ export function calculateListingOverview(
   }).sort((a, b) => a.daysUntilExpiration - b.daysUntilExpiration);
 
   const attentionItems = listings.flatMap((listing) => {
+    if (CLOSED_STATUSES.has(listing.status)) return [];
     const address = listingAddressLines(listing)[0];
     const base = { listingId: listing.id, address, broker: listing.broker, purpose: listing.purpose };
     const items: ListingOverview["attentionItems"] = [];

@@ -9,12 +9,14 @@ import {
   RENTAL_LISTING_STATUSES,
   SALE_LISTING_STATUSES,
   acquireListingSubmissionLock,
+  canMarkListingSold,
   emptyListingDraft,
   findListingWithCentrisNumber,
   listingDraftFromListing,
   normalizeListingCentrisNumber,
   prepareListingDraft,
   releaseListingSubmissionLock,
+  statusesForListingEditor,
   toggleListingOwner,
   validStatusForListingPurpose,
 } from "./editor";
@@ -78,6 +80,9 @@ function persistedListing(values: Partial<Listing> = {}): Listing {
     purpose: "sale",
     askingPrice: 799000,
     monthlyRent: null,
+    soldPrice: null,
+    notaryDate: null,
+    collaboratingBrokerName: "",
     propertyType: "residential",
     listingDate: "2026-08-19",
     expirationDate: "2027-02-19",
@@ -113,6 +118,22 @@ describe("formulaire Nouveau Listing", () => {
     expect(RENTAL_LISTING_STATUSES).not.toContain("sold");
     expect(validStatusForListingPurpose("rental", "sold")).toBe("active");
     expect(validStatusForListingPurpose("sale", "rented")).toBe("active");
+  });
+
+  it("réserve la transition vers Vendu au workflow dédié en modification", () => {
+    expect(statusesForListingEditor("sale", "create", "preparation")).toContain("sold");
+    expect(statusesForListingEditor("sale", "edit", "active")).not.toContain("sold");
+    expect(statusesForListingEditor("sale", "edit", "sold")).toContain("sold");
+  });
+
+  it("affiche l’action VENDU uniquement pour les statuts de vente autorisés", () => {
+    for (const status of ["preparation", "coming_soon", "active", "offer_received", "conditional", "expired"] as const) {
+      expect(canMarkListingSold({ purpose: "sale", status })).toBe(true);
+    }
+    for (const status of ["sold", "rented", "withdrawn"] as const) {
+      expect(canMarkListingSold({ purpose: "sale", status })).toBe(false);
+    }
+    expect(canMarkListingSold({ purpose: "rental", status: "active" })).toBe(false);
   });
 
   it("enregistre un prix de Vente et efface toujours le loyer", () => {

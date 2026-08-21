@@ -35,8 +35,27 @@ export function statusesForListingPurpose(purpose: ListingPurpose): ReadonlyArra
   return purpose === "rental" ? RENTAL_LISTING_STATUSES : SALE_LISTING_STATUSES;
 }
 
+export function statusesForListingEditor(
+  purpose: ListingPurpose,
+  mode: "create" | "edit",
+  initialStatus: ListingStatus,
+): ReadonlyArray<ListingStatus> {
+  const statuses = statusesForListingPurpose(purpose);
+  if (mode === "edit" && purpose === "sale" && initialStatus !== "sold") {
+    return statuses.filter((status) => status !== "sold");
+  }
+  return statuses;
+}
+
 export function validStatusForListingPurpose(purpose: ListingPurpose, status: ListingStatus) {
   return statusesForListingPurpose(purpose).includes(status) ? status : "active";
+}
+
+export function canMarkListingSold(listing: Pick<Listing, "purpose" | "status">) {
+  return listing.purpose === "sale"
+    && listing.status !== "sold"
+    && listing.status !== "rented"
+    && listing.status !== "withdrawn";
 }
 
 export function normalizeListingCentrisNumber(value: string) {

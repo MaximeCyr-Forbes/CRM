@@ -18,6 +18,12 @@ export function listingApiError(error: unknown, fallbackMessage: string) {
     if (error.code === "invalid_listing") {
       return Response.json({ error: error.message }, { status: 400 });
     }
+    if (error.code === "invalid_sale_completion" || error.code === "invalid_purpose") {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+    if (error.code === "already_sold") {
+      return Response.json({ error: error.message }, { status: 409 });
+    }
     if (error.code === "invalid_offer") {
       return Response.json({ error: error.message }, { status: 400 });
     }

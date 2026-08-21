@@ -10,6 +10,8 @@ describe("fiche détaillée Listings", () => {
   const inventory = source("app/listings/page.tsx");
   const media = source("app/components/listing-media.tsx");
   const confirmation = source("app/components/listing-delete-confirmation-modal.tsx");
+  const soldModal = source("app/components/listing-sold-modal.tsx");
+  const context = source("app/listings-context.tsx");
 
   it("ouvre la même route depuis l’adresse et le bouton Ouvrir", () => {
     expect(inventory).toContain("router.push(`/listings/${listingId}`)");
@@ -67,6 +69,39 @@ describe("fiche détaillée Listings", () => {
     expect(detail).toContain("Listing temporairement indisponible.");
     expect(detail).toContain("retry()");
     expect(detail).toContain("LISTING INTROUVABLE");
+  });
+
+  it("finalise une vente par l’action dédiée puis affiche le résultat sans reload", () => {
+    expect(detail).toContain("canMarkListingSold(listing)");
+    expect(detail).toContain('className="listing-sold-button"');
+    expect(detail).toContain("<ListingSoldModal");
+    expect(detail).toContain("await markListingSold(listing.id, values)");
+    expect(detail).toContain("Listing marqué comme vendu.");
+    expect(detail).toContain("RÉSULTAT DE LA VENTE");
+    expect(detail).toContain("listing.soldPrice");
+    expect(detail).toContain("listing.notaryDate");
+    expect(detail).toContain("listing.collaboratingBrokerName");
+    expect(detail).not.toContain("window.location.reload");
+    expect(context).toContain("markListingSold:");
+    expect(context).toContain("/complete-sale");
+    expect(context).toContain("return replaceListing(listing)");
+  });
+
+  it("rend la modal compacte, accessible, explicite et protégée contre le double clic", () => {
+    expect(soldModal).toContain('role="dialog"');
+    expect(soldModal).toContain('aria-modal="true"');
+    expect(soldModal).toContain('aria-labelledby="listing-sold-title"');
+    expect(soldModal).toContain("useDialogLifecycle(true, closeIfIdle)");
+    expect(soldModal).toContain("acquireListingSubmissionLock(submittingRef)");
+    expect(soldModal).toContain('aria-busy={busy}');
+    expect(soldModal).toContain("Aucun courtier collaborateur");
+    expect(soldModal).toContain("Confirmer la vente");
+  });
+
+  it("ne crée ni ne modifie aucune Transaction pendant la finalisation", () => {
+    expect(detail).not.toContain("createTransaction");
+    expect(soldModal).not.toContain("Transaction");
+    expect(context).not.toContain("/api/transactions");
   });
 
   it("retourne à l’historique seulement lorsque la provenance est l’inventaire", () => {

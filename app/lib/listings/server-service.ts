@@ -1,8 +1,9 @@
-import type { Listing, ListingBroker, ListingDraft } from "../../data/listing-types";
+import type { Listing, ListingBroker, ListingDraft, ListingSaleCompletion } from "../../data/listing-types";
 import {
   createSupabaseListingRepository,
   ListingServiceError,
   parseListingDraft,
+  parseListingSaleCompletion,
   parseListingUpdate,
   type ListingFilters,
   type ListingOwnerRow,
@@ -30,6 +31,9 @@ export function mapListing(row: ListingRow, ownerRows: ReadonlyArray<ListingOwne
     purpose: row.purpose,
     askingPrice: row.asking_price === null ? null : Number(row.asking_price),
     monthlyRent: row.monthly_rent === null ? null : Number(row.monthly_rent),
+    soldPrice: row.sold_price == null ? null : Number(row.sold_price),
+    notaryDate: row.notary_date ?? null,
+    collaboratingBrokerName: row.collaborating_broker_name ?? "",
     propertyType: row.property_type,
     listingDate: row.listing_date,
     expirationDate: row.expiration_date,
@@ -79,10 +83,36 @@ export function createListingsService(repository: ListingRepository) {
     async updateListing(listingId: string, input: ListingUpdate, actor: ListingBroker | null = null) {
       const values = parseListingUpdate(input);
       if (!values) throw new ListingServiceError("invalid_listing", "Modification du Listing invalide.");
+      if (values.status === "sold") {
+        const current = await repository.getRow(listingId);
+        if (!current) throw new ListingServiceError("not_found", "Listing introuvable.");
+        if (current.status !== "sold") {
+          throw new ListingServiceError(
+            "invalid_listing",
+            "Utilisez le bouton VENDU sur la fiche pour finaliser une vente.",
+          );
+        }
+      }
       const row = await repository.updateWithOwners(listingId, values, actor);
       const owners = values.ownerContactIds === undefined
         ? await repository.listOwnerRows([listingId])
         : ownerRows(listingId, values.ownerContactIds);
+      return mapListing(row, owners);
+    },
+
+    async completeListingSale(listingId: string, input: ListingSaleCompletion, actor: ListingBroker | null = null) {
+      const values = parseListingSaleCompletion(input);
+      if (!values) throw new ListingServiceError("invalid_sale_completion", "Finalisation de la vente invalide.");
+      const current = await repository.getRow(listingId);
+      if (!current) throw new ListingServiceError("not_found", "Listing introuvable.");
+      if (current.purpose !== "sale") {
+        throw new ListingServiceError("invalid_purpose", "Seul un Listing en vente peut être marqué comme vendu.");
+      }
+      if (current.status === "sold") {
+        throw new ListingServiceError("already_sold", "Ce Listing est déjà marqué comme vendu.");
+      }
+      const row = await repository.completeSale(listingId, values, actor);
+      const owners = await repository.listOwnerRows([listingId]);
       return mapListing(row, owners);
     },
 
@@ -99,4 +129,5 @@ export const listListings = (filters: ListingFilters = {}) => defaultService.lis
 export const getListing = (listingId: string) => defaultService.getListing(listingId);
 export const createListing = (draft: ListingDraft, actor: ListingBroker | null = null) => defaultService.createListing(draft, actor);
 export const updateListing = (listingId: string, values: ListingUpdate, actor: ListingBroker | null = null) => defaultService.updateListing(listingId, values, actor);
+export const completeListingSale = (listingId: string, values: ListingSaleCompletion, actor: ListingBroker | null = null) => defaultService.completeListingSale(listingId, values, actor);
 export const deleteListing = (listingId: string) => defaultService.deleteListing(listingId);
