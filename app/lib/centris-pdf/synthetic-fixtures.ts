@@ -27,4 +27,5 @@ export const syntheticCentrisFixtures = {
   soldWithPromiseDate: document(`${header("91000009", "Vendu en 25 jours", "90 Av. Vendue", "527 000 $")} Genre de propriété Appartement Année de construction Date de livraison prévue 1922 Date PA acceptée 2026-04-21 Date de levée des conditions 2026-05-22 2026-08-20 à 10h00 ${footer}`),
   intergenerational: document(`${header("91000010", "En vigueur", "100 Rue Familiale", "599 000 $")} Genre de propriété Maison de plain-pied Année de construction Date de livraison prévue 1978 Intergénération Oui Pièce(s) et Espace(s) additionnel(s) - Intergénération Revenus supplémentaires 700 $ Loyer mensuel ${footer}`),
   saintSauveur: document(`${header("14262312", "En vigueur", "146 Ch. Legault", "869 000 $", "J0R 1R7", "Saint-Sauveur", "ch. Sinclair")} Genre de propriété Maison à étages Année de construction Date de livraison prévue 2004 ${footer}`),
+  civicSuffix: document(`${header("16356100", "En vigueur", "64Z Rue Adélard", "549 000 $", "J7P 5J6", "Saint-Eustache")} Genre de propriété Maison de plain-pied Année de construction Date de livraison prévue 1987 ${footer}`),
 } as const;

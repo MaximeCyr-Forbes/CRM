@@ -5,6 +5,16 @@ import { mapCentrisResultToTransactionSuggestions } from "./transaction-mapping"
 
 const parse = (fixture: (typeof fixtures)[keyof typeof fixtures]) => parseCentrisText(fixture, "fixture-synthetique.pdf");
 
+function parseAddress(address: string) {
+  return parseCentrisText({
+    pageCount: 1,
+    pages: [{
+      pageNumber: 1,
+      text: `16356100 (En vigueur) No Centris ${address} Région Laurentides Quartier Près de Parc 549 000 $ J7P 5J6 Saint-Eustache Parc Genre de propriété Maison de plain-pied Année de construction 1987`,
+    }],
+  }, "adresse-synthetique.pdf").address;
+}
+
 describe("parseur Centris synthétique", () => {
   it("conserve le numéro, le statut actif et les accents de l’adresse", () => {
     const active = parse(fixtures.condo);
@@ -37,6 +47,41 @@ describe("parseur Centris synthétique", () => {
     expect(parse(fixtures.incomeProperty).address).toMatchObject({ civicNumber: "40-44", street: "Rue Anonyme" });
     expect(parse(fixtures.condo).address).toMatchObject({ unit: "102", city: "Ville-Test", province: "QC", postalCode: "H0H 0H0" });
     expect(parse(fixtures.commercialPerSquareFoot).address).toMatchObject({ unit: "106-206" });
+  });
+
+  it("rattache la lettre collée au numéro civique dans le cas réel 64Z Rue Adélard", () => {
+    const result = parse(fixtures.civicSuffix);
+    expect(result.address).toMatchObject({
+      civicNumber: "64Z",
+      street: "Rue Adélard",
+      city: "Saint-Eustache",
+      province: "QC",
+      postalCode: "J7P 5J6",
+    });
+    expect(result.address.fullAddress).toMatch(/^64Z Rue Adélard/);
+    expect(result.suggestedTransactionValues.address).toBe("64Z Rue Adélard, Saint-Eustache, QC J7P 5J6");
+  });
+
+  it.each([
+    ["123A Rue Principale", "123A", "Rue Principale"],
+    ["123 Rue Zéphyr", "123", "Rue Zéphyr"],
+    ["40-44 Rue Anonyme", "40-44", "Rue Anonyme"],
+    ["40A-44B Rue Exemple", "40A-44B", "Rue Exemple"],
+    ["1120 Boul. du Curé-Labelle", "1120", "Boul. du Curé-Labelle"],
+  ])("sépare %s en numéro %s et rue %s", (rawAddress, civicNumber, street) => {
+    expect(parseAddress(rawAddress)).toMatchObject({ civicNumber, street });
+  });
+
+  it.each([
+    ["123A Rue Exemple, app. 4", "4"],
+    ["123A Rue Exemple, local 106", "106"],
+    ["123A Rue Exemple, unité 2", "2"],
+  ])("conserve le suffixe civique et l’unité de %s", (rawAddress, unit) => {
+    expect(parseAddress(rawAddress)).toMatchObject({
+      civicNumber: "123A",
+      street: "Rue Exemple",
+      unit,
+    });
   });
 
   it("ignore complètement le champ Près de sans contaminer l’adresse, la Transaction ou le Listing", () => {

@@ -28,6 +28,17 @@ const allSelected: CentrisListingImportSelection = {
 };
 
 describe("adaptateur Centris vers un nouveau Listing", () => {
+  it("importe le suffixe civique 64Z dans le bon champ du Listing", () => {
+    const next = applyCentrisListingImport(draft(), parse(fixtures.civicSuffix), allSelected);
+    expect(next).toMatchObject({
+      civicNumber: "64Z",
+      address: "Rue Adélard",
+      city: "Saint-Eustache",
+      province: "QC",
+      postalCode: "J7P 5J6",
+    });
+  });
+
   it("importe Ch. Legault sans laisser Près de contaminer le Listing", () => {
     const next = applyCentrisListingImport(draft(), parse(fixtures.saintSauveur), allSelected);
     expect(next).toMatchObject({

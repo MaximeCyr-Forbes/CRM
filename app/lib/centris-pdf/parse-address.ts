@@ -20,6 +20,9 @@ const QUEBEC_REGIONS = [
   "Centre-du-Québec",
 ] as const;
 
+const CIVIC_NUMBER_PATTERN = String.raw`\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?`;
+const CIVIC_NUMBER_AT_START = new RegExp(`^(${CIVIC_NUMBER_PATTERN})(?=\\s|$)`, "u");
+
 const emptyAddress: CentrisParseResult["address"] = {
   fullAddress: "",
   civicNumber: "",
@@ -89,6 +92,15 @@ function parseCityAndContext(raw: string, region: string, explicitDistrict: stri
   };
 }
 
+function splitCivicNumber(rawAddress: string) {
+  const match = CIVIC_NUMBER_AT_START.exec(rawAddress);
+  const civicNumber = match?.[1] ?? "";
+  return {
+    civicNumber,
+    streetAndUnit: civicNumber ? rawAddress.slice(civicNumber.length).trimStart() : rawAddress,
+  };
+}
+
 export function parseCentrisAddress(firstPage: string): CentrisParseResult["address"] {
   const header = /\b\d{7,9}\s*\([^)]{2,80}\)\s*No\s+Centris\s+(.+?)\s+Région\b/i.exec(firstPage);
   const fallback = /No\s+Centris\s+\d{7,9}\s*(?:\([^)]*\))?\s+(.+?)\s+Région\b/i.exec(firstPage);
@@ -104,10 +116,9 @@ export function parseCentrisAddress(firstPage: string): CentrisParseResult["addr
   const ignoredProximity = ignoredProximityText(metadata, region, neighborhood);
   const cityAndContext = parseCityAndContext(context, region, neighborhood, ignoredProximity);
 
-  const civicNumber = /^(\d+(?:-\d+)?)/.exec(rawAddress)?.[1] ?? "";
+  const { civicNumber, streetAndUnit } = splitCivicNumber(rawAddress);
   const unitMatch = /,\s*(?:app\.?|appt\.?|local|unité)\s*([\p{L}\p{N}-]+)/iu.exec(rawAddress);
-  const street = rawAddress
-    .replace(/^\d+(?:-\d+)?\s*/, "")
+  const street = streetAndUnit
     .replace(/,\s*(?:app\.?|appt\.?|local|unité)\s*[\p{L}\p{N}-]+\s*$/iu, "")
     .trim();
   const province = postalCode ? "QC" : "";
