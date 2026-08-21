@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
   formatRecommendationDate,
   mapRecommendationRow,
   parseRecommendationDraft,
+  releaseRecommendationDeletionLock,
   releaseRecommendationSubmissionLock,
   sortRecommendations,
   validateRecommendationText,
@@ -82,5 +84,14 @@ describe("types et validation des recommandations", () => {
     expect(acquireRecommendationSubmissionLock(lock)).toBe(false);
     releaseRecommendationSubmissionLock(lock);
     expect(acquireRecommendationSubmissionLock(lock)).toBe(true);
+  });
+
+  it("bloque une deuxième suppression pendant la requête active", () => {
+    const lock = { current: null as string | null };
+    expect(acquireRecommendationDeletionLock(lock, "recommendation-1")).toBe(true);
+    expect(acquireRecommendationDeletionLock(lock, "recommendation-1")).toBe(false);
+    expect(acquireRecommendationDeletionLock(lock, "recommendation-2")).toBe(false);
+    releaseRecommendationDeletionLock(lock);
+    expect(acquireRecommendationDeletionLock(lock, "recommendation-2")).toBe(true);
   });
 });

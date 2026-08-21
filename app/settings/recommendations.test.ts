@@ -46,16 +46,52 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(lifecycle).toContain('event.key === "Escape"');
   });
 
-  it("utilise les classes responsive dédiées et ne propose ni suppression ni modification", () => {
+  it("utilise les classes responsive dédiées et ne propose pas de modification", () => {
     const component = source("app/components/settings-recommendations.tsx");
     const css = source("app/globals.css");
     expect(css).toContain(".settings-recommendations");
     expect(css).toContain(".recommendation-row");
     expect(css).toContain(".recommendation-detail-modal");
     expect(css).toContain("@media (max-width: 700px)");
-    expect(component).not.toContain('method: "DELETE"');
-    expect(component).not.toContain("SUPPRIMER");
     expect(component).not.toContain("MODIFIER");
+  });
+
+  it("propose une suppression unique depuis la liste et la modale détail avec confirmation", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    const detail = source("app/components/recommendation-detail-modal.tsx");
+    const confirmation = source("app/components/recommendation-delete-confirmation-modal.tsx");
+    expect(component).toContain('method: "DELETE"');
+    expect(component).toContain("async function deleteRecommendation(recommendationId: string)");
+    expect(component).toContain("requestRecommendationDeletion(recommendation)");
+    expect(component).toContain("requestRecommendationDeletion(openedRecommendation)");
+    expect(component).toContain("current.filter((item) => item.id !== recommendationId)");
+    expect(component).toContain("current?.id === recommendationId ? null : current");
+    expect(detail).toContain("Supprimer");
+    expect(confirmation).toContain("SUPPRIMER CETTE RECOMMANDATION ?");
+    expect(confirmation).toContain("Cette action est définitive.");
+    expect(confirmation).toContain("Annuler");
+    expect(confirmation).not.toContain("window.alert");
+    expect(confirmation).not.toContain("window.confirm");
+  });
+
+  it("maintient un état ciblé et recalcule le compteur depuis la liste filtrée", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    expect(component).toContain("deletingRecommendationId");
+    expect(component).toContain("SUPPRESSION…");
+    expect(component).toContain('recommendation.status === "unread"');
+    expect(component).toContain('selectedBroker === "Maxime"');
+    expect(component).toContain("✓ Recommandation supprimée.");
+    expect(component).toContain("La recommandation n’a pas pu être supprimée. Réessayez.");
+  });
+
+  it("supprime uniquement la recommandation ciblée dans Supabase", () => {
+    const persistence = source("app/lib/recommendations/persistence.ts");
+    expect(persistence).toContain("export async function deleteRecommendation(recommendationId: string)");
+    expect(persistence).toContain('.from("crm_recommendations")');
+    expect(persistence).toContain(".delete()");
+    expect(persistence).toContain('.eq("id", recommendationId)');
+    expect(persistence).toContain('.select("id")');
+    expect(persistence).toContain(".maybeSingle()");
   });
 
   it("déclare une migration additive protégée par RLS sans toucher aux données existantes", () => {

@@ -53,3 +53,14 @@ export async function markRecommendationRead(recommendationId: string): Promise<
   if (existingError) throw existingError;
   return existing ? mapRecommendationRow(existing as CRMRecommendationRow) : null;
 }
+
+export async function deleteRecommendation(recommendationId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("crm_recommendations")
+    .delete()
+    .eq("id", recommendationId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}

@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   sameOrigin: true,
   drafts: [] as CRMRecommendationDraft[],
   recommendations: [] as CRMRecommendation[],
+  deletedRecommendationIds: [] as string[],
 }));
 
 vi.mock("../../lib/crm-access", () => ({
@@ -47,10 +48,17 @@ vi.mock("../../lib/recommendations/persistence", () => ({
     state.recommendations = state.recommendations.map((item) => item.id === updated.id ? updated : item);
     return updated;
   }),
+  deleteRecommendation: vi.fn(async (recommendationId: string) => {
+    const recommendationIndex = state.recommendations.findIndex((item) => item.id === recommendationId);
+    if (recommendationIndex < 0) return false;
+    state.deletedRecommendationIds.push(recommendationId);
+    state.recommendations.splice(recommendationIndex, 1);
+    return true;
+  }),
 }));
 
 import { GET, POST } from "./route";
-import { PATCH } from "./[recommendationId]/route";
+import { DELETE, PATCH } from "./[recommendationId]/route";
 
 const recommendationId = "10000000-0000-4000-8000-000000000001";
 
@@ -62,12 +70,23 @@ function post(body: unknown) {
   }));
 }
 
+function remove(id: string) {
+  return DELETE(
+    new Request(`http://localhost/api/recommendations/${id}`, {
+      method: "DELETE",
+      headers: { Origin: "http://localhost" },
+    }),
+    { params: Promise.resolve({ recommendationId: id }) },
+  );
+}
+
 describe("API recommandations", () => {
   beforeEach(() => {
     state.accessDenied = false;
     state.sameOrigin = true;
     state.drafts = [];
     state.recommendations = [];
+    state.deletedRecommendationIds = [];
   });
 
   it("crée une recommandation France non lue", async () => {
@@ -100,12 +119,15 @@ describe("API recommandations", () => {
     state.accessDenied = true;
     expect((await GET()).status).toBe(401);
     expect((await post({ title: "Titre", content: "Texte", submittedBy: "maxime" })).status).toBe(401);
+    expect((await remove(recommendationId)).status).toBe(401);
   });
 
   it("refuse une écriture qui ne provient pas de la même origine", async () => {
     state.sameOrigin = false;
     expect((await post({ title: "Titre", content: "Texte", submittedBy: "sandrine" })).status).toBe(403);
+    expect((await remove(recommendationId)).status).toBe(403);
     expect(state.drafts).toHaveLength(0);
+    expect(state.deletedRecommendationIds).toHaveLength(0);
   });
 
   it("retourne les recommandations persistées au rechargement", async () => {
@@ -130,5 +152,28 @@ describe("API recommandations", () => {
     expect(response.status).toBe(200);
     expect(payload.data).toMatchObject({ status: "read", openedBy: "maxime" });
     expect(payload.data.openedAt).not.toBeNull();
+  });
+
+  it("supprime une recommandation puis ne la retourne plus au rechargement", async () => {
+    await post({ title: "À retirer", content: "Texte", submittedBy: "france" });
+    const response = await remove(recommendationId);
+    const payload = await response.json() as { data: { recommendationId: string } };
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toEqual({ recommendationId });
+    expect(state.deletedRecommendationIds).toEqual([recommendationId]);
+
+    const refreshed = await GET();
+    const refreshedPayload = await refreshed.json() as { data: CRMRecommendation[] };
+    expect(refreshedPayload.data).toEqual([]);
+  });
+
+  it("retourne 404 pour une recommandation inexistante", async () => {
+    expect((await remove("20000000-0000-4000-8000-000000000002")).status).toBe(404);
+  });
+
+  it("retourne 400 pour un identifiant invalide", async () => {
+    expect((await remove("identifiant-invalide")).status).toBe(400);
+    expect(state.deletedRecommendationIds).toHaveLength(0);
   });
 });

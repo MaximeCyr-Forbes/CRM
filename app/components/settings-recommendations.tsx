@@ -4,14 +4,17 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { type Broker, useBroker } from "../broker-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
+  acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
   formatRecommendationDate,
+  releaseRecommendationDeletionLock,
   releaseRecommendationSubmissionLock,
   sortRecommendations,
   validateRecommendationText,
   type CRMRecommendation,
   type RecommendationAuthor,
 } from "../data/recommendation-types";
+import { RecommendationDeleteConfirmationModal } from "./recommendation-delete-confirmation-modal";
 import { RecommendationDetailModal } from "./recommendation-detail-modal";
 
 const BROKER_KEYS: Record<Broker, RecommendationAuthor> = {
@@ -33,6 +36,10 @@ export function SettingsRecommendations() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [reloadAdminKey, setReloadAdminKey] = useState(0);
   const [openedRecommendation, setOpenedRecommendation] = useState<CRMRecommendation | null>(null);
+  const [pendingDeletion, setPendingDeletion] = useState<CRMRecommendation | null>(null);
+  const [deletingRecommendationId, setDeletingRecommendationId] = useState<string | null>(null);
+  const [deletionConfirmation, setDeletionConfirmation] = useState(false);
+  const deletionLock = useRef<string | null>(null);
 
   const submittedBy = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
   // TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur
@@ -45,6 +52,8 @@ export function SettingsRecommendations() {
       setAdminError(null);
       setIsLoadingAdmin(false);
       setOpenedRecommendation(null);
+      setPendingDeletion(null);
+      setDeletionConfirmation(false);
       return;
     }
 
@@ -134,6 +143,39 @@ export function SettingsRecommendations() {
     }
   }
 
+  function requestRecommendationDeletion(recommendation: CRMRecommendation) {
+    setAdminError(null);
+    setDeletionConfirmation(false);
+    setPendingDeletion(recommendation);
+  }
+
+  async function deleteRecommendation(recommendationId: string) {
+    if (!acquireRecommendationDeletionLock(deletionLock, recommendationId)) return;
+    setDeletingRecommendationId(recommendationId);
+    try {
+      const response = await fetch(`/api/recommendations/${recommendationId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = await response.json().catch(() => null) as {
+        data?: { recommendationId?: string };
+      } | null;
+      if (!response.ok || payload?.data?.recommendationId !== recommendationId) {
+        throw new Error("Suppression impossible");
+      }
+
+      setRecommendations((current) => current.filter((item) => item.id !== recommendationId));
+      setOpenedRecommendation((current) => current?.id === recommendationId ? null : current);
+      setPendingDeletion(null);
+      setDeletionConfirmation(true);
+    } catch {
+      throw new Error("La recommandation n’a pas pu être supprimée. Réessayez.");
+    } finally {
+      releaseRecommendationDeletionLock(deletionLock);
+      setDeletingRecommendationId(null);
+    }
+  }
+
   const unreadCount = recommendations.filter((recommendation) => recommendation.status === "unread").length;
 
   return (
@@ -201,6 +243,12 @@ export function SettingsRecommendations() {
             <strong>{unreadCount === 0 ? "AUCUNE NON LUE" : `${unreadCount} NON LUE${unreadCount > 1 ? "S" : ""}`}</strong>
           </header>
 
+          {deletionConfirmation && (
+            <div className="recommendation-deletion-confirmation" role="status">
+              ✓ Recommandation supprimée.
+            </div>
+          )}
+
           {adminError && (
             <div className="recommendation-admin-error" role="alert">
               <span>{adminError}</span>
@@ -226,7 +274,23 @@ export function SettingsRecommendations() {
                     <div><dt>Date</dt><dd>{formatRecommendationDate(recommendation.createdAt)}</dd></div>
                   </dl>
                 </div>
-                <button onClick={() => void openRecommendation(recommendation)} type="button">OUVRIR →</button>
+                <div className="recommendation-row-actions">
+                  <button
+                    disabled={deletingRecommendationId === recommendation.id}
+                    onClick={() => void openRecommendation(recommendation)}
+                    type="button"
+                  >
+                    OUVRIR →
+                  </button>
+                  <button
+                    className="recommendation-row-delete"
+                    disabled={deletingRecommendationId === recommendation.id}
+                    onClick={() => requestRecommendationDeletion(recommendation)}
+                    type="button"
+                  >
+                    {deletingRecommendationId === recommendation.id ? "SUPPRESSION…" : "SUPPRIMER"}
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -235,8 +299,19 @@ export function SettingsRecommendations() {
 
       {openedRecommendation && (
         <RecommendationDetailModal
-          onClose={() => setOpenedRecommendation(null)}
+          isDeleting={deletingRecommendationId === openedRecommendation.id}
+          onClose={() => { if (!pendingDeletion) setOpenedRecommendation(null); }}
+          onDelete={() => requestRecommendationDeletion(openedRecommendation)}
           recommendation={openedRecommendation}
+        />
+      )}
+
+      {pendingDeletion && (
+        <RecommendationDeleteConfirmationModal
+          isDeleting={deletingRecommendationId === pendingDeletion.id}
+          onClose={() => setPendingDeletion(null)}
+          onConfirm={() => deleteRecommendation(pendingDeletion.id)}
+          recommendation={pendingDeletion}
         />
       )}
     </section>

@@ -1,7 +1,10 @@
 import { isRecommendationId } from "../../../data/recommendation-types";
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
-import { markRecommendationRead } from "../../../lib/recommendations/persistence";
+import {
+  deleteRecommendation,
+  markRecommendationRead,
+} from "../../../lib/recommendations/persistence";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,46 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
     );
     return Response.json(
       { error: "Ouverture de la recommandation impossible." },
+      { status: 500, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+}
+
+export async function DELETE(request: Request, context: RecommendationRouteContext) {
+  const access = await requireApiAccess();
+  if (access.response) return access.response;
+  if (!isSameOriginRequest(request)) {
+    return Response.json(
+      { error: "Origine refusée." },
+      { status: 403, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  const { recommendationId } = await context.params;
+  if (!isRecommendationId(recommendationId)) {
+    return Response.json(
+      { error: "Recommandation invalide." },
+      { status: 400, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
+  try {
+    if (!await deleteRecommendation(recommendationId)) {
+      return Response.json(
+        { error: "Recommandation introuvable." },
+        { status: 404, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    return Response.json(
+      { data: { recommendationId } },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (error) {
+    console.error(
+      "Erreur suppression recommandation CRM:",
+      error instanceof Error ? error.message : "Erreur technique inconnue",
+    );
+    return Response.json(
+      { error: "Suppression de la recommandation impossible." },
       { status: 500, headers: { "Cache-Control": "private, no-store" } },
     );
   }

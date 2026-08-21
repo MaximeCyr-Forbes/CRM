@@ -118,3 +118,16 @@ export function acquireRecommendationSubmissionLock(lock: { current: boolean }) 
 export function releaseRecommendationSubmissionLock(lock: { current: boolean }) {
   lock.current = false;
 }
+
+export function acquireRecommendationDeletionLock(
+  lock: { current: string | null },
+  recommendationId: string,
+) {
+  if (lock.current !== null) return false;
+  lock.current = recommendationId;
+  return true;
+}
+
+export function releaseRecommendationDeletionLock(lock: { current: string | null }) {
+  lock.current = null;
+}

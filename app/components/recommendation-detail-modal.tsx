@@ -10,10 +10,14 @@ import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
 export function RecommendationDetailModal({
   recommendation,
+  isDeleting,
   onClose,
+  onDelete,
 }: {
   recommendation: CRMRecommendation;
+  isDeleting: boolean;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   useDialogLifecycle(true, onClose);
@@ -70,6 +74,14 @@ export function RecommendationDetailModal({
         </div>
 
         <footer className="recommendation-detail-actions">
+          <button
+            className="destructive-button"
+            disabled={isDeleting}
+            onClick={onDelete}
+            type="button"
+          >
+            {isDeleting ? "Suppression…" : "Supprimer"}
+          </button>
           <button onClick={onClose} type="button">Fermer</button>
         </footer>
       </section>

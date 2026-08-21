@@ -1503,7 +1503,7 @@ button:disabled {
   font-size: 0.7rem;
 }
 
-.recommendation-row > button,
+.recommendation-row-actions button,
 .recommendation-admin-error button {
   min-height: 2.6rem;
   padding: 0.6rem 0.8rem;
@@ -1514,6 +1514,29 @@ button:disabled {
   font-size: 0.58rem;
   font-weight: 850;
   letter-spacing: 0.06em;
+}
+
+.recommendation-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.recommendation-row-actions .recommendation-row-delete {
+  color: #8f312a;
+  border-color: rgba(143, 49, 42, 0.28);
+}
+
+.recommendation-row-actions .recommendation-row-delete:hover:not(:disabled) {
+  color: #fff;
+  background: #8f312a;
+  border-color: #8f312a;
+}
+
+.recommendation-row-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .recommendation-admin-state,
@@ -1533,6 +1556,15 @@ button:disabled {
   gap: 1rem;
   margin-bottom: 0.65rem;
   color: #934c45;
+}
+
+.recommendation-deletion-confirmation {
+  margin-bottom: 0.65rem;
+  padding: 0.8rem 0.9rem;
+  color: #436249;
+  background: rgba(88, 114, 89, 0.09);
+  border-left: 2px solid #587259;
+  font-size: 0.72rem;
 }
 
 .recommendation-detail-backdrop {
@@ -1618,6 +1650,7 @@ button:disabled {
 .recommendation-detail-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.55rem;
   margin-top: 1.25rem;
 }
 
@@ -1632,6 +1665,14 @@ button:disabled {
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.recommendation-delete-backdrop {
+  z-index: 170;
+}
+
+.recommendation-delete-modal .listing-delete-content > strong {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 700px) {
@@ -1654,7 +1695,12 @@ button:disabled {
     gap: 0.8rem;
   }
 
-  .recommendation-row > button {
+  .recommendation-row-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recommendation-row-actions button {
     width: 100%;
   }
 
@@ -1671,6 +1717,10 @@ button:disabled {
 
   .recommendation-detail-meta {
     grid-template-columns: 1fr;
+  }
+
+  .recommendation-detail-actions {
+    flex-direction: column-reverse;
   }
 }
 
