@@ -36,7 +36,8 @@ describe("fiche détaillée Listings", () => {
   it("réutilise le même média et le même fallback sur la carte et la fiche", () => {
     expect(inventory).toContain("<ListingMedia listing={listing} />");
     expect(detail).toContain('<ListingMedia listing={listing} variant="detail" />');
-    expect(media).toContain("Aucune image disponible pour");
+    expect(media).toContain("Photo indisponible");
+    expect(media).toContain("listingBrokerPhoto(listing)");
     expect(media).toContain("hasImageError");
   });
 

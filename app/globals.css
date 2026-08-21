@@ -5189,7 +5189,7 @@ textarea:focus-visible,
 }
 
 .listing-card-image,
-.listing-card-placeholder {
+.listing-broker-photo-fallback {
   width: 100%;
   height: 100%;
 }
@@ -5199,35 +5199,37 @@ textarea:focus-visible,
   object-fit: cover;
 }
 
-.listing-card-placeholder {
+.listing-broker-photo-france {
+  object-position: center 14%;
+}
+
+.listing-broker-photo-maxime {
+  object-position: center 40%;
+}
+
+.listing-broker-photo-sandrine {
+  object-position: center 9%;
+}
+
+.listing-broker-photo-fallback {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 0.35rem;
-  color: rgba(255, 253, 248, 0.82);
-  background:
-    linear-gradient(145deg, rgba(198, 168, 103, 0.26), transparent 48%),
-    var(--ink);
+  gap: 0.3rem;
+  color: #53514c;
+  background: #dedbd3;
 }
 
-.listing-card-placeholder::before {
-  width: 3.25rem;
-  height: 1px;
-  margin-bottom: 0.55rem;
-  background: var(--gold);
-  content: "";
+.listing-broker-photo-fallback strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.listing-card-placeholder span {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.05rem;
-  letter-spacing: 0.04em;
-}
-
-.listing-card-placeholder strong {
-  color: var(--gold);
+.listing-broker-photo-fallback span {
   font-size: 0.55rem;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.08em;
 }
 
 .listing-purpose-badge,
@@ -6018,6 +6020,18 @@ textarea:focus-visible,
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.listing-detail-media-content.listing-broker-photo-france {
+  object-position: center 18%;
+}
+
+.listing-detail-media-content.listing-broker-photo-maxime {
+  object-position: center 43%;
+}
+
+.listing-detail-media-content.listing-broker-photo-sandrine {
+  object-position: center 14%;
 }
 
 .listing-detail-price-panel {

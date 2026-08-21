@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { BROKER_LABELS } from "../data/contact-types";
 import type { Listing } from "../data/listing-types";
+import { listingBrokerPhoto } from "../lib/listings/broker-photos";
 import { listingAddressLines } from "../lib/listings/presentation";
 
 export function ListingMedia({
@@ -13,28 +15,32 @@ export function ListingMedia({
 }) {
   const [hasImageError, setHasImageError] = useState(false);
   const address = listingAddressLines(listing)[0];
+  const brokerLabel = BROKER_LABELS[listing.broker];
+  const photo = listingBrokerPhoto(listing);
   const variantClassName = variant === "detail" ? " listing-detail-media-content" : "";
 
-  if (!listing.primaryImageUrl || hasImageError) {
+  useEffect(() => setHasImageError(false), [photo]);
+
+  if (hasImageError) {
     return (
       <div
-        aria-label={`Aucune image disponible pour ${address}`}
-        className={`listing-card-placeholder${variantClassName}`}
+        aria-label={`Photo de ${brokerLabel} indisponible pour le Listing ${address}`}
+        className={`listing-broker-photo-fallback${variantClassName}`}
         role="img"
       >
-        <span>ÉQUIPE FORBES</span>
-        <strong>IMMOBILIER</strong>
+        <strong>{brokerLabel}</strong>
+        <span>Photo indisponible</span>
       </div>
     );
   }
 
   return (
     <img
-      alt={address}
-      className={`listing-card-image${variantClassName}`}
-      loading="lazy"
+      alt={`${brokerLabel} — courtier responsable du Listing ${address}`}
+      className={`listing-card-image listing-broker-photo listing-broker-photo-${listing.broker}${variantClassName}`}
+      loading={variant === "detail" ? "eager" : "lazy"}
       onError={() => setHasImageError(true)}
-      src={listing.primaryImageUrl}
+      src={photo}
     />
   );
 }

@@ -23,11 +23,13 @@ describe("activation visuelle Listings", () => {
     expect(source("app/listings/page.tsx")).toContain("ListingEditorModal");
   });
 
-  it("affiche un placeholder d’image et distingue chargement, erreur et état vide", () => {
+  it("affiche le portrait du courtier avec un fallback neutre et distingue les états de la page", () => {
     const page = source("app/listings/page.tsx");
     const media = source("app/components/listing-media.tsx");
     expect(page).toContain("ListingMedia");
-    expect(media).toContain("listing-card-placeholder");
+    expect(media).toContain("listingBrokerPhoto(listing)");
+    expect(media).toContain("listing-broker-photo-fallback");
+    expect(media).toContain("Photo indisponible");
     expect(media).toContain("onError={() => setHasImageError(true)}");
     expect(page).toContain("Listings temporairement indisponibles.");
     expect(page).toContain("retry()");
