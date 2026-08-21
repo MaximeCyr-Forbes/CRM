@@ -98,7 +98,7 @@ export function parseCentrisText(extracted: ExtractedPDFText, sourceFileName: st
     },
     sourcePages: {
       centrisNumber: sourcePagesFor(normalized.pages, /No\s+Centris|\b\d{7,9}\s*\([^)]*\)/i),
-      address: sourcePagesFor(normalized.pages, /No\s+Centris|\bRégion\b|\bQuartier\b/i),
+      address: sourcePagesFor(normalized.pages, /No\s+Centris|\b[A-Z]\d[A-Z]\s*\d[A-Z]\d\b/i),
       propertyType: sourcePagesFor(normalized.pages, /Genre de propriété|\bTerrain\b/i),
       price: sourcePagesFor(normalized.pages, /\$\s*(?:\/\s*(?:mois|année|an))?/i),
       paAcceptedDate: sourcePagesFor(normalized.pages, /Date PA acceptée/i),

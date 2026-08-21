@@ -21,9 +21,10 @@ export function parseCentrisPricing(firstPage: string): CentrisParseResult["pric
   ].filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
   const selected = candidates.sort((left, right) => left.match.index - right.match.index)[0];
   const match = selected?.match ?? null;
-  const rawText = match
-    ? firstPage.slice(match.index, Math.min(firstPage.length, match.index + 90)).split(/(?=\bJ\d[A-Z]\s*\d[A-Z]\d\b)/i)[0].trim()
+  const suffix = match
+    ? /^\s*(?:(?:\+\s*)?TPS\s*\/\s*TVQ)?(?:\s*[X×]\s*\d{1,3}\s*mois)?/iu.exec(firstPage.slice(match.index + match[0].length))?.[0] ?? ""
     : "";
+  const rawText = match ? `${match[0]}${suffix}`.replace(/\s+/g, " ").trim() : "";
   const taxesApplicable = match ? /TPS\s*\/\s*TVQ/i.test(rawText) : null;
   const term = /[X×]\s*(\d{1,3})\s*mois/i.exec(rawText);
   if (selected?.kind === "annual" && annual) {

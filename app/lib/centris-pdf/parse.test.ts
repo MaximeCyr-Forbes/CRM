@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildCentrisListingGeneralNotes } from "./listing-form-import";
 import { parseCentrisText } from "./parse";
 import { syntheticCentrisFixtures as fixtures } from "./synthetic-fixtures";
 import { mapCentrisResultToTransactionSuggestions } from "./transaction-mapping";
@@ -94,10 +95,7 @@ describe("parseur Centris synthétique", () => {
       city: "Saint-Sauveur",
       province: "QC",
       postalCode: "J0R 1R7",
-      region: "Laurentides",
-      neighborhood: "",
     });
-    expect(result.address).not.toHaveProperty("nearby");
     expect(JSON.stringify(result.address)).not.toMatch(/Sinclair|Près de/i);
     expect(result.suggestedTransactionValues.address).toBe("146 Ch. Legault, Saint-Sauveur, QC J0R 1R7");
     expect(result.suggestedTransactionValues.generalNotes).not.toMatch(/Sinclair|Près de/i);
@@ -119,11 +117,114 @@ describe("parseur Centris synthétique", () => {
         street: "Ch. Legault",
         city: "Saint-Sauveur",
         postalCode: "J0R 1R7",
-        neighborhood: "",
       });
       expect(JSON.stringify(result.address)).not.toContain(proximity);
     },
   );
+
+  it("limite strictement le cas réel 64Z au seul bloc d’adresse postale", () => {
+    const result = parseCentrisText({
+      pageCount: 1,
+      pages: [{
+        pageNumber: 1,
+        text: `16356100 (En vigueur) No Centris 64Z Rue Adélard Région Laurentides Quartier Est Près de 41e Avenue Plan d’eau Rivière des Mille-Îles 549 000 $ J7P 5J6 Saint-Eustache 41e Avenue Genre de propriété Maison de plain-pied Année de construction 1987`,
+      }],
+    }, "cas-reel-64z.pdf");
+
+    expect(result.address).toEqual({
+      fullAddress: "64Z Rue Adélard, Saint-Eustache, QC J7P 5J6",
+      civicNumber: "64Z",
+      street: "Rue Adélard",
+      unit: "",
+      city: "Saint-Eustache",
+      province: "QC",
+      postalCode: "J7P 5J6",
+    });
+    expect(Object.keys(result.address).sort()).toEqual([
+      "city",
+      "civicNumber",
+      "fullAddress",
+      "postalCode",
+      "province",
+      "street",
+      "unit",
+    ]);
+    const serializedAddress = JSON.stringify(result.address);
+    for (const forbiddenValue of ["Laurentides", "Est", "41e Avenue", "Rivière des Mille-Îles"]) {
+      expect(serializedAddress).not.toContain(forbiddenValue);
+      expect(result.suggestedTransactionValues.generalNotes).not.toContain(forbiddenValue);
+      expect(buildCentrisListingGeneralNotes(result)).not.toContain(forbiddenValue);
+    }
+    expect(result.suggestedTransactionValues.address).toBe("64Z Rue Adélard, Saint-Eustache, QC J7P 5J6");
+  });
+
+  it("ignore Région, Quartier, Près de et Plan d’eau même quand leurs valeurs sont trompeuses", () => {
+    const result = parseCentrisText({
+      pageCount: 1,
+      pages: [{
+        pageNumber: 1,
+        text: `76543210 (En vigueur) No Centris 123 Rue Secondaire Région Laval Quartier Rosemont Près de Rue Principale Plan d’eau Fleuve Saint-Laurent 650 000 $ H7X 1A1 Sainte-Dorothée Rue Principale Genre de propriété Maison à étages Année de construction 2001`,
+      }],
+    }, "zone-interdite.pdf");
+
+    expect(result.address).toEqual({
+      fullAddress: "123 Rue Secondaire, Sainte-Dorothée, QC H7X 1A1",
+      civicNumber: "123",
+      street: "Rue Secondaire",
+      unit: "",
+      city: "Sainte-Dorothée",
+      province: "QC",
+      postalCode: "H7X 1A1",
+    });
+    const serializedAddress = JSON.stringify(result.address);
+    for (const forbiddenValue of ["Laval", "Rosemont", "Rue Principale", "Fleuve Saint-Laurent"]) {
+      expect(serializedAddress).not.toContain(forbiddenValue);
+      expect(result.suggestedTransactionValues.generalNotes).not.toContain(forbiddenValue);
+      expect(buildCentrisListingGeneralNotes(result)).not.toContain(forbiddenValue);
+    }
+  });
+
+  it("accepte un quartier et un plan d’eau vides sans aucun fallback géographique", () => {
+    const result = parseCentrisText({
+      pageCount: 1,
+      pages: [{
+        pageNumber: 1,
+        text: `14262312 (En vigueur) No Centris 146 Ch. Legault Région Laurentides Quartier Près de ch. Sinclair Plan d’eau 869 000 $ J0R 1R7 Saint-Sauveur ch. Sinclair Genre de propriété Maison à étages Année de construction 2004`,
+      }],
+    }, "champs-vides.pdf");
+
+    expect(result.address).toEqual({
+      fullAddress: "146 Ch. Legault, Saint-Sauveur, QC J0R 1R7",
+      civicNumber: "146",
+      street: "Ch. Legault",
+      unit: "",
+      city: "Saint-Sauveur",
+      province: "QC",
+      postalCode: "J0R 1R7",
+    });
+    expect(JSON.stringify(result.address)).not.toMatch(/Laurentides|Sinclair/i);
+  });
+
+  it("préserve l’appartement lorsque la ville et le code postal précèdent la zone interdite", () => {
+    const result = parseCentrisText({
+      pageCount: 1,
+      pages: [{
+        pageNumber: 1,
+        text: `91000003 (En vigueur) No Centris 30 Av. Démo, app. 102 Ville-Test H0H 0H0 Région Montréal Quartier Rosemont Près de boul. Saint-Laurent Plan d’eau Fleuve Saint-Laurent 499 000 $ Genre de propriété Appartement Année de construction 2018`,
+      }],
+    }, "ordre-pdf-desordonne.pdf");
+
+    expect(result.address).toEqual({
+      fullAddress: "30 Av. Démo, app. 102, Ville-Test, QC H0H 0H0",
+      civicNumber: "30",
+      street: "Av. Démo",
+      unit: "102",
+      city: "Ville-Test",
+      province: "QC",
+      postalCode: "H0H 0H0",
+    });
+    expect(JSON.stringify(result.address)).not.toMatch(/Montréal|Rosemont|Saint-Laurent|Fleuve/i);
+  });
 
   it("extrait les unités, revenus, taxes et frais de copropriété sans inventer", () => {
     const income = parse(fixtures.incomeProperty);
