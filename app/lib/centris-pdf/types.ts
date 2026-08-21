@@ -32,7 +32,6 @@ export type CentrisParseResult = {
     postalCode: string;
     region: string;
     neighborhood: string;
-    nearby: string;
   };
   property: {
     genreRaw: string;

@@ -1,5 +1,25 @@
 import type { CentrisParseResult } from "./types";
 
+const QUEBEC_REGIONS = [
+  "Bas-Saint-Laurent",
+  "Saguenay-Lac-Saint-Jean",
+  "Capitale-Nationale",
+  "Mauricie",
+  "Estrie",
+  "Montréal",
+  "Outaouais",
+  "Abitibi-Témiscamingue",
+  "Côte-Nord",
+  "Nord-du-Québec",
+  "Gaspésie-Îles-de-la-Madeleine",
+  "Chaudière-Appalaches",
+  "Laval",
+  "Lanaudière",
+  "Laurentides",
+  "Montérégie",
+  "Centre-du-Québec",
+] as const;
+
 const emptyAddress: CentrisParseResult["address"] = {
   fullAddress: "",
   civicNumber: "",
@@ -10,41 +30,79 @@ const emptyAddress: CentrisParseResult["address"] = {
   postalCode: "",
   region: "",
   neighborhood: "",
-  nearby: "",
 };
 
-function cleanCityTail(raw: string) {
+function cleanText(raw: string) {
   return raw.replace(/\s+/g, " ").trim();
 }
 
-function parseCityAndContext(raw: string, region: string) {
-  const tail = cleanCityTail(raw);
-  if (/^Montréal\b/i.test(tail)) {
-    const neighborhood = /Montréal\s*\(([^)]+)\)/i.exec(tail)?.[1] ?? "";
-    return { city: "Montréal", neighborhood, nearby: tail.replace(/^Montréal(?:\s*\([^)]+\))?\s*/i, "").trim() };
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function valuePattern(value: string) {
+  return value.split(/\s+/).map(escapeRegExp).join("\\s+");
+}
+
+function removeTrailingValue(raw: string, value: string) {
+  if (!value) return cleanText(raw);
+  return cleanText(raw).replace(new RegExp(`(?:^|\\s+)${valuePattern(value)}\\s*$`, "iu"), "").trim();
+}
+
+function removeTrailingSegmentStartingWith(raw: string, value: string) {
+  if (!value) return cleanText(raw);
+  return cleanText(raw).replace(new RegExp(`(?:^|\\s+)${valuePattern(value)}(?:\\s+.*)?$`, "iu"), "").trim();
+}
+
+function detectedRegion(raw: string) {
+  const normalized = cleanText(raw);
+  return QUEBEC_REGIONS.find((region) => new RegExp(`(?:^|\\s)${valuePattern(region)}(?:\\s|$)`, "iu").test(normalized)) ?? "";
+}
+
+function explicitNeighborhood(metadata: string) {
+  const value = /\bQuartier\b\s*(.*?)\s*\bPrès\s+de\b/iu.exec(metadata)?.[1] ?? "";
+  return cleanText(value);
+}
+
+function ignoredProximityText(metadata: string, region: string, neighborhood: string) {
+  const valueAfterDelimiter = /\bPrès\s+de\b\s*(.*)$/iu.exec(metadata)?.[1] ?? "";
+  return removeTrailingValue(removeTrailingValue(valueAfterDelimiter, region), neighborhood);
+}
+
+function parseCityAndContext(raw: string, region: string, explicitDistrict: string, ignoredProximity: string) {
+  let cityContext = cleanText(raw);
+  cityContext = removeTrailingSegmentStartingWith(cityContext, ignoredProximity);
+  cityContext = removeTrailingValue(cityContext, region);
+  cityContext = removeTrailingValue(cityContext, explicitDistrict);
+
+  const parenthesizedDistrict = /^(.+?)\s*\(([^)]+)\)\s*$/u.exec(cityContext);
+  if (parenthesizedDistrict) {
+    return {
+      city: cleanText(parenthesizedDistrict[1]),
+      neighborhood: explicitDistrict || cleanText(parenthesizedDistrict[2]),
+    };
   }
-  const knownCity = /^(Blainville|Laval|Boisbriand|Mirabel|Deux-Montagnes|Sainte-Thérèse|Saint-Eustache|Ville-Test)\b/i.exec(tail)?.[1];
-  if (knownCity) {
-    return { city: knownCity, neighborhood: "", nearby: tail.slice(knownCity.length).trim() };
-  }
-  const marker = /\s+(?:(?:Nord|Sud|Est|Ouest)(?:\s|$)|(?:Entre|Boul\.?|Rue|Curé|Chanaz|Ernest)(?:\s|$))/i.exec(tail);
-  const city = (marker ? tail.slice(0, marker.index) : tail).trim();
-  const nearby = marker ? tail.slice(marker.index).trim() : "";
-  return { city: city || (region === "Montréal" ? "Montréal" : ""), neighborhood: "", nearby };
+
+  return {
+    city: cityContext || (region === "Montréal" ? "Montréal" : ""),
+    neighborhood: explicitDistrict,
+  };
 }
 
 export function parseCentrisAddress(firstPage: string): CentrisParseResult["address"] {
-  const header = /\b\d{7,9}\s*\([^)]{2,80}\)\s*No\s+Centris\s+(.+?)\s+Région\s+Quartier\s+Près de\s+(.+?)(?=\d[\d\s]*(?:[,.]\d+)?\s*\$)/i.exec(firstPage);
+  const header = /\b\d{7,9}\s*\([^)]{2,80}\)\s*No\s+Centris\s+(.+?)\s+Région\b/i.exec(firstPage);
   const fallback = /No\s+Centris\s+\d{7,9}\s*(?:\([^)]*\))?\s+(.+?)\s+Région\b/i.exec(firstPage);
-  const rawAddress = (header?.[1] ?? fallback?.[1] ?? "").trim();
+  const rawAddress = cleanText(header?.[1] ?? fallback?.[1] ?? "");
   if (!rawAddress) return { ...emptyAddress };
 
   const postalMatch = /\b([A-Z]\d[A-Z]\s*\d[A-Z]\d)\b\s+(.+?)(?=(?:Genre de propriété|Genre\b|Année de construction|Reprise\/Contrôle))/i.exec(firstPage);
   const postalCode = postalMatch?.[1]?.replace(/\s+/g, " ").toUpperCase() ?? "";
   const context = postalMatch?.[2]?.replace(/Voir toutes les photos/gi, "").trim() ?? "";
-  const regionSegment = header?.[2] ?? "";
-  const region = /\b(Montréal|Laurentides|Laval|Montérégie|Lanaudière|Outaouais|Estrie|Capitale-Nationale)\b/i.exec(regionSegment)?.[1] ?? "";
-  const { city, neighborhood, nearby } = parseCityAndContext(context, region);
+  const metadata = /\bRégion\b\s*(.*?)(?=\d[\d\s]*(?:[,.]\d+)?\s*\$)/iu.exec(firstPage)?.[1] ?? "";
+  const region = detectedRegion(metadata);
+  const neighborhood = explicitNeighborhood(metadata);
+  const ignoredProximity = ignoredProximityText(metadata, region, neighborhood);
+  const cityAndContext = parseCityAndContext(context, region, neighborhood, ignoredProximity);
 
   const civicNumber = /^(\d+(?:-\d+)?)/.exec(rawAddress)?.[1] ?? "";
   const unitMatch = /,\s*(?:app\.?|appt\.?|local|unité)\s*([\p{L}\p{N}-]+)/iu.exec(rawAddress);
@@ -53,17 +111,16 @@ export function parseCentrisAddress(firstPage: string): CentrisParseResult["addr
     .replace(/,\s*(?:app\.?|appt\.?|local|unité)\s*[\p{L}\p{N}-]+\s*$/iu, "")
     .trim();
   const province = postalCode ? "QC" : "";
-  const fullAddress = [rawAddress, city, [province, postalCode].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const fullAddress = [rawAddress, cityAndContext.city, [province, postalCode].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return {
     fullAddress,
     civicNumber,
     street,
     unit: unitMatch?.[1] ?? "",
-    city,
+    city: cityAndContext.city,
     province,
     postalCode,
     region,
-    neighborhood,
-    nearby,
+    neighborhood: cityAndContext.neighborhood,
   };
 }

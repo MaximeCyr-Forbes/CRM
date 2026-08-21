@@ -28,6 +28,18 @@ const allSelected: CentrisListingImportSelection = {
 };
 
 describe("adaptateur Centris vers un nouveau Listing", () => {
+  it("importe Ch. Legault sans laisser Près de contaminer le Listing", () => {
+    const next = applyCentrisListingImport(draft(), parse(fixtures.saintSauveur), allSelected);
+    expect(next).toMatchObject({
+      civicNumber: "146",
+      address: "Ch. Legault",
+      city: "Saint-Sauveur",
+      province: "QC",
+      postalCode: "J0R 1R7",
+    });
+    expect(JSON.stringify(next)).not.toMatch(/Sinclair|Près de/i);
+  });
+
   it("mappe le terrain en vente avec adresse structurée, numéro Centris et prix", () => {
     const result = parse(fixtures.land);
     const next = applyCentrisListingImport(draft({ country: "" }), result, allSelected);

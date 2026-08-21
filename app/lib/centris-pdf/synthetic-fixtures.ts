@@ -5,8 +5,15 @@ function document(text: string): ExtractedPDFText {
 }
 
 const footer = "Inclusions Luminaires synthétiques Exclusions Biens personnels synthétiques Remarques Texte marketing anonymisé Addenda Vérification humaine requise Déclaration du vendeur Non Source AGENCE SYNTHÉTIQUE, Agence immobilière";
-const header = (number: string, status: string, address: string, price: string, postal = "H0H 0H0") =>
-  `COURTIER TEST courtier@example.invalid 000-000-0000 ${number} (${status}) No Centris ${address} Région Quartier Près de Parc Laurentides ${price} ${postal} Ville-Test Nord Voir toutes les photos`;
+const header = (
+  number: string,
+  status: string,
+  address: string,
+  price: string,
+  postal = "H0H 0H0",
+  city = "Ville-Test",
+  proximity = "Parc",
+) => `COURTIER TEST courtier@example.invalid 000-000-0000 ${number} (${status}) No Centris ${address} Région Laurentides Quartier Près de ${proximity} ${price} ${postal} ${city} ${proximity} Voir toutes les photos`;
 
 export const syntheticCentrisFixtures = {
   residentialSale: document(`${header("91000001", "En vigueur", "10 Rue de l'Exemple", "750 000 $")} Genre de propriété Maison à étages Année de construction Date de livraison prévue 2015 Nbre pièces 2+1 Nbre salles de bains + salles d'eau 3+1 Nbre chambres (hors-sol + sous-sol) 12 ${footer}`),
@@ -19,4 +26,5 @@ export const syntheticCentrisFixtures = {
   residentialRental: document(`${header("91000008", "En vigueur", "80 Rue Locative", "6 500 $/mois X 12 mois")} Genre de propriété Maison à paliers multiples Année de construction Date de livraison prévue 1999 Nbre pièces 2+1 Nbre salles de bains + salles d'eau 4+2 Nbre chambres (hors-sol + sous-sol) 20 ${footer}`),
   soldWithPromiseDate: document(`${header("91000009", "Vendu en 25 jours", "90 Av. Vendue", "527 000 $")} Genre de propriété Appartement Année de construction Date de livraison prévue 1922 Date PA acceptée 2026-04-21 Date de levée des conditions 2026-05-22 2026-08-20 à 10h00 ${footer}`),
   intergenerational: document(`${header("91000010", "En vigueur", "100 Rue Familiale", "599 000 $")} Genre de propriété Maison de plain-pied Année de construction Date de livraison prévue 1978 Intergénération Oui Pièce(s) et Espace(s) additionnel(s) - Intergénération Revenus supplémentaires 700 $ Loyer mensuel ${footer}`),
+  saintSauveur: document(`${header("14262312", "En vigueur", "146 Ch. Legault", "869 000 $", "J0R 1R7", "Saint-Sauveur", "ch. Sinclair")} Genre de propriété Maison à étages Année de construction Date de livraison prévue 2004 ${footer}`),
 } as const;

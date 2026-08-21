@@ -39,6 +39,47 @@ describe("parseur Centris synthétique", () => {
     expect(parse(fixtures.commercialPerSquareFoot).address).toMatchObject({ unit: "106-206" });
   });
 
+  it("ignore complètement le champ Près de sans contaminer l’adresse, la Transaction ou le Listing", () => {
+    const result = parse(fixtures.saintSauveur);
+    expect(result.address).toEqual({
+      fullAddress: "146 Ch. Legault, Saint-Sauveur, QC J0R 1R7",
+      civicNumber: "146",
+      street: "Ch. Legault",
+      unit: "",
+      city: "Saint-Sauveur",
+      province: "QC",
+      postalCode: "J0R 1R7",
+      region: "Laurentides",
+      neighborhood: "",
+    });
+    expect(result.address).not.toHaveProperty("nearby");
+    expect(JSON.stringify(result.address)).not.toMatch(/Sinclair|Près de/i);
+    expect(result.suggestedTransactionValues.address).toBe("146 Ch. Legault, Saint-Sauveur, QC J0R 1R7");
+    expect(result.suggestedTransactionValues.generalNotes).not.toMatch(/Sinclair|Près de/i);
+  });
+
+  it.each(["ch. Sinclair", "rue Principale", "boul. Curé-Labelle", "Autoroute 15", "Lac XYZ"])(
+    "écarte la valeur trompeuse Près de %s",
+    (proximity) => {
+      const fixture = {
+        pageCount: 1,
+        pages: [{
+          pageNumber: 1,
+          text: `14262312 (En vigueur) No Centris 146 Ch. Legault Région Laurentides Quartier Près de ${proximity} 869 000 $ J0R 1R7 Saint-Sauveur ${proximity} Genre de propriété Maison à étages Année de construction 2004`,
+        }],
+      };
+      const result = parseCentrisText(fixture, "proximite.pdf");
+      expect(result.address).toMatchObject({
+        civicNumber: "146",
+        street: "Ch. Legault",
+        city: "Saint-Sauveur",
+        postalCode: "J0R 1R7",
+        neighborhood: "",
+      });
+      expect(JSON.stringify(result.address)).not.toContain(proximity);
+    },
+  );
+
   it("extrait les unités, revenus, taxes et frais de copropriété sans inventer", () => {
     const income = parse(fixtures.incomeProperty);
     expect(income.property.numberOfUnits).toBe(3);
