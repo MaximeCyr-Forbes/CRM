@@ -892,7 +892,7 @@ grant select, insert, update, delete on public.transactions to service_role;
 grant select, insert, update, delete on public.transaction_contacts to service_role;
 grant select, insert, update, delete on public.transaction_deadlines to service_role;
 grant select, insert, update, delete on public.transaction_notes to service_role;
-grant select, insert, update on public.crm_recommendations to service_role;
+grant select, insert, update, delete on public.crm_recommendations to service_role;
 grant usage on type public.broker_assignment to service_role;
 grant usage on type public.calendar_sync_status to service_role;
 grant usage on type public.client_type to service_role;
