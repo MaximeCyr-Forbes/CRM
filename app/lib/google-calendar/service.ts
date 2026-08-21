@@ -14,6 +14,13 @@ import { getGoogleOAuthConfig } from "./config";
 import { decryptGoogleToken, encryptGoogleToken } from "./token-crypto";
 import { formatBirthDate, normalizeBirthDate } from "../birth-date";
 import { formatMortgageRenewalDate } from "../mortgage-renewal-date";
+import type { CRMCalendarEvent, CRMCalendarEventInput } from "../../data/calendar-event-types";
+import {
+  buildGoogleCalendarEventPayload,
+  isManagedCalendarEvent,
+  mapGoogleCalendarEvent,
+  type GoogleCalendarEventResource,
+} from "./calendar-events";
 
 type GoogleConnectionRow = {
   broker: CalendarBroker;
@@ -62,6 +69,15 @@ type GoogleTokenResponse = {
   refresh_token?: string;
   scope?: string;
 };
+
+type GoogleCalendarEventsListResponse = {
+  items?: GoogleCalendarEventResource[];
+  nextPageToken?: string;
+};
+
+export class GoogleCalendarNotConnectedError extends Error {}
+export class GoogleCalendarEventNotFoundError extends Error {}
+export class ManagedGoogleCalendarEventError extends Error {}
 
 type GoogleEventPayload = {
   id?: string;
@@ -346,6 +362,132 @@ async function googleCalendarRequest(
     response = await send(await getAccessToken(connection, true));
   }
   return response;
+}
+
+async function requireGoogleCalendarConnection(broker: CalendarBroker) {
+  const connection = await getConnection(broker);
+  if (!connection) throw new GoogleCalendarNotConnectedError("Google Agenda non connecté.");
+  return connection;
+}
+
+async function readGoogleCalendarEvent(
+  connection: GoogleConnectionRow,
+  eventId: string,
+) {
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const response = await googleCalendarRequest(
+    connection,
+    `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`,
+    { method: "GET" },
+  );
+  if (response.status === 404 || response.status === 410) {
+    throw new GoogleCalendarEventNotFoundError("Cet événement n’existe plus dans Google Agenda.");
+  }
+  if (!response.ok) throw new Error(`Lecture Google refusée (${response.status}).`);
+  return response.json() as Promise<GoogleCalendarEventResource>;
+}
+
+export async function listGoogleCalendarEvents(
+  broker: CalendarBroker,
+  start: string,
+  end: string,
+): Promise<CRMCalendarEvent[]> {
+  const connection = await requireGoogleCalendarConnection(broker);
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const events: CRMCalendarEvent[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 20; page += 1) {
+    const search = new URLSearchParams({
+      singleEvents: "true",
+      orderBy: "startTime",
+      timeMin: start,
+      timeMax: end,
+      maxResults: "250",
+    });
+    if (pageToken) search.set("pageToken", pageToken);
+    const response = await googleCalendarRequest(
+      connection,
+      `/calendars/${calendarId}/events?${search.toString()}`,
+      { method: "GET" },
+    );
+    if (!response.ok) throw new Error(`Chargement Google refusé (${response.status}).`);
+    const payload = await response.json() as GoogleCalendarEventsListResponse;
+    for (const item of payload.items ?? []) {
+      try {
+        events.push(mapGoogleCalendarEvent(item, broker));
+      } catch {
+        // Un événement Google incomplet ne doit pas masquer le reste du calendrier.
+      }
+    }
+    pageToken = payload.nextPageToken;
+    if (!pageToken) return events;
+  }
+  throw new Error("Pagination Google Agenda anormalement longue.");
+}
+
+export async function createGoogleCalendarEvent(
+  input: CRMCalendarEventInput,
+): Promise<CRMCalendarEvent> {
+  const connection = await requireGoogleCalendarConnection(input.broker);
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const response = await googleCalendarRequest(
+    connection,
+    `/calendars/${calendarId}/events`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildGoogleCalendarEventPayload(input)),
+    },
+  );
+  if (!response.ok) throw new Error(`Création Google refusée (${response.status}).`);
+  return mapGoogleCalendarEvent(await response.json() as GoogleCalendarEventResource, input.broker);
+}
+
+export async function updateGoogleCalendarEvent(
+  eventId: string,
+  input: CRMCalendarEventInput,
+): Promise<CRMCalendarEvent> {
+  const connection = await requireGoogleCalendarConnection(input.broker);
+  const existing = await readGoogleCalendarEvent(connection, eventId);
+  if (isManagedCalendarEvent(existing) || existing.recurringEventId || existing.recurrence?.length) {
+    throw new ManagedGoogleCalendarEventError("Cet événement est géré automatiquement par le CRM.");
+  }
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const response = await googleCalendarRequest(
+    connection,
+    `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildGoogleCalendarEventPayload(input)),
+    },
+  );
+  if (response.status === 404 || response.status === 410) {
+    throw new GoogleCalendarEventNotFoundError("Cet événement n’existe plus dans Google Agenda.");
+  }
+  if (!response.ok) throw new Error(`Modification Google refusée (${response.status}).`);
+  return mapGoogleCalendarEvent(await response.json() as GoogleCalendarEventResource, input.broker);
+}
+
+export async function deleteGoogleCalendarEvent(
+  broker: CalendarBroker,
+  eventId: string,
+) {
+  const connection = await requireGoogleCalendarConnection(broker);
+  const existing = await readGoogleCalendarEvent(connection, eventId);
+  if (isManagedCalendarEvent(existing) || existing.recurringEventId || existing.recurrence?.length) {
+    throw new ManagedGoogleCalendarEventError("Cet événement est géré automatiquement par le CRM.");
+  }
+  const calendarId = encodeURIComponent(connection.calendar_id);
+  const response = await googleCalendarRequest(
+    connection,
+    `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE" },
+  );
+  if (response.status === 404 || response.status === 410) {
+    throw new GoogleCalendarEventNotFoundError("Cet événement n’existe plus dans Google Agenda.");
+  }
+  if (!response.ok) throw new Error(`Suppression Google refusée (${response.status}).`);
 }
 
 async function deleteGoogleEvent(

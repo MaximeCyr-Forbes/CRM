@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { appNavigationOrder, softwareLinks } from "./software-links";
 
 describe("navigation des logiciels", () => {
-  it("place Listings entre Contacts et Transactions, puis Logiciels avant Paramètres", () => {
+  it("place Calendrier entre Transactions et Logiciels", () => {
     expect(appNavigationOrder).toEqual([
       "Accueil",
       "Contacts",
       "Listings",
       "Transactions",
+      "Calendrier",
       "Logiciels",
       "Paramètres",
     ]);
