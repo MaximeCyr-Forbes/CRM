@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
+import { CentrisListingImport } from "./centris-listing-import";
 import { useContacts } from "../contacts-context";
 import {
   BROKER_LABELS,
@@ -18,16 +19,23 @@ import {
   LISTING_PURPOSE_LABELS,
   LISTING_PURPOSES,
   LISTING_STATUS_LABELS,
+  type Listing,
   type ListingDraft,
   type ListingPurpose,
 } from "../data/listing-types";
 import { hasMinimumContactIdentity } from "../lib/contact-normalization";
 import {
+  acquireListingSubmissionLock,
+  findListingWithCentrisNumber,
   prepareListingDraft,
+  releaseListingSubmissionLock,
   statusesForListingPurpose,
   toggleListingOwner,
   validStatusForListingPurpose,
 } from "../lib/listings/editor";
+import { listingAddressLines } from "../lib/listings/presentation";
+import type { CentrisParseResult } from "../lib/centris-pdf/types";
+import type { CentrisListingImportSelection } from "../lib/centris-pdf/listing-form-import";
 import {
   createAndLinkTransactionContact,
   filterTransactionContacts,
@@ -73,14 +81,18 @@ function emptyOwnerDraft(): ContactDraft {
 export function ListingEditorModal({
   initial,
   isSaving,
+  listings = [],
   mode,
   onClose,
+  onOpenExisting,
   onSave,
 }: {
   initial: ListingDraft;
   isSaving: boolean;
+  listings?: ReadonlyArray<Listing>;
   mode: "create" | "edit";
   onClose: () => void;
+  onOpenExisting?: (listingId: string) => void;
   onSave: (draft: ListingDraft) => Promise<void>;
 }) {
   const { contacts, addManualContact } = useContacts();
@@ -96,6 +108,10 @@ export function ListingEditorModal({
   const [isCreatingContact, setIsCreatingContact] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateListing, setDuplicateListing] = useState<Listing | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [appliedCentrisPricing, setAppliedCentrisPricing] = useState<CentrisParseResult["pricing"] | null>(null);
+  const submittingRef = useRef(false);
   useDialogLifecycle(true, onClose);
 
   const selectedOwners = useMemo(
@@ -111,6 +127,7 @@ export function ListingEditorModal({
   const visibleContacts = matchingContacts.slice(0, 50);
 
   function update<K extends keyof ListingDraft>(field: K, value: ListingDraft[K]) {
+    if (field === "centrisNumber") setDuplicateListing(null);
     setValues((current) => ({ ...current, [field]: value }));
   }
 
@@ -180,19 +197,44 @@ export function ListingEditorModal({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current || isSaving) return;
     setError(null);
     const prepared = prepareListingDraft(values, askingPrice, monthlyRent);
     if (!prepared.draft) {
       setError(prepared.error);
       return;
     }
+    if (mode === "create") {
+      const duplicate = findListingWithCentrisNumber(listings, prepared.draft.centrisNumber);
+      if (duplicate) {
+        setDuplicateListing(duplicate);
+        return;
+      }
+    }
+    if (!acquireListingSubmissionLock(submittingRef)) return;
+    setIsSubmitting(true);
     try {
       await onSave(prepared.draft);
     } catch (caughtError) {
       setError(caughtError instanceof Error
         ? caughtError.message
         : mode === "create" ? "Création du Listing impossible." : "Modification du Listing impossible.");
+    } finally {
+      releaseListingSubmissionLock(submittingRef);
+      setIsSubmitting(false);
     }
+  }
+
+  function applyCentrisValues(
+    nextValues: ListingDraft,
+    result: CentrisParseResult,
+    selection: CentrisListingImportSelection,
+  ) {
+    setValues(nextValues);
+    setAskingPrice(nextValues.askingPrice === null ? "" : String(nextValues.askingPrice));
+    setMonthlyRent(nextValues.monthlyRent === null ? "" : String(nextValues.monthlyRent));
+    setAppliedCentrisPricing(selection.price || result.pricing.mode === "annual_per_square_foot" ? result.pricing : null);
+    setDuplicateListing(null);
   }
 
   return (
@@ -204,6 +246,12 @@ export function ListingEditorModal({
         </header>
 
         <form className="listing-editor-form" noValidate onSubmit={submit}>
+          {mode === "create" && <CentrisListingImport
+            currentValues={values}
+            disabled={isSaving || isSubmitting}
+            onApply={applyCentrisValues}
+          />}
+
           <fieldset className="listing-editor-section listing-editor-purpose">
             <legend><span>01</span> Type de mandat</legend>
             <div className="listing-purpose-options">
@@ -236,9 +284,9 @@ export function ListingEditorModal({
               <label><span>Courtier responsable *</span><select onChange={(event) => update("broker", event.target.value as ListingDraft["broker"])} required value={values.broker}>{LISTING_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
               <label><span>Statut</span><select onChange={(event) => update("status", event.target.value as ListingDraft["status"])} value={values.status}>{statusesForListingPurpose(values.purpose).map((status) => <option key={status} value={status}>{LISTING_STATUS_LABELS[status]}</option>)}</select></label>
               {values.purpose === "sale" ? (
-                <label><span>Prix demandé</span><span className="listing-money-field"><input min="0" onChange={(event) => setAskingPrice(event.target.value)} step="0.01" type="number" value={askingPrice} /><strong>$</strong></span></label>
+                <label><span>Prix demandé</span><span className="listing-money-field"><input min="0" onChange={(event) => setAskingPrice(event.target.value)} step="0.01" type="number" value={askingPrice} /><strong>$</strong></span>{appliedCentrisPricing?.mode === "sale_price" && <small className="transaction-centris-price-context">Prix provenant de la fiche Centris : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.amount ?? 0)} $.</small>}</label>
               ) : (
-                <label><span>Loyer mensuel</span><span className="listing-money-field"><input min="0" onChange={(event) => setMonthlyRent(event.target.value)} step="0.01" type="number" value={monthlyRent} /><strong>$ / mois</strong></span></label>
+                <label><span>Loyer mensuel</span><span className="listing-money-field"><input min="0" onChange={(event) => setMonthlyRent(event.target.value)} step="0.01" type="number" value={monthlyRent} /><strong>$ / mois</strong></span>{appliedCentrisPricing?.mode === "monthly_rent" && <small className="transaction-centris-price-context">Loyer provenant de la fiche Centris : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.monthlyAmount ?? 0)} $ / mois.</small>}{appliedCentrisPricing?.mode === "annual_per_square_foot" && <small className="transaction-centris-price-context is-warning">Tarif détecté : {new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(appliedCentrisPricing.annualPerSquareFootAmount ?? 0)} $ / année / pi². Montant mensuel à confirmer manuellement.</small>}</label>
               )}
               <label><span>Date de mise en marché</span><input onChange={(event) => update("listingDate", event.target.value || null)} type="date" value={values.listingDate ?? ""} /></label>
               <label><span>Date d’expiration</span><input onChange={(event) => update("expirationDate", event.target.value || null)} type="date" value={values.expirationDate ?? ""} /></label>
@@ -291,8 +339,23 @@ export function ListingEditorModal({
             </div>
           </fieldset>
 
+          {duplicateListing && (
+            <div className="listing-duplicate-warning" role="alert">
+              <strong>LISTING DÉJÀ EXISTANT</strong>
+              <p>No Centris {duplicateListing.centrisNumber}</p>
+              <dl>
+                <div><dt>Adresse</dt><dd>{listingAddressLines(duplicateListing).filter(Boolean).join(" · ")}</dd></div>
+                <div><dt>Courtier</dt><dd>{BROKER_LABELS[duplicateListing.broker]}</dd></div>
+                <div><dt>Statut</dt><dd>{LISTING_STATUS_LABELS[duplicateListing.status]}</dd></div>
+              </dl>
+              <div>
+                <button onClick={() => setDuplicateListing(null)} type="button">Annuler</button>
+                <button className="listing-submit" onClick={() => onOpenExisting?.(duplicateListing.id)} type="button">Ouvrir le Listing existant</button>
+              </div>
+            </div>
+          )}
           {error && <p className="listing-editor-error" role="alert">{error}</p>}
-          <footer className="listing-editor-actions"><button onClick={onClose} type="button">Annuler</button><button className="listing-submit" disabled={isSaving} type="submit">{isSaving ? "Enregistrement…" : mode === "create" ? "Créer le Listing" : "Enregistrer les modifications"}</button></footer>
+          <footer className="listing-editor-actions"><button onClick={onClose} type="button">Annuler</button><button aria-busy={isSaving || isSubmitting} className="listing-submit" disabled={isSaving || isSubmitting} type="submit">{isSaving || isSubmitting ? mode === "create" ? "Création…" : "Enregistrement…" : mode === "create" ? "Créer le Listing" : "Enregistrer les modifications"}</button></footer>
         </form>
       </section>
     </div>

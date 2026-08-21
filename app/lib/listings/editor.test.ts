@@ -8,9 +8,13 @@ import {
 import {
   RENTAL_LISTING_STATUSES,
   SALE_LISTING_STATUSES,
+  acquireListingSubmissionLock,
   emptyListingDraft,
+  findListingWithCentrisNumber,
   listingDraftFromListing,
+  normalizeListingCentrisNumber,
   prepareListingDraft,
+  releaseListingSubmissionLock,
   toggleListingOwner,
   validStatusForListingPurpose,
 } from "./editor";
@@ -184,6 +188,26 @@ describe("propriétaires liés", () => {
     expect(addManualContact).toHaveBeenCalledWith(draft, "france", { clientProvenance: "prospecting" });
     expect(result.contact.id).toBe(saved.id);
     expect(result.contactIds).toEqual([owner1, saved.id]);
+  });
+});
+
+describe("protection locale des numéros Centris", () => {
+  it("normalise les espaces et la casse puis retrouve le Listing existant", () => {
+    const listing = persistedListing();
+    expect(normalizeListingCentrisNumber(" 12 345 abc ")).toBe("12345ABC");
+    expect(findListingWithCentrisNumber([listing], "12 345 678")?.id).toBe(listing.id);
+    expect(findListingWithCentrisNumber([listing], "")).toBeNull();
+    expect(findListingWithCentrisNumber([listing], "99999999")).toBeNull();
+  });
+});
+
+describe("verrou de soumission Listing", () => {
+  it("n’accorde qu’une création à deux soumissions rapides puis se libère", () => {
+    const lock = { current: false };
+    expect(acquireListingSubmissionLock(lock)).toBe(true);
+    expect(acquireListingSubmissionLock(lock)).toBe(false);
+    releaseListingSubmissionLock(lock);
+    expect(acquireListingSubmissionLock(lock)).toBe(true);
   });
 });
 

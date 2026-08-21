@@ -39,6 +39,29 @@ export function validStatusForListingPurpose(purpose: ListingPurpose, status: Li
   return statusesForListingPurpose(purpose).includes(status) ? status : "active";
 }
 
+export function normalizeListingCentrisNumber(value: string) {
+  return value.trim().replace(/\s+/g, "").toUpperCase();
+}
+
+export function findListingWithCentrisNumber(
+  listings: ReadonlyArray<Listing>,
+  centrisNumber: string,
+) {
+  const normalized = normalizeListingCentrisNumber(centrisNumber);
+  if (!normalized) return null;
+  return listings.find((listing) => normalizeListingCentrisNumber(listing.centrisNumber) === normalized) ?? null;
+}
+
+export function acquireListingSubmissionLock(lock: { current: boolean }) {
+  if (lock.current) return false;
+  lock.current = true;
+  return true;
+}
+
+export function releaseListingSubmissionLock(lock: { current: boolean }) {
+  lock.current = false;
+}
+
 export function emptyListingDraft(broker: ListingBroker): ListingDraft {
   return {
     civicNumber: "",

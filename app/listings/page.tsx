@@ -244,8 +244,13 @@ export default function ListingsPage() {
       {isCreating && <ListingEditorModal
         initial={emptyListingDraft(defaultBroker)}
         isSaving={isSaving}
+        listings={listings}
         mode="create"
         onClose={() => setIsCreating(false)}
+        onOpenExisting={(listingId) => {
+          setIsCreating(false);
+          openListing(listingId);
+        }}
         onSave={async (draft) => {
           const created = await createListing(draft);
           setIsCreating(false);

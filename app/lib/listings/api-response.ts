@@ -7,7 +7,7 @@ export function listingApiError(error: unknown, fallbackMessage: string) {
   );
   if (error instanceof ListingServiceError) {
     if (error.code === "duplicate_centris") {
-      return Response.json({ error: "Numéro Centris déjà utilisé." }, { status: 409 });
+      return Response.json({ error: "Un Listing avec ce numéro Centris existe déjà." }, { status: 409 });
     }
     if (error.code === "invalid_owner") {
       return Response.json({ error: "Propriétaire invalide." }, { status: 400 });
