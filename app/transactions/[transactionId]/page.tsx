@@ -14,6 +14,11 @@ import {
   type TransactionStatus,
 } from "../../data/transaction-types";
 import { toLocalISODate } from "../../lib/follow-up";
+import {
+  deadlineTitleEditorState,
+  deadlineTitleFromChoice,
+  showOtherConditionField,
+} from "../../lib/transactions/deadline-title";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
 import { useTransactions } from "../../transactions-context";
 import { useDialogLifecycle } from "../../lib/use-dialog-lifecycle";
@@ -39,9 +44,10 @@ function DeadlineModal({
   onClose: () => void;
   onSave: (values: { title: string; dueDate: string; syncToGoogle: boolean }) => Promise<void>;
 }) {
-  const isPreset = initial ? DEADLINE_PRESETS.includes(initial.title as (typeof DEADLINE_PRESETS)[number]) : true;
-  const [choice, setChoice] = useState(initial && isPreset ? initial.title : DEADLINE_PRESETS[0]);
-  const [customTitle, setCustomTitle] = useState(initial && !isPreset ? initial.title : "");
+  const initialTitleState = deadlineTitleEditorState(initial?.title);
+  const [choice, setChoice] = useState(initialTitleState.choice);
+  const [customTitle, setCustomTitle] = useState(initialTitleState.customTitle);
+  const [otherConditionTitle, setOtherConditionTitle] = useState(initialTitleState.otherConditionTitle);
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
   const [syncToGoogle, setSyncToGoogle] = useState(Boolean(initial?.googleCalendarEventId));
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +55,10 @@ function DeadlineModal({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const title = choice === "custom" ? customTitle.trim() : choice;
+    if (showOtherConditionField(choice) && !otherConditionTitle.trim()) {
+      return setError("Précisez la condition.");
+    }
+    const title = deadlineTitleFromChoice(choice, customTitle, otherConditionTitle);
     if (!title || !dueDate) return setError("Ajoutez un titre et une date.");
     try { await onSave({ title, dueDate, syncToGoogle }); }
     catch { setError("L’échéance n’a pas pu être enregistrée."); }
@@ -57,8 +66,9 @@ function DeadlineModal({
 
   return <div className="transaction-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()} role="presentation"><section aria-labelledby="deadline-modal-title" aria-modal="true" className="transaction-modal deadline-modal" role="dialog">
     <div className="transaction-modal-heading"><div><p className="section-kicker">Date importante</p><h2 id="deadline-modal-title">{initial ? "MODIFIER L’ÉCHÉANCE" : "AJOUTER UNE ÉCHÉANCE"}</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></div>
-    <form className="deadline-form" onSubmit={submit}>
+    <form className="deadline-form" noValidate onSubmit={submit}>
       <div className="deadline-presets">{DEADLINE_PRESETS.map((preset) => <button aria-pressed={choice === preset} key={preset} onClick={() => setChoice(preset)} type="button">{preset}</button>)}<button aria-pressed={choice === "custom"} onClick={() => setChoice("custom")} type="button">Titre personnalisé</button></div>
+      {showOtherConditionField(choice) && <label className="transaction-field"><span>Précisez la condition</span><input autoFocus onChange={(event) => setOtherConditionTitle(event.target.value)} placeholder="Ex. Vente de la propriété de l'acheteur" required value={otherConditionTitle} /></label>}
       {choice === "custom" && <label className="transaction-field"><span>Titre</span><input autoFocus onChange={(event) => setCustomTitle(event.target.value)} value={customTitle} /></label>}
       <label className="transaction-field"><span>Date</span><input onChange={(event) => setDueDate(event.target.value)} required type="date" value={dueDate} /></label>
       <label className="deadline-calendar-choice"><input checked={syncToGoogle} onChange={(event) => setSyncToGoogle(event.target.checked)} type="checkbox" /><span>Ajouter à Google Agenda du courtier responsable</span></label>
