@@ -72,17 +72,15 @@ describe("fiche détaillée Listings", () => {
     expect(detail).toContain("LISTING INTROUVABLE");
   });
 
-  it("finalise une vente par l’action dédiée puis affiche le résultat sans reload", () => {
-    expect(detail).toContain("canMarkListingSold(listing)");
-    expect(detail).toContain('className="listing-sold-button"');
-    expect(detail).toContain("<ListingSoldModal");
-    expect(detail).toContain("await markListingSold(listing.id, values)");
-    expect(detail).toContain("Listing marqué comme vendu.");
+  it("retire le déclencheur VENDU de la fiche tout en conservant le résultat et son infrastructure", () => {
+    expect(detail).not.toContain("canMarkListingSold(listing)");
+    expect(detail).not.toContain('className="listing-sold-button"');
+    expect(detail).not.toContain("<ListingSoldModal");
+    expect(detail).not.toContain("markListingSold");
     expect(detail).toContain("RÉSULTAT DE LA VENTE");
     expect(detail).toContain("listing.soldPrice");
     expect(detail).toContain("listing.notaryDate");
     expect(detail).toContain("listing.collaboratingBrokerName");
-    expect(detail).not.toContain("window.location.reload");
     expect(context).toContain("markListingSold:");
     expect(context).toContain("/complete-sale");
     expect(context).toContain("return replaceListing(listing)");

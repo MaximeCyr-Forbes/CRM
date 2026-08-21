@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { TransactionEditorModal } from "../../components/transaction-editor-modal";
+import { ListingSoldModal } from "../../components/listing-sold-modal";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
 import {
@@ -14,12 +15,15 @@ import {
   type TransactionStatus,
 } from "../../data/transaction-types";
 import { toLocalISODate } from "../../lib/follow-up";
+import { listingAddressLines } from "../../lib/listings/presentation";
 import {
   deadlineTitleEditorState,
   deadlineTitleFromChoice,
   showOtherConditionField,
 } from "../../lib/transactions/deadline-title";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
+import { canFinalizeListingSaleFromTransaction } from "../../lib/transactions/listing-sale-finalization";
+import { useListings } from "../../listings-context";
 import { useTransactions } from "../../transactions-context";
 import { useDialogLifecycle } from "../../lib/use-dialog-lifecycle";
 
@@ -109,11 +113,19 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const { contacts } = useContacts();
   const { transactions, isLoading, isSaving, error, updateTransaction, updateStatus, deleteTransaction, addDeadline, updateDeadline, deleteDeadline, addNote } = useTransactions();
+  const { listings, isSaving: isListingSaving, markListingSold } = useListings();
   const transaction = transactions.find((item) => item.id === params.transactionId);
   const linkedContacts = useMemo(() => transaction?.contactIds.map((id) => contacts.find((contact) => contact.id === id)).filter(Boolean) ?? [], [contacts, transaction]);
+  const sourceListing = useMemo(
+    () => transaction?.sourceListing
+      ? listings.find((listing) => listing.id === transaction.sourceListing?.listingId) ?? null
+      : null,
+    [listings, transaction?.sourceListing],
+  );
   const [deadlineModal, setDeadlineModal] = useState<"new" | TransactionDeadline | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isMarkingSold, setIsMarkingSold] = useState(false);
   const [note, setNote] = useState("");
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const today = toLocalISODate(new Date());
@@ -126,6 +138,7 @@ export default function TransactionDetailPage() {
 
   if (isLoading && !transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transaction-status">Chargement de la transaction…</div></div></main>;
   if (!transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transactions-empty"><h1>Transaction introuvable</h1><button onClick={() => router.push("/transactions")} type="button">Retour aux transactions</button></div></div></main>;
+  const canFinalizeSale = canFinalizeListingSaleFromTransaction(transaction, sourceListing);
 
   async function saveDeadline(values: { title: string; dueDate: string; syncToGoogle: boolean }) {
     const result = deadlineModal === "new"
@@ -159,7 +172,7 @@ export default function TransactionDetailPage() {
     {error && <div className="transaction-status transaction-status-error" role="alert">{error}</div>}
     {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
 
-    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button><button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
+    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button>{canFinalizeSale && <button className="listing-sold-button" disabled={isListingSaving} onClick={() => setIsMarkingSold(true)} type="button">VENDU</button>}<button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
 
     <header className="transaction-detail-header"><div><p className="section-kicker">{TRANSACTION_TYPE_LABELS[transaction.type]} · {BROKER_LABELS[transaction.broker]}</p><h1>{transaction.address}</h1><p>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun client lié"}</p></div><label><span>Statut actuel</span><select disabled={isSaving} onChange={(event) => void updateStatus(transaction.id, event.target.value as TransactionStatus)} value={transaction.status}>{statusesForTransaction(transaction.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label></header>
 
@@ -171,7 +184,7 @@ export default function TransactionDetailPage() {
       <article><span>Courtier responsable</span><strong>{BROKER_LABELS[transaction.broker]}</strong></article>
     </section>
 
-    {transaction.sourceListing && <section className="transaction-detail-section transaction-source-listing" aria-labelledby="transaction-source-listing-title"><div className="transaction-section-heading"><div><p className="section-kicker">Origine du dossier</p><h2 id="transaction-source-listing-title">LISTING SOURCE</h2></div></div><button onClick={() => router.push(`/listings/${transaction.sourceListing!.listingId}`)} type="button"><span><strong>{transaction.sourceListing.address || "Adresse du Listing"}</strong><small>Cette transaction a été créée depuis une offre acceptée.</small></span><b>Ouvrir le Listing →</b></button></section>}
+    {transaction.sourceListing && <section className="transaction-detail-section transaction-source-listing" aria-labelledby="transaction-source-listing-title"><div className="transaction-section-heading"><div><p className="section-kicker">Origine du dossier</p><h2 id="transaction-source-listing-title">LISTING SOURCE</h2></div></div><button onClick={() => router.push(`/listings/${transaction.sourceListing!.listingId}`)} type="button"><span><strong>{transaction.sourceListing.address || "Adresse du Listing"}</strong><small>{sourceListing?.status === "sold" ? "VENTE FINALISÉE ✓" : sourceListing ? "Cette transaction a été créée depuis une offre acceptée." : "Listing source temporairement indisponible."}</small></span><b>Ouvrir le Listing →</b></button></section>}
 
     <section className="transaction-detail-section" aria-labelledby="transaction-clients-title"><div className="transaction-section-heading"><div><p className="section-kicker">Relations</p><h2 id="transaction-clients-title">CLIENTS LIÉS</h2></div></div><div className="transaction-linked-clients">{linkedContacts.map((contact) => <button key={contact!.id} onClick={() => router.push(`/contacts/${contact!.id}`)} type="button"><span>{getContactName(contact!)}</span><small>{BROKER_LABELS[contact!.broker]}</small><strong>Ouvrir →</strong></button>)}{linkedContacts.length === 0 && <p>Aucun contact lié à cette transaction.</p>}</div></section>
 
@@ -182,5 +195,15 @@ export default function TransactionDetailPage() {
   {deadlineModal && <DeadlineModal initial={deadlineModal === "new" ? undefined : deadlineModal} isSaving={isSaving} onClose={() => setDeadlineModal(null)} onSave={saveDeadline} />}
   {isEditing && <TransactionEditorModal initial={transactionDraftFromTransaction(transaction)} isSaving={isSaving} mode="edit" onClose={() => setIsEditing(false)} onSave={saveTransaction} />}
   {isConfirmingDelete && <DeleteTransactionModal address={transaction.address} isSaving={isSaving} onClose={() => setIsConfirmingDelete(false)} onConfirm={removeTransaction} />}
+  {isMarkingSold && sourceListing && <ListingSoldModal
+    address={listingAddressLines(sourceListing)[0]}
+    askingPrice={sourceListing.askingPrice}
+    isSaving={isListingSaving}
+    onClose={() => setIsMarkingSold(false)}
+    onConfirm={async (values) => {
+      await markListingSold(sourceListing.id, values);
+      setConfirmation("Vente finalisée. Le Listing a été déplacé dans VENDUS / LOUÉS.");
+    }}
+  />}
   </main>;
 }

@@ -6667,18 +6667,18 @@ textarea:focus-visible,
   text-transform: uppercase;
 }
 
-.listing-detail-actions .listing-sold-button {
+.listing-sold-button {
   color: #fffdf8;
   background: #315b4b;
   border-color: #315b4b;
 }
 
-.listing-detail-actions .listing-sold-button:hover {
+.listing-sold-button:hover:not(:disabled) {
   background: #274a3d;
   border-color: #274a3d;
 }
 
-.listing-detail-actions .listing-sold-button:focus-visible {
+.listing-sold-button:focus-visible {
   outline: 3px solid rgba(49, 91, 75, 0.25);
   outline-offset: 3px;
 }
