@@ -284,6 +284,24 @@ create table if not exists public.google_calendar_connections (
   constraint google_calendar_connections_assigned_broker_check check (broker <> 'unassigned')
 );
 
+create table if not exists public.google_calendar_watch_channels (
+  broker public.broker_assignment primary key,
+  calendar_id text not null default 'primary',
+  channel_id text not null unique,
+  resource_id text,
+  token_hash text not null,
+  expires_at timestamptz,
+  change_version bigint not null default 0,
+  last_notification_at timestamptz,
+  last_resource_state text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint google_calendar_watch_channels_assigned_broker_check
+    check (broker <> 'unassigned'),
+  constraint google_calendar_watch_channels_token_hash_check
+    check (token_hash ~ '^[0-9a-f]{64}$')
+);
+
 create table if not exists public.crm_recommendations (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -349,6 +367,46 @@ as $$
 begin
   new.updated_at = now();
   return new;
+end;
+$$;
+
+create or replace function public.notify_google_calendar_change(
+  p_channel_id text,
+  p_resource_id text,
+  p_resource_state text
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_change_version bigint;
+begin
+  if p_resource_state not in ('sync', 'exists', 'not_exists') then
+    return null;
+  end if;
+
+  update public.google_calendar_watch_channels
+  set
+    resource_id = case
+      when resource_id is null and p_resource_state = 'sync' then p_resource_id
+      else resource_id
+    end,
+    change_version = change_version + case
+      when p_resource_state in ('exists', 'not_exists') then 1
+      else 0
+    end,
+    last_notification_at = now(),
+    last_resource_state = p_resource_state
+  where channel_id = p_channel_id
+    and (
+      resource_id = p_resource_id
+      or (resource_id is null and p_resource_state = 'sync')
+    )
+  returning change_version into v_change_version;
+
+  return v_change_version;
 end;
 $$;
 
@@ -517,6 +575,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists google_calendar_connections_set_updated_at on public.google_calendar_connections;
 create trigger google_calendar_connections_set_updated_at
 before update on public.google_calendar_connections
+for each row execute function public.set_updated_at();
+
+drop trigger if exists google_calendar_watch_channels_set_updated_at on public.google_calendar_watch_channels;
+create trigger google_calendar_watch_channels_set_updated_at
+before update on public.google_calendar_watch_channels
 for each row execute function public.set_updated_at();
 
 drop trigger if exists set_contact_birthday_calendar_events_updated_at on public.contact_birthday_calendar_events;
@@ -823,6 +886,7 @@ create index if not exists transaction_notes_transaction_created_idx
 alter table public.contacts enable row level security;
 alter table public.client_notes enable row level security;
 alter table public.google_calendar_connections enable row level security;
+alter table public.google_calendar_watch_channels enable row level security;
 alter table public.contact_birthday_calendar_events enable row level security;
 alter table public.contact_mortgage_renewal_calendar_events enable row level security;
 alter table public.contact_merges enable row level security;
@@ -863,6 +927,7 @@ revoke execute on function public.merge_contacts(
 
 -- Les connexions Google restent exclusivement accessibles au serveur avec la clé service_role.
 revoke all on public.google_calendar_connections from anon, authenticated;
+revoke all on public.google_calendar_watch_channels from public, anon, authenticated;
 revoke all on public.contact_birthday_calendar_events from public, anon, authenticated;
 revoke all on public.contact_mortgage_renewal_calendar_events from public, anon, authenticated;
 revoke execute on function public.queue_contact_mortgage_renewal_calendar_events() from public, anon, authenticated;
@@ -873,6 +938,9 @@ revoke execute on function public.merge_contacts_with_contact_dates(
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment)
 from authenticated;
 grant select, insert, update, delete on public.google_calendar_connections to service_role;
+grant select, insert, update, delete on public.google_calendar_watch_channels to service_role;
+revoke execute on function public.notify_google_calendar_change(text, text, text) from public, anon, authenticated;
+grant execute on function public.notify_google_calendar_change(text, text, text) to service_role;
 grant select, insert, update, delete on public.contact_birthday_calendar_events to service_role;
 grant select, insert, update, delete on public.contact_mortgage_renewal_calendar_events to service_role;
 grant execute on function public.merge_contacts_with_contact_dates(

@@ -1,6 +1,7 @@
 import type {
   CalendarBroker,
   CalendarConnectionStatus,
+  CalendarWatchState,
   CalendarSyncResult,
   BirthdaySyncSummary,
   MortgageRenewalSyncSummary,
@@ -74,6 +75,27 @@ type GoogleCalendarEventsListResponse = {
   items?: GoogleCalendarEventResource[];
   nextPageToken?: string;
 };
+
+type GoogleCalendarWatchRow = {
+  broker: CalendarBroker;
+  calendar_id: string;
+  channel_id: string;
+  resource_id: string | null;
+  token_hash: string;
+  expires_at: string | null;
+  change_version: number | string;
+  last_notification_at: string | null;
+  last_resource_state: string | null;
+};
+
+type GoogleCalendarWatchResponse = {
+  id?: string;
+  resourceId?: string;
+  expiration?: string;
+};
+
+const GOOGLE_WATCH_TTL_SECONDS = 604_800;
+const GOOGLE_WATCH_RENEWAL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export class GoogleCalendarNotConnectedError extends Error {}
 export class GoogleCalendarEventNotFoundError extends Error {}
@@ -503,6 +525,245 @@ async function deleteGoogleEvent(
   if (!response.ok && response.status !== 404 && response.status !== 410) {
     throw new Error(`Suppression Google refusée (${response.status}).`);
   }
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function sha256Hex(value: string) {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
+  );
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function constantTimeEqual(first: string, second: string) {
+  let difference = first.length ^ second.length;
+  const length = Math.max(first.length, second.length);
+  for (let index = 0; index < length; index += 1) {
+    difference |= (first.charCodeAt(index) || 0) ^ (second.charCodeAt(index) || 0);
+  }
+  return difference === 0;
+}
+
+function watchState(row: GoogleCalendarWatchRow | null): CalendarWatchState {
+  const expiresAt = row?.expires_at ?? null;
+  return {
+    changeVersion: Number(row?.change_version ?? 0),
+    lastNotificationAt: row?.last_notification_at ?? null,
+    watchActive: Boolean(
+      row?.channel_id &&
+      row.resource_id &&
+      expiresAt &&
+      new Date(expiresAt).getTime() > Date.now() + 60_000,
+    ),
+    expiresAt,
+  };
+}
+
+async function readGoogleCalendarWatch(broker: CalendarBroker) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("google_calendar_watch_channels")
+    .select("*")
+    .eq("broker", broker)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as GoogleCalendarWatchRow | null) ?? null;
+}
+
+function getGoogleCalendarWebhookUrl() {
+  if (process.env.VERCEL_ENV === "preview") {
+    throw new Error("Les notifications Google ne sont pas créées depuis un déploiement Preview.");
+  }
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/$/, "");
+  if (!configuredOrigin) {
+    throw new Error("NEXT_PUBLIC_APP_URL est requis pour activer les notifications Google.");
+  }
+  const origin = new URL(configuredOrigin);
+  if (origin.protocol !== "https:") {
+    throw new Error("NEXT_PUBLIC_APP_URL doit utiliser HTTPS pour activer les notifications Google.");
+  }
+  return `${configuredOrigin}/api/google-calendar/webhook`;
+}
+
+async function stopGoogleCalendarWatchChannel(
+  connection: GoogleConnectionRow,
+  channel: Pick<GoogleCalendarWatchRow, "channel_id" | "resource_id">,
+) {
+  if (!channel.resource_id) return;
+  const response = await googleCalendarRequest(connection, "/channels/stop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: channel.channel_id, resourceId: channel.resource_id }),
+  });
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
+    throw new Error(`Arrêt du canal Google refusé (${response.status}).`);
+  }
+}
+
+export async function getGoogleCalendarWatchState(
+  broker: CalendarBroker,
+): Promise<CalendarWatchState> {
+  return watchState(await readGoogleCalendarWatch(broker));
+}
+
+export async function startGoogleCalendarWatch(broker: CalendarBroker) {
+  const connection = await requireGoogleCalendarConnection(broker);
+  const webhookUrl = getGoogleCalendarWebhookUrl();
+  const previous = await readGoogleCalendarWatch(broker);
+  const channelId = crypto.randomUUID();
+  const tokenBytes = new Uint8Array(32);
+  crypto.getRandomValues(tokenBytes);
+  const rawToken = bytesToBase64Url(tokenBytes);
+  const tokenHash = await sha256Hex(rawToken);
+  const pending = {
+    broker,
+    calendar_id: connection.calendar_id,
+    channel_id: channelId,
+    resource_id: null,
+    token_hash: tokenHash,
+    expires_at: null,
+  };
+  const { error: pendingError } = await getSupabaseAdmin()
+    .from("google_calendar_watch_channels")
+    .upsert(pending, { onConflict: "broker" });
+  if (pendingError) throw pendingError;
+
+  let createdChannel: GoogleCalendarWatchResponse | null = null;
+  try {
+    const calendarId = encodeURIComponent(connection.calendar_id);
+    const response = await googleCalendarRequest(
+      connection,
+      `/calendars/${calendarId}/events/watch`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: channelId,
+          type: "web_hook",
+          address: webhookUrl,
+          token: rawToken,
+          params: { ttl: String(GOOGLE_WATCH_TTL_SECONDS) },
+        }),
+      },
+    );
+    if (!response.ok) throw new Error(`Création du canal Google refusée (${response.status}).`);
+    createdChannel = await response.json() as GoogleCalendarWatchResponse;
+    if (!createdChannel.resourceId || !createdChannel.expiration) {
+      throw new Error("Google n’a pas retourné les métadonnées du canal.");
+    }
+    const expiresAt = new Date(Number(createdChannel.expiration)).toISOString();
+    const { error: updateError } = await getSupabaseAdmin()
+      .from("google_calendar_watch_channels")
+      .update({ resource_id: createdChannel.resourceId, expires_at: expiresAt })
+      .eq("broker", broker)
+      .eq("channel_id", channelId);
+    if (updateError) throw updateError;
+
+    if (previous?.resource_id && previous.channel_id !== channelId) {
+      await stopGoogleCalendarWatchChannel(connection, previous).catch((error) => {
+        console.warn("Ancien canal Google Calendar impossible à arrêter:", error instanceof Error ? error.message : "Erreur inconnue");
+      });
+    }
+    return getGoogleCalendarWatchState(broker);
+  } catch (error) {
+    if (createdChannel?.resourceId) {
+      await stopGoogleCalendarWatchChannel(connection, {
+        channel_id: channelId,
+        resource_id: createdChannel.resourceId,
+      }).catch(() => undefined);
+    }
+    if (previous) {
+      await getSupabaseAdmin()
+        .from("google_calendar_watch_channels")
+        .upsert(previous, { onConflict: "broker" });
+    } else {
+      await getSupabaseAdmin()
+        .from("google_calendar_watch_channels")
+        .delete()
+        .eq("broker", broker)
+        .eq("channel_id", channelId);
+    }
+    throw error;
+  }
+}
+
+export async function ensureGoogleCalendarWatch(broker: CalendarBroker) {
+  const current = await readGoogleCalendarWatch(broker);
+  if (
+    current?.resource_id &&
+    current.expires_at &&
+    new Date(current.expires_at).getTime() > Date.now() + GOOGLE_WATCH_RENEWAL_WINDOW_MS
+  ) {
+    return watchState(current);
+  }
+  return startGoogleCalendarWatch(broker);
+}
+
+export async function stopGoogleCalendarWatch(broker: CalendarBroker) {
+  const [connection, channel] = await Promise.all([
+    getConnection(broker),
+    readGoogleCalendarWatch(broker),
+  ]);
+  if (!channel) return;
+  if (connection && channel.resource_id) {
+    await stopGoogleCalendarWatchChannel(connection, channel).catch((error) => {
+      console.warn("Canal Google Calendar impossible à arrêter:", error instanceof Error ? error.message : "Erreur inconnue");
+    });
+  }
+  const { error } = await getSupabaseAdmin()
+    .from("google_calendar_watch_channels")
+    .delete()
+    .eq("broker", broker);
+  if (error) throw error;
+}
+
+export async function processGoogleCalendarWebhook(headers: Headers) {
+  const channelId = headers.get("X-Goog-Channel-ID")?.trim();
+  const rawToken = headers.get("X-Goog-Channel-Token")?.trim();
+  const resourceId = headers.get("X-Goog-Resource-ID")?.trim();
+  const resourceState = headers.get("X-Goog-Resource-State")?.trim().toLowerCase();
+  const messageNumber = headers.get("X-Goog-Message-Number")?.trim() ?? null;
+  const channelExpiration = headers.get("X-Goog-Channel-Expiration")?.trim() ?? null;
+  if (!channelId || !rawToken || !resourceId || !resourceState) return false;
+  if (!["sync", "exists", "not_exists"].includes(resourceState)) return false;
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("google_calendar_watch_channels")
+    .select("*")
+    .eq("channel_id", channelId)
+    .maybeSingle();
+  if (error) throw error;
+  const channel = (data as GoogleCalendarWatchRow | null) ?? null;
+  if (!channel) return false;
+  const receivedHash = await sha256Hex(rawToken);
+  if (!constantTimeEqual(receivedHash, channel.token_hash)) {
+    console.warn("Notification Google Calendar refusée: token de canal invalide.");
+    return false;
+  }
+  if (channel.resource_id && channel.resource_id !== resourceId) return false;
+  if (!channel.resource_id && resourceState !== "sync") return false;
+
+  const { error: notifyError } = await getSupabaseAdmin().rpc(
+    "notify_google_calendar_change",
+    {
+      p_channel_id: channelId,
+      p_resource_id: resourceId,
+      p_resource_state: resourceState,
+    },
+  );
+  if (notifyError) throw notifyError;
+  console.info("Notification Google Calendar reçue", {
+    broker: channel.broker,
+    resourceState,
+    channelId: `${channelId.slice(0, 8)}…`,
+    messageNumber,
+    channelExpiration,
+  });
+  return true;
 }
 
 function buildDeadlineEventPayload(
@@ -1240,6 +1501,15 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
     .from("contact_mortgage_renewal_calendar_events")
     .select("broker, sync_status");
   if (mortgageError) throw mortgageError;
+  const { data: watchRows, error: watchError } = await getSupabaseAdmin()
+    .from("google_calendar_watch_channels")
+    .select("*");
+  if (watchError) {
+    console.warn("Statut des notifications Google Calendar indisponible:", watchError.message);
+  }
+  const watches = new Map(
+    ((watchRows ?? []) as GoogleCalendarWatchRow[]).map((row) => [row.broker, row]),
+  );
   return (["france", "maxime", "sandrine"] as const).map((broker) => ({
     broker,
     connected: connections.has(broker),
@@ -1250,6 +1520,7 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
     mortgageRenewals: ((mortgageRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
       .filter((row) => row.broker === broker)
       .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
+    watch: watchState(watches.get(broker) ?? null),
   }));
 }
 
@@ -1258,6 +1529,8 @@ export async function disconnectGoogleCalendar(broker: CalendarBroker) {
   if (!connection) {
     return;
   }
+
+  await stopGoogleCalendarWatch(broker);
 
   const { data, error } = await getSupabaseAdmin()
     .from("contacts")

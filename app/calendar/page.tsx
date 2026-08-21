@@ -8,7 +8,7 @@ import { CalendarEventDetailModal } from "../components/calendar-event-detail-mo
 import { CalendarEventEditorModal } from "../components/calendar-event-editor-modal";
 import { CalendarDayView, CalendarMonthView, CalendarWeekView } from "../components/calendar-views";
 import type { CRMCalendarEvent, CRMCalendarEventInput } from "../data/calendar-event-types";
-import type { CalendarBroker, CalendarConnectionStatus } from "../data/calendar-types";
+import type { CalendarBroker, CalendarConnectionStatus, CalendarWatchState } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
   calendarDateTimeISO,
@@ -17,7 +17,7 @@ import {
   todayInCalendarTimeZone,
   type CalendarView,
 } from "../lib/google-calendar/calendar-date";
-import { startCalendarPolling } from "../lib/google-calendar/calendar-polling";
+import { startCalendarSyncMonitor } from "../lib/google-calendar/calendar-sync-monitor";
 
 type SyncState = "idle" | "syncing" | "error";
 
@@ -152,8 +152,25 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!broker || !isConnected) return;
-    const polling = startCalendarPolling({ refresh: () => latestRefreshRef.current() });
-    return () => polling.dispose();
+    const readWatchState = async () => {
+      const response = await fetch(`/api/calendar/change-state?broker=${broker}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("État de synchronisation indisponible.");
+      return response.json() as Promise<CalendarWatchState>;
+    };
+    const monitor = startCalendarSyncMonitor({
+      checkState: readWatchState,
+      ensureWatch: async () => {
+        const response = await fetch("/api/calendar/watch/ensure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ broker }),
+        });
+        if (!response.ok) throw new Error("Activation des notifications indisponible.");
+        return response.json() as Promise<CalendarWatchState>;
+      },
+      refreshEvents: () => latestRefreshRef.current(),
+    });
+    return () => monitor.dispose();
   }, [broker, isConnected, range.endDate, range.startDate]);
 
   async function saveEvent(input: CRMCalendarEventInput) {

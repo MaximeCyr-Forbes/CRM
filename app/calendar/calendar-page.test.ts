@@ -16,14 +16,17 @@ describe("page Calendrier intégrée", () => {
     expect(page).toContain("+ Nouvel événement");
   });
 
-  it("réutilise les connexions, le polling et les actions Google sans persistance locale", () => {
+  it("réutilise les connexions, le signal push et les actions Google sans persistance locale", () => {
     const page = source("app/calendar/page.tsx");
     expect(page).toContain("/api/google-calendar/connections");
-    expect(page).toContain("startCalendarPolling");
+    expect(page).toContain("startCalendarSyncMonitor");
+    expect(page).toContain("/api/calendar/change-state");
+    expect(page).toContain("/api/calendar/watch/ensure");
     expect(page).toContain('method: eventId ? "PATCH" : "POST"');
     expect(page).toContain('method: "DELETE"');
     expect(page).not.toContain("supabase");
-    expect(source("app/lib/google-calendar/calendar-events.ts")).toContain("15_000");
+    expect(source("app/lib/google-calendar/calendar-sync-monitor.ts")).toContain("3_000");
+    expect(source("app/lib/google-calendar/calendar-sync-monitor.ts")).toContain("120_000");
   });
 
   it("marque la route active et conserve l’ordre exact de navigation", () => {

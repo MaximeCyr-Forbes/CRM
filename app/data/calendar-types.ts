@@ -2,12 +2,20 @@ import { CONTACT_BROKERS, type CalendarSyncStatus, type Contact, type ContactBro
 
 export type CalendarBroker = Exclude<ContactBroker, "unassigned">;
 
+export type CalendarWatchState = {
+  changeVersion: number;
+  lastNotificationAt: string | null;
+  watchActive: boolean;
+  expiresAt: string | null;
+};
+
 export type CalendarConnectionStatus = {
   broker: CalendarBroker;
   connected: boolean;
   email: string | null;
   birthdays: { synced: number; pending: number; error: number };
   mortgageRenewals: { synced: number; pending: number; error: number };
+  watch: CalendarWatchState;
 };
 
 export type BirthdaySyncSummary = {

@@ -17,6 +17,7 @@ const emptyConnections: CalendarConnectionStatus[] = (
   email: null,
   birthdays: { synced: 0, pending: 0, error: 0 },
   mortgageRenewals: { synced: 0, pending: 0, error: 0 },
+  watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },
 }));
 
 export default function SettingsPage() {
@@ -156,6 +157,13 @@ export default function SettingsPage() {
                       ? "Google Agenda connecté ✓"
                       : "Aucun Google Agenda connecté"}
                   </p>
+                  {connection.connected && (
+                    <small>
+                      {connection.watch.watchActive
+                        ? "Synchronisation instantanée ✓"
+                        : "Synchronisation instantanée en attente"}
+                    </small>
+                  )}
                   {connection.email && <small>{connection.email}</small>}
                   <small>{connection.birthdays.synced} anniversaires synchronisés · {connection.birthdays.pending} en attente · {connection.birthdays.error} erreur{connection.birthdays.error > 1 ? "s" : ""}</small>
                 </div>

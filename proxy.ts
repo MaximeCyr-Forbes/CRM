@@ -6,6 +6,7 @@ const PUBLIC_PATHS = new Set([
   "/api/access/login",
   "/api/access/logout",
   "/api/access/session",
+  "/api/google-calendar/webhook",
 ]);
 
 export async function proxy(request: NextRequest) {
