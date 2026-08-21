@@ -11,7 +11,8 @@ vi.mock("../../../lib/google-calendar/config", () => ({ isSameOriginRequest: vi.
 const event: CRMCalendarEvent = {
   id: "event-1", broker: "maxime", title: "Inspection", description: "", location: "",
   start: "2026-08-21T13:00:00.000Z", end: "2026-08-21T14:00:00.000Z", allDay: false,
-  htmlLink: null, eventKind: "google", crmLink: null, readOnly: false, recurring: false,
+  htmlLink: null, eventKind: "google", crmEntityKind: null, crmEntityId: null,
+  crmLink: null, blocksAvailability: true, readOnly: false, recurring: false,
 };
 
 vi.mock("../../../lib/google-calendar/service", () => ({
@@ -39,7 +40,17 @@ describe("API liste et création du calendrier", () => {
   it("crée immédiatement un événement Google validé", async () => {
     const response = await POST(new Request("http://localhost/api/calendar/events", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify(validInput) }));
     expect(response.status).toBe(201);
-    expect(state.created).toEqual([validInput]);
+    expect(state.created).toEqual([{ ...validInput, crmEntityKind: null, crmEntityId: null }]);
+  });
+
+  it("valide et transmet un lien CRM facultatif", async () => {
+    const linkedInput = { ...validInput, crmEntityKind: "listing" as const, crmEntityId: "listing-42" };
+    const response = await POST(new Request("http://localhost/api/calendar/events", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify(linkedInput) }));
+    expect(response.status).toBe(201);
+    expect(state.created).toEqual([linkedInput]);
+
+    const invalidResponse = await POST(new Request("http://localhost/api/calendar/events", { method: "POST", headers: { Origin: "http://localhost", "Content-Type": "application/json" }, body: JSON.stringify({ ...validInput, crmEntityKind: "listing" }) }));
+    expect(invalidResponse.status).toBe(400);
   });
 
   it("protège la session, l’origine et les entrées", async () => {

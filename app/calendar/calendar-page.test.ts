@@ -19,7 +19,7 @@ describe("page Calendrier intégrée", () => {
   it("réutilise les connexions, le signal push et les actions Google sans persistance locale", () => {
     const page = source("app/calendar/page.tsx");
     expect(page).toContain("/api/google-calendar/connections");
-    expect(page).toContain("startCalendarSyncMonitor");
+    expect(page).toContain("startCalendarTeamSyncMonitors");
     expect(page).toContain("/api/calendar/change-state");
     expect(page).toContain("/api/calendar/watch/ensure");
     expect(page).toContain('method: eventId ? "PATCH" : "POST"');
@@ -27,6 +27,16 @@ describe("page Calendrier intégrée", () => {
     expect(page).not.toContain("supabase");
     expect(source("app/lib/google-calendar/calendar-sync-monitor.ts")).toContain("3_000");
     expect(source("app/lib/google-calendar/calendar-sync-monitor.ts")).toContain("120_000");
+  });
+
+  it("offre le mode équipe, les filtres et les disponibilités sans FreeBusy", () => {
+    const page = source("app/calendar/page.tsx");
+    expect(page).toContain('type CalendarMode = "personal" | "team"');
+    expect(page).toContain("Promise.allSettled");
+    expect(page).toContain("visibleTeamBrokers");
+    expect(page).toContain("calculateCommonAvailability");
+    expect(page).toContain("DISPONIBILITÉS DE L’ÉQUIPE");
+    expect(page).not.toContain("freeBusy");
   });
 
   it("marque la route active et conserve l’ordre exact de navigation", () => {

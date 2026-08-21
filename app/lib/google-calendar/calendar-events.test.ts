@@ -83,6 +83,8 @@ describe("calendrier Google intégré", () => {
     expect(recurring.readOnly).toBe(true);
     expect(birthday.crmLink).toBe("/contacts/contact-1");
     expect(deadline.crmLink).toBe("/transactions/transaction-4");
+    expect([birthday.blocksAvailability, followUp.blocksAvailability]).toEqual([false, false]);
+    expect(mapGoogleCalendarEvent({ ...timed, transparency: "transparent" }, "maxime").blocksAvailability).toBe(false);
   });
 
   it("charge toutes les pages events.list sans limiter le calendrier à 250 événements", async () => {
@@ -128,6 +130,31 @@ describe("calendrier Google intégré", () => {
     const payload = buildGoogleCalendarEventPayload({ ...input, allDay: true, start: "2026-08-21", end: "2026-08-22" });
     expect(payload.start).toEqual({ date: "2026-08-21" });
     expect(payload.end).toEqual({ date: "2026-08-22" });
+    expect(payload.extendedProperties.private).toEqual({ source: "forbes-crm", eventKind: "crm", crmBroker: "maxime" });
+  });
+
+  it.each([
+    ["contact", "contact-42", "/contacts/contact-42"],
+    ["listing", "listing-42", "/listings/listing-42"],
+    ["transaction", "transaction-42", "/transactions/transaction-42"],
+  ] as const)("conserve le lien CRM %s dans les propriétés Google et au retour", (crmEntityKind, crmEntityId, expectedLink) => {
+    const payload = buildGoogleCalendarEventPayload({ ...input, crmEntityKind, crmEntityId });
+    expect(payload.extendedProperties.private).toMatchObject({
+      source: "forbes-crm",
+      eventKind: "crm",
+      crmBroker: "maxime",
+      crmEntityKind,
+      crmEntityId,
+    });
+    const mapped = mapGoogleCalendarEvent({
+      ...timed,
+      extendedProperties: { private: payload.extendedProperties.private },
+    }, "maxime");
+    expect(mapped).toMatchObject({ crmEntityKind, crmEntityId, crmLink: expectedLink });
+  });
+
+  it("retire proprement la relation CRM quand aucune entité n’est fournie", () => {
+    const payload = buildGoogleCalendarEventPayload({ ...input, crmEntityKind: null, crmEntityId: null });
     expect(payload.extendedProperties.private).toEqual({ source: "forbes-crm", eventKind: "crm", crmBroker: "maxime" });
   });
 

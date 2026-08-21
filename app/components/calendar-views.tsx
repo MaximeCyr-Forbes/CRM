@@ -1,7 +1,8 @@
 "use client";
 
-import type { CRMCalendarEvent } from "../data/calendar-event-types";
+import { calendarEventKey, type CRMCalendarEvent } from "../data/calendar-event-types";
 import { CALENDAR_EVENT_KIND_LABELS } from "../data/calendar-event-types";
+import { BROKER_LABELS } from "../data/contact-types";
 import {
   addCalendarDays,
   calendarMonthGrid,
@@ -41,16 +42,17 @@ export function CalendarEventButton({ event, compact = false, onOpen }: {
 }) {
   return (
     <button
-      aria-label={`Ouvrir ${event.title}`}
+      aria-label={`Ouvrir ${event.title}, calendrier ${BROKER_LABELS[event.broker]}`}
       className={`calendar-event calendar-event-${event.broker} calendar-kind-${event.eventKind} ${compact ? "is-compact" : ""}`}
       onClick={() => onOpen(event)}
       title={event.title}
       type="button"
     >
       <span className="calendar-event-dot" aria-hidden="true" />
+      <span className="calendar-event-broker">{BROKER_LABELS[event.broker].slice(0, 1)}</span>
       {!event.allDay && <time>{eventCalendarTime(event)}</time>}
       <strong>{event.title}</strong>
-      {!compact && <small>{CALENDAR_EVENT_KIND_LABELS[event.eventKind]}</small>}
+      {!compact && <small>{BROKER_LABELS[event.broker]} · {CALENDAR_EVENT_KIND_LABELS[event.eventKind]}</small>}
     </button>
   );
 }
@@ -74,7 +76,7 @@ export function CalendarMonthView({ date, events, today, onOpenEvent, onOpenDay 
             <article className={`calendar-month-day ${isoDate.startsWith(currentMonth) ? "" : "is-outside"} ${isoDate === today ? "is-today" : ""}`} key={isoDate}>
               <button aria-label={`Ouvrir le ${dayLabel(isoDate, "long")}`} className="calendar-day-number" onClick={() => onOpenDay(isoDate)} type="button">{dayNumber(isoDate)}</button>
               <div className="calendar-day-events">
-                {dayEvents.slice(0, 3).map((event) => <CalendarEventButton compact event={event} key={event.id} onOpen={onOpenEvent} />)}
+                {dayEvents.slice(0, 3).map((event) => <CalendarEventButton compact event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}
                 {dayEvents.length > 3 && <button className="calendar-more-events" onClick={() => onOpenDay(isoDate)} type="button">+ {dayEvents.length - 3} autres</button>}
               </div>
             </article>
@@ -85,11 +87,12 @@ export function CalendarMonthView({ date, events, today, onOpenEvent, onOpenDay 
   );
 }
 
-export function CalendarWeekView({ date, events, today, onOpenEvent }: {
+export function CalendarWeekView({ date, events, today, onOpenEvent, onSelectDay }: {
   date: string;
   events: ReadonlyArray<CRMCalendarEvent>;
   today: string;
   onOpenEvent: (event: CRMCalendarEvent) => void;
+  onSelectDay?: (isoDate: string) => void;
 }) {
   const start = startOfCalendarWeek(date);
   const dates = Array.from({ length: 7 }, (_, index) => addCalendarDays(start, index));
@@ -98,20 +101,20 @@ export function CalendarWeekView({ date, events, today, onOpenEvent }: {
       <div className="calendar-week-mobile">
         {dates.map((isoDate) => {
           const dayEvents = eventsForDate(events, isoDate);
-          return <article className={isoDate === today ? "is-today" : ""} key={isoDate}><header><strong>{dayLabel(isoDate, "long")}</strong><span>{dayNumber(isoDate)}</span></header><div>{dayEvents.length ? dayEvents.map((event) => <CalendarEventButton event={event} key={event.id} onOpen={onOpenEvent} />) : <small>Aucun événement.</small>}</div></article>;
+          return <article className={isoDate === today ? "is-today" : ""} key={isoDate}><header><button onClick={() => onSelectDay?.(isoDate)} type="button"><strong>{dayLabel(isoDate, "long")}</strong><span>{dayNumber(isoDate)}</span></button></header><div>{dayEvents.length ? dayEvents.map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />) : <small>Aucun événement.</small>}</div></article>;
         })}
       </div>
-      <div className="calendar-week-header"><span aria-hidden="true" />{dates.map((isoDate) => <strong className={isoDate === today ? "is-today" : ""} key={isoDate}><small>{dayLabel(isoDate)}</small><span>{dayNumber(isoDate)}</span></strong>)}</div>
-      <div className="calendar-week-all-day"><span>TOUTE LA JOURNÉE</span>{dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => event.allDay).map((event) => <CalendarEventButton compact event={event} key={event.id} onOpen={onOpenEvent} />)}</div>)}</div>
+      <div className="calendar-week-header"><span aria-hidden="true" />{dates.map((isoDate) => <button className={isoDate === today ? "is-today" : ""} key={isoDate} onClick={() => onSelectDay?.(isoDate)} type="button"><small>{dayLabel(isoDate)}</small><span>{dayNumber(isoDate)}</span></button>)}</div>
+      <div className="calendar-week-all-day"><span>TOUTE LA JOURNÉE</span>{dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => event.allDay).map((event) => <CalendarEventButton compact event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div>)}</div>
       <div className="calendar-week-timeline">
         {timelineHours.map((hour) => (
           <div className="calendar-week-hour" key={hour}>
             <time>{String(hour).padStart(2, "0")}:00</time>
-            {dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton compact event={event} key={event.id} onOpen={onOpenEvent} />)}</div>)}
+            {dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton compact event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div>)}
           </div>
         ))}
       </div>
-      {events.some((event) => !event.allDay && (eventHour(event) < 7 || eventHour(event) > 21)) && <div className="calendar-outside-hours"><strong>Hors de la plage 07:00–21:00</strong>{events.filter((event) => !event.allDay && (eventHour(event) < 7 || eventHour(event) > 21)).map((event) => <CalendarEventButton event={event} key={event.id} onOpen={onOpenEvent} />)}</div>}
+      {events.some((event) => !event.allDay && (eventHour(event) < 7 || eventHour(event) > 21)) && <div className="calendar-outside-hours"><strong>Hors de la plage 07:00–21:00</strong>{events.filter((event) => !event.allDay && (eventHour(event) < 7 || eventHour(event) > 21)).map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div>}
     </section>
   );
 }
@@ -128,8 +131,8 @@ export function CalendarDayView({ date, events, today, onOpenEvent }: {
   return (
     <section className="calendar-day" aria-label="Vue quotidienne">
       <header className={date === today ? "is-today" : ""}><p>{dayLabel(date, "long")}</p><strong>{dayNumber(date)}</strong></header>
-      <div className="calendar-day-all-day"><span>TOUTE LA JOURNÉE</span><div>{allDay.length ? allDay.map((event) => <CalendarEventButton event={event} key={event.id} onOpen={onOpenEvent} />) : <small>Aucun événement.</small>}</div></div>
-      <div className="calendar-day-timeline">{hours.map((hour) => <div className="calendar-day-hour" key={hour}><time>{String(hour).padStart(2, "0")}:00</time><div>{dayEvents.filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton event={event} key={event.id} onOpen={onOpenEvent} />)}</div></div>)}</div>
+      <div className="calendar-day-all-day"><span>TOUTE LA JOURNÉE</span><div>{allDay.length ? allDay.map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />) : <small>Aucun événement.</small>}</div></div>
+      <div className="calendar-day-timeline">{hours.map((hour) => <div className="calendar-day-hour" key={hour}><time>{String(hour).padStart(2, "0")}:00</time><div>{dayEvents.filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div></div>)}</div>
     </section>
   );
 }

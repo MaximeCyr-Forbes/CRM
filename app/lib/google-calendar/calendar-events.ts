@@ -1,6 +1,7 @@
 import type {
   CRMCalendarEvent,
   CRMCalendarEventInput,
+  CRMCalendarEntityKind,
   CRMCalendarEventKind,
 } from "../../data/calendar-event-types";
 import type { CalendarBroker } from "../../data/calendar-types";
@@ -19,6 +20,7 @@ export type GoogleCalendarEventResource = {
   extendedProperties?: { private?: Record<string, string> };
   recurrence?: string[];
   recurringEventId?: string;
+  transparency?: "opaque" | "transparent";
 };
 
 const systemKinds = new Set<CRMCalendarEventKind>([
@@ -57,19 +59,33 @@ function isSafeCRMIdentifier(value: string | undefined) {
   return Boolean(value && /^[a-zA-Z0-9_-]{1,128}$/.test(value));
 }
 
-export function extractCRMCalendarLink(event: GoogleCalendarEventResource, kind: CRMCalendarEventKind) {
+function normalizeEntityKind(value: string | undefined): CRMCalendarEntityKind | null {
+  return value === "contact" || value === "listing" || value === "transaction" ? value : null;
+}
+
+export function extractCRMCalendarEntity(event: GoogleCalendarEventResource, kind: CRMCalendarEventKind) {
   const privateProperties = event.extendedProperties?.private;
+  const explicitKind = normalizeEntityKind(privateProperties?.crmEntityKind);
+  if (explicitKind && isSafeCRMIdentifier(privateProperties?.crmEntityId)) {
+    return { kind: explicitKind, id: privateProperties!.crmEntityId! };
+  }
   if (kind === "transaction_deadline" && isSafeCRMIdentifier(privateProperties?.crmTransactionId)) {
-    return `/transactions/${privateProperties!.crmTransactionId}`;
+    return { kind: "transaction" as const, id: privateProperties!.crmTransactionId! };
   }
   if (
     (kind === "birthday" || kind === "mortgage_renewal" || kind === "follow_up")
     && isSafeCRMIdentifier(privateProperties?.crmContactId)
   ) {
-    return `/contacts/${privateProperties!.crmContactId}`;
+    return { kind: "contact" as const, id: privateProperties!.crmContactId! };
   }
+  return null;
+}
+
+export function extractCRMCalendarLink(event: GoogleCalendarEventResource, kind: CRMCalendarEventKind) {
+  const entity = extractCRMCalendarEntity(event, kind);
+  if (entity) return `/${entity.kind === "contact" ? "contacts" : `${entity.kind}s`}/${entity.id}`;
   const description = event.description ?? "";
-  const match = description.match(/Fiche CRM\s*:\s*(?:https?:\/\/[^\s/]+)?\/(contacts|transactions)\/([a-zA-Z0-9_-]{1,128})(?=$|[\s?#])/i);
+  const match = description.match(/Fiche CRM\s*:\s*(?:https?:\/\/[^\s/]+)?\/(contacts|listings|transactions)\/([a-zA-Z0-9_-]{1,128})(?=$|[\s?#])/i);
   return match ? `/${match[1].toLowerCase()}/${match[2]}` : null;
 }
 
@@ -82,6 +98,7 @@ export function mapGoogleCalendarEvent(
   const end = event.end?.date ?? event.end?.dateTime;
   if (!id || !start || !end) throw new Error("Événement Google incomplet.");
   const eventKind = classifyGoogleCalendarEvent(event);
+  const entity = extractCRMCalendarEntity(event, eventKind);
   const recurring = Boolean(event.recurringEventId || event.recurrence?.length);
   return {
     id,
@@ -94,19 +111,31 @@ export function mapGoogleCalendarEvent(
     allDay: Boolean(event.start?.date),
     htmlLink: event.htmlLink ?? null,
     eventKind,
+    crmEntityKind: entity?.kind ?? null,
+    crmEntityId: entity?.id ?? null,
     crmLink: extractCRMCalendarLink(event, eventKind),
+    blocksAvailability: !systemKinds.has(eventKind) && event.transparency !== "transparent",
     readOnly: systemKinds.has(eventKind) || recurring,
     recurring,
   };
 }
 
 export function buildGoogleCalendarEventPayload(input: CRMCalendarEventInput) {
+  const privateProperties: Record<string, string> = {
+    source: "forbes-crm",
+    eventKind: "crm",
+    crmBroker: input.broker,
+  };
+  if (input.crmEntityKind && input.crmEntityId) {
+    privateProperties.crmEntityKind = input.crmEntityKind;
+    privateProperties.crmEntityId = input.crmEntityId;
+  }
   const common = {
     summary: input.title.trim(),
     description: input.description.trim(),
     location: input.location.trim(),
     extendedProperties: {
-      private: { source: "forbes-crm", eventKind: "crm", crmBroker: input.broker },
+      private: privateProperties,
     },
   };
   return input.allDay
@@ -133,6 +162,9 @@ export function validateCalendarEventInput(value: unknown): CRMCalendarEventInpu
     || typeof input.allDay !== "boolean"
     || typeof input.start !== "string"
     || typeof input.end !== "string"
+    || (input.crmEntityKind != null && !["contact", "listing", "transaction"].includes(input.crmEntityKind))
+    || (input.crmEntityId != null && (typeof input.crmEntityId !== "string" || !isSafeCRMIdentifier(input.crmEntityId)))
+    || Boolean(input.crmEntityKind) !== Boolean(input.crmEntityId)
   ) return null;
   if (input.allDay) {
     const validDate = (date: string) => {
@@ -156,6 +188,8 @@ export function validateCalendarEventInput(value: unknown): CRMCalendarEventInpu
     allDay: input.allDay,
     start: input.start,
     end: input.end,
+    crmEntityKind: input.crmEntityKind ?? null,
+    crmEntityId: input.crmEntityId ?? null,
   };
 }
 

@@ -3,21 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
-
-type SearchResult = {
-  id: string;
-  kind: "contact" | "transaction";
-  title: string;
-  detail: string;
-  href: string;
-};
+import type { GlobalSearchResult } from "../data/global-search-types";
 
 export function GlobalSearch() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useDialogLifecycle(isOpen, () => setIsOpen(false));
@@ -44,7 +37,7 @@ export function GlobalSearch() {
           cache: "no-store",
           signal: controller.signal,
         });
-        const payload = (await response.json().catch(() => null)) as { data?: SearchResult[] } | null;
+        const payload = (await response.json().catch(() => null)) as { data?: GlobalSearchResult[] } | null;
         if (!response.ok || !payload?.data) throw new Error("Recherche indisponible");
         setResults(payload.data);
       } catch (caughtError) {
@@ -59,7 +52,7 @@ export function GlobalSearch() {
     };
   }, [isOpen, query]);
 
-  function openResult(result: SearchResult) {
+  function openResult(result: GlobalSearchResult) {
     setIsOpen(false);
     setQuery("");
     router.push(result.href);
@@ -81,7 +74,7 @@ export function GlobalSearch() {
             <label className="global-search-input">
               <span aria-hidden="true">⌕</span>
               <input
-                aria-label="Rechercher un contact ou une transaction"
+                aria-label="Rechercher un contact, un listing ou une transaction"
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Nom, téléphone, email ou adresse"
                 ref={inputRef}
@@ -96,7 +89,7 @@ export function GlobalSearch() {
               {!isLoading && !error && query.trim().length >= 2 && results.length === 0 && <p>Aucun résultat.</p>}
               {results.map((result) => (
                 <button key={`${result.kind}-${result.id}`} onClick={() => openResult(result)} type="button">
-                  <span className={`global-result-kind global-result-${result.kind}`}>{result.kind === "contact" ? "Contact" : "Transaction"}</span>
+                  <span className={`global-result-kind global-result-${result.kind}`}>{result.kind === "contact" ? "Contact" : result.kind === "listing" ? "Listing" : "Transaction"}</span>
                   <span><strong>{result.title}</strong><small>{result.detail}</small></span>
                   <span aria-hidden="true">→</span>
                 </button>

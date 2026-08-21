@@ -9,6 +9,8 @@ import {
 } from "../../../lib/contacts/attach-addresses";
 import { normalizeBirthDate } from "../../../lib/birth-date";
 import { normalizeMortgageRenewalDate } from "../../../lib/mortgage-renewal-date";
+import { mapListing, type ListingRow } from "../../../lib/listings/server-service";
+import { listingAddressLines } from "../../../lib/listings/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -140,14 +142,21 @@ export async function GET(request: Request) {
       .select("id, address, broker, status")
       .limit(8);
     for (const term of terms) transactionsQuery = transactionsQuery.ilike("address", `%${term}%`);
+    let listingsQuery = client.from("listings").select("*").limit(8);
+    for (const term of terms) {
+      listingsQuery = listingsQuery.or(
+        `civic_number.ilike.%${term}%,address.ilike.%${term}%,city.ilike.%${term}%,centris_number.ilike.%${term}%`,
+      );
+    }
 
     const addressSearch = client.from("contact_addresses")
       .select("contact_id,civic_number,address,apartment,city,province,postal_code,country")
       .or(terms.flatMap((term) => ["civic_number", "address", "apartment", "city", "province", "postal_code", "country"].map((field) => `${field}.ilike.%${term}%`)).join(","))
       .limit(24);
-    const [contactsResult, transactionsResult, addressResult] = await Promise.all([
+    const [contactsResult, transactionsResult, listingsResult, addressResult] = await Promise.all([
       contactsQuery,
       transactionsQuery,
+      listingsQuery,
       addressSearch,
     ]);
     if (contactsResult.error) return Response.json({ error: "Recherche impossible." }, { status: 502 });
@@ -174,8 +183,19 @@ export async function GET(request: Request) {
       detail: `Courtier · ${transaction.broker} · ${transaction.status}`,
       href: `/transactions/${transaction.id}`,
     }));
+    const listingResults = listingsResult.error ? [] : ((listingsResult.data ?? []) as ListingRow[]).map((row) => {
+      const listing = mapListing(row, []);
+      const address = listingAddressLines(listing).join(", ");
+      return {
+        id: listing.id,
+        kind: "listing" as const,
+        title: listingAddressLines(listing)[0] || "Listing sans adresse",
+        detail: [listing.city, listing.centrisNumber ? `Centris ${listing.centrisNumber}` : null, `Courtier · ${listing.broker}`].filter(Boolean).join(" · ") || address,
+        href: `/listings/${listing.id}`,
+      };
+    });
     return Response.json(
-      { data: [...contactResults, ...transactionResults].slice(0, 12) },
+      { data: [...contactResults, ...listingResults, ...transactionResults].slice(0, 18) },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }
