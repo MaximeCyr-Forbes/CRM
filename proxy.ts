@@ -3,6 +3,7 @@ import { CRM_ACCESS_COOKIE, isValidCRMAccessToken } from "./app/lib/crm-access";
 
 const PUBLIC_PATHS = new Set([
   "/login",
+  "/manifest.webmanifest",
   "/api/access/login",
   "/api/access/logout",
   "/api/access/session",
