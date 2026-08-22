@@ -20,18 +20,13 @@ function listing(status: ListingStatus = "active", id = "listing-1") {
 }
 
 describe("finalisation de vente depuis une Transaction", () => {
-  it("autorise seulement une Transaction de vente terminée avec son Listing source actif", () => {
-    expect(canFinalizeListingSaleFromTransaction(transaction("sale", "completed"), listing())).toBe(true);
-  });
-
-  it.each(["new", "on_market", "offer_received", "negotiation", "pa_accepted", "inspection", "financing", "other_conditions", "conditions_met", "notary"] as const)(
-    "refuse une Transaction de vente au statut %s",
-    (status) => expect(canFinalizeListingSaleFromTransaction(transaction("sale", status), listing())).toBe(false),
+  it.each(["new", "on_market", "offer_received", "negotiation", "pa_accepted", "inspection", "financing", "other_conditions", "conditions_met", "notary", "completed", "cancelled"] as const)(
+    "autorise une Transaction de vente au statut %s avec son Listing source actif",
+    (status) => expect(canFinalizeListingSaleFromTransaction(transaction("sale", status), listing())).toBe(true),
   );
 
-  it("refuse un achat terminé et une vente annulée", () => {
+  it("refuse une Transaction d’achat", () => {
     expect(canFinalizeListingSaleFromTransaction(transaction("purchase", "completed"), listing())).toBe(false);
-    expect(canFinalizeListingSaleFromTransaction(transaction("sale", "cancelled"), listing())).toBe(false);
   });
 
   it("exige la relation sourceListing et le Listing réellement résolu", () => {
