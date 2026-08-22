@@ -21,8 +21,8 @@ describe("configuration PWA Forbes CRM", () => {
       start_url: "/",
       display: "standalone",
       orientation: "portrait-primary",
-      background_color: "#f6f3eb",
-      theme_color: "#13233b",
+      background_color: "#000000",
+      theme_color: "#000000",
     }));
     expect(manifest().icons).toEqual([
       expect.objectContaining({ src: "/icons/icon-192.png", sizes: "192x192" }),
@@ -44,7 +44,7 @@ describe("configuration PWA Forbes CRM", () => {
     expect(layout).toContain("appleWebApp:");
     expect(layout).toContain('title: "Forbes CRM"');
     expect(layout).toContain('viewportFit: "cover"');
-    expect(layout).toContain('themeColor: "#13233b"');
+    expect(layout).toContain('themeColor: "#000000"');
     expect(layout).toContain('name="apple-mobile-web-app-capable"');
     expect(layout).toContain("viewport-fit=cover");
     expect(source("proxy.ts")).toContain('"/manifest.webmanifest"');
