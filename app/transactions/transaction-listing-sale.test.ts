@@ -10,6 +10,7 @@ describe("finalisation autonome de la vente dans la Transaction", () => {
   const listingDetail = source("app/listings/[listingId]/page.tsx");
   const soldModal = source("app/components/sale-completion-modal.tsx");
   const listingsContext = source("app/listings-context.tsx");
+  const styles = source("app/globals.css");
 
   it("n’utilise le Listing explicite que comme synchronisation secondaire", () => {
     expect(transactionDetail).toContain("useListings()");
@@ -25,6 +26,17 @@ describe("finalisation autonome de la vente dans la Transaction", () => {
     expect(transactionDetail).toContain("setIsMarkingSold(true)");
     expect(listingDetail).not.toContain('className="listing-sold-button"');
     expect(listingDetail).not.toContain("SaleCompletionModal");
+  });
+
+  it("harmonise uniquement les actions Transaction et conserve leurs couleurs", () => {
+    expect(styles).toContain(".transaction-detail-actions > div button {");
+    expect(styles).toContain("min-height: 2.65rem;");
+    expect(styles).toContain("padding: 0.62rem 0.85rem;");
+    expect(styles).toContain("border-radius: 0.2rem;");
+    expect(styles).toContain(".transaction-detail-actions .listing-sold-button {");
+    expect(styles).toContain("background: #315b4b;");
+    expect(styles).toContain(".transaction-detail-actions .destructive-button {");
+    expect(styles).toContain("button.destructive-button {");
   });
 
   it("finalise d’abord la Transaction puis synchronise le Listing lié si nécessaire", () => {

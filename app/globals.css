@@ -8390,6 +8390,46 @@ button.destructive-button:disabled {
   opacity: 0.55;
 }
 
+.transaction-detail-actions > div button {
+  display: inline-flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.62rem 0.85rem;
+  border-radius: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+}
+
+.transaction-detail-actions .listing-sold-button {
+  color: #fffdf8;
+  background: #315b4b;
+  border-color: #315b4b;
+}
+
+.transaction-detail-actions .listing-sold-button:hover:not(:disabled) {
+  color: #fffdf8;
+  background: #274a3d;
+  border-color: #274a3d;
+}
+
+.transaction-detail-actions .listing-sold-button:focus-visible {
+  outline: 3px solid rgba(49, 91, 75, 0.25);
+  outline-offset: 3px;
+}
+
+.transaction-detail-actions .destructive-button {
+  min-height: 2.65rem;
+  padding: 0.62rem 0.85rem;
+  border-radius: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+}
+
 @media (max-width: 430px) {
   .selection-top-actions {
     left: 1rem;
