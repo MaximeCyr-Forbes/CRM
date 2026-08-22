@@ -71,6 +71,7 @@ export type ListingServiceErrorCode =
   | "invalid_purpose"
   | "already_sold"
   | "invalid_offer"
+  | "multiple_accepted_offers"
   | "offer_linked"
   | "listing_already_linked"
   | "not_found";

@@ -1,4 +1,5 @@
 import type {
+  ListingAcceptedPaInput,
   ListingBroker,
   ListingOffer,
   ListingOfferDraft,
@@ -8,6 +9,7 @@ import type {
 } from "../../data/listing-types";
 import { LISTING_OFFER_STATUSES } from "../../data/listing-types";
 import { getSupabaseAdmin } from "../supabase/server";
+import { parseListingAcceptedPaInput } from "./accepted-pa";
 import { ListingServiceError } from "./persistence";
 
 export type ListingOfferRow = {
@@ -47,6 +49,7 @@ export type ListingOffersRepository = {
   createOfferRow: (listingId: string, draft: ListingOfferDraft, actor: ListingBroker | null) => Promise<ListingOfferRow>;
   updateOfferRow: (listingId: string, offerId: string, draft: ListingOfferDraft, actor: ListingBroker | null) => Promise<ListingOfferRow>;
   deleteOfferRow: (listingId: string, offerId: string, actor: ListingBroker | null) => Promise<void>;
+  getListingPurpose: (listingId: string) => Promise<ListingPurpose | null>;
   getLinkRow: (listingId: string) => Promise<LinkRow | null>;
   getTransactionRow: (transactionId: string) => Promise<LinkedTransactionRow | null>;
   createTransactionLink: (listingId: string, offerId: string, actor: ListingBroker | null) => Promise<string>;
@@ -141,6 +144,12 @@ export function createSupabaseListingOffersRepository(): ListingOffersRepository
       const { error } = await getSupabaseAdmin().rpc("delete_listing_offer", { p_listing_id: listingId, p_offer_id: offerId, p_actor: actor });
       if (error) mapOfferPersistenceError(error);
     },
+    async getListingPurpose(listingId) {
+      const { data, error } = await getSupabaseAdmin().from("listings")
+        .select("purpose").eq("id", listingId).maybeSingle();
+      if (error) throw error;
+      return (data?.purpose as ListingPurpose | undefined) ?? null;
+    },
     async getLinkRow(listingId) {
       const { data, error } = await getSupabaseAdmin().from("listing_transaction_links").select("*")
         .eq("listing_id", listingId).maybeSingle();
@@ -188,17 +197,80 @@ export function createListingOffersService(repository: ListingOffersRepository) 
       },
     };
   };
+  const createTransaction = async (
+    listingId: string,
+    offerId: string,
+    actor: ListingBroker | null,
+  ) => {
+    const existing = await link(listingId);
+    if (existing) return existing;
+    try {
+      await repository.createTransactionLink(listingId, offerId, actor);
+    } catch (error) {
+      if (error instanceof ListingServiceError && error.code === "listing_already_linked") {
+        const concurrentlyCreated = await link(listingId);
+        if (concurrentlyCreated) return concurrentlyCreated;
+      }
+      throw error;
+    }
+    const created = await link(listingId);
+    if (!created) throw new Error("Le lien vers la transaction est introuvable.");
+    return created;
+  };
   return {
     async listListingOffers(listingId: string) { return (await repository.listOfferRows(listingId)).map(mapListingOffer); },
     async createListingOffer(listingId: string, value: unknown, actor: ListingBroker | null) { return mapListingOffer(await repository.createOfferRow(listingId, draft(value), actor)); },
     async updateListingOffer(listingId: string, offerId: string, value: unknown, actor: ListingBroker | null) { return mapListingOffer(await repository.updateOfferRow(listingId, offerId, draft(value), actor)); },
     deleteListingOffer: (listingId: string, offerId: string, actor: ListingBroker | null) => repository.deleteOfferRow(listingId, offerId, actor),
     getListingTransactionLink: link,
-    async createTransactionFromListingOffer(listingId: string, offerId: string, actor: ListingBroker | null) {
-      await repository.createTransactionLink(listingId, offerId, actor);
-      const created = await link(listingId);
-      if (!created) throw new Error("Le lien vers la transaction est introuvable.");
-      return created;
+    createTransactionFromListingOffer: createTransaction,
+    async acceptListingPurchaseAgreement(
+      listingId: string,
+      value: unknown,
+      actor: ListingBroker | null,
+    ) {
+      const existing = await link(listingId);
+      if (existing) return existing;
+
+      const purpose = await repository.getListingPurpose(listingId);
+      if (purpose === null) throw new ListingServiceError("not_found", "Listing introuvable.");
+      if (purpose !== "sale") {
+        throw new ListingServiceError(
+          "invalid_purpose",
+          "PA ACCEPTÉE est disponible uniquement pour un Listing de vente.",
+        );
+      }
+
+      const input = parseListingAcceptedPaInput(value);
+      if (!input) throw new ListingServiceError("invalid_offer", "Promesse d’achat invalide.");
+      const acceptedOffers = (await repository.listOfferRows(listingId))
+        .filter((offer) => offer.purpose === "sale" && offer.status === "accepted");
+      let acceptedOffer = input.offerId
+        ? acceptedOffers.find((offer) => offer.id === input.offerId) ?? null
+        : null;
+
+      if (input.offerId && !acceptedOffer) {
+        throw new ListingServiceError("invalid_offer", "L’offre acceptée sélectionnée est introuvable.");
+      }
+      if (!acceptedOffer && acceptedOffers.length === 1) acceptedOffer = acceptedOffers[0];
+      if (!acceptedOffer && acceptedOffers.length > 1) {
+        throw new ListingServiceError(
+          "multiple_accepted_offers",
+          "Plusieurs offres acceptées existent. Choisissez celle à utiliser.",
+        );
+      }
+      if (!acceptedOffer) {
+        acceptedOffer = await repository.createOfferRow(listingId, {
+          offerDate: input.offerDate,
+          amount: input.amount,
+          status: "accepted",
+          buyerNames: input.buyerNames,
+          collaboratingBrokerName: "",
+          collaboratingBrokerAgency: "",
+          notes: "",
+        }, actor);
+      }
+      return createTransaction(listingId, acceptedOffer.id, actor);
     },
   };
 }
@@ -210,3 +282,4 @@ export const updateListingOffer = (listingId: string, offerId: string, value: un
 export const deleteListingOffer = (listingId: string, offerId: string, actor: ListingBroker | null) => offersService.deleteListingOffer(listingId, offerId, actor);
 export const getListingTransactionLink = (listingId: string) => offersService.getListingTransactionLink(listingId);
 export const createTransactionFromListingOffer = (listingId: string, offerId: string, actor: ListingBroker | null) => offersService.createTransactionFromListingOffer(listingId, offerId, actor);
+export const acceptListingPurchaseAgreement = (listingId: string, value: ListingAcceptedPaInput, actor: ListingBroker | null) => offersService.acceptListingPurchaseAgreement(listingId, value, actor);

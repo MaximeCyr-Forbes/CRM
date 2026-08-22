@@ -97,8 +97,8 @@ describe("fiche détaillée Listings", () => {
     expect(soldModal).toContain("Confirmer la vente");
   });
 
-  it("conserve la finalisation hors de la fiche Listing", () => {
-    expect(detail).not.toContain("createTransaction");
+  it("conserve la finalisation VENDU hors de la fiche Listing", () => {
+    expect(detail).toContain("ListingPaAcceptedAction");
     expect(soldModal).toContain("Prix de la Transaction");
     expect(context).not.toContain("/api/transactions");
   });

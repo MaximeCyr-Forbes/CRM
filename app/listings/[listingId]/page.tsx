@@ -6,6 +6,7 @@ import { ListingDeleteConfirmationModal } from "../../components/listing-delete-
 import { ListingEditorModal } from "../../components/listing-editor-modal";
 import { ListingMedia } from "../../components/listing-media";
 import { ListingMarketSnapshot } from "../../components/listing-market-snapshot";
+import { ListingPaAcceptedAction } from "../../components/listing-pa-accepted-action";
 import { ListingTracking } from "../../components/listing-tracking";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
@@ -104,6 +105,7 @@ export default function ListingDetailPage() {
           <div className="listing-detail-actions">
             <button className="listing-report-button" onClick={() => router.push(`/listings/${listing.id}/report`)} type="button">{listing.purpose === "sale" ? "Rapport vendeur" : "Rapport propriétaire"}</button>
             <button onClick={() => setIsEditing(true)} type="button">Modifier <span aria-hidden="true">✎</span></button>
+            <ListingPaAcceptedAction listing={listing} onListingChanged={retry} />
             <button className="destructive-button" onClick={() => setIsDeleting(true)} type="button">Supprimer</button>
           </div>
         </header>

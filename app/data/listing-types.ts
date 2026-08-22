@@ -217,6 +217,13 @@ export type ListingOfferDraft = Pick<
   | "notes"
 >;
 
+export type ListingAcceptedPaInput = {
+  offerId: string | null;
+  amount: number;
+  offerDate: string;
+  buyerNames: string;
+};
+
 export type ListingTransactionLink = {
   listingId: string;
   offerId: string;

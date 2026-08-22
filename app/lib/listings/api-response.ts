@@ -27,6 +27,9 @@ export function listingApiError(error: unknown, fallbackMessage: string) {
     if (error.code === "invalid_offer") {
       return Response.json({ error: error.message }, { status: 400 });
     }
+    if (error.code === "multiple_accepted_offers") {
+      return Response.json({ error: error.message }, { status: 409 });
+    }
     if (error.code === "offer_linked" || error.code === "listing_already_linked") {
       return Response.json({ error: error.message }, { status: 409 });
     }

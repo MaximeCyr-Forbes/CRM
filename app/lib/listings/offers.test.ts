@@ -20,12 +20,17 @@ const draft = {
 class MemoryOffersRepository implements ListingOffersRepository {
   rows: ListingOfferRow[] = [];
   linked = false;
+  linkedOfferId = offerId;
   transactionCreations = 0;
+  offerCreations = 0;
+  failTransactionOnce = false;
   purpose: "sale" | "rental" = "sale";
   listOfferRows = async () => this.rows;
   async createOfferRow(_listingId: string, values: ListingOfferDraft, actor: ListingBroker | null) {
+    this.offerCreations += 1;
     const row: ListingOfferRow = {
-      id: offerId, listing_id: listingId, purpose: this.purpose, offer_date: values.offerDate,
+      id: this.offerCreations === 1 ? offerId : `20000000-0000-4000-8000-${this.offerCreations.toString().padStart(12, "0")}`,
+      listing_id: listingId, purpose: this.purpose, offer_date: values.offerDate,
       amount: values.amount, status: values.status, buyer_names: values.buyerNames,
       collaborating_broker_name: values.collaboratingBrokerName,
       collaborating_broker_agency: values.collaboratingBrokerAgency, notes: values.notes,
@@ -45,9 +50,19 @@ class MemoryOffersRepository implements ListingOffersRepository {
     return row;
   }
   async deleteOfferRow(_listingId: string, id: string) { this.rows = this.rows.filter((row) => row.id !== id); }
-  async getLinkRow() { return this.linked ? { listing_id: listingId, offer_id: offerId, transaction_id: transactionId, created_at: now } : null; }
+  async getListingPurpose() { return this.purpose; }
+  async getLinkRow() { return this.linked ? { listing_id: listingId, offer_id: this.linkedOfferId, transaction_id: transactionId, created_at: now } : null; }
   async getTransactionRow() { return this.linked ? { id: transactionId, status: "pa_accepted", price: 725000, promise_date: "2026-08-19", broker: "maxime" as const } : null; }
-  async createTransactionLink() { if (!this.linked) this.transactionCreations += 1; this.linked = true; return transactionId; }
+  async createTransactionLink(_listingId: string, selectedOfferId: string) {
+    if (this.failTransactionOnce) {
+      this.failTransactionOnce = false;
+      throw new Error("Panne temporaire");
+    }
+    if (!this.linked) this.transactionCreations += 1;
+    this.linkedOfferId = selectedOfferId;
+    this.linked = true;
+    return transactionId;
+  }
 }
 
 describe("validation des offres Listings", () => {
@@ -104,5 +119,81 @@ describe("service des offres Listings", () => {
     const second = await service.createTransactionFromListingOffer(listingId, offerId, "maxime");
     expect(first.transactionId).toBe(second.transactionId);
     expect(repository.transactionCreations).toBe(1);
+  });
+
+  it("crée une offre acceptée puis la Transaction avec les données PA", async () => {
+    const repository = new MemoryOffersRepository();
+    const service = createListingOffersService(repository);
+    const link = await service.acceptListingPurchaseAgreement(listingId, {
+      offerId: null,
+      amount: 550000,
+      offerDate: "2026-08-22",
+      buyerNames: "Jean Tremblay",
+    }, "maxime");
+    expect(repository.rows).toHaveLength(1);
+    expect(repository.rows[0]).toMatchObject({
+      purpose: "sale",
+      status: "accepted",
+      amount: 550000,
+      offer_date: "2026-08-22",
+      buyer_names: "Jean Tremblay",
+      collaborating_broker_name: "",
+      collaborating_broker_agency: "",
+      notes: "",
+    });
+    expect(link).toMatchObject({ transactionId, offerId });
+  });
+
+  it("réutilise l’offre acceptée après un échec partiel sans en créer une deuxième", async () => {
+    const repository = new MemoryOffersRepository();
+    repository.failTransactionOnce = true;
+    const service = createListingOffersService(repository);
+    const values = { offerId: null, amount: 550000, offerDate: "2026-08-22", buyerNames: "Jean" };
+    await expect(service.acceptListingPurchaseAgreement(listingId, values, "maxime"))
+      .rejects.toThrow("Panne temporaire");
+    expect(repository.rows).toHaveLength(1);
+    const link = await service.acceptListingPurchaseAgreement(listingId, values, "maxime");
+    expect(repository.rows).toHaveLength(1);
+    expect(repository.offerCreations).toBe(1);
+    expect(link.transactionId).toBe(transactionId);
+  });
+
+  it("retourne immédiatement la Transaction déjà liée", async () => {
+    const repository = new MemoryOffersRepository();
+    repository.linked = true;
+    const service = createListingOffersService(repository);
+    const link = await service.acceptListingPurchaseAgreement(listingId, {
+      offerId: null, amount: 550000, offerDate: "2026-08-22", buyerNames: "",
+    }, "maxime");
+    expect(link.transactionId).toBe(transactionId);
+    expect(repository.offerCreations).toBe(0);
+    expect(repository.transactionCreations).toBe(0);
+  });
+
+  it("exige un choix lorsque plusieurs offres de vente sont acceptées", async () => {
+    const repository = new MemoryOffersRepository();
+    await repository.createOfferRow(listingId, { ...draft, status: "accepted" }, "maxime");
+    await repository.createOfferRow(listingId, { ...draft, status: "accepted", amount: 700000 }, "maxime");
+    const service = createListingOffersService(repository);
+    const values = { offerId: null, amount: 550000, offerDate: "2026-08-22", buyerNames: "" };
+    await expect(service.acceptListingPurchaseAgreement(listingId, values, "maxime"))
+      .rejects.toMatchObject({ code: "multiple_accepted_offers" });
+    const selected = await service.acceptListingPurchaseAgreement(
+      listingId,
+      { ...values, offerId: repository.rows[1].id },
+      "maxime",
+    );
+    expect(selected.offerId).toBe(repository.rows[1].id);
+    expect(repository.offerCreations).toBe(2);
+  });
+
+  it("refuse PA ACCEPTÉE pour un Listing de location avant toute création", async () => {
+    const repository = new MemoryOffersRepository();
+    repository.purpose = "rental";
+    const service = createListingOffersService(repository);
+    await expect(service.acceptListingPurchaseAgreement(listingId, {
+      offerId: null, amount: 2500, offerDate: "2026-08-22", buyerNames: "",
+    }, "maxime")).rejects.toMatchObject({ code: "invalid_purpose" });
+    expect(repository.offerCreations).toBe(0);
   });
 });

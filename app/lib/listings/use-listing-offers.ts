@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBroker } from "../../broker-context";
-import type { ListingOffer, ListingOfferDraft, ListingTransactionLink } from "../../data/listing-types";
+import type {
+  ListingAcceptedPaInput,
+  ListingOffer,
+  ListingOfferDraft,
+  ListingTransactionLink,
+} from "../../data/listing-types";
 
 type OffersData = { offers: ListingOffer[]; transactionLink: ListingTransactionLink | null };
 const emptyData: OffersData = { offers: [], transactionLink: null };
@@ -50,11 +55,37 @@ export function useListingOffers(listingId: string, onChanged?: () => void | Pro
     } finally { setIsSaving(false); }
   }, [actorBroker, listingId, load, onChanged]);
 
+  const acceptPa = useCallback(async (values: ListingAcceptedPaInput) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/listings/${encodeURIComponent(listingId)}/accept-pa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ values, actorBroker }),
+      });
+      const payload = (await response.json().catch(() => null)) as { data?: ListingTransactionLink; error?: string } | null;
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.error ?? "Création de la Transaction impossible.");
+      }
+      await load(false);
+      await onChanged?.();
+      return payload.data;
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : "Création de la Transaction impossible.";
+      setError(message);
+      throw caughtError;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [actorBroker, listingId, load, onChanged]);
+
   return useMemo(() => ({
     ...data, isLoading, isSaving, error, retry: load,
     createOffer: (offer: ListingOfferDraft) => write<ListingOffer>("", "POST", { offer }),
     updateOffer: (offerId: string, offer: ListingOfferDraft) => write<ListingOffer>(`/${encodeURIComponent(offerId)}`, "PATCH", { offer }),
     deleteOffer: (offerId: string) => write<{ offerId: string }>(`/${encodeURIComponent(offerId)}`, "DELETE", {}),
     createTransaction: (offerId: string) => write<ListingTransactionLink>(`/${encodeURIComponent(offerId)}`, "POST", { action: "createTransaction" }),
-  }), [data, error, isLoading, isSaving, load, write]);
+    acceptPa,
+  }), [acceptPa, data, error, isLoading, isSaving, load, write]);
 }
