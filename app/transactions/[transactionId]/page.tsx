@@ -22,7 +22,10 @@ import {
   showOtherConditionField,
 } from "../../lib/transactions/deadline-title";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
-import { canFinalizeListingSaleFromTransaction } from "../../lib/transactions/listing-sale-finalization";
+import {
+  resolveListingForSaleTransaction,
+  shouldShowListingSaleAction,
+} from "../../lib/transactions/listing-sale-resolution";
 import { useListings } from "../../listings-context";
 import { useTransactions } from "../../transactions-context";
 import { useDialogLifecycle } from "../../lib/use-dialog-lifecycle";
@@ -108,6 +111,36 @@ function DeleteTransactionModal({
   </section></div>;
 }
 
+function ListingSaleResolutionModal({
+  centrisNumber,
+  listingId,
+  onClose,
+  onOpenListings,
+  reason,
+}: {
+  centrisNumber: string;
+  listingId: string | null;
+  onClose: () => void;
+  onOpenListings: () => void;
+  reason: "already_sold" | "not_found";
+}) {
+  useDialogLifecycle(true, onClose);
+  const alreadySold = reason === "already_sold";
+
+  return <div className="transaction-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()} role="presentation"><section aria-labelledby="listing-sale-resolution-title" aria-modal="true" className="transaction-modal transaction-delete-modal" role="dialog">
+    <div className="transaction-modal-heading"><div><p className="section-kicker">Finalisation de vente</p><h2 id="listing-sale-resolution-title">{alreadySold ? "VENTE DÉJÀ FINALISÉE" : "LISTING INTROUVABLE"}</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></div>
+    <div className="transaction-delete-content">
+      <p>{alreadySold
+        ? "Cette propriété est déjà marquée comme vendue."
+        : centrisNumber.trim()
+          ? "Aucun Listing correspondant à cette Transaction n’a été trouvé."
+          : "Aucun Listing n’est lié à cette Transaction."}</p>
+      {!alreadySold && centrisNumber.trim() && <p><span>Numéro Centris</span><br /><strong>{centrisNumber}</strong></p>}
+      <div className="transaction-form-actions"><button onClick={onClose} type="button">Fermer</button><button className="transaction-submit" onClick={onOpenListings} type="button">{listingId ? "Ouvrir le Listing" : "Ouvrir les Listings"}</button></div>
+    </div>
+  </section></div>;
+}
+
 export default function TransactionDetailPage() {
   const params = useParams<{ transactionId: string }>();
   const router = useRouter();
@@ -122,10 +155,15 @@ export default function TransactionDetailPage() {
       : null,
     [listings, transaction?.sourceListing],
   );
+  const resolvedSaleListing = useMemo(
+    () => transaction ? resolveListingForSaleTransaction(transaction, listings) : null,
+    [listings, transaction],
+  );
   const [deadlineModal, setDeadlineModal] = useState<"new" | TransactionDeadline | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isMarkingSold, setIsMarkingSold] = useState(false);
+  const [saleResolutionIssue, setSaleResolutionIssue] = useState<"already_sold" | "not_found" | null>(null);
   const [note, setNote] = useState("");
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const today = toLocalISODate(new Date());
@@ -138,7 +176,19 @@ export default function TransactionDetailPage() {
 
   if (isLoading && !transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transaction-status">Chargement de la transaction…</div></div></main>;
   if (!transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transactions-empty"><h1>Transaction introuvable</h1><button onClick={() => router.push("/transactions")} type="button">Retour aux transactions</button></div></div></main>;
-  const canFinalizeSale = canFinalizeListingSaleFromTransaction(transaction, sourceListing);
+  const showListingSaleAction = shouldShowListingSaleAction(transaction);
+
+  function openListingSaleFinalization() {
+    if (!resolvedSaleListing) {
+      setSaleResolutionIssue("not_found");
+      return;
+    }
+    if (resolvedSaleListing.status === "sold") {
+      setSaleResolutionIssue("already_sold");
+      return;
+    }
+    setIsMarkingSold(true);
+  }
 
   async function saveDeadline(values: { title: string; dueDate: string; syncToGoogle: boolean }) {
     const result = deadlineModal === "new"
@@ -172,7 +222,7 @@ export default function TransactionDetailPage() {
     {error && <div className="transaction-status transaction-status-error" role="alert">{error}</div>}
     {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
 
-    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button>{canFinalizeSale && <button className="listing-sold-button" disabled={isListingSaving} onClick={() => setIsMarkingSold(true)} type="button">VENDU</button>}<button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
+    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button>{showListingSaleAction && <button className="listing-sold-button" disabled={isListingSaving} onClick={openListingSaleFinalization} type="button">VENDU</button>}<button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
 
     <header className="transaction-detail-header"><div><p className="section-kicker">{TRANSACTION_TYPE_LABELS[transaction.type]} · {BROKER_LABELS[transaction.broker]}</p><h1>{transaction.address}</h1><p>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun client lié"}</p></div><label><span>Statut actuel</span><select disabled={isSaving} onChange={(event) => void updateStatus(transaction.id, event.target.value as TransactionStatus)} value={transaction.status}>{statusesForTransaction(transaction.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label></header>
 
@@ -195,13 +245,20 @@ export default function TransactionDetailPage() {
   {deadlineModal && <DeadlineModal initial={deadlineModal === "new" ? undefined : deadlineModal} isSaving={isSaving} onClose={() => setDeadlineModal(null)} onSave={saveDeadline} />}
   {isEditing && <TransactionEditorModal initial={transactionDraftFromTransaction(transaction)} isSaving={isSaving} mode="edit" onClose={() => setIsEditing(false)} onSave={saveTransaction} />}
   {isConfirmingDelete && <DeleteTransactionModal address={transaction.address} isSaving={isSaving} onClose={() => setIsConfirmingDelete(false)} onConfirm={removeTransaction} />}
-  {isMarkingSold && sourceListing && <ListingSoldModal
-    address={listingAddressLines(sourceListing)[0]}
-    askingPrice={sourceListing.askingPrice}
+  {saleResolutionIssue && <ListingSaleResolutionModal
+    centrisNumber={transaction.centrisNumber}
+    listingId={saleResolutionIssue === "already_sold" ? resolvedSaleListing?.id ?? null : null}
+    onClose={() => setSaleResolutionIssue(null)}
+    onOpenListings={() => router.push(saleResolutionIssue === "already_sold" && resolvedSaleListing ? `/listings/${resolvedSaleListing.id}` : "/listings")}
+    reason={saleResolutionIssue}
+  />}
+  {isMarkingSold && resolvedSaleListing && resolvedSaleListing.status !== "sold" && <ListingSoldModal
+    address={listingAddressLines(resolvedSaleListing)[0]}
+    askingPrice={resolvedSaleListing.askingPrice}
     isSaving={isListingSaving}
     onClose={() => setIsMarkingSold(false)}
     onConfirm={async (values) => {
-      await markListingSold(sourceListing.id, values);
+      await markListingSold(resolvedSaleListing.id, values);
       setConfirmation("Vente finalisée. Le Listing a été déplacé dans VENDUS / LOUÉS.");
     }}
   />}
