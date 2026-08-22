@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "./auth-context";
+import { useBroker } from "./broker-context";
 import type {
   Transaction,
   TransactionDraft,
@@ -17,6 +18,7 @@ import type {
   TransactionStatus,
 } from "./data/transaction-types";
 import { removeTransactionFromState, replaceTransactionInState } from "./lib/transactions/state";
+import type { TransactionReturnToMarketResult } from "./lib/transactions/return-to-market";
 
 type MutationResult = { transaction: Transaction; message?: string };
 
@@ -30,6 +32,7 @@ type TransactionsContextValue = {
   updateTransaction: (transactionId: string, values: TransactionDraft) => Promise<Transaction>;
   updateStatus: (transactionId: string, status: TransactionStatus) => Promise<Transaction>;
   completeSale: (transactionId: string, values: TransactionSaleCompletion) => Promise<Transaction>;
+  returnToMarket: (transactionId: string) => Promise<TransactionReturnToMarketResult>;
   deleteTransaction: (transactionId: string) => Promise<{ message?: string }>;
   addDeadline: (transactionId: string, title: string, dueDate: string, syncToGoogle: boolean) => Promise<MutationResult>;
   updateDeadline: (transactionId: string, deadlineId: string, values: { title?: string; dueDate?: string; completed?: boolean; syncToGoogle?: boolean }) => Promise<MutationResult>;
@@ -56,6 +59,8 @@ async function transactionRequest<T>(body: Record<string, unknown>): Promise<{ d
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { selectedBroker } = useBroker();
+  const actorBroker = selectedBroker?.toLowerCase() as Transaction["broker"] | undefined;
   const [transactions, setTransactions] = useState<ReadonlyArray<Transaction>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingWrites, setPendingWrites] = useState(0);
@@ -128,6 +133,23 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return replaceTransaction(payload.data);
   }), [replaceTransaction, runWrite]);
 
+  const returnToMarket = useCallback((transactionId: string) => runWrite(async () => {
+    const response = await fetch(`/api/transactions/${encodeURIComponent(transactionId)}/return-to-market`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actorBroker: actorBroker ?? null }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      data?: TransactionReturnToMarketResult;
+      error?: string;
+    } | null;
+    if (!response.ok || !payload?.data) {
+      throw new Error(payload?.error ?? "Impossible de remettre le Listing sur le marché.");
+    }
+    replaceTransaction(payload.data.transaction);
+    return payload.data;
+  }), [actorBroker, replaceTransaction, runWrite]);
+
   const removeTransaction = useCallback((transactionId: string) => runWrite(async () => {
     const payload = await transactionRequest<{ transactionId: string }>({ action: "deleteTransaction", transactionId });
     setTransactions((current) => removeTransactionFromState(current, payload.data.transactionId));
@@ -167,12 +189,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     updateTransaction: update,
     updateStatus,
     completeSale,
+    returnToMarket,
     deleteTransaction: removeTransaction,
     addDeadline,
     updateDeadline: editDeadline,
     deleteDeadline: removeDeadline,
     addNote,
-  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
+  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, returnToMarket, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>;
 }

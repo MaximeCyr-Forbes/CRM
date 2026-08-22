@@ -8420,6 +8420,39 @@ button.destructive-button:disabled {
   outline-offset: 3px;
 }
 
+.transaction-detail-actions .transaction-return-market-button,
+.transaction-return-market-confirm {
+  color: #fffdf8;
+  background: #17324d;
+  border-color: #17324d;
+}
+
+.transaction-detail-actions .transaction-return-market-button:hover:not(:disabled),
+.transaction-return-market-confirm:hover:not(:disabled) {
+  color: #fffdf8;
+  background: #10263b;
+  border-color: #10263b;
+}
+
+.transaction-detail-actions .transaction-return-market-button:focus-visible,
+.transaction-return-market-confirm:focus-visible {
+  outline: 3px solid rgba(23, 50, 77, 0.28);
+  outline-offset: 3px;
+}
+
+.transaction-return-market-content {
+  display: grid;
+  gap: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.transaction-return-market-content > p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
 .transaction-detail-actions .destructive-button {
   min-height: 2.65rem;
   padding: 0.62rem 0.85rem;

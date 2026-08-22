@@ -10,6 +10,7 @@ describe("sécurité et activation visuelle des Listings", () => {
     const collectionRoute = source("app/api/listings/route.ts");
     const detailRoute = source("app/api/listings/[listingId]/route.ts");
     const completeSaleRoute = source("app/api/listings/[listingId]/complete-sale/route.ts");
+    const returnToMarketRoute = source("app/api/transactions/[transactionId]/return-to-market/route.ts");
     expect(collectionRoute).toContain("requireApiAccess()");
     expect(detailRoute).toContain("requireApiAccess()");
     expect(collectionRoute).toContain("isSameOriginRequest(request)");
@@ -17,6 +18,8 @@ describe("sécurité et activation visuelle des Listings", () => {
     expect(completeSaleRoute).toContain("requireApiAccess()");
     expect(completeSaleRoute).toContain("isSameOriginRequest(request)");
     expect(completeSaleRoute).toContain("parseListingSaleCompletion");
+    expect(returnToMarketRoute).toContain("requireApiAccess()");
+    expect(returnToMarketRoute).toContain("isSameOriginRequest(request)");
   });
 
   it("garde service_role dans la couche serveur et hors du contexte navigateur", () => {

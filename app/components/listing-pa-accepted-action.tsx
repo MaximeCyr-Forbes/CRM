@@ -142,8 +142,10 @@ export function ListingPaAcceptedAction({
   const offers = useListingOffers(listing.id, onListingChanged);
   const [isOpen, setIsOpen] = useState(false);
   const acceptedOffers = useMemo(
-    () => offers.offers.filter((offer) => offer.purpose === "sale" && offer.status === "accepted"),
-    [offers.offers],
+    () => offers.offers.filter((offer) => offer.purpose === "sale"
+      && offer.status === "accepted"
+      && !offers.consumedOfferIds.includes(offer.id)),
+    [offers.consumedOfferIds, offers.offers],
   );
 
   if (listing.purpose !== "sale" || offers.isLoading) return null;

@@ -9,8 +9,8 @@ import type {
   ListingTransactionLink,
 } from "../../data/listing-types";
 
-type OffersData = { offers: ListingOffer[]; transactionLink: ListingTransactionLink | null };
-const emptyData: OffersData = { offers: [], transactionLink: null };
+type OffersData = { offers: ListingOffer[]; transactionLink: ListingTransactionLink | null; consumedOfferIds: string[] };
+const emptyData: OffersData = { offers: [], transactionLink: null, consumedOfferIds: [] };
 
 async function offersRequest<T>(listingId: string, path = "", init?: RequestInit) {
   const response = await fetch(`/api/listings/${encodeURIComponent(listingId)}/offers${path}`, init);

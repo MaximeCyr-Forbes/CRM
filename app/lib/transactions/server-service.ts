@@ -16,6 +16,12 @@ import {
   parseTransactionSaleCompletion,
   TransactionSaleCompletionError,
 } from "./sale-completion";
+import {
+  mapReturnToMarketError,
+  parseReturnToMarketRpcResult,
+  TransactionReturnToMarketError,
+  type TransactionReturnToMarketResult,
+} from "./return-to-market";
 
 export type TransactionRow = {
   id: string;
@@ -302,6 +308,33 @@ export async function completeTransactionSale(
     relations.noteRows,
     relations.listingLinkRows,
   );
+}
+
+export async function returnListingTransactionToMarket(
+  transactionId: string,
+  actorBroker: TransactionBroker | null,
+): Promise<TransactionReturnToMarketResult> {
+  const { data, error } = await getSupabaseAdmin().rpc("return_listing_transaction_to_market", {
+    p_transaction_id: transactionId,
+    p_actor_broker: actorBroker,
+  });
+  if (error) {
+    const transactionError = mapReturnToMarketError(error);
+    if (transactionError) throw transactionError;
+    throw error;
+  }
+  const result = parseReturnToMarketRpcResult(data);
+  if (!result) {
+    throw new TransactionReturnToMarketError(
+      "not_found",
+      "Le résultat du retour sur le marché est introuvable.",
+    );
+  }
+  return {
+    transaction: await getTransaction(result.transactionId),
+    listingId: result.listingId,
+    offerId: result.offerId,
+  };
 }
 
 export async function deleteTransaction(transactionId: string) {

@@ -257,6 +257,7 @@ export type ListingActivityEventType =
   | "offer_status_changed"
   | "offer_deleted"
   | "transaction_created"
+  | "returned_to_market"
   | "sale_completed"
   | "note_updated";
 

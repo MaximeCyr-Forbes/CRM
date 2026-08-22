@@ -10,6 +10,7 @@ import {
 const listingId = "10000000-0000-4000-8000-000000000001";
 const offerId = "20000000-0000-4000-8000-000000000001";
 const transactionId = "30000000-0000-4000-8000-000000000001";
+const secondTransactionId = "30000000-0000-4000-8000-000000000002";
 const now = "2026-08-19T20:00:00.000Z";
 const draft = {
   offerDate: "2026-08-19", amount: 725000, status: "received",
@@ -19,8 +20,8 @@ const draft = {
 
 class MemoryOffersRepository implements ListingOffersRepository {
   rows: ListingOfferRow[] = [];
-  linked = false;
-  linkedOfferId = offerId;
+  links: Array<{ listing_id: string; offer_id: string; transaction_id: string; created_at: string }> = [];
+  transactionRows = new Map<string, { id: string; status: string; price: number; promise_date: string; broker: "maxime" }>();
   transactionCreations = 0;
   offerCreations = 0;
   failTransactionOnce = false;
@@ -51,17 +52,23 @@ class MemoryOffersRepository implements ListingOffersRepository {
   }
   async deleteOfferRow(_listingId: string, id: string) { this.rows = this.rows.filter((row) => row.id !== id); }
   async getListingPurpose() { return this.purpose; }
-  async getLinkRow() { return this.linked ? { listing_id: listingId, offer_id: this.linkedOfferId, transaction_id: transactionId, created_at: now } : null; }
-  async getTransactionRow() { return this.linked ? { id: transactionId, status: "pa_accepted", price: 725000, promise_date: "2026-08-19", broker: "maxime" as const } : null; }
+  async listLinkRows() { return this.links; }
+  async listTransactionRows(ids: string[]) { return ids.flatMap((id) => { const row = this.transactionRows.get(id); return row ? [row] : []; }); }
   async createTransactionLink(_listingId: string, selectedOfferId: string) {
     if (this.failTransactionOnce) {
       this.failTransactionOnce = false;
       throw new Error("Panne temporaire");
     }
-    if (!this.linked) this.transactionCreations += 1;
-    this.linkedOfferId = selectedOfferId;
-    this.linked = true;
-    return transactionId;
+    const id = this.links.length === 0 ? transactionId : secondTransactionId;
+    this.transactionCreations += 1;
+    this.links.unshift({ listing_id: listingId, offer_id: selectedOfferId, transaction_id: id, created_at: now });
+    this.transactionRows.set(id, { id, status: "pa_accepted", price: 725000, promise_date: "2026-08-19", broker: "maxime" });
+    return id;
+  }
+
+  linkExisting(id = transactionId, selectedOfferId = offerId, status = "pa_accepted") {
+    this.links.unshift({ listing_id: listingId, offer_id: selectedOfferId, transaction_id: id, created_at: now });
+    this.transactionRows.set(id, { id, status, price: 725000, promise_date: "2026-08-19", broker: "maxime" });
   }
 }
 
@@ -160,7 +167,7 @@ describe("service des offres Listings", () => {
 
   it("retourne immédiatement la Transaction déjà liée", async () => {
     const repository = new MemoryOffersRepository();
-    repository.linked = true;
+    repository.linkExisting();
     const service = createListingOffersService(repository);
     const link = await service.acceptListingPurchaseAgreement(listingId, {
       offerId: null, amount: 550000, offerDate: "2026-08-22", buyerNames: "",
@@ -168,6 +175,49 @@ describe("service des offres Listings", () => {
     expect(link.transactionId).toBe(transactionId);
     expect(repository.offerCreations).toBe(0);
     expect(repository.transactionCreations).toBe(0);
+  });
+
+  it("ignore une Transaction annulée et permet une nouvelle Transaction pour le même Listing", async () => {
+    const repository = new MemoryOffersRepository();
+    const historicalOffer = await repository.createOfferRow(listingId, {
+      ...draft,
+      status: "accepted",
+    }, "maxime");
+    repository.linkExisting(transactionId, historicalOffer.id, "cancelled");
+    const newOffer = await repository.createOfferRow(listingId, {
+      ...draft,
+      status: "accepted",
+      amount: 735000,
+    }, "maxime");
+    const service = createListingOffersService(repository);
+
+    expect(await service.getListingTransactionLink(listingId)).toBeNull();
+    const link = await service.acceptListingPurchaseAgreement(listingId, {
+      offerId: newOffer.id,
+      amount: 735000,
+      offerDate: "2026-08-22",
+      buyerNames: "Nouveaux acheteurs",
+    }, "maxime");
+
+    expect(link.transactionId).toBe(secondTransactionId);
+    expect(repository.transactionCreations).toBe(1);
+  });
+
+  it("n’offre jamais de réutiliser une offre déjà liée historiquement", async () => {
+    const repository = new MemoryOffersRepository();
+    const historicalOffer = await repository.createOfferRow(listingId, { ...draft, status: "accepted" }, "maxime");
+    repository.linkExisting(transactionId, historicalOffer.id, "cancelled");
+    const service = createListingOffersService(repository);
+
+    const link = await service.acceptListingPurchaseAgreement(listingId, {
+      offerId: null,
+      amount: 740000,
+      offerDate: "2026-08-22",
+      buyerNames: "Nouvelle partie acheteuse",
+    }, "maxime");
+
+    expect(repository.rows).toHaveLength(2);
+    expect(link.offerId).not.toBe(historicalOffer.id);
   });
 
   it("exige un choix lorsque plusieurs offres de vente sont acceptées", async () => {

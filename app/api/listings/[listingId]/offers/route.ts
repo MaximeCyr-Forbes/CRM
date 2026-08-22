@@ -1,7 +1,7 @@
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { listingApiError } from "../../../../lib/listings/api-response";
-import { createListingOffer, getListingTransactionLink, listListingOffers } from "../../../../lib/listings/offers";
+import { createListingOffer, getListingTransactionLink, listConsumedListingOfferIds, listListingOffers } from "../../../../lib/listings/offers";
 import { isListingBroker, isUuid } from "../../../../lib/listings/persistence";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,10 @@ export async function GET(_request: Request, context: Context) {
   const listingId = await listingIdFrom(context);
   if (!listingId) return Response.json({ error: "Listing invalide." }, { status: 400 });
   try {
-    const [offers, transactionLink] = await Promise.all([
-      listListingOffers(listingId), getListingTransactionLink(listingId),
+    const [offers, transactionLink, consumedOfferIds] = await Promise.all([
+      listListingOffers(listingId), getListingTransactionLink(listingId), listConsumedListingOfferIds(listingId),
     ]);
-    return Response.json({ data: { offers, transactionLink } }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({ data: { offers, transactionLink, consumedOfferIds } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return listingApiError(error, "Chargement des offres impossible.");
   }

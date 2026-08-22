@@ -50,8 +50,8 @@ export type ListingOffersRepository = {
   updateOfferRow: (listingId: string, offerId: string, draft: ListingOfferDraft, actor: ListingBroker | null) => Promise<ListingOfferRow>;
   deleteOfferRow: (listingId: string, offerId: string, actor: ListingBroker | null) => Promise<void>;
   getListingPurpose: (listingId: string) => Promise<ListingPurpose | null>;
-  getLinkRow: (listingId: string) => Promise<LinkRow | null>;
-  getTransactionRow: (transactionId: string) => Promise<LinkedTransactionRow | null>;
+  listLinkRows: (listingId: string) => Promise<LinkRow[]>;
+  listTransactionRows: (transactionIds: string[]) => Promise<LinkedTransactionRow[]>;
   createTransactionLink: (listingId: string, offerId: string, actor: ListingBroker | null) => Promise<string>;
 };
 
@@ -150,17 +150,20 @@ export function createSupabaseListingOffersRepository(): ListingOffersRepository
       if (error) throw error;
       return (data?.purpose as ListingPurpose | undefined) ?? null;
     },
-    async getLinkRow(listingId) {
+    async listLinkRows(listingId) {
       const { data, error } = await getSupabaseAdmin().from("listing_transaction_links").select("*")
-        .eq("listing_id", listingId).maybeSingle();
+        .eq("listing_id", listingId)
+        .order("created_at", { ascending: false })
+        .order("transaction_id", { ascending: false });
       if (error) throw error;
-      return data as LinkRow | null;
+      return (data ?? []) as LinkRow[];
     },
-    async getTransactionRow(transactionId) {
+    async listTransactionRows(transactionIds) {
+      if (transactionIds.length === 0) return [];
       const { data, error } = await getSupabaseAdmin().from("transactions")
-        .select("id, status, price, promise_date, broker").eq("id", transactionId).maybeSingle();
+        .select("id, status, price, promise_date, broker").in("id", transactionIds);
       if (error) throw error;
-      return data as LinkedTransactionRow | null;
+      return (data ?? []) as LinkedTransactionRow[];
     },
     async createTransactionLink(listingId, offerId, actor) {
       const { data, error } = await getSupabaseAdmin().rpc("create_transaction_from_listing_offer", {
@@ -180,9 +183,15 @@ export function createListingOffersService(repository: ListingOffersRepository) 
     return parsed;
   };
   const link = async (listingId: string): Promise<ListingTransactionLink | null> => {
-    const row = await repository.getLinkRow(listingId);
+    const rows = await repository.listLinkRows(listingId);
+    const transactionRows = await repository.listTransactionRows(rows.map((row) => row.transaction_id));
+    const transactions = new Map(transactionRows.map((transaction) => [transaction.id, transaction]));
+    const row = rows.find((candidate) => {
+      const transaction = transactions.get(candidate.transaction_id);
+      return Boolean(transaction && transaction.status !== "cancelled");
+    });
     if (!row) return null;
-    const transaction = await repository.getTransactionRow(row.transaction_id);
+    const transaction = transactions.get(row.transaction_id);
     if (!transaction) return null;
     return {
       listingId: row.listing_id,
@@ -219,6 +228,9 @@ export function createListingOffersService(repository: ListingOffersRepository) 
   };
   return {
     async listListingOffers(listingId: string) { return (await repository.listOfferRows(listingId)).map(mapListingOffer); },
+    async listConsumedListingOfferIds(listingId: string) {
+      return (await repository.listLinkRows(listingId)).map((row) => row.offer_id);
+    },
     async createListingOffer(listingId: string, value: unknown, actor: ListingBroker | null) { return mapListingOffer(await repository.createOfferRow(listingId, draft(value), actor)); },
     async updateListingOffer(listingId: string, offerId: string, value: unknown, actor: ListingBroker | null) { return mapListingOffer(await repository.updateOfferRow(listingId, offerId, draft(value), actor)); },
     deleteListingOffer: (listingId: string, offerId: string, actor: ListingBroker | null) => repository.deleteOfferRow(listingId, offerId, actor),
@@ -243,8 +255,13 @@ export function createListingOffersService(repository: ListingOffersRepository) 
 
       const input = parseListingAcceptedPaInput(value);
       if (!input) throw new ListingServiceError("invalid_offer", "Promesse d’achat invalide.");
+      const consumedOfferIds = new Set(
+        (await repository.listLinkRows(listingId)).map((row) => row.offer_id),
+      );
       const acceptedOffers = (await repository.listOfferRows(listingId))
-        .filter((offer) => offer.purpose === "sale" && offer.status === "accepted");
+        .filter((offer) => offer.purpose === "sale"
+          && offer.status === "accepted"
+          && !consumedOfferIds.has(offer.id));
       let acceptedOffer = input.offerId
         ? acceptedOffers.find((offer) => offer.id === input.offerId) ?? null
         : null;
@@ -277,6 +294,7 @@ export function createListingOffersService(repository: ListingOffersRepository) 
 
 const offersService = createListingOffersService(createSupabaseListingOffersRepository());
 export const listListingOffers = (listingId: string) => offersService.listListingOffers(listingId);
+export const listConsumedListingOfferIds = (listingId: string) => offersService.listConsumedListingOfferIds(listingId);
 export const createListingOffer = (listingId: string, value: unknown, actor: ListingBroker | null) => offersService.createListingOffer(listingId, value, actor);
 export const updateListingOffer = (listingId: string, offerId: string, value: unknown, actor: ListingBroker | null) => offersService.updateListingOffer(listingId, offerId, value, actor);
 export const deleteListingOffer = (listingId: string, offerId: string, actor: ListingBroker | null) => offersService.deleteListingOffer(listingId, offerId, actor);

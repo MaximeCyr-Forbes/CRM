@@ -33,6 +33,7 @@ export default function ListingDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [cameFromInventory, setCameFromInventory] = useState(false);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const listingId = Array.isArray(params.listingId) ? params.listingId[0] : params.listingId;
   const listing = listings.find((item) => item.id === listingId);
   const owners = useMemo(
@@ -42,9 +43,18 @@ export default function ListingDetailPage() {
 
   useEffect(() => {
     const originId = window.sessionStorage.getItem("listingOriginId");
+    const notice = window.sessionStorage.getItem("listingNotice");
     window.sessionStorage.removeItem("listingOriginId");
+    window.sessionStorage.removeItem("listingNotice");
     setCameFromInventory(originId === listingId);
+    setConfirmation(notice);
   }, [listingId]);
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const timeout = window.setTimeout(() => setConfirmation(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [confirmation]);
 
   function returnToListings() {
     if (cameFromInventory) {
@@ -94,6 +104,7 @@ export default function ListingDetailPage() {
   return (
     <main className="listing-detail-page">
       <div className="listing-detail-shell">
+        {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
         <button className="listing-detail-back" onClick={returnToListings} type="button"><span aria-hidden="true">←</span> Retour aux Listings</button>
 
         <header className="listing-detail-header">
