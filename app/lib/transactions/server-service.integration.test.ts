@@ -4,7 +4,12 @@ import type { TransactionDraft } from "../../data/transaction-types";
 const supabase = vi.hoisted(() => ({ getAdmin: vi.fn() }));
 vi.mock("../supabase/server", () => ({ getSupabaseAdmin: supabase.getAdmin }));
 
-import { createTransaction, listTransactions, type TransactionRow } from "./server-service";
+import {
+  completeTransactionSale,
+  createTransaction,
+  listTransactions,
+  type TransactionRow,
+} from "./server-service";
 
 const row: TransactionRow = {
   id: "transaction-1",
@@ -13,7 +18,11 @@ const row: TransactionRow = {
   type: "sale",
   broker: "maxime",
   price: 500000,
+  sold_price: null,
   promise_date: null,
+  notary_date: null,
+  collaborating_broker_name: "",
+  sale_finalized_at: null,
   status: "on_market",
   general_notes: "",
   created_at: "2026-08-20T12:00:00.000Z",
@@ -94,5 +103,43 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
     await expect(createTransaction(draft)).rejects.toBe(contactError);
     expect(transactionTable.delete).toHaveBeenCalledOnce();
     expect(deleteEq).toHaveBeenCalledWith("id", row.id);
+  });
+
+  it("finalise une vente sans Listing et conserve le statut de workflow", async () => {
+    const finalizedRow: TransactionRow = {
+      ...row,
+      sold_price: 485000,
+      notary_date: "2026-09-15",
+      collaborating_broker_name: "Jean Tremblay",
+      sale_finalized_at: "2026-08-22T15:00:00.000Z",
+      status: "notary",
+    };
+    const rpc = vi.fn(async () => ({ data: finalizedRow, error: null }));
+    const from = vi.fn(() => readableQuery({ data: [], error: null }));
+    supabase.getAdmin.mockReturnValue({ from, rpc });
+
+    const result = await completeTransactionSale(row.id, {
+      soldPrice: 485000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
+    });
+
+    expect(rpc).toHaveBeenCalledWith("complete_transaction_sale", {
+      p_transaction_id: row.id,
+      p_sold_price: 485000,
+      p_notary_date: "2026-09-15",
+      p_collaborating_broker_name: "Jean Tremblay",
+      p_no_collaborating_broker: false,
+    });
+    expect(result).toMatchObject({
+      id: row.id,
+      status: "notary",
+      soldPrice: 485000,
+      notaryDate: "2026-09-15",
+      collaboratingBrokerName: "Jean Tremblay",
+      saleFinalizedAt: "2026-08-22T15:00:00.000Z",
+      sourceListing: null,
+    });
   });
 });

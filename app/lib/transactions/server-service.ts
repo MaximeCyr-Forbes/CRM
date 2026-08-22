@@ -4,12 +4,18 @@ import type {
   TransactionDeadline,
   TransactionDraft,
   TransactionNote,
+  TransactionSaleCompletion,
   TransactionStatus,
   TransactionType,
 } from "../../data/transaction-types";
 import { getSupabaseAdmin } from "../supabase/server";
 import { transactionContactChanges, transactionContactLinkRows, transactionInsertValues, transactionUpdateValues } from "./persistence";
 import { optionalListingLinkRows } from "./optional-listing-links";
+import {
+  mapTransactionSaleCompletionError,
+  parseTransactionSaleCompletion,
+  TransactionSaleCompletionError,
+} from "./sale-completion";
 
 export type TransactionRow = {
   id: string;
@@ -18,7 +24,11 @@ export type TransactionRow = {
   type: TransactionType;
   broker: TransactionBroker;
   price: number | string | null;
+  sold_price: number | string | null;
   promise_date: string | null;
+  notary_date: string | null;
+  collaborating_broker_name: string;
+  sale_finalized_at: string | null;
   status: TransactionStatus;
   general_notes: string;
   created_at: string;
@@ -108,7 +118,11 @@ export function mapTransaction(
     broker: row.broker,
     contactIds: contactRows.filter((item) => item.transaction_id === row.id).map((item) => item.contact_id),
     price: row.price === null ? null : Number(row.price),
+    soldPrice: row.sold_price == null ? null : Number(row.sold_price),
     promiseDate: row.promise_date,
+    notaryDate: row.notary_date ?? null,
+    collaboratingBrokerName: row.collaborating_broker_name ?? "",
+    saleFinalizedAt: row.sale_finalized_at ?? null,
     status: row.status,
     generalNotes: row.general_notes,
     deadlines: deadlineRows
@@ -251,6 +265,43 @@ export async function updateTransaction(
     }
   }
   return getTransaction(transactionId);
+}
+
+export async function completeTransactionSale(
+  transactionId: string,
+  input: TransactionSaleCompletion,
+) {
+  const values = parseTransactionSaleCompletion(input);
+  if (!values) {
+    throw new TransactionSaleCompletionError(
+      "invalid_completion",
+      "Finalisation de la vente invalide.",
+    );
+  }
+  const { data, error } = await getSupabaseAdmin().rpc("complete_transaction_sale", {
+    p_transaction_id: transactionId,
+    p_sold_price: values.soldPrice,
+    p_notary_date: values.notaryDate,
+    p_collaborating_broker_name: values.collaboratingBrokerName,
+    p_no_collaborating_broker: values.noCollaboratingBroker,
+  });
+  if (error) {
+    const transactionError = mapTransactionSaleCompletionError(error);
+    if (transactionError) throw transactionError;
+    throw error;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as TransactionRow | null;
+  if (!row) {
+    throw new TransactionSaleCompletionError("not_found", "Transaction introuvable.");
+  }
+  const relations = await loadRelations([transactionId]);
+  return mapTransaction(
+    row,
+    relations.contactRows,
+    relations.deadlineRows,
+    relations.noteRows,
+    relations.listingLinkRows,
+  );
 }
 
 export async function deleteTransaction(transactionId: string) {

@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "./auth-context";
-import type { Transaction, TransactionDraft, TransactionStatus } from "./data/transaction-types";
+import type {
+  Transaction,
+  TransactionDraft,
+  TransactionSaleCompletion,
+  TransactionStatus,
+} from "./data/transaction-types";
 import { removeTransactionFromState, replaceTransactionInState } from "./lib/transactions/state";
 
 type MutationResult = { transaction: Transaction; message?: string };
@@ -24,6 +29,7 @@ type TransactionsContextValue = {
   createTransaction: (draft: TransactionDraft) => Promise<Transaction>;
   updateTransaction: (transactionId: string, values: TransactionDraft) => Promise<Transaction>;
   updateStatus: (transactionId: string, status: TransactionStatus) => Promise<Transaction>;
+  completeSale: (transactionId: string, values: TransactionSaleCompletion) => Promise<Transaction>;
   deleteTransaction: (transactionId: string) => Promise<{ message?: string }>;
   addDeadline: (transactionId: string, title: string, dueDate: string, syncToGoogle: boolean) => Promise<MutationResult>;
   updateDeadline: (transactionId: string, deadlineId: string, values: { title?: string; dueDate?: string; completed?: boolean; syncToGoogle?: boolean }) => Promise<MutationResult>;
@@ -109,6 +115,19 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
+  const completeSale = useCallback((transactionId: string, values: TransactionSaleCompletion) => runWrite(async () => {
+    const response = await fetch(`/api/transactions/${encodeURIComponent(transactionId)}/complete-sale`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+    const payload = (await response.json().catch(() => null)) as { data?: Transaction; error?: string } | null;
+    if (!response.ok || !payload?.data) {
+      throw new Error(payload?.error ?? "Impossible de finaliser la vente.");
+    }
+    return replaceTransaction(payload.data);
+  }), [replaceTransaction, runWrite]);
+
   const removeTransaction = useCallback((transactionId: string) => runWrite(async () => {
     const payload = await transactionRequest<{ transactionId: string }>({ action: "deleteTransaction", transactionId });
     setTransactions((current) => removeTransactionFromState(current, payload.data.transactionId));
@@ -147,12 +166,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     createTransaction: create,
     updateTransaction: update,
     updateStatus,
+    completeSale,
     deleteTransaction: removeTransaction,
     addDeadline,
     updateDeadline: editDeadline,
     deleteDeadline: removeDeadline,
     addNote,
-  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
+  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>;
 }

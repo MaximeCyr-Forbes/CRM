@@ -64,7 +64,11 @@ export type Transaction = {
   broker: TransactionBroker;
   contactIds: string[];
   price: number | null;
+  soldPrice: number | null;
   promiseDate: string | null;
+  notaryDate: string | null;
+  collaboratingBrokerName: string;
+  saleFinalizedAt: string | null;
   status: TransactionStatus;
   generalNotes: string;
   deadlines: TransactionDeadline[];
@@ -76,6 +80,13 @@ export type Transaction = {
   } | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type TransactionSaleCompletion = {
+  soldPrice: number;
+  notaryDate: string;
+  collaboratingBrokerName: string;
+  noCollaboratingBroker: boolean;
 };
 
 export type TransactionDraft = Pick<

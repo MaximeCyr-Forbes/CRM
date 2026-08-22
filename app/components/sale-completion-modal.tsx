@@ -1,20 +1,15 @@
 "use client";
 
 import { useCallback, useRef, useState, type FormEvent } from "react";
-import type { ListingSaleCompletion } from "../data/listing-types";
-import {
-  acquireListingSubmissionLock,
-  releaseListingSubmissionLock,
-} from "../lib/listings/editor";
-import { formatListingAmount } from "../lib/listings/presentation";
+import type { TransactionSaleCompletion } from "../data/transaction-types";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
-type ListingSoldModalProps = {
+type SaleCompletionModalProps = {
   address: string;
-  askingPrice: number | null;
+  referencePrice: number | null;
   isSaving: boolean;
   onClose: () => void;
-  onConfirm: (values: ListingSaleCompletion) => Promise<void>;
+  onConfirm: (values: TransactionSaleCompletion) => Promise<void>;
 };
 
 function validCalendarDate(value: string) {
@@ -26,13 +21,31 @@ function validCalendarDate(value: string) {
     && parsed.getUTCDate() === day;
 }
 
-export function ListingSoldModal({
+function acquireSaleSubmissionLock(lock: { current: boolean }) {
+  if (lock.current) return false;
+  lock.current = true;
+  return true;
+}
+
+function releaseSaleSubmissionLock(lock: { current: boolean }) {
+  lock.current = false;
+}
+
+function formatTransactionAmount(amount: number) {
+  return new Intl.NumberFormat("fr-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function SaleCompletionModal({
   address,
-  askingPrice,
+  referencePrice,
   isSaving,
   onClose,
   onConfirm,
-}: ListingSoldModalProps) {
+}: SaleCompletionModalProps) {
   const [soldPrice, setSoldPrice] = useState("");
   const [notaryDate, setNotaryDate] = useState("");
   const [collaboratingBrokerName, setCollaboratingBrokerName] = useState("");
@@ -48,22 +61,22 @@ export function ListingSoldModal({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || !acquireListingSubmissionLock(submittingRef)) return;
+    if (busy || !acquireSaleSubmissionLock(submittingRef)) return;
     setError(null);
     const parsedPrice = Number(soldPrice);
     if (!soldPrice.trim() || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
       setError("Prix vendu invalide.");
-      releaseListingSubmissionLock(submittingRef);
+      releaseSaleSubmissionLock(submittingRef);
       return;
     }
     if (!validCalendarDate(notaryDate)) {
       setError("Date du notaire requise.");
-      releaseListingSubmissionLock(submittingRef);
+      releaseSaleSubmissionLock(submittingRef);
       return;
     }
     if (!noCollaboratingBroker && !collaboratingBrokerName.trim()) {
       setError("Indiquez le courtier collaborateur ou choisissez Aucun.");
-      releaseListingSubmissionLock(submittingRef);
+      releaseSaleSubmissionLock(submittingRef);
       return;
     }
 
@@ -80,7 +93,7 @@ export function ListingSoldModal({
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Impossible d’enregistrer la vente.");
     } finally {
-      releaseListingSubmissionLock(submittingRef);
+      releaseSaleSubmissionLock(submittingRef);
       setIsSubmitting(false);
     }
     if (succeeded) onClose();
@@ -93,7 +106,7 @@ export function ListingSoldModal({
       role="presentation"
     >
       <section
-        aria-labelledby="listing-sold-title"
+        aria-labelledby="sale-completion-title"
         aria-modal="true"
         className="listing-sold-modal"
         role="dialog"
@@ -101,7 +114,7 @@ export function ListingSoldModal({
         <header className="listing-sold-heading">
           <div>
             <p className="section-kicker">Résultat final</p>
-            <h2 id="listing-sold-title">MARQUER LE LISTING COMME VENDU</h2>
+            <h2 id="sale-completion-title">FINALISER LA VENTE</h2>
             <p>{address}</p>
           </div>
           <button aria-label="Fermer" disabled={busy} onClick={closeIfIdle} type="button">×</button>
@@ -122,7 +135,7 @@ export function ListingSoldModal({
               />
               <strong>$</strong>
             </span>
-            {askingPrice !== null && <small>Prix demandé : {formatListingAmount(askingPrice, "sale")}</small>}
+            {referencePrice !== null && <small>Prix de la Transaction : {formatTransactionAmount(referencePrice)}</small>}
           </label>
 
           <label>

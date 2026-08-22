@@ -10,7 +10,7 @@ describe("fiche détaillée Listings", () => {
   const inventory = source("app/listings/page.tsx");
   const media = source("app/components/listing-media.tsx");
   const confirmation = source("app/components/listing-delete-confirmation-modal.tsx");
-  const soldModal = source("app/components/listing-sold-modal.tsx");
+  const soldModal = source("app/components/sale-completion-modal.tsx");
   const context = source("app/listings-context.tsx");
 
   it("ouvre la même route depuis l’adresse et le bouton Ouvrir", () => {
@@ -75,7 +75,7 @@ describe("fiche détaillée Listings", () => {
   it("retire le déclencheur VENDU de la fiche tout en conservant le résultat et son infrastructure", () => {
     expect(detail).not.toContain("canMarkListingSold(listing)");
     expect(detail).not.toContain('className="listing-sold-button"');
-    expect(detail).not.toContain("<ListingSoldModal");
+    expect(detail).not.toContain("<SaleCompletionModal");
     expect(detail).not.toContain("markListingSold");
     expect(detail).toContain("RÉSULTAT DE LA VENTE");
     expect(detail).toContain("listing.soldPrice");
@@ -89,17 +89,17 @@ describe("fiche détaillée Listings", () => {
   it("rend la modal compacte, accessible, explicite et protégée contre le double clic", () => {
     expect(soldModal).toContain('role="dialog"');
     expect(soldModal).toContain('aria-modal="true"');
-    expect(soldModal).toContain('aria-labelledby="listing-sold-title"');
+    expect(soldModal).toContain('aria-labelledby="sale-completion-title"');
     expect(soldModal).toContain("useDialogLifecycle(true, closeIfIdle)");
-    expect(soldModal).toContain("acquireListingSubmissionLock(submittingRef)");
+    expect(soldModal).toContain("acquireSaleSubmissionLock(submittingRef)");
     expect(soldModal).toContain('aria-busy={busy}');
     expect(soldModal).toContain("Aucun courtier collaborateur");
     expect(soldModal).toContain("Confirmer la vente");
   });
 
-  it("ne crée ni ne modifie aucune Transaction pendant la finalisation", () => {
+  it("conserve la finalisation hors de la fiche Listing", () => {
     expect(detail).not.toContain("createTransaction");
-    expect(soldModal).not.toContain("Transaction");
+    expect(soldModal).toContain("Prix de la Transaction");
     expect(context).not.toContain("/api/transactions");
   });
 

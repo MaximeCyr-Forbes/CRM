@@ -225,7 +225,11 @@ create table if not exists public.transactions (
   type text not null check (type = any (array['purchase', 'sale'])),
   broker public.broker_assignment not null check (broker <> 'unassigned'),
   price numeric(14, 2),
+  sold_price numeric(14, 2),
   promise_date date,
+  notary_date date,
+  collaborating_broker_name text not null default '',
+  sale_finalized_at timestamptz,
   status text not null default 'new' check (
     status = any (array[
       'new', 'pa_preparation', 'pa_sent', 'pa_accepted', 'inspection',
@@ -235,8 +239,92 @@ create table if not exists public.transactions (
   ),
   general_notes text not null default '',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint transactions_sold_price_check check (sold_price is null or sold_price > 0)
 );
+
+alter table public.transactions
+  add column if not exists sold_price numeric(14, 2),
+  add column if not exists notary_date date,
+  add column if not exists collaborating_broker_name text not null default '',
+  add column if not exists sale_finalized_at timestamptz;
+
+do $$ begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.transactions'::regclass
+      and conname = 'transactions_sold_price_check'
+  ) then
+    alter table public.transactions
+      add constraint transactions_sold_price_check
+      check (sold_price is null or sold_price > 0);
+  end if;
+end $$;
+
+create or replace function public.complete_transaction_sale(
+  p_transaction_id uuid,
+  p_sold_price numeric,
+  p_notary_date date,
+  p_collaborating_broker_name text,
+  p_no_collaborating_broker boolean
+)
+returns public.transactions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_transaction public.transactions;
+  v_collaborating_broker_name text;
+begin
+  select * into v_transaction
+  from public.transactions
+  where id = p_transaction_id
+  for update;
+
+  if not found then
+    raise exception 'Transaction introuvable.' using errcode = 'P0001';
+  end if;
+  if v_transaction.type <> 'sale' then
+    raise exception 'Seule une Transaction de vente peut être finalisée comme vendue.' using errcode = 'P0001';
+  end if;
+  if v_transaction.sale_finalized_at is not null then
+    raise exception 'Cette vente est déjà finalisée.' using errcode = 'P0001';
+  end if;
+  if p_sold_price is null or p_sold_price <= 0 then
+    raise exception 'Prix vendu invalide.' using errcode = 'P0001';
+  end if;
+  if p_notary_date is null then
+    raise exception 'Date du notaire requise.' using errcode = 'P0001';
+  end if;
+  if p_no_collaborating_broker is null then
+    raise exception 'Choix du courtier collaborateur requis.' using errcode = 'P0001';
+  end if;
+
+  v_collaborating_broker_name := trim(coalesce(p_collaborating_broker_name, ''));
+  if not p_no_collaborating_broker and v_collaborating_broker_name = '' then
+    raise exception 'Courtier collaborateur requis.' using errcode = 'P0001';
+  end if;
+  if length(v_collaborating_broker_name) > 240 then
+    raise exception 'Courtier collaborateur invalide.' using errcode = 'P0001';
+  end if;
+  if p_no_collaborating_broker then
+    v_collaborating_broker_name := '';
+  end if;
+
+  update public.transactions
+  set
+    sold_price = p_sold_price,
+    notary_date = p_notary_date,
+    collaborating_broker_name = v_collaborating_broker_name,
+    sale_finalized_at = now()
+  where id = p_transaction_id
+  returning * into v_transaction;
+
+  return v_transaction;
+end;
+$$;
 
 create table if not exists public.transaction_contacts (
   transaction_id uuid not null references public.transactions(id) on delete cascade,
@@ -957,6 +1045,12 @@ grant select, insert, update, delete on public.listing_contacts to service_role;
 grant execute on function public.create_listing_with_owners(jsonb, uuid[]) to service_role;
 grant execute on function public.update_listing_with_owners(uuid, jsonb, uuid[]) to service_role;
 grant select, insert, update, delete on public.transactions to service_role;
+revoke execute on function public.complete_transaction_sale(
+  uuid, numeric, date, text, boolean
+) from public, anon, authenticated;
+grant execute on function public.complete_transaction_sale(
+  uuid, numeric, date, text, boolean
+) to service_role;
 grant select, insert, update, delete on public.transaction_contacts to service_role;
 grant select, insert, update, delete on public.transaction_deadlines to service_role;
 grant select, insert, update, delete on public.transaction_notes to service_role;
