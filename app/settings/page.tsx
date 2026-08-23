@@ -16,6 +16,7 @@ const emptyConnections: CalendarConnectionStatus[] = (
   connected: false,
   email: null,
   gmailSendEnabled: false,
+  gmailSignatureEnabled: false,
   birthdays: { synced: 0, pending: 0, error: 0 },
   mortgageRenewals: { synced: 0, pending: 0, error: 0 },
   watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },
@@ -180,7 +181,10 @@ export default function SettingsPage() {
                     </small>
                   )}
                   <small className={connection.gmailSendEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
-                    Gmail : {connection.gmailSendEnabled ? "ACTIVÉ ✓" : "NON ACTIVÉ"}
+                    Gmail — Envoi {connection.gmailSendEnabled ? "activé ✓" : "non activé"}
+                  </small>
+                  <small className={connection.gmailSignatureEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
+                    Signature Gmail — {connection.gmailSignatureEnabled ? "Synchronisée ✓" : "Autorisation requise"}
                   </small>
                   {connection.email && <small>{connection.email}</small>}
                   <small>{connection.birthdays.synced} anniversaires synchronisés · {connection.birthdays.pending} en attente · {connection.birthdays.error} erreur{connection.birthdays.error > 1 ? "s" : ""}</small>
@@ -189,9 +193,9 @@ export default function SettingsPage() {
 
               {connection.connected ? (
                 <div className="calendar-connection-actions">
-                  {!connection.gmailSendEnabled && (
+                  {(!connection.gmailSendEnabled || !connection.gmailSignatureEnabled) && (
                     <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => activateGmail(connection.broker)} type="button">
-                      Activer Gmail
+                      {connection.gmailSendEnabled ? "ACTIVER LA SIGNATURE GMAIL" : "ACTIVER GMAIL"}
                     </button>
                   )}
                   <button

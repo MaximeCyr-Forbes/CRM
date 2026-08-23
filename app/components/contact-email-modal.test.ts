@@ -18,6 +18,8 @@ describe("modal d’envoi de courriel Contact", () => {
     expect(source).toContain("sendingRef.current");
     expect(source).toContain("ENVOI…");
     expect(source).toContain("GMAIL NON ACTIVÉ");
+    expect(source).toContain("SIGNATURE GMAIL — AUTORISATION REQUISE");
+    expect(source).toContain("ACTIVER LA SIGNATURE GMAIL");
     expect(contactPage).toContain("selectedBroker={selectedBroker}");
     expect(contactPage).toContain("initialTo={contact.email}");
     expect(contactPage).toContain("Envoyer un courriel");
@@ -25,8 +27,9 @@ describe("modal d’envoi de courriel Contact", () => {
 
   it("affiche dans Paramètres le scope Gmail distinct du statut Agenda", () => {
     const settings = readFileSync("app/settings/page.tsx", "utf8");
-    expect(settings).toContain('Gmail : {connection.gmailSendEnabled ? "ACTIVÉ ✓" : "NON ACTIVÉ"}');
+    expect(settings).toContain('Gmail — Envoi {connection.gmailSendEnabled ? "activé ✓" : "non activé"}');
+    expect(settings).toContain('Signature Gmail — {connection.gmailSignatureEnabled ? "Synchronisée ✓" : "Autorisation requise"}');
     expect(settings).toContain("capability=gmail&returnTo=/settings");
-    expect(settings).toContain("Activer Gmail");
+    expect(settings).toContain("ACTIVER LA SIGNATURE GMAIL");
   });
 });

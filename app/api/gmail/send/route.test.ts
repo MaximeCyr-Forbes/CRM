@@ -9,6 +9,7 @@ vi.mock("../../../lib/google-gmail/service", async (importOriginal) => {
 });
 
 import { POST } from "./route";
+import { GmailSignatureAuthorizationRequiredError } from "../../../lib/google-gmail/service";
 
 function request(payload: unknown) {
   return new Request("https://crm.example.com/api/gmail/send", {
@@ -42,5 +43,12 @@ describe("POST /api/gmail/send", () => {
   it("refuse un courtier unassigned ou inconnu", async () => {
     expect((await POST(request({ senderBroker: "unassigned", contactId: "11111111-1111-4111-8111-111111111111", to: "client@example.com", subject: "Suivi", message: "Bonjour" }))).status).toBe(400);
     expect(state.send).not.toHaveBeenCalled();
+  });
+
+  it("retourne un message clair quand la signature Gmail doit être autorisée", async () => {
+    state.send.mockRejectedValueOnce(new GmailSignatureAuthorizationRequiredError());
+    const response = await POST(request({ senderBroker: "maxime", contactId: "11111111-1111-4111-8111-111111111111", to: "client@example.com", subject: "Suivi", message: "Bonjour" }));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "La signature Gmail doit être autorisée pour ce courtier." });
   });
 });

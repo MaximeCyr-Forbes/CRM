@@ -118,6 +118,8 @@ export function ContactEmailModal({
           <div className="contact-email-unavailable"><h3>GMAIL INDISPONIBLE</h3><p>{error}</p></div>
         ) : !connection?.gmailSendEnabled ? (
           <div className="contact-email-unavailable"><h3>GMAIL NON ACTIVÉ</h3><p>Le compte Google de {selectedBroker} doit autoriser l’envoi de courriels.</p>{activateUrl && <button onClick={() => window.location.assign(activateUrl)} type="button">ACTIVER GMAIL</button>}</div>
+        ) : !connection.gmailSignatureEnabled ? (
+          <div className="contact-email-unavailable"><h3>SIGNATURE GMAIL — AUTORISATION REQUISE</h3><p>La signature Gmail doit être autorisée pour ce courtier.</p>{activateUrl && <button onClick={() => window.location.assign(activateUrl)} type="button">ACTIVER LA SIGNATURE GMAIL</button>}</div>
         ) : (
           <form className="contact-email-form" onSubmit={submitEmail}>
             <div className="contact-email-sender"><span>EXPÉDITEUR</span><strong>{BROKER_LABELS[connection.broker]}</strong><small>{connection.email}</small></div>

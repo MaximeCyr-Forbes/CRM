@@ -14,6 +14,7 @@ export type CalendarConnectionStatus = {
   connected: boolean;
   email: string | null;
   gmailSendEnabled: boolean;
+  gmailSignatureEnabled: boolean;
   birthdays: { synced: number; pending: number; error: number };
   mortgageRenewals: { synced: number; pending: number; error: number };
   watch: CalendarWatchState;

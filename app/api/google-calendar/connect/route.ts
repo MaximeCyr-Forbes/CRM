@@ -7,6 +7,7 @@ import {
 import { createOAuthState, sanitizeOAuthReturnTo, type GoogleOAuthCapability } from "../../../lib/google-calendar/oauth-state";
 import { listGoogleConnectionStatuses } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
+import { GMAIL_SEND_SCOPE, GMAIL_SETTINGS_BASIC_SCOPE } from "../../../lib/google-gmail/scopes";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     const connections = await listGoogleConnectionStatuses();
     const connection = connections.find((item) => item.broker === broker);
     const capabilityAlreadyConnected = connection?.connected && (
-      capability === "calendar" || connection.gmailSendEnabled
+      capability === "calendar" || (connection.gmailSendEnabled && connection.gmailSignatureEnabled)
     );
     if (capabilityAlreadyConnected) {
       const destinationUrl = new URL(returnTo, getApplicationOrigin(request));
@@ -53,7 +54,8 @@ export async function GET(request: Request) {
         "openid",
         "email",
         "https://www.googleapis.com/auth/calendar.events",
-        "https://www.googleapis.com/auth/gmail.send",
+        GMAIL_SEND_SCOPE,
+        GMAIL_SETTINGS_BASIC_SCOPE,
       ].join(" "),
       state: await createOAuthState(broker, capability, returnTo),
     }).toString();

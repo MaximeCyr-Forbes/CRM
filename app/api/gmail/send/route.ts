@@ -4,6 +4,7 @@ import {
   GmailAuthorizationRequiredError,
   GmailNotEnabledError,
   GmailSendError,
+  GmailSignatureAuthorizationRequiredError,
   sendGmailMessage,
 } from "../../../lib/google-gmail/service";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof TypeError) return json(error.message, 400);
     if (error instanceof GmailNotEnabledError) return json("Gmail n’est pas activé pour ce courtier.", 409);
+    if (error instanceof GmailSignatureAuthorizationRequiredError) return json("La signature Gmail doit être autorisée pour ce courtier.", 409);
     if (error instanceof GmailAuthorizationRequiredError) return json("L’autorisation Gmail doit être renouvelée.", 409);
     if (error instanceof GmailSendError) return json(error.message, 502);
     console.error("Envoi Gmail impossible:", error instanceof Error ? error.message : "erreur inconnue");
