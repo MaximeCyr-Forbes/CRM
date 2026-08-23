@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent,
 import { DataStatus } from "../components/data-status";
 import { DuplicateResolutionModal } from "../components/duplicate-resolution-modal";
 import { ImportContactReviewModal } from "../components/import-contact-review-modal";
+import { ContactEmailModal } from "../components/contact-email-modal";
 import { useContacts } from "../contacts-context";
 import { useCRMData } from "../crm-data-context";
+import { useBroker } from "../broker-context";
 import {
   BROKER_LABELS,
   CLIENT_PROVENANCES,
@@ -156,6 +158,7 @@ function automaticImportResolution(candidate: ImportCandidate): ImportResolution
 
 export default function ContactsPage() {
   const router = useRouter();
+  const { selectedBroker } = useBroker();
   const {
     contacts,
     addManualContact,
@@ -182,6 +185,7 @@ export default function ContactsPage() {
   const [activeImportDuplicateId, setActiveImportDuplicateId] = useState<string | null>(null);
   const [reviewedImportId, setReviewedImportId] = useState<string | null>(null);
   const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(null);
+  const [emailContactId, setEmailContactId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(100);
 
@@ -196,6 +200,7 @@ export default function ContactsPage() {
   const unassignedCount = contacts.filter((contact) => contact.broker === "unassigned").length;
   const pagedContacts = visibleContacts.slice(0, visibleLimit);
   const assignmentTarget = contacts.find((contact) => contact.id === assignmentTargetId);
+  const emailContact = contacts.find((contact) => contact.id === emailContactId) ?? null;
   const activeImportCandidate = pendingImport?.candidates.find((candidate) => candidate.id === activeImportDuplicateId) ?? null;
   const batchExistingCandidate = activeImportCandidate?.duplicateDraftIndex !== null && activeImportCandidate?.duplicateDraftIndex !== undefined
     ? pendingImport?.candidates[activeImportCandidate.duplicateDraftIndex] ?? null
@@ -474,7 +479,7 @@ export default function ContactsPage() {
             <div className="contacts-list-head" aria-hidden="true"><span>Contact</span><span>Coordonnées</span><span>Courtier</span><span>Suivi</span><span>Actions</span></div>
             {pagedContacts.map((contact) => <article className="contact-row" key={contact.id}>
               <div className="contact-main-cell"><span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => router.push(`/contacts/${contact.id}`)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
-              <div className="contact-coordinates">{contact.phone ? <a href={`tel:${contact.phone}`}>{contact.phone}</a> : <span>Téléphone non renseigné</span>}{contact.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : <span>Email non renseigné</span>}</div>
+              <div className="contact-coordinates">{contact.phone ? <a href={`tel:${contact.phone}`}>{contact.phone}</a> : <span>Téléphone non renseigné</span>}{contact.email ? <button aria-label={`Envoyer un courriel à ${getContactName(contact)}`} className="contact-email-link" onClick={() => setEmailContactId(contact.id)} type="button">{contact.email}</button> : <span>Email non renseigné</span>}</div>
               <span className={`contact-broker-badge broker-${contact.broker}`}>{BROKER_LABELS[contact.broker]}</span><span className="contact-follow-up-cell">{contact.nextFollowUpDate ? formatFollowUpDate(contact.nextFollowUpDate) : "Aucune relance"}</span>
               <div className="contact-row-actions"><button onClick={() => router.push(`/contacts/${contact.id}`)} type="button">Ouvrir</button><button onClick={() => setAssignmentTargetId(contact.id)} type="button">Changer le courtier</button></div>
             </article>)}
@@ -542,6 +547,21 @@ export default function ContactsPage() {
       {activeImportCandidate && activeImportExisting && <DuplicateResolutionModal existing={activeImportExisting} existingNotesCount={notes.filter((note) => note.contactId === activeImportExisting.id).length} incoming={{ ...activeImportCandidate.draft, broker: "unassigned", clientProvenance: null }} isSaving={isSaving} onCancel={() => { resolveImport(activeImportCandidate.id, "skip"); setActiveImportDuplicateId(null); }} onKeepBoth={() => { resolveImport(activeImportCandidate.id, "keep"); setActiveImportDuplicateId(null); }} onMerge={mergeImport} reasons={activeImportReasons} />}
 
       {assignmentTarget && <div className="contact-modal-backdrop contact-modal-top"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog"><header className="contact-modal-header"><div><p className="section-kicker">{getContactName(assignmentTarget)}</p><h2>À QUI ATTRIBUER CE CONTACT ?</h2></div><button aria-label="Fermer" onClick={() => setAssignmentTargetId(null)} type="button">×</button></header><div className="broker-choice-grid">{CONTACT_ASSIGNMENTS.map((broker) => <button className={assignmentTarget.broker === broker ? "broker-choice-current" : ""} key={broker} onClick={() => void reassignContact(assignmentTarget, broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span>{assignmentTarget.broker === broker ? "✓" : "→"}</span></button>)}</div></section></div>}
+      {emailContact && (
+        <ContactEmailModal
+          contactId={emailContact.id}
+          contactName={getContactName(emailContact)}
+          initialTo={emailContact.email}
+          isOpen
+          onChooseBroker={() => router.push("/")}
+          onClose={() => setEmailContactId(null)}
+          onSent={(broker) => {
+            setEmailContactId(null);
+            showConfirmation(`Courriel envoyé par ${broker}.`);
+          }}
+          selectedBroker={selectedBroker}
+        />
+      )}
       {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span>✓</span><strong>{confirmation}</strong></div>}
     </main>
   );

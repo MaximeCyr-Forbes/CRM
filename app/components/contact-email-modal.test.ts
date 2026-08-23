@@ -32,4 +32,19 @@ describe("modal d’envoi de courriel Contact", () => {
     expect(settings).toContain("capability=gmail&returnTo=/settings");
     expect(settings).toContain("ACTIVER LA SIGNATURE GMAIL");
   });
+
+  it("ouvre la même modal CRM depuis l’email de la liste et de la fiche sans mailto", () => {
+    const contactsPage = readFileSync("app/contacts/page.tsx", "utf8");
+    const contactPage = readFileSync("app/contacts/[contactId]/page.tsx", "utf8");
+    expect(contactsPage).toContain("<ContactEmailModal");
+    expect(contactsPage).toContain("setEmailContactId(contact.id)");
+    expect(contactsPage).toContain("selectedBroker={selectedBroker}");
+    expect(contactsPage).toContain("initialTo={emailContact.email}");
+    expect(contactPage).toContain("setIsEmailOpen(true)");
+    expect(contactPage).toContain("selectedBroker={selectedBroker}");
+    expect(contactsPage).not.toContain("mailto:");
+    expect(contactPage).not.toContain("mailto:");
+    expect(contactsPage).toContain("href={`tel:${contact.phone}`}");
+    expect(contactPage).toContain("href={`tel:${contact.phone}`}");
+  });
 });

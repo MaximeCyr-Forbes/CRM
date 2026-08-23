@@ -5684,6 +5684,31 @@ button:disabled {
   text-underline-offset: 0.2rem;
 }
 
+.contact-email-link {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(198, 168, 103, 0.65);
+  text-overflow: ellipsis;
+  text-underline-offset: 0.2rem;
+  white-space: nowrap;
+}
+
+.contact-email-link:hover,
+.contact-email-link:focus-visible {
+  color: #2f6758;
+  text-decoration-color: rgba(47, 103, 88, 0.55);
+}
+
 .contact-follow-up-cell { color: var(--ink-soft); font-size: 0.7rem; }
 .contacts-load-more { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; color: var(--ink-soft); border-top: 1px solid var(--line); font-size: 0.7rem; }
 .contacts-load-more button { min-height: 2.75rem; padding: 0.6rem 0.8rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }

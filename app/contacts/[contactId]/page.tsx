@@ -445,7 +445,7 @@ export default function ContactProfilePage() {
             </div>
             <div className="info-group">
               <span>Email</span>
-              {contact.email ? <a className="contact-direct-link" href={`mailto:${contact.email}`}>{contact.email}</a> : <strong>Non renseigné</strong>}
+              {contact.email ? <button aria-label={`Envoyer un courriel à ${contactName}`} className="contact-direct-link contact-email-link" onClick={() => setIsEmailOpen(true)} type="button">{contact.email}</button> : <strong>Non renseigné</strong>}
             </div>
             <div className="info-group">
               <span>Anniversaire</span>
