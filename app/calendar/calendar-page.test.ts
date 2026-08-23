@@ -16,6 +16,20 @@ describe("page Calendrier intégrée", () => {
     expect(page).toContain("+ Nouvel événement");
   });
 
+  it("intègre le sélecteur de mois et d’année sans changer la vue active", () => {
+    const page = source("app/calendar/page.tsx");
+    const picker = source("app/components/calendar-period-picker.tsx");
+    expect(page).toContain("CalendarPeriodPicker");
+    expect(page).toContain("onSelect={setDate}");
+    expect(page).toContain("label={periodLabel(view, date)}");
+    expect(picker).toContain('role="dialog"');
+    expect(picker).toContain('aria-haspopup="dialog"');
+    expect(picker).toContain('event.key === "Escape"');
+    expect(picker).toContain("todayInCalendarTimeZone()");
+    expect(picker).toContain("calendarDateForMonth(selectedYear, month)");
+    expect(picker).not.toContain("setView");
+  });
+
   it("réutilise les connexions, le signal push et les actions Google sans persistance locale", () => {
     const page = source("app/calendar/page.tsx");
     expect(page).toContain("/api/google-calendar/connections");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addCalendarDays, calendarDateTimeISO, calendarMonthGrid, calendarRange, startOfCalendarWeek } from "./calendar-date";
+import { addCalendarDays, calendarDateForMonth, calendarDateTimeISO, calendarMonthGrid, calendarRange, startOfCalendarWeek } from "./calendar-date";
 
 describe("dates du calendrier au Québec", () => {
   it("convertit 09:00 America/Toronto sans glissement de jour", () => {
@@ -18,5 +18,10 @@ describe("dates du calendrier au Québec", () => {
     expect(calendarRange("day", "2026-08-21")).toEqual({ startDate: "2026-08-21", endDate: "2026-08-22" });
     expect(calendarRange("week", "2026-08-21")).toEqual({ startDate: "2026-08-17", endDate: "2026-08-24" });
     expect(calendarRange("month", "2026-08-21").startDate).toBe("2026-07-27");
+  });
+
+  it("construit le premier jour d’un mois sans conversion de fuseau horaire", () => {
+    expect(calendarDateForMonth(2027, 3)).toBe("2027-03-01");
+    expect(calendarDateForMonth(2026, 12)).toBe("2026-12-01");
   });
 });

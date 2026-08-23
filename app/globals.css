@@ -4648,7 +4648,32 @@ button:disabled {
 .calendar-toolbar-navigation, .calendar-toolbar-actions, .calendar-view-switch { display: flex; align-items: center; gap: 0.45rem; }
 .calendar-toolbar button { min-height: 2.65rem; padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-radius: 0.15rem; color: var(--ink); background: transparent; cursor: pointer; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.055em; text-transform: uppercase; }
 .calendar-toolbar button:hover:not(:disabled), .calendar-toolbar button:focus-visible { border-color: var(--gold); background: rgba(198, 168, 103, 0.1); }
-.calendar-toolbar-navigation h2 { min-width: 13rem; margin: 0; text-align: center; font: 400 1.25rem Georgia, serif; text-transform: capitalize; }
+.calendar-period-picker-anchor { position: relative; width: 13rem; }
+.calendar-toolbar .calendar-period-picker-trigger { display: flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 0.45rem; padding-inline: 0.4rem; border-color: transparent; font: 400 1.25rem Georgia, serif; letter-spacing: 0; text-transform: capitalize; }
+.calendar-period-picker-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-period-picker-chevron { color: #8c7343; font: 0.9rem Arial, sans-serif; transition: transform 160ms ease; }
+.calendar-period-picker-trigger[aria-expanded="true"] .calendar-period-picker-chevron { transform: rotate(180deg); }
+.calendar-period-picker { position: absolute; z-index: 90; top: calc(100% + 0.65rem); left: 50%; width: min(22rem, calc(100vw - 2rem)); overflow: hidden; border: 1px solid rgba(198, 168, 103, 0.55); border-radius: 0.45rem; color: var(--ink); background: var(--paper); box-shadow: 0 1.4rem 3.8rem rgba(8, 20, 34, 0.2); transform: translateX(-50%); }
+.calendar-period-picker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; color: var(--paper); background: var(--ink); text-align: left; }
+.calendar-period-picker-heading span { color: rgba(255, 253, 248, 0.62); font-size: 0.55rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
+.calendar-period-picker-heading h2 { margin: 0.16rem 0 0; font: 400 1.28rem Georgia, serif; letter-spacing: -0.02em; text-transform: none; }
+.calendar-toolbar .calendar-period-picker-heading > button { display: grid; width: 2rem; min-height: 2rem; place-items: center; padding: 0; border-color: rgba(255, 255, 255, 0.25); color: white; background: transparent; font-size: 1.15rem; }
+.calendar-period-picker-content { display: grid; gap: 0.75rem; padding: 1rem 1.1rem 1.1rem; }
+.calendar-period-picker-label { color: var(--ink-soft); font-size: 0.56rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
+.calendar-period-year-control { display: grid; grid-template-columns: 2.65rem minmax(0, 1fr) 2.65rem; gap: 0.45rem; }
+.calendar-toolbar .calendar-period-picker button { min-height: 2.5rem; padding: 0.48rem; border-radius: 0.2rem; font-size: 0.62rem; letter-spacing: 0.04em; }
+.calendar-toolbar .calendar-period-picker button:disabled { cursor: not-allowed; opacity: 0.32; }
+.calendar-toolbar .calendar-period-year-trigger { display: flex; align-items: center; justify-content: center; gap: 0.45rem; border-color: rgba(198, 168, 103, 0.6); font: 400 1.05rem Georgia, serif; letter-spacing: 0; }
+.calendar-period-year-trigger span { color: #8c7343; font: 0.75rem Arial, sans-serif; }
+.calendar-period-year-panel { display: grid; gap: 0.55rem; padding: 0.65rem; border: 1px solid var(--line); background: rgba(198, 168, 103, 0.06); }
+.calendar-period-year-window-control { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) 2.2rem; align-items: center; gap: 0.35rem; }
+.calendar-period-year-window-control span { color: var(--ink-soft); font-size: 0.58rem; font-weight: 750; text-align: center; }
+.calendar-toolbar .calendar-period-year-window-control button { min-height: 2.1rem; padding: 0.3rem; }
+.calendar-period-year-grid, .calendar-period-month-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.38rem; }
+.calendar-toolbar .calendar-period-year-grid button, .calendar-toolbar .calendar-period-month { min-width: 0; }
+.calendar-toolbar .calendar-period-month { min-height: 2.75rem; padding-inline: 0.2rem; }
+.calendar-toolbar .calendar-period-picker .is-selected { border-color: var(--ink); color: white; background: var(--ink); box-shadow: inset 0 0 0 1px rgba(198, 168, 103, 0.55); }
+.calendar-toolbar .calendar-period-today { width: 100%; margin-top: 0.15rem; border-color: rgba(198, 168, 103, 0.65); color: #765f33; background: rgba(198, 168, 103, 0.09); }
 .calendar-view-switch { padding: 0.2rem; background: rgba(19, 35, 59, 0.05); }
 .calendar-view-switch button { min-height: 2.2rem; border-color: transparent; }
 .calendar-view-switch button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
@@ -4785,7 +4810,11 @@ button:disabled {
   .calendar-team-controls > div > span { width: 100%; }
   .calendar-team-filter { flex: 1 1 8.5rem; justify-content: center; }
   .calendar-toolbar-navigation { display: grid; grid-template-columns: auto auto 1fr auto; }
-  .calendar-toolbar-navigation h2 { min-width: 0; font-size: 1rem; }
+  .calendar-period-picker-anchor { width: auto; min-width: 0; }
+  .calendar-toolbar .calendar-period-picker-trigger { font-size: 1rem; }
+  .calendar-period-picker { position: fixed; top: auto; right: 0.75rem; bottom: 0.75rem; left: 0.75rem; width: auto; max-height: calc(100svh - 1.5rem); overflow-y: auto; transform: none; }
+  .calendar-period-picker-content { padding: 0.9rem; }
+  .calendar-toolbar .calendar-period-picker .calendar-period-month { min-height: 2.75rem; }
   .calendar-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .calendar-view-switch { grid-column: 1 / -1; }
   .calendar-view-switch button { flex: 1; }

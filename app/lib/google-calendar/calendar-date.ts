@@ -18,6 +18,12 @@ export function todayInCalendarTimeZone(now = new Date()) {
   }).format(now);
 }
 
+export function calendarDateForMonth(year: number, month: number) {
+  if (!Number.isInteger(year) || year < 1 || year > 9999) throw new RangeError("Année de calendrier invalide.");
+  if (!Number.isInteger(month) || month < 1 || month > 12) throw new RangeError("Mois de calendrier invalide.");
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-01`;
+}
+
 export function startOfCalendarWeek(isoDate: string) {
   const date = new Date(`${isoDate}T12:00:00Z`);
   const mondayOffset = (date.getUTCDay() + 6) % 7;
