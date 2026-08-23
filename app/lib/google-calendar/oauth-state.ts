@@ -4,9 +4,20 @@ import { getGoogleOAuthConfig } from "./config";
 
 type OAuthStatePayload = {
   broker: CalendarBroker;
+  capability: GoogleOAuthCapability;
+  returnTo: string;
   expiresAt: number;
   nonce: string;
 };
+
+export type GoogleOAuthCapability = "calendar" | "gmail";
+
+export function sanitizeOAuthReturnTo(value: unknown, fallback = "/settings") {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /[\u0000-\u001f]/.test(value)) {
+    return fallback;
+  }
+  return value;
+}
 
 function bytesToBase64Url(bytes: Uint8Array) {
   let binary = "";
@@ -34,9 +45,15 @@ async function getStateKey() {
   );
 }
 
-export async function createOAuthState(broker: CalendarBroker) {
+export async function createOAuthState(
+  broker: CalendarBroker,
+  capability: GoogleOAuthCapability = "calendar",
+  returnTo = "/settings",
+) {
   const payload: OAuthStatePayload = {
     broker,
+    capability,
+    returnTo: sanitizeOAuthReturnTo(returnTo),
     expiresAt: Date.now() + 10 * 60 * 1000,
     nonce: crypto.randomUUID(),
   };
@@ -72,6 +89,8 @@ export async function verifyOAuthState(state: string): Promise<OAuthStatePayload
   ) as OAuthStatePayload;
   if (
     !CONTACT_BROKERS.includes(payload.broker) ||
+    !["calendar", "gmail"].includes(payload.capability) ||
+    payload.returnTo !== sanitizeOAuthReturnTo(payload.returnTo) ||
     !Number.isFinite(payload.expiresAt) ||
     payload.expiresAt < Date.now()
   ) {

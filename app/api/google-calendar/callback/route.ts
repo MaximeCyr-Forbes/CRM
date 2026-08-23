@@ -14,7 +14,8 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
-  const settingsUrl = new URL("/settings", getApplicationOrigin(request));
+  const applicationOrigin = getApplicationOrigin(request);
+  const settingsUrl = new URL("/settings", applicationOrigin);
 
   const access = await requireApiAccess();
   if (access.response) {
@@ -23,33 +24,45 @@ export async function GET(request: Request) {
     return Response.redirect(loginUrl.toString(), 302);
   }
 
-  if (oauthError || !code || !state) {
+  if (!state) {
     settingsUrl.searchParams.set("google", "cancelled");
     return Response.redirect(settingsUrl.toString(), 302);
   }
 
+  let destinationUrl = settingsUrl;
+  let destinationCapability: "calendar" | "gmail" = "calendar";
   try {
-    const { broker } = await verifyOAuthState(state);
+    const { broker, capability, returnTo } = await verifyOAuthState(state);
+    destinationCapability = capability;
+    destinationUrl = new URL(returnTo, applicationOrigin);
+    if (oauthError || !code) {
+      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "cancelled");
+      return Response.redirect(destinationUrl.toString(), 302);
+    }
     const connections = await listGoogleConnectionStatuses();
-    if (connections.some((connection) => connection.broker === broker && connection.connected)) {
-      settingsUrl.searchParams.set("google", "already-connected");
-      settingsUrl.searchParams.set("broker", broker);
-      return Response.redirect(settingsUrl.toString(), 302);
+    const connection = connections.find((item) => item.broker === broker);
+    const capabilityAlreadyConnected = connection?.connected && (
+      capability === "calendar" || connection.gmailSendEnabled
+    );
+    if (capabilityAlreadyConnected) {
+      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "already-connected");
+      destinationUrl.searchParams.set("broker", broker);
+      return Response.redirect(destinationUrl.toString(), 302);
     }
     const tokens = await exchangeGoogleAuthorizationCode(
       code,
       getGoogleRedirectUri(request),
     );
     await saveGoogleConnection(broker, tokens);
-    settingsUrl.searchParams.set("google", "connected");
-    settingsUrl.searchParams.set("broker", broker);
+    destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "connected");
+    destinationUrl.searchParams.set("broker", broker);
   } catch (caughtError) {
     console.error(
       "Erreur callback Google OAuth:",
       caughtError instanceof Error ? caughtError.message : "Erreur inconnue",
     );
-    settingsUrl.searchParams.set("google", "error");
+    destinationUrl.searchParams.set(destinationCapability === "gmail" ? "gmail" : "google", "error");
   }
 
-  return Response.redirect(settingsUrl.toString(), 302);
+  return Response.redirect(destinationUrl.toString(), 302);
 }

@@ -15,6 +15,7 @@ const emptyConnections: CalendarConnectionStatus[] = (
   broker,
   connected: false,
   email: null,
+  gmailSendEnabled: false,
   birthdays: { synced: 0, pending: 0, error: 0 },
   mortgageRenewals: { synced: 0, pending: 0, error: 0 },
   watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },
@@ -83,12 +84,26 @@ export default function SettingsPage() {
     } else if (status === "error") {
       setError("La connexion Google Agenda n’a pas pu être terminée.");
     }
+    const gmailStatus = new URLSearchParams(window.location.search).get("gmail");
+    if (gmailStatus === "connected") {
+      setMessage("Gmail activé avec succès.");
+    } else if (gmailStatus === "already-connected") {
+      setMessage("Gmail est déjà activé pour ce courtier.");
+    } else if (gmailStatus === "cancelled") {
+      setMessage("Activation Gmail annulée.");
+    } else if (gmailStatus === "error") {
+      setError("L’activation Gmail n’a pas pu être terminée.");
+    }
     void loadConnections();
     void syncBirthdays(false);
   }, []);
 
   function connectCalendar(broker: CalendarBroker) {
     window.location.assign(`/api/google-calendar/connect?broker=${broker}`);
+  }
+
+  function activateGmail(broker: CalendarBroker) {
+    window.location.assign(`/api/google-calendar/connect?broker=${broker}&capability=gmail&returnTo=/settings`);
   }
 
   async function disconnectCalendar(broker: CalendarBroker) {
@@ -164,20 +179,30 @@ export default function SettingsPage() {
                         : "Synchronisation instantanée en attente"}
                     </small>
                   )}
+                  <small className={connection.gmailSendEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
+                    Gmail : {connection.gmailSendEnabled ? "ACTIVÉ ✓" : "NON ACTIVÉ"}
+                  </small>
                   {connection.email && <small>{connection.email}</small>}
                   <small>{connection.birthdays.synced} anniversaires synchronisés · {connection.birthdays.pending} en attente · {connection.birthdays.error} erreur{connection.birthdays.error > 1 ? "s" : ""}</small>
                 </div>
               </div>
 
               {connection.connected ? (
-                <button
-                  className="calendar-disconnect"
-                  disabled={activeBroker === connection.broker}
-                  onClick={() => void disconnectCalendar(connection.broker)}
-                  type="button"
-                >
-                  {activeBroker === connection.broker ? "Déconnexion..." : "Déconnecter"}
-                </button>
+                <div className="calendar-connection-actions">
+                  {!connection.gmailSendEnabled && (
+                    <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => activateGmail(connection.broker)} type="button">
+                      Activer Gmail
+                    </button>
+                  )}
+                  <button
+                    className="calendar-disconnect"
+                    disabled={activeBroker === connection.broker}
+                    onClick={() => void disconnectCalendar(connection.broker)}
+                    type="button"
+                  >
+                    {activeBroker === connection.broker ? "Déconnexion..." : "Déconnecter"}
+                  </button>
+                </div>
               ) : (
                 <button
                   className="calendar-connect"

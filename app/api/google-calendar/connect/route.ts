@@ -4,7 +4,7 @@ import {
   getGoogleOAuthConfig,
   getGoogleRedirectUri,
 } from "../../../lib/google-calendar/config";
-import { createOAuthState } from "../../../lib/google-calendar/oauth-state";
+import { createOAuthState, sanitizeOAuthReturnTo, type GoogleOAuthCapability } from "../../../lib/google-calendar/oauth-state";
 import { listGoogleConnectionStatuses } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
 
@@ -15,18 +15,29 @@ export async function GET(request: Request) {
   if (access.response) {
     return access.response;
   }
-  const broker = new URL(request.url).searchParams.get("broker");
+  const requestUrl = new URL(request.url);
+  const broker = requestUrl.searchParams.get("broker");
+  const capabilityParam = requestUrl.searchParams.get("capability") ?? "calendar";
+  if (capabilityParam !== "calendar" && capabilityParam !== "gmail") {
+    return Response.json({ error: "Capacité Google invalide." }, { status: 400 });
+  }
+  const capability = capabilityParam as GoogleOAuthCapability;
+  const returnTo = sanitizeOAuthReturnTo(requestUrl.searchParams.get("returnTo"));
   if (!isCalendarBroker(broker)) {
     return Response.json({ error: "Courtier invalide." }, { status: 400 });
   }
 
   try {
     const connections = await listGoogleConnectionStatuses();
-    if (connections.some((connection) => connection.broker === broker && connection.connected)) {
-      const settingsUrl = new URL("/settings", getApplicationOrigin(request));
-      settingsUrl.searchParams.set("google", "already-connected");
-      settingsUrl.searchParams.set("broker", broker);
-      return Response.redirect(settingsUrl.toString(), 302);
+    const connection = connections.find((item) => item.broker === broker);
+    const capabilityAlreadyConnected = connection?.connected && (
+      capability === "calendar" || connection.gmailSendEnabled
+    );
+    if (capabilityAlreadyConnected) {
+      const destinationUrl = new URL(returnTo, getApplicationOrigin(request));
+      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "already-connected");
+      destinationUrl.searchParams.set("broker", broker);
+      return Response.redirect(destinationUrl.toString(), 302);
     }
 
     const { clientId } = getGoogleOAuthConfig();
@@ -42,8 +53,9 @@ export async function GET(request: Request) {
         "openid",
         "email",
         "https://www.googleapis.com/auth/calendar.events",
+        "https://www.googleapis.com/auth/gmail.send",
       ].join(" "),
-      state: await createOAuthState(broker),
+      state: await createOAuthState(broker, capability, returnTo),
     }).toString();
 
     return Response.redirect(authorizationUrl.toString(), 302);

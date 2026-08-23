@@ -7,6 +7,7 @@ import { PencilIcon } from "../../components/action-icons";
 import { ClientHistory } from "../../components/client-history";
 import { ContactEditorModal, type ContactEditorMode } from "../../components/contact-editor-modal";
 import { ContactAddressManager } from "../../components/contact-address-manager";
+import { ContactEmailModal } from "../../components/contact-email-modal";
 import { DuplicateResolutionModal } from "../../components/duplicate-resolution-modal";
 import { DataStatus } from "../../components/data-status";
 import { FollowUpSchedulerModal } from "../../components/follow-up-scheduler-modal";
@@ -36,6 +37,7 @@ import { useTransactions } from "../../transactions-context";
 import { getFollowUpQueue } from "../../lib/follow-up-queue";
 import { formatBirthDate } from "../../lib/birth-date";
 import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
+import { useBroker } from "../../broker-context";
 
 type NoteEditorState = {
   mode: "create" | "edit";
@@ -65,6 +67,7 @@ export default function ContactProfilePage() {
   const { getFollowUpDate } = useFollowUps();
   const { getNotesForContact, loadNotesForContact, addNote, updateNote, deleteNote } = useClientNotes();
   const { transactions } = useTransactions();
+  const { selectedBroker } = useBroker();
   const [isDirectFollowUpOpen, setIsDirectFollowUpOpen] = useState(false);
   const [isPostNoteFollowUpOpen, setIsPostNoteFollowUpOpen] = useState(false);
   const [noteEditor, setNoteEditor] = useState<NoteEditorState>(null);
@@ -75,6 +78,7 @@ export default function ContactProfilePage() {
   const [contactEditorMode, setContactEditorMode] = useState<ContactEditorMode | null>(null);
   const [isManagingAddresses, setIsManagingAddresses] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<ClientNote | null>(null);
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
   const [birthdaySync, setBirthdaySync] = useState({ synced: 0, pending: 0, error: 0 });
@@ -420,6 +424,9 @@ export default function ContactProfilePage() {
             >
               Ajouter une note
             </button>
+            <button className="profile-action profile-action-email" onClick={() => setIsEmailOpen(true)} type="button">
+              Envoyer un courriel
+            </button>
             <button className="profile-action profile-action-tertiary" onClick={() => setContactEditorMode("full")} type="button">
               Action
             </button>
@@ -642,6 +649,20 @@ export default function ContactProfilePage() {
         mode={noteEditor?.mode ?? "create"}
         onCancel={() => setNoteEditor(null)}
         onSave={saveNote}
+      />
+
+      <ContactEmailModal
+        contactId={contact.id}
+        contactName={contactName}
+        initialTo={contact.email}
+        isOpen={isEmailOpen}
+        onChooseBroker={() => router.push("/")}
+        onClose={() => setIsEmailOpen(false)}
+        onSent={(broker) => {
+          setIsEmailOpen(false);
+          setConfirmation({ title: `Courriel envoyé par ${broker}` });
+        }}
+        selectedBroker={selectedBroker}
       />
 
       <NoteDeleteConfirmationModal

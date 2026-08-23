@@ -1242,6 +1242,15 @@ button:disabled {
   white-space: nowrap;
 }
 
+.calendar-connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.calendar-connection-card .gmail-status-enabled { color: #587259; }
+.calendar-connection-card .gmail-status-disabled { color: #934c45; }
+
 .calendar-connect {
   color: var(--paper);
   background: var(--ink);
@@ -2387,7 +2396,7 @@ button:disabled {
 
 .profile-actions {
   display: grid;
-  grid-template-columns: 1.2fr 1.2fr 0.8fr;
+  grid-template-columns: 1.05fr 1.15fr 1.25fr 0.75fr;
   gap: 0.75rem;
   margin-top: clamp(2.2rem, 5vw, 3.5rem);
 }
@@ -2427,6 +2436,18 @@ button:disabled {
 
 .profile-action-secondary:hover {
   background: rgba(198, 168, 103, 0.3);
+  border-color: var(--gold);
+}
+
+.profile-action-email {
+  color: var(--paper);
+  background: #8c7343;
+  border: 1px solid #8c7343;
+}
+
+.profile-action-email:hover {
+  color: var(--ink);
+  background: rgba(198, 168, 103, 0.16);
   border-color: var(--gold);
 }
 
@@ -4075,6 +4096,29 @@ button:disabled {
   opacity: 0.4;
 }
 
+.contact-email-modal { width: min(100%, 46rem); }
+.contact-email-modal .contact-modal-header small { display: block; margin-top: 0.45rem; color: var(--ink-soft); font-size: 0.72rem; }
+.contact-email-form { display: grid; gap: 0.9rem; }
+.contact-email-sender { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; align-items: center; padding: 0.9rem 1rem; border: 1px solid rgba(198, 168, 103, 0.4); border-radius: 0.2rem; background: rgba(198, 168, 103, 0.09); }
+.contact-email-sender span { grid-row: 1 / 3; color: #8c7343; font-size: 0.56rem; font-weight: 850; letter-spacing: 0.1em; }
+.contact-email-sender strong { font: 400 1.05rem Georgia, "Times New Roman", serif; }
+.contact-email-sender small { color: var(--ink-soft); font-size: 0.68rem; overflow-wrap: anywhere; }
+.contact-email-form label { display: grid; gap: 0.4rem; }
+.contact-email-form label > span { color: var(--ink-soft); font-size: 0.58rem; font-weight: 850; letter-spacing: 0.1em; }
+.contact-email-form input, .contact-email-form textarea { width: 100%; padding: 0.85rem 0.9rem; color: var(--ink); background: var(--cream); border: 1px solid var(--line); border-radius: 0.2rem; outline: 0; font: inherit; }
+.contact-email-form textarea { min-height: 12rem; resize: vertical; line-height: 1.55; }
+.contact-email-form input:focus, .contact-email-form textarea:focus { border-color: rgba(198, 168, 103, 0.85); box-shadow: 0 0 0 3px rgba(198, 168, 103, 0.12); }
+.contact-email-error { margin: 0; padding: 0.7rem 0.8rem; color: #934c45; background: rgba(189, 102, 93, 0.08); border: 1px solid rgba(189, 102, 93, 0.24); font-size: 0.72rem; }
+.contact-email-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 0.65rem; }
+.contact-email-actions button, .contact-email-unavailable button { min-height: 3.35rem; padding: 0.75rem 1rem; border-radius: 0.2rem; cursor: pointer; font-size: 0.65rem; font-weight: 850; letter-spacing: 0.09em; }
+.contact-email-actions button:first-child { color: var(--ink); background: transparent; border: 1px solid var(--line); }
+.contact-email-actions button:last-child, .contact-email-unavailable button { color: var(--paper); background: var(--ink); border: 1px solid var(--ink); }
+.contact-email-actions button:disabled { cursor: not-allowed; opacity: 0.42; }
+.contact-email-unavailable { display: grid; justify-items: start; gap: 0.75rem; padding: 1.25rem; color: var(--ink); background: var(--cream); border: 1px solid var(--line); }
+.contact-email-unavailable h3, .contact-email-unavailable p { margin: 0; }
+.contact-email-unavailable h3 { font: 400 1.35rem Georgia, "Times New Roman", serif; }
+.contact-email-unavailable p { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.55; }
+
 .contact-profile-reassign {
   min-height: 2.75rem;
   margin-top: 1.55rem;
@@ -4452,6 +4496,8 @@ button:disabled {
     width: 100%;
   }
 
+  .calendar-connection-actions { width: 100%; flex-direction: column; align-items: stretch; }
+
   .section-heading {
     align-items: flex-start;
   }
@@ -4563,7 +4609,7 @@ button:disabled {
   }
 
   .profile-action-tertiary {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .profile-overview {

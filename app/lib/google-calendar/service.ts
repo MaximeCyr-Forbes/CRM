@@ -22,16 +22,11 @@ import {
   mapGoogleCalendarEvent,
   type GoogleCalendarEventResource,
 } from "./calendar-events";
-
-type GoogleConnectionRow = {
-  broker: CalendarBroker;
-  google_account_email: string;
-  calendar_id: string;
-  encrypted_access_token: string;
-  encrypted_refresh_token: string;
-  access_token_expires_at: string;
-  scopes: string[];
-};
+import {
+  getGoogleConnection as getConnection,
+  googleAuthenticatedRequest,
+  type GoogleConnectionRow,
+} from "../google/connection";
 
 export type ServerContactRow = {
   id: string;
@@ -311,79 +306,16 @@ function buildEventPayload(contact: ServerContactRow, eventId?: string): GoogleE
   };
 }
 
-async function getConnection(broker: CalendarBroker) {
-  const { data, error } = await getSupabaseAdmin()
-    .from("google_calendar_connections")
-    .select("*")
-    .eq("broker", broker)
-    .maybeSingle();
-  if (error) {
-    throw error;
-  }
-  return (data as GoogleConnectionRow | null) ?? null;
-}
-
-async function refreshAccessToken(connection: GoogleConnectionRow) {
-  const { clientId, clientSecret } = getGoogleOAuthConfig();
-  const refreshToken = await decryptGoogleToken(connection.encrypted_refresh_token);
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Renouvellement Google refusé (${response.status}).`);
-  }
-
-  const tokens = (await response.json()) as GoogleTokenResponse;
-  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
-  const { error } = await getSupabaseAdmin()
-    .from("google_calendar_connections")
-    .update({
-      encrypted_access_token: await encryptGoogleToken(tokens.access_token),
-      access_token_expires_at: expiresAt,
-    })
-    .eq("broker", connection.broker);
-  if (error) {
-    throw error;
-  }
-
-  return tokens.access_token;
-}
-
-async function getAccessToken(connection: GoogleConnectionRow, forceRefresh = false) {
-  const expiresSoon =
-    new Date(connection.access_token_expires_at).getTime() <= Date.now() + 60_000;
-  if (forceRefresh || expiresSoon) {
-    return refreshAccessToken(connection);
-  }
-  return decryptGoogleToken(connection.encrypted_access_token);
-}
-
 async function googleCalendarRequest(
   connection: GoogleConnectionRow,
   path: string,
   init: RequestInit,
 ) {
-  const send = async (token: string) =>
-    fetch(`https://www.googleapis.com/calendar/v3${path}`, {
-      ...init,
-      headers: {
-        ...init.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-  let response = await send(await getAccessToken(connection));
-  if (response.status === 401) {
-    response = await send(await getAccessToken(connection, true));
-  }
-  return response;
+  return googleAuthenticatedRequest(
+    connection,
+    `https://www.googleapis.com/calendar/v3${path}`,
+    init,
+  );
 }
 
 async function requireGoogleCalendarConnection(broker: CalendarBroker) {
@@ -1453,7 +1385,10 @@ export async function saveGoogleConnection(
       access_token_expires_at: new Date(
         Date.now() + tokens.expires_in * 1000,
       ).toISOString(),
-      scopes: tokens.scope?.split(" ").filter(Boolean) ?? [],
+      scopes: [...new Set([
+        ...(existingConnection?.scopes ?? []),
+        ...(tokens.scope?.split(" ").filter(Boolean) ?? []),
+      ])],
     });
   if (error) {
     throw error;
@@ -1483,7 +1418,7 @@ export async function saveGoogleConnection(
 export async function listGoogleConnectionStatuses(): Promise<CalendarConnectionStatus[]> {
   const { data, error } = await getSupabaseAdmin()
     .from("google_calendar_connections")
-    .select("broker, google_account_email");
+    .select("broker, google_account_email, scopes");
   if (error) {
     throw error;
   }
@@ -1491,7 +1426,8 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
     ((data ?? []) as Array<{
       broker: CalendarBroker;
       google_account_email: string;
-    }>).map((connection) => [connection.broker, connection.google_account_email]),
+      scopes: string[];
+    }>).map((connection) => [connection.broker, connection]),
   );
   const { data: birthdayRows, error: birthdayError } = await getSupabaseAdmin()
     .from("contact_birthday_calendar_events")
@@ -1513,7 +1449,8 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
   return (["france", "maxime", "sandrine"] as const).map((broker) => ({
     broker,
     connected: connections.has(broker),
-    email: connections.get(broker) ?? null,
+    email: connections.get(broker)?.google_account_email ?? null,
+    gmailSendEnabled: connections.get(broker)?.scopes?.includes("https://www.googleapis.com/auth/gmail.send") ?? false,
     birthdays: ((birthdayRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
       .filter((row) => row.broker === broker)
       .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
