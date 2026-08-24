@@ -37,7 +37,7 @@ function TransactionCard({ transaction, listingsById }: { transaction: Transacti
   const listing = transactionSourceListing(transaction, listingsById);
   const paDelay = listing ? listingToPaDays(listing.listingDate, transaction.promiseDate) : null;
   const cancelled = transaction.status === "cancelled";
-  const completed = transaction.status === "completed" || Boolean(transaction.saleFinalizedAt);
+  const completed = transaction.status === "completed" || Boolean(transaction.saleFinalizedAt || transaction.purchaseFinalizedAt);
 
   return (
     <article className={`contact-property-history-card${cancelled ? " is-cancelled" : ""}`}>

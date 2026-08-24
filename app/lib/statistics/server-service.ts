@@ -52,6 +52,7 @@ type TransactionRow = {
   promise_date: string | null;
   notary_date: string | null;
   sale_finalized_at: string | null;
+  purchase_finalized_at: string | null;
   status: StatisticsTransactionRow["status"];
   created_at: string;
 };
@@ -84,7 +85,7 @@ export async function loadStatisticsDataset(): Promise<StatisticsDataset> {
     listAllRows<ListingRow>("listings", "id, broker, purpose, status, listing_date, created_at"),
     listAllRows<OfferRow>("listing_offers", "id, listing_id, purpose, offer_date, status"),
     listAllRows<LinkRow>("listing_transaction_links", "listing_id, offer_id, transaction_id"),
-    listAllRows<TransactionRow>("transactions", "id, type, broker, price, sold_price, promise_date, notary_date, sale_finalized_at, status, created_at"),
+    listAllRows<TransactionRow>("transactions", "id, type, broker, price, sold_price, promise_date, notary_date, sale_finalized_at, purchase_finalized_at, status, created_at"),
     listAllRows<TransactionContactRow>("transaction_contacts", "transaction_id, contact_id"),
   ]);
   return {
@@ -126,6 +127,7 @@ export async function loadStatisticsDataset(): Promise<StatisticsDataset> {
       promiseDate: row.promise_date,
       notaryDate: row.notary_date,
       saleFinalizedAt: row.sale_finalized_at,
+      purchaseFinalizedAt: row.purchase_finalized_at,
       status: row.status,
       createdAt: row.created_at,
     })),

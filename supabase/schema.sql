@@ -230,6 +230,7 @@ create table if not exists public.transactions (
   notary_date date,
   collaborating_broker_name text not null default '',
   sale_finalized_at timestamptz,
+  purchase_finalized_at timestamptz,
   status text not null default 'new' check (
     status = any (array[
       'new', 'pa_preparation', 'pa_sent', 'pa_accepted', 'inspection',
@@ -247,7 +248,8 @@ alter table public.transactions
   add column if not exists sold_price numeric(14, 2),
   add column if not exists notary_date date,
   add column if not exists collaborating_broker_name text not null default '',
-  add column if not exists sale_finalized_at timestamptz;
+  add column if not exists sale_finalized_at timestamptz,
+  add column if not exists purchase_finalized_at timestamptz;
 
 do $$ begin
   if not exists (
@@ -503,6 +505,55 @@ begin
     notary_date = p_notary_date,
     collaborating_broker_name = v_collaborating_broker_name,
     sale_finalized_at = now()
+  where id = p_transaction_id
+  returning * into v_transaction;
+
+  return v_transaction;
+end;
+$$;
+
+create or replace function public.complete_transaction_purchase(
+  p_transaction_id uuid,
+  p_purchase_price numeric,
+  p_notary_date date
+)
+returns public.transactions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_transaction public.transactions;
+begin
+  select * into v_transaction
+  from public.transactions
+  where id = p_transaction_id
+  for update;
+
+  if not found then
+    raise exception 'Transaction introuvable.' using errcode = 'P0001';
+  end if;
+  if v_transaction.type <> 'purchase' then
+    raise exception 'Seule une Transaction d''achat peut être finalisée.' using errcode = 'P0001';
+  end if;
+  if v_transaction.status = 'cancelled' then
+    raise exception 'Une Transaction annulée ne peut pas être finalisée.' using errcode = 'P0001';
+  end if;
+  if v_transaction.purchase_finalized_at is not null then
+    raise exception 'Cet achat est déjà finalisé.' using errcode = 'P0001';
+  end if;
+  if p_purchase_price is null or p_purchase_price <= 0 then
+    raise exception 'Prix d''achat final invalide.' using errcode = 'P0001';
+  end if;
+  if p_notary_date is null then
+    raise exception 'Date du notaire requise.' using errcode = 'P0001';
+  end if;
+
+  update public.transactions
+  set
+    price = p_purchase_price,
+    notary_date = p_notary_date,
+    purchase_finalized_at = now()
   where id = p_transaction_id
   returning * into v_transaction;
 
@@ -1328,6 +1379,12 @@ revoke execute on function public.complete_transaction_sale(
 ) from public, anon, authenticated;
 grant execute on function public.complete_transaction_sale(
   uuid, numeric, date, text, boolean
+) to service_role;
+revoke execute on function public.complete_transaction_purchase(
+  uuid, numeric, date
+) from public, anon, authenticated;
+grant execute on function public.complete_transaction_purchase(
+  uuid, numeric, date
 ) to service_role;
 revoke execute on function public.create_transaction_from_listing_offer(
   uuid, uuid, public.broker_assignment

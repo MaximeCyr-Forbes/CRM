@@ -61,6 +61,7 @@ function transaction(values: Partial<StatisticsTransactionRow> = {}): Statistics
     promiseDate: "2026-08-21",
     notaryDate: "2026-09-15",
     saleFinalizedAt: "2026-08-22T14:00:00.000Z",
+    purchaseFinalizedAt: null,
     status: "completed",
     createdAt: "2026-08-21T14:00:00.000Z",
     ...values,
@@ -112,8 +113,8 @@ describe("calculs Statistiques", () => {
     expect(result.listingPerformance).toMatchObject({ listingsTaken: 1, listingsWithAcceptedPa: 1, averagePaDays: 20, medianPaDays: 20 });
   });
 
-  it("exclut absolument un achat complété des performances et délais Listings", () => {
-    const purchase = transaction({ id: "purchase", type: "purchase", price: 800_000, soldPrice: null, saleFinalizedAt: null, promiseDate: "2026-08-21", notaryDate: null, status: "completed" });
+  it("compte un achat par son marqueur final sans jamais l’inclure dans les performances Listings", () => {
+    const purchase = transaction({ id: "purchase", type: "purchase", price: 800_000, soldPrice: null, saleFinalizedAt: null, purchaseFinalizedAt: "2026-08-22T14:00:00.000Z", promiseDate: "2026-08-21", notaryDate: "2026-08-22", status: "notary" });
     const fakeListing = listing({ id: "listing-purchase" });
     const fakeOffer = offer(fakeListing.id, { id: "offer-purchase" });
     const result = snapshot(data({
@@ -128,6 +129,21 @@ describe("calculs Statistiques", () => {
     expect(result.listingPerformance.listingsSold).toBe(0);
     expect(result.listingPerformance.averagePaDays).toBeNull();
     expect(result.listingPerformance.averageSaleDays).toBeNull();
+  });
+
+  it("ne compte plus un ancien achat completed sans purchaseFinalizedAt", () => {
+    const legacyPurchase = transaction({
+      type: "purchase",
+      price: 625_000,
+      soldPrice: null,
+      saleFinalizedAt: null,
+      purchaseFinalizedAt: null,
+      notaryDate: "2026-08-20",
+      status: "completed",
+    });
+    const result = snapshot(data({ transactions: [legacyPurchase] }));
+    expect(result.kpis.purchaseTransactions).toBe(0);
+    expect(result.kpis.purchaseVolume).toBe(0);
   });
 
   it("compte une vente autonome dans le volume général mais jamais dans la performance Listing", () => {

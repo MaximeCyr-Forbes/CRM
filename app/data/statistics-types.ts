@@ -48,6 +48,7 @@ export type StatisticsTransactionRow = {
   promiseDate: string | null;
   notaryDate: string | null;
   saleFinalizedAt: string | null;
+  purchaseFinalizedAt: string | null;
   status: TransactionStatus;
   createdAt: string;
 };

@@ -16,6 +16,7 @@ const transactionRow: TransactionRow = {
   notary_date: null,
   collaborating_broker_name: "",
   sale_finalized_at: null,
+  purchase_finalized_at: null,
   status: "on_market",
   general_notes: "",
   created_at: "2026-08-20T12:00:00.000Z",

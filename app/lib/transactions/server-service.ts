@@ -4,6 +4,7 @@ import type {
   TransactionDeadline,
   TransactionDraft,
   TransactionNote,
+  TransactionPurchaseCompletion,
   TransactionSaleCompletion,
   TransactionStatus,
   TransactionType,
@@ -16,6 +17,11 @@ import {
   parseTransactionSaleCompletion,
   TransactionSaleCompletionError,
 } from "./sale-completion";
+import {
+  mapTransactionPurchaseCompletionError,
+  parseTransactionPurchaseCompletion,
+  TransactionPurchaseCompletionError,
+} from "./completion";
 import {
   mapReturnToMarketError,
   parseReturnToMarketRpcResult,
@@ -35,6 +41,7 @@ export type TransactionRow = {
   notary_date: string | null;
   collaborating_broker_name: string;
   sale_finalized_at: string | null;
+  purchase_finalized_at: string | null;
   status: TransactionStatus;
   general_notes: string;
   created_at: string;
@@ -129,6 +136,7 @@ export function mapTransaction(
     notaryDate: row.notary_date ?? null,
     collaboratingBrokerName: row.collaborating_broker_name ?? "",
     saleFinalizedAt: row.sale_finalized_at ?? null,
+    purchaseFinalizedAt: row.purchase_finalized_at ?? null,
     status: row.status,
     generalNotes: row.general_notes,
     deadlines: deadlineRows
@@ -299,6 +307,41 @@ export async function completeTransactionSale(
   const row = (Array.isArray(data) ? data[0] : data) as TransactionRow | null;
   if (!row) {
     throw new TransactionSaleCompletionError("not_found", "Transaction introuvable.");
+  }
+  const relations = await loadRelations([transactionId]);
+  return mapTransaction(
+    row,
+    relations.contactRows,
+    relations.deadlineRows,
+    relations.noteRows,
+    relations.listingLinkRows,
+  );
+}
+
+export async function completeTransactionPurchase(
+  transactionId: string,
+  input: TransactionPurchaseCompletion,
+) {
+  const values = parseTransactionPurchaseCompletion(input);
+  if (!values) {
+    throw new TransactionPurchaseCompletionError(
+      "invalid_completion",
+      "Finalisation de l’achat invalide.",
+    );
+  }
+  const { data, error } = await getSupabaseAdmin().rpc("complete_transaction_purchase", {
+    p_transaction_id: transactionId,
+    p_purchase_price: values.purchasePrice,
+    p_notary_date: values.notaryDate,
+  });
+  if (error) {
+    const transactionError = mapTransactionPurchaseCompletionError(error);
+    if (transactionError) throw transactionError;
+    throw error;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as TransactionRow | null;
+  if (!row) {
+    throw new TransactionPurchaseCompletionError("not_found", "Transaction introuvable.");
   }
   const relations = await loadRelations([transactionId]);
   return mapTransaction(

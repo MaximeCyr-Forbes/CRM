@@ -10,7 +10,6 @@ import {
   TRANSACTION_STATUS_LABELS,
   TRANSACTION_TYPE_LABELS,
   getNextTransactionDeadline,
-  isTransactionCompleted,
   type TransactionBroker,
   type TransactionDraft,
   type TransactionType,
@@ -18,14 +17,32 @@ import {
 import { useTransactions } from "../transactions-context";
 import { toLocalISODate } from "../lib/follow-up";
 import { transactionMatchesSearch } from "../lib/transactions/search";
+import {
+  FINALIZED_TRANSACTION_YEARS,
+  finalizedTransactionLabel,
+  finalizedTransactionYear,
+  isTransactionInState,
+  sortFinalizedTransactions,
+  type TransactionStateFilter,
+} from "../lib/transactions/completion";
 
 type BrokerFilter = "all" | TransactionBroker;
-type StateFilter = "active" | "completed";
 type TransactionTypeFilter = "all" | TransactionType;
+type YearFilter = "all" | `${number}`;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${value}T12:00:00Z`));
+}
+
+function formatAmount(value: number | null) {
+  return value === null
+    ? "Non renseigné"
+    : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(value);
+}
+
+function validYearFilter(value: string | null): value is `${number}` {
+  return FINALIZED_TRANSACTION_YEARS.includes(Number(value) as (typeof FINALIZED_TRANSACTION_YEARS)[number]);
 }
 
 export default function TransactionsPage() {
@@ -37,25 +54,31 @@ export default function TransactionsPage() {
   const queryBroker = searchParams.get("broker");
   const queryState = searchParams.get("state");
   const queryType = searchParams.get("type");
+  const queryYear = searchParams.get("year");
   const initialBroker = CONTACT_BROKERS.includes(queryBroker as TransactionBroker)
     ? queryBroker as TransactionBroker
     : selectedBroker?.toLowerCase() as TransactionBroker | undefined;
   const [brokerFilter, setBrokerFilter] = useState<BrokerFilter>(initialBroker ?? "all");
-  const [stateFilter, setStateFilter] = useState<StateFilter>(queryState === "completed" ? "completed" : "active");
+  const [stateFilter, setStateFilter] = useState<TransactionStateFilter>(queryState === "sold" || queryState === "completed" ? queryState : "active");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>(queryType === "sale" || queryType === "purchase" ? queryType : "all");
+  const today = toLocalISODate(new Date());
+  const currentYear = today.slice(0, 4) as `${number}`;
+  const defaultSoldYear: YearFilter = validYearFilter(currentYear) ? currentYear : "all";
+  const [yearFilter, setYearFilter] = useState<YearFilter>(validYearFilter(queryYear) ? queryYear : queryState === "sold" ? defaultSoldYear : "all");
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const today = toLocalISODate(new Date());
 
   useEffect(() => {
     if (CONTACT_BROKERS.includes(queryBroker as TransactionBroker)) setBrokerFilter(queryBroker as TransactionBroker);
   }, [queryBroker]);
 
   useEffect(() => {
-    if (queryState === "active" || queryState === "completed") setStateFilter(queryState);
+    if (queryState === "active" || queryState === "sold" || queryState === "completed") setStateFilter(queryState);
     if (queryType === "sale" || queryType === "purchase") setTypeFilter(queryType);
-  }, [queryState, queryType]);
+    if (validYearFilter(queryYear)) setYearFilter(queryYear);
+    else if (queryState === "sold") setYearFilter(defaultSoldYear);
+  }, [defaultSoldYear, queryState, queryType, queryYear]);
 
   useEffect(() => {
     if (!confirmation) return;
@@ -71,17 +94,24 @@ export default function TransactionsPage() {
   }, []);
 
   const visibleTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
+    const filtered = transactions.filter((transaction) => {
       if (brokerFilter !== "all" && transaction.broker !== brokerFilter) return false;
       if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
-      if (stateFilter === "active" ? isTransactionCompleted(transaction) : !isTransactionCompleted(transaction)) return false;
+      if (!isTransactionInState(transaction, stateFilter)) return false;
+      if (stateFilter === "sold" && yearFilter !== "all" && finalizedTransactionYear(transaction) !== Number(yearFilter)) return false;
       const contactNames = transaction.contactIds.map((contactId) => {
         const contact = contacts.find((item) => item.id === contactId);
         return contact ? getContactName(contact) : "";
       }).join(" ");
       return transactionMatchesSearch(transaction, contactNames, search);
     });
-  }, [brokerFilter, contacts, search, stateFilter, transactions, typeFilter]);
+    return stateFilter === "sold" ? sortFinalizedTransactions(filtered) : filtered;
+  }, [brokerFilter, contacts, search, stateFilter, transactions, typeFilter, yearFilter]);
+
+  function selectState(state: TransactionStateFilter) {
+    setStateFilter(state);
+    if (state === "sold" && yearFilter === "all") setYearFilter(defaultSoldYear);
+  }
 
   return (
     <main className="transactions-page">
@@ -91,10 +121,11 @@ export default function TransactionsPage() {
           <button className="transaction-new" onClick={() => setIsCreating(true)} type="button">+ Nouvelle transaction</button>
         </header>
 
-        <section className="transactions-controls" aria-label="Filtres des transactions">
+        <section className={`transactions-controls ${stateFilter === "sold" ? "has-year-filter" : ""}`} aria-label="Filtres des transactions">
           <div className="transaction-filter-group">{(["all", ...CONTACT_BROKERS] as BrokerFilter[]).map((broker) => <button aria-pressed={brokerFilter === broker} key={broker} onClick={() => setBrokerFilter(broker)} type="button">{broker === "all" ? "Tous" : BROKER_LABELS[broker]}</button>)}</div>
           <div className="transaction-filter-group"><button aria-pressed={typeFilter === "all"} onClick={() => setTypeFilter("all")} type="button">Tous types</button><button aria-pressed={typeFilter === "sale"} onClick={() => setTypeFilter("sale")} type="button">Ventes</button><button aria-pressed={typeFilter === "purchase"} onClick={() => setTypeFilter("purchase")} type="button">Achats</button></div>
-          <div className="transaction-filter-group transaction-state-filter"><button aria-pressed={stateFilter === "active"} onClick={() => setStateFilter("active")} type="button">Actives</button><button aria-pressed={stateFilter === "completed"} onClick={() => setStateFilter("completed")} type="button">Terminées</button></div>
+          <div className="transaction-filter-group transaction-state-filter"><button aria-pressed={stateFilter === "active"} onClick={() => selectState("active")} type="button">Actives</button><button aria-pressed={stateFilter === "sold"} onClick={() => selectState("sold")} type="button">Vendus</button><button aria-pressed={stateFilter === "completed"} onClick={() => selectState("completed")} type="button">Terminées</button></div>
+          {stateFilter === "sold" && <label className="transaction-year-filter"><span>Année</span><select aria-label="Année des Transactions vendues" onChange={(event) => setYearFilter(event.target.value as YearFilter)} value={yearFilter}><option value="all">Toutes les années</option>{FINALIZED_TRANSACTION_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>}
           <label className="transactions-search"><span aria-hidden="true">⌕</span><input aria-label="Rechercher par adresse, numéro Centris ou client" onChange={(event) => setSearch(event.target.value)} placeholder="Adresse, Centris ou client" type="search" value={search} /></label>
         </section>
 
@@ -107,9 +138,9 @@ export default function TransactionsPage() {
             const nextDeadline = getNextTransactionDeadline(transaction);
             const isOverdue = Boolean(nextDeadline && nextDeadline.dueDate < today);
             return <article className={`transaction-card ${isOverdue ? "transaction-card-overdue" : ""}`} key={transaction.id}>
-              <div className="transaction-card-top"><span>{TRANSACTION_TYPE_LABELS[transaction.type]}</span><span className={`transaction-status-badge status-${transaction.status}`}>{TRANSACTION_STATUS_LABELS[transaction.status]}</span></div>
+              <div className="transaction-card-top"><span>{TRANSACTION_TYPE_LABELS[transaction.type]}</span><span className={`transaction-status-badge ${stateFilter === "sold" ? "status-finalized" : `status-${transaction.status}`}`}>{stateFilter === "sold" ? finalizedTransactionLabel(transaction) : TRANSACTION_STATUS_LABELS[transaction.status]}</span></div>
               <h2>{transaction.address}</h2>
-              <dl><div><dt>Clients</dt><dd>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</dd></div><div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div><div><dt>Prochaine échéance</dt><dd className={isOverdue ? "transaction-deadline-overdue" : ""}>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}` : "Aucune échéance"}</dd></div></dl>
+              <dl><div><dt>Clients</dt><dd>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</dd></div><div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div>{stateFilter === "sold" ? <><div><dt>Date du notaire</dt><dd>{transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée"}</dd></div><div><dt>Prix final</dt><dd>{formatAmount(transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</dd></div></> : <div><dt>Prochaine échéance</dt><dd className={isOverdue ? "transaction-deadline-overdue" : ""}>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}` : "Aucune échéance"}</dd></div>}</dl>
               <button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">Ouvrir <span aria-hidden="true">→</span></button>
             </article>;
           })}

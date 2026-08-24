@@ -69,6 +69,7 @@ export type Transaction = {
   notaryDate: string | null;
   collaboratingBrokerName: string;
   saleFinalizedAt: string | null;
+  purchaseFinalizedAt: string | null;
   status: TransactionStatus;
   generalNotes: string;
   deadlines: TransactionDeadline[];
@@ -87,6 +88,11 @@ export type TransactionSaleCompletion = {
   notaryDate: string;
   collaboratingBrokerName: string;
   noCollaboratingBroker: boolean;
+};
+
+export type TransactionPurchaseCompletion = {
+  purchasePrice: number;
+  notaryDate: string;
 };
 
 export type TransactionDraft = Pick<
@@ -123,8 +129,12 @@ export const DEADLINE_PRESETS = [
   "Signature chez le notaire",
 ] as const;
 
-export function isTransactionCompleted(transaction: Pick<Transaction, "status">) {
-  return transaction.status === "completed" || transaction.status === "cancelled";
+export function isTransactionCompleted(
+  transaction: Pick<Transaction, "status" | "type" | "saleFinalizedAt" | "purchaseFinalizedAt">,
+) {
+  return transaction.status === "completed"
+    || transaction.status === "cancelled"
+    || (transaction.type === "sale" ? transaction.saleFinalizedAt !== null : transaction.purchaseFinalizedAt !== null);
 }
 
 export function getNextTransactionDeadline(transaction: Pick<Transaction, "deadlines">) {

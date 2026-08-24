@@ -73,6 +73,7 @@ function transaction(values: Partial<Transaction> = {}): Transaction {
     notaryDate: null,
     collaboratingBrokerName: "",
     saleFinalizedAt: null,
+    purchaseFinalizedAt: null,
     status: "on_market",
     generalNotes: "",
     deadlines: [deadline()],

@@ -14,6 +14,7 @@ import { useBroker } from "./broker-context";
 import type {
   Transaction,
   TransactionDraft,
+  TransactionPurchaseCompletion,
   TransactionSaleCompletion,
   TransactionStatus,
 } from "./data/transaction-types";
@@ -32,6 +33,7 @@ type TransactionsContextValue = {
   updateTransaction: (transactionId: string, values: TransactionDraft) => Promise<Transaction>;
   updateStatus: (transactionId: string, status: TransactionStatus) => Promise<Transaction>;
   completeSale: (transactionId: string, values: TransactionSaleCompletion) => Promise<Transaction>;
+  completePurchase: (transactionId: string, values: TransactionPurchaseCompletion) => Promise<Transaction>;
   returnToMarket: (transactionId: string) => Promise<TransactionReturnToMarketResult>;
   deleteTransaction: (transactionId: string) => Promise<{ message?: string }>;
   addDeadline: (transactionId: string, title: string, dueDate: string, syncToGoogle: boolean) => Promise<MutationResult>;
@@ -133,6 +135,19 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return replaceTransaction(payload.data);
   }), [replaceTransaction, runWrite]);
 
+  const completePurchase = useCallback((transactionId: string, values: TransactionPurchaseCompletion) => runWrite(async () => {
+    const response = await fetch(`/api/transactions/${encodeURIComponent(transactionId)}/complete-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    });
+    const payload = (await response.json().catch(() => null)) as { data?: Transaction; error?: string } | null;
+    if (!response.ok || !payload?.data) {
+      throw new Error(payload?.error ?? "Impossible de finaliser l’achat.");
+    }
+    return replaceTransaction(payload.data);
+  }), [replaceTransaction, runWrite]);
+
   const returnToMarket = useCallback((transactionId: string) => runWrite(async () => {
     const response = await fetch(`/api/transactions/${encodeURIComponent(transactionId)}/return-to-market`, {
       method: "POST",
@@ -189,13 +204,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     updateTransaction: update,
     updateStatus,
     completeSale,
+    completePurchase,
     returnToMarket,
     deleteTransaction: removeTransaction,
     addDeadline,
     updateDeadline: editDeadline,
     deleteDeadline: removeDeadline,
     addNote,
-  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, returnToMarket, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
+  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, completePurchase, returnToMarket, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>;
 }

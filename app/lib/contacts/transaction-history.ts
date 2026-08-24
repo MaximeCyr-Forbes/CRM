@@ -9,8 +9,8 @@ function timestamp(value: string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
 }
 
-export function transactionHistoryDate(transaction: Pick<Transaction, "saleFinalizedAt" | "notaryDate" | "promiseDate" | "createdAt">) {
-  return transaction.saleFinalizedAt
+export function transactionHistoryDate(transaction: Pick<Transaction, "type" | "saleFinalizedAt" | "purchaseFinalizedAt" | "notaryDate" | "promiseDate" | "createdAt">) {
+  return (transaction.type === "sale" ? transaction.saleFinalizedAt : transaction.purchaseFinalizedAt)
     ?? transaction.notaryDate
     ?? transaction.promiseDate
     ?? transaction.createdAt;
@@ -30,7 +30,7 @@ export function sortContactTransactions(transactions: readonly Transaction[]) {
 export function completedTransactionVolume(transactions: readonly Transaction[]) {
   return transactions.reduce((total, transaction) => {
     if (transaction.status === "cancelled") return total;
-    if (transaction.type === "purchase" && transaction.status === "completed") {
+    if (transaction.type === "purchase" && transaction.purchaseFinalizedAt) {
       return total + (transaction.price ?? 0);
     }
     if (transaction.type === "sale" && transaction.saleFinalizedAt) {
@@ -68,8 +68,9 @@ export function listingToPaDays(listingDate: string | null, promiseDate: string 
   return Math.round((promiseTimestamp - listingTimestamp) / 86_400_000);
 }
 
-export function transactionHistoryStatusLabel(transaction: Pick<Transaction, "type" | "status" | "saleFinalizedAt">) {
+export function transactionHistoryStatusLabel(transaction: Pick<Transaction, "type" | "status" | "saleFinalizedAt" | "purchaseFinalizedAt">) {
   if (transaction.type === "sale" && transaction.saleFinalizedAt) return "VENDUE ✓";
+  if (transaction.type === "purchase" && transaction.purchaseFinalizedAt) return "ACHAT FINALISÉ ✓";
   if (transaction.status === "completed") return "TERMINÉE ✓";
   if (transaction.status === "cancelled") return "ANNULÉE";
   return TRANSACTION_STATUS_LABELS[transaction.status].toLocaleUpperCase("fr-CA");

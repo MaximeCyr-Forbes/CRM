@@ -142,7 +142,7 @@ function comparison(current: number, previous: number): StatisticsComparison {
 
 function transactionDate(transaction: StatisticsTransactionRow) {
   if (transaction.type === "sale") return quebecDateKey(transaction.saleFinalizedAt ?? "");
-  return transaction.notaryDate ?? transaction.promiseDate;
+  return transaction.notaryDate;
 }
 
 function transactionAmount(transaction: StatisticsTransactionRow) {
@@ -152,7 +152,7 @@ function transactionAmount(transaction: StatisticsTransactionRow) {
 function isConcluded(transaction: StatisticsTransactionRow) {
   if (transaction.status === "cancelled") return false;
   if (transaction.type === "sale") return Boolean(transaction.saleFinalizedAt && transaction.soldPrice);
-  return transaction.status === "completed" && Boolean(transaction.notaryDate ?? transaction.promiseDate);
+  return Boolean(transaction.purchaseFinalizedAt && transaction.notaryDate && transaction.price);
 }
 
 function validAcceptedOffers(dataset: StatisticsDataset) {
@@ -375,7 +375,7 @@ export function calculateStatistics(
       };
     }),
     definitions: {
-      purchaseBusinessDate: "Achats terminés classés par date du notaire, ou date de PA si la date du notaire n’est pas disponible.",
+      purchaseBusinessDate: "Achats finalisés explicitement classés par date du notaire.",
       paDelay: "Première mise en marché → première offre acceptée reliée à une Transaction de vente.",
       saleDelay: "Première mise en marché → finalisation d’une Transaction de vente explicitement reliée au Listing.",
     },

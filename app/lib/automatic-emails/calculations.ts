@@ -24,6 +24,7 @@ export type AutomaticEmailTransaction = {
   status: string;
   notaryDate: string | null;
   saleFinalizedAt: string | null;
+  purchaseFinalizedAt: string | null;
 };
 
 export type AutomaticEmailTransactionContact = { transactionId: string; contactId: string };
@@ -169,7 +170,7 @@ function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPre
     }
   }
   if (rule.ruleType === "purchase_anniversary") {
-    for (const transaction of dataset.transactions.filter((item) => item.type === "purchase" && item.status === "completed" && item.notaryDate)) {
+    for (const transaction of dataset.transactions.filter((item) => item.type === "purchase" && item.purchaseFinalizedAt && item.notaryDate)) {
       const contact = contactForTransaction(dataset, transaction.id);
       if (!contact) continue;
       for (const date of anniversaryDates(transaction.notaryDate!, from, to)) {
@@ -184,7 +185,7 @@ function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPre
   }
   if (rule.ruleType === "google_review") {
     const delayDays = rule.triggerConfig.delayDays ?? 3;
-    for (const transaction of dataset.transactions.filter((item) => item.status === "completed")) {
+    for (const transaction of dataset.transactions.filter((item) => item.type === "purchase" ? Boolean(item.purchaseFinalizedAt) : Boolean(item.saleFinalizedAt))) {
       const concluded = transaction.type === "purchase" ? transaction.notaryDate : transaction.saleFinalizedAt?.slice(0, 10) ?? null;
       if (!concluded || !DATE_PATTERN.test(concluded)) continue;
       const date = addDays(concluded, delayDays);

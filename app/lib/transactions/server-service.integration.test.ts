@@ -5,6 +5,7 @@ const supabase = vi.hoisted(() => ({ getAdmin: vi.fn() }));
 vi.mock("../supabase/server", () => ({ getSupabaseAdmin: supabase.getAdmin }));
 
 import {
+  completeTransactionPurchase,
   completeTransactionSale,
   createTransaction,
   listTransactions,
@@ -23,6 +24,7 @@ const row: TransactionRow = {
   notary_date: null,
   collaborating_broker_name: "",
   sale_finalized_at: null,
+  purchase_finalized_at: null,
   status: "on_market",
   general_notes: "",
   created_at: "2026-08-20T12:00:00.000Z",
@@ -141,5 +143,40 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
       saleFinalizedAt: "2026-08-22T15:00:00.000Z",
       sourceListing: null,
     });
+  });
+
+  it("finalise atomiquement un achat sans modifier son statut ni ses contacts", async () => {
+    const finalizedRow: TransactionRow = {
+      ...row,
+      type: "purchase",
+      price: 600000,
+      notary_date: "2026-08-24",
+      purchase_finalized_at: "2026-08-24T15:00:00.000Z",
+      status: "notary",
+    };
+    const rpc = vi.fn(async () => ({ data: finalizedRow, error: null }));
+    const from = vi.fn(() => readableQuery({ data: [], error: null }));
+    supabase.getAdmin.mockReturnValue({ from, rpc });
+
+    const result = await completeTransactionPurchase(row.id, {
+      purchasePrice: 600000,
+      notaryDate: "2026-08-24",
+    });
+
+    expect(rpc).toHaveBeenCalledWith("complete_transaction_purchase", {
+      p_transaction_id: row.id,
+      p_purchase_price: 600000,
+      p_notary_date: "2026-08-24",
+    });
+    expect(result).toMatchObject({
+      id: row.id,
+      type: "purchase",
+      status: "notary",
+      contactIds: [],
+      price: 600000,
+      notaryDate: "2026-08-24",
+      purchaseFinalizedAt: "2026-08-24T15:00:00.000Z",
+    });
+    expect(from).toHaveBeenCalledWith("transaction_contacts");
   });
 });

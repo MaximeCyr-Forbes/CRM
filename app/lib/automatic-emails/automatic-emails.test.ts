@@ -107,11 +107,21 @@ describe("préparation des courriels automatiques verrouillés", () => {
     const purchaseRule = rule({ ruleType: "purchase_anniversary", name: "Anniversaire d’achat", subjectTemplate: "Un an déjà", bodyTemplate: "Depuis le {{purchaseDate}}" });
     const occurrences = calculateAutomaticEmailOccurrences([purchaseRule], dataset({
       contacts: [{ id: "buyer", firstName: "André", lastName: "Noël", email: "andre@example.com", broker: "maxime", birthDate: null, mortgageRenewalDate: null }],
-      transactions: [{ id: "purchase", type: "purchase", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null }],
+      transactions: [{ id: "purchase", type: "purchase", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: "2025-08-24T14:00:00Z" }],
       transactionContacts: [{ transactionId: "purchase", contactId: "buyer" }],
     }), "2026-08-24", "2026-08-24");
     expect(occurrences).toHaveLength(1);
     expect(occurrences[0]).toMatchObject({ transactionId: "purchase", scheduledDate: "2026-08-24" });
+  });
+
+  it("ignore un ancien achat completed sans marqueur commercial", () => {
+    const purchaseRule = rule({ ruleType: "purchase_anniversary", name: "Anniversaire d’achat", subjectTemplate: "Un an déjà", bodyTemplate: "Depuis le {{purchaseDate}}" });
+    const occurrences = calculateAutomaticEmailOccurrences([purchaseRule], dataset({
+      contacts: [{ id: "buyer", firstName: "André", lastName: "Noël", email: "andre@example.com", broker: "maxime", birthDate: null, mortgageRenewalDate: null }],
+      transactions: [{ id: "legacy-purchase", type: "purchase", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: null }],
+      transactionContacts: [{ transactionId: "legacy-purchase", contactId: "buyer" }],
+    }), "2026-08-24", "2026-08-24");
+    expect(occurrences).toHaveLength(0);
   });
 
   it("signale Gmail déconnecté sans faire de requête réseau", () => {
