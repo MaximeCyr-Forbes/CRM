@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CalendarConnectionStatus } from "../../data/calendar-types";
 import type { AutomaticEmailRule } from "../../data/automatic-email-types";
-import { parseAutomaticEmailRuleDraft, ruleConfigurationIssues } from "../../data/automatic-email-types";
+import { googleReviewTransactionTypes, parseAutomaticEmailRuleDraft, ruleConfigurationIssues } from "../../data/automatic-email-types";
 import {
   calculateAutomaticEmailOccurrences,
   invalidTemplateVariables,
@@ -48,12 +48,48 @@ function rule(values: Partial<AutomaticEmailRule> = {}): AutomaticEmailRule {
   };
 }
 
+function googleReviewRule(values: Partial<AutomaticEmailRule> = {}): AutomaticEmailRule {
+  return rule({
+    ruleType: "google_review",
+    name: "Demande d’avis Google",
+    subjectTemplate: "Votre avis compte pour nous",
+    bodyTemplate: "Bonjour {{firstName}}, avis pour {{transactionType}} au {{transactionAddress}} : {{googleReviewUrl}}",
+    triggerConfig: { delayDays: 3, googleReviewUrl: "https://g.page/r/forbes/review", transactionTypes: ["purchase", "sale"] },
+    ...values,
+  });
+}
+
+function client(id: string, email = `${id}@example.com`) {
+  return { id, firstName: id === "jean" ? "Jean" : "Marie", lastName: "Tremblay", email, broker: "maxime" as const, birthDate: null, mortgageRenewalDate: null };
+}
+
+function transaction(id: string, type: "purchase" | "sale", values: Partial<AutomaticEmailPreviewDataset["transactions"][number]> = {}) {
+  return {
+    id,
+    type,
+    address: "123, rue Principale, Montréal",
+    status: "completed",
+    notaryDate: "2026-08-24",
+    saleFinalizedAt: type === "sale" ? "2026-08-24T14:00:00Z" : null,
+    purchaseFinalizedAt: type === "purchase" ? "2026-08-24T14:00:00Z" : null,
+    ...values,
+  };
+}
+
 function dataset(values: Partial<AutomaticEmailPreviewDataset> = {}): AutomaticEmailPreviewDataset {
   return {
     contacts: [], transactions: [], transactionContacts: [],
     connections: [connection("maxime"), connection("france"), connection("sandrine")],
     ...values,
   };
+}
+
+function productionSources(directory: string): string[] {
+  return readdirSync(directory).flatMap((entry) => {
+    const path = resolve(directory, entry);
+    if (statSync(path).isDirectory()) return productionSources(path);
+    return /\.(ts|tsx)$/.test(entry) && !entry.endsWith(".test.ts") ? [readFileSync(path, "utf8")] : [];
+  });
 }
 
 describe("préparation des courriels automatiques verrouillés", () => {
@@ -107,7 +143,7 @@ describe("préparation des courriels automatiques verrouillés", () => {
     const purchaseRule = rule({ ruleType: "purchase_anniversary", name: "Anniversaire d’achat", subjectTemplate: "Un an déjà", bodyTemplate: "Depuis le {{purchaseDate}}" });
     const occurrences = calculateAutomaticEmailOccurrences([purchaseRule], dataset({
       contacts: [{ id: "buyer", firstName: "André", lastName: "Noël", email: "andre@example.com", broker: "maxime", birthDate: null, mortgageRenewalDate: null }],
-      transactions: [{ id: "purchase", type: "purchase", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: "2025-08-24T14:00:00Z" }],
+      transactions: [{ id: "purchase", type: "purchase", address: "123 rue Exemple", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: "2025-08-24T14:00:00Z" }],
       transactionContacts: [{ transactionId: "purchase", contactId: "buyer" }],
     }), "2026-08-24", "2026-08-24");
     expect(occurrences).toHaveLength(1);
@@ -118,10 +154,103 @@ describe("préparation des courriels automatiques verrouillés", () => {
     const purchaseRule = rule({ ruleType: "purchase_anniversary", name: "Anniversaire d’achat", subjectTemplate: "Un an déjà", bodyTemplate: "Depuis le {{purchaseDate}}" });
     const occurrences = calculateAutomaticEmailOccurrences([purchaseRule], dataset({
       contacts: [{ id: "buyer", firstName: "André", lastName: "Noël", email: "andre@example.com", broker: "maxime", birthDate: null, mortgageRenewalDate: null }],
-      transactions: [{ id: "legacy-purchase", type: "purchase", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: null }],
+      transactions: [{ id: "legacy-purchase", type: "purchase", address: "123 rue Exemple", status: "completed", notaryDate: "2025-08-24", saleFinalizedAt: null, purchaseFinalizedAt: null }],
       transactionContacts: [{ transactionId: "legacy-purchase", contactId: "buyer" }],
     }), "2026-08-24", "2026-08-24");
     expect(occurrences).toHaveLength(0);
+  });
+
+  it("valide strictement le paramétrage Avis Google sans migration", () => {
+    expect(googleReviewTransactionTypes({})).toEqual(["purchase", "sale"]);
+    const valid = googleReviewRule({ status: "ready" });
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...validDraft } = valid;
+    expect(parseAutomaticEmailRuleDraft(validDraft)?.triggerConfig).toMatchObject({
+      delayDays: 3,
+      googleReviewUrl: "https://g.page/r/forbes/review",
+      transactionTypes: ["purchase", "sale"],
+    });
+    for (const triggerConfig of [
+      { delayDays: 3, googleReviewUrl: "https://example.com", transactionTypes: [] },
+      { delayDays: 3, googleReviewUrl: "https://example.com", transactionTypes: ["rental"] },
+      { delayDays: 366, googleReviewUrl: "https://example.com", transactionTypes: ["purchase"] },
+    ]) expect(parseAutomaticEmailRuleDraft({ ...validDraft, triggerConfig })).toBeNull();
+    expect(ruleConfigurationIssues({ ...valid, triggerConfig: { ...valid.triggerConfig, googleReviewUrl: "http://example.com" } }))
+      .toContain("L’URL Avis Google doit utiliser HTTPS.");
+  });
+
+  it("simule un avis Achat trois jours après le notaire", () => {
+    const occurrences = calculateAutomaticEmailOccurrences([googleReviewRule()], dataset({
+      contacts: [client("jean")],
+      transactions: [transaction("purchase", "purchase")],
+      transactionContacts: [{ transactionId: "purchase", contactId: "jean" }],
+    }), "2026-08-27", "2026-08-27");
+    expect(occurrences).toHaveLength(1);
+    expect(occurrences[0]).toMatchObject({
+      occurrenceKey: "google-review:purchase:jean",
+      scheduledDate: "2026-08-27",
+      transactionType: "purchase",
+      conclusionDate: "2026-08-24",
+      transactionAddress: "123, rue Principale, Montréal",
+    });
+    expect(occurrences[0].message).toContain("Achat");
+  });
+
+  it("simule une vente selon le notaire, puis selon le marqueur final en fallback", () => {
+    const contacts = [client("jean")];
+    const transactionContacts = [
+      { transactionId: "sale-notary", contactId: "jean" },
+      { transactionId: "sale-fallback", contactId: "jean" },
+    ];
+    const occurrences = calculateAutomaticEmailOccurrences([googleReviewRule()], dataset({
+      contacts,
+      transactions: [
+        transaction("sale-notary", "sale", { notaryDate: "2026-08-20", saleFinalizedAt: "2026-08-21T14:00:00Z" }),
+        transaction("sale-fallback", "sale", { notaryDate: null, saleFinalizedAt: "2026-08-22T14:00:00Z" }),
+      ],
+      transactionContacts,
+    }), "2026-08-23", "2026-08-25");
+    expect(occurrences.map((item) => [item.occurrenceKey, item.scheduledDate])).toEqual([
+      ["google-review:sale-notary:jean", "2026-08-23"],
+      ["google-review:sale-fallback:jean", "2026-08-25"],
+    ]);
+  });
+
+  it("filtre séparément les achats et les ventes admissibles", () => {
+    const previewDataset = dataset({
+      contacts: [client("jean")],
+      transactions: [transaction("purchase", "purchase"), transaction("sale", "sale")],
+      transactionContacts: [
+        { transactionId: "purchase", contactId: "jean" },
+        { transactionId: "sale", contactId: "jean" },
+      ],
+    });
+    const purchases = calculateAutomaticEmailOccurrences([
+      googleReviewRule({ triggerConfig: { delayDays: 3, googleReviewUrl: "https://example.com", transactionTypes: ["purchase"] } }),
+    ], previewDataset, "2026-08-27", "2026-08-27");
+    const sales = calculateAutomaticEmailOccurrences([
+      googleReviewRule({ triggerConfig: { delayDays: 3, googleReviewUrl: "https://example.com", transactionTypes: ["sale"] } }),
+    ], previewDataset, "2026-08-27", "2026-08-27");
+    expect(purchases.map((item) => item.transactionId)).toEqual(["purchase"]);
+    expect(sales.map((item) => item.transactionId)).toEqual(["sale"]);
+  });
+
+  it("génère une occurrence par Contact, déduplique les liens et conserve un courriel manquant comme bloqué", () => {
+    const occurrences = calculateAutomaticEmailOccurrences([googleReviewRule()], dataset({
+      contacts: [client("jean"), client("marie", "")],
+      transactions: [transaction("sale", "sale")],
+      transactionContacts: [
+        { transactionId: "sale", contactId: "jean" },
+        { transactionId: "sale", contactId: "marie" },
+        { transactionId: "sale", contactId: "jean" },
+      ],
+    }), "2026-08-27", "2026-08-27");
+    expect(occurrences).toHaveLength(2);
+    expect(occurrences.map((item) => item.occurrenceKey).sort()).toEqual([
+      "google-review:sale:jean",
+      "google-review:sale:marie",
+    ]);
+    expect(occurrences.find((item) => item.contactId === "marie")?.blockingReasons)
+      .toContain("Adresse courriel manquante.");
   });
 
   it("signale Gmail déconnecté sans faire de requête réseau", () => {
@@ -149,6 +278,15 @@ describe("préparation des courriels automatiques verrouillés", () => {
     const root = process.cwd();
     expect(() => readFileSync(resolve(root, "app/api/automatic-emails/run/route.ts"), "utf8")).toThrow();
     expect(() => readFileSync(resolve(root, "app/api/automatic-emails/send/route.ts"), "utf8")).toThrow();
+    expect(() => readFileSync(resolve(root, "app/api/automatic-emails/send-auto/route.ts"), "utf8")).toThrow();
     expect(() => readFileSync(resolve(root, "app/api/cron/automatic-emails/route.ts"), "utf8")).toThrow();
+    const sources = [
+      ...productionSources(resolve(root, "app/api/automatic-emails")),
+      ...productionSources(resolve(root, "app/lib/automatic-emails")),
+    ].join("\n");
+    expect(sources).not.toContain("sendGmailMessage");
+    expect(sources).not.toContain("messages.send");
+    expect(sources).not.toContain("/gmail/v1/users/me/messages/send");
+    expect(sources).not.toContain('from("automatic_email_deliveries").insert');
   });
 });

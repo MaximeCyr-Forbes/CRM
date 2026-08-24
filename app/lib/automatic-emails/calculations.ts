@@ -4,8 +4,14 @@ import type {
   AutomaticEmailOccurrence,
   AutomaticEmailRule,
   AutomaticEmailRuleType,
+  AutomaticEmailTransactionType,
 } from "../../data/automatic-email-types";
-import { AUTOMATIC_EMAIL_VARIABLES, gmailStateForBroker, ruleConfigurationIssues } from "../../data/automatic-email-types";
+import {
+  AUTOMATIC_EMAIL_VARIABLES,
+  gmailStateForBroker,
+  googleReviewTransactionTypes,
+  ruleConfigurationIssues,
+} from "../../data/automatic-email-types";
 import type { CalendarBroker } from "../../data/calendar-types";
 
 export type AutomaticEmailContact = {
@@ -20,7 +26,8 @@ export type AutomaticEmailContact = {
 
 export type AutomaticEmailTransaction = {
   id: string;
-  type: "purchase" | "sale";
+  type: AutomaticEmailTransactionType;
+  address: string;
   status: string;
   notaryDate: string | null;
   saleFinalizedAt: string | null;
@@ -110,7 +117,15 @@ function occurrence(
   rule: AutomaticEmailRule,
   contact: AutomaticEmailContact,
   dataset: AutomaticEmailPreviewDataset,
-  input: { key: string; date: string; transactionId?: string | null; variables?: Record<string, string> },
+  input: {
+    key: string;
+    date: string;
+    transactionId?: string | null;
+    transactionAddress?: string | null;
+    transactionType?: AutomaticEmailTransactionType | null;
+    conclusionDate?: string | null;
+    variables?: Record<string, string>;
+  },
 ): AutomaticEmailOccurrence {
   const broker = assignedBroker(contact, rule);
   const gmail = gmailStateForBroker(dataset.connections, broker);
@@ -139,13 +154,24 @@ function occurrence(
     message: resolveAutomaticEmailTemplate(rule.bodyTemplate, variables),
     gmailConnected: gmail.connected,
     gmailSignatureReady: gmail.signatureReady,
+    transactionAddress: input.transactionAddress ?? null,
+    transactionType: input.transactionType ?? null,
+    conclusionDate: input.conclusionDate ?? null,
     blockingReasons: [...new Set(blockingReasons)],
   };
 }
 
+function contactsForTransaction(dataset: AutomaticEmailPreviewDataset, transactionId: string) {
+  const contactIds = new Set(dataset.transactionContacts
+    .filter((item) => item.transactionId === transactionId)
+    .map((item) => item.contactId));
+  return [...contactIds]
+    .map((id) => dataset.contacts.find((contact) => contact.id === id))
+    .filter((contact): contact is AutomaticEmailContact => Boolean(contact));
+}
+
 function contactForTransaction(dataset: AutomaticEmailPreviewDataset, transactionId: string) {
-  const contactIds = dataset.transactionContacts.filter((item) => item.transactionId === transactionId).map((item) => item.contactId);
-  return contactIds.map((id) => dataset.contacts.find((contact) => contact.id === id)).find(Boolean) ?? null;
+  return contactsForTransaction(dataset, transactionId)[0] ?? null;
 }
 
 function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPreviewDataset, from: string, to: string) {
@@ -184,20 +210,36 @@ function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPre
     }
   }
   if (rule.ruleType === "google_review") {
-    const delayDays = rule.triggerConfig.delayDays ?? 3;
-    for (const transaction of dataset.transactions.filter((item) => item.type === "purchase" ? Boolean(item.purchaseFinalizedAt) : Boolean(item.saleFinalizedAt))) {
-      const concluded = transaction.type === "purchase" ? transaction.notaryDate : transaction.saleFinalizedAt?.slice(0, 10) ?? null;
+    const configuredDelay = rule.triggerConfig.delayDays ?? 3;
+    const delayDays = Number.isInteger(configuredDelay) && configuredDelay >= 0 && configuredDelay <= 365 ? configuredDelay : 3;
+    const eligibleTypes = new Set(googleReviewTransactionTypes(rule.triggerConfig));
+    for (const transaction of dataset.transactions.filter((item) => eligibleTypes.has(item.type))) {
+      const concluded = transaction.type === "purchase"
+        ? transaction.purchaseFinalizedAt && transaction.notaryDate
+          ? transaction.notaryDate
+          : null
+        : transaction.saleFinalizedAt
+          ? transaction.notaryDate ?? transaction.saleFinalizedAt.slice(0, 10)
+          : null;
       if (!concluded || !DATE_PATTERN.test(concluded)) continue;
       const date = addDays(concluded, delayDays);
       if (date < from || date > to) continue;
-      const contact = contactForTransaction(dataset, transaction.id);
-      if (!contact) continue;
-      values.push(occurrence(rule, contact, dataset, {
-        key: `google-review:${transaction.id}`,
-        date,
-        transactionId: transaction.id,
-        variables: { googleReviewUrl: rule.triggerConfig.googleReviewUrl ?? "" },
-      }));
+      for (const contact of contactsForTransaction(dataset, transaction.id)) {
+        values.push(occurrence(rule, contact, dataset, {
+          key: `google-review:${transaction.id}:${contact.id}`,
+          date,
+          transactionId: transaction.id,
+          transactionAddress: transaction.address,
+          transactionType: transaction.type,
+          conclusionDate: concluded,
+          variables: {
+            googleReviewUrl: rule.triggerConfig.googleReviewUrl ?? "",
+            transactionAddress: transaction.address,
+            transactionType: transaction.type === "purchase" ? "Achat" : "Vente",
+            notaryDate: transaction.notaryDate ? businessDate(transaction.notaryDate) : "",
+          },
+        }));
+      }
     }
   }
   return values;

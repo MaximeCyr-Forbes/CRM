@@ -5,15 +5,18 @@ export const AUTOMATIC_EMAIL_RULE_TYPES = ["birthday", "mortgage_renewal", "purc
 export const AUTOMATIC_EMAIL_RULE_STATUSES = ["draft", "ready", "paused"] as const;
 export const AUTOMATIC_EMAIL_EXECUTION_MODES = ["automatic", "approval"] as const;
 export const AUTOMATIC_EMAIL_DELIVERY_STATUSES = ["preview", "queued", "cancelled"] as const;
+export const AUTOMATIC_EMAIL_TRANSACTION_TYPES = ["purchase", "sale"] as const;
 
 export type AutomaticEmailRuleType = (typeof AUTOMATIC_EMAIL_RULE_TYPES)[number];
 export type AutomaticEmailRuleStatus = (typeof AUTOMATIC_EMAIL_RULE_STATUSES)[number];
 export type AutomaticEmailExecutionMode = (typeof AUTOMATIC_EMAIL_EXECUTION_MODES)[number];
 export type AutomaticEmailDeliveryStatus = (typeof AUTOMATIC_EMAIL_DELIVERY_STATUSES)[number];
+export type AutomaticEmailTransactionType = (typeof AUTOMATIC_EMAIL_TRANSACTION_TYPES)[number];
 export type AutomaticEmailTriggerConfig = {
   leadMonths?: number;
   delayDays?: number;
   googleReviewUrl?: string;
+  transactionTypes?: AutomaticEmailTransactionType[];
 };
 
 export type AutomaticEmailRule = {
@@ -72,6 +75,9 @@ export type AutomaticEmailOccurrence = {
   message: string;
   gmailConnected: boolean;
   gmailSignatureReady: boolean;
+  transactionAddress: string | null;
+  transactionType: AutomaticEmailTransactionType | null;
+  conclusionDate: string | null;
   blockingReasons: string[];
 };
 
@@ -118,8 +124,13 @@ export const AUTOMATIC_EMAIL_VARIABLES: Record<AutomaticEmailRuleType, readonly 
   birthday: ["firstName", "lastName", "fullName"],
   mortgage_renewal: ["firstName", "lastName", "fullName", "mortgageRenewalDate"],
   purchase_anniversary: ["firstName", "lastName", "fullName", "purchaseDate"],
-  google_review: ["firstName", "lastName", "fullName", "googleReviewUrl"],
+  google_review: ["firstName", "lastName", "fullName", "googleReviewUrl", "transactionAddress", "transactionType", "notaryDate"],
 };
+
+export function googleReviewTransactionTypes(config: AutomaticEmailTriggerConfig): AutomaticEmailTransactionType[] {
+  if (config.transactionTypes === undefined) return [...AUTOMATIC_EMAIL_TRANSACTION_TYPES];
+  return AUTOMATIC_EMAIL_TRANSACTION_TYPES.filter((type) => config.transactionTypes?.includes(type));
+}
 
 export function isAutomaticEmailRuleType(value: unknown): value is AutomaticEmailRuleType {
   return typeof value === "string" && AUTOMATIC_EMAIL_RULE_TYPES.includes(value as AutomaticEmailRuleType);
@@ -141,16 +152,26 @@ function triggerConfig(value: unknown, ruleType: AutomaticEmailRuleType): Automa
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const data = value as Record<string, unknown>;
   const allowed = ruleType === "mortgage_renewal" ? new Set(["leadMonths"])
-    : ruleType === "google_review" ? new Set(["delayDays", "googleReviewUrl"])
+    : ruleType === "google_review" ? new Set(["delayDays", "googleReviewUrl", "transactionTypes"])
       : new Set<string>();
   if (Object.keys(data).some((key) => !allowed.has(key))) return null;
   if (data.leadMonths !== undefined && (!Number.isInteger(data.leadMonths) || Number(data.leadMonths) < 1 || Number(data.leadMonths) > 24)) return null;
   if (data.delayDays !== undefined && (!Number.isInteger(data.delayDays) || Number(data.delayDays) < 0 || Number(data.delayDays) > 365)) return null;
   if (data.googleReviewUrl !== undefined && (typeof data.googleReviewUrl !== "string" || data.googleReviewUrl.length > 2000)) return null;
+  if (data.transactionTypes !== undefined && (
+    !Array.isArray(data.transactionTypes)
+    || data.transactionTypes.length < 1
+    || data.transactionTypes.length > AUTOMATIC_EMAIL_TRANSACTION_TYPES.length
+    || data.transactionTypes.some((type) => !AUTOMATIC_EMAIL_TRANSACTION_TYPES.includes(type as AutomaticEmailTransactionType))
+    || new Set(data.transactionTypes).size !== data.transactionTypes.length
+  )) return null;
   return {
     ...(data.leadMonths !== undefined ? { leadMonths: Number(data.leadMonths) } : {}),
     ...(data.delayDays !== undefined ? { delayDays: Number(data.delayDays) } : {}),
     ...(data.googleReviewUrl !== undefined ? { googleReviewUrl: data.googleReviewUrl.trim() } : {}),
+    ...(data.transactionTypes !== undefined
+      ? { transactionTypes: AUTOMATIC_EMAIL_TRANSACTION_TYPES.filter((type) => (data.transactionTypes as unknown[]).includes(type)) }
+      : {}),
   };
 }
 
@@ -165,6 +186,10 @@ export function ruleConfigurationIssues(rule: Pick<AutomaticEmailRuleDraft, "rul
     .filter((variable) => !allowedVariables.has(variable));
   if (unknownVariables.length > 0) issues.push(`Variable inconnue : {{${unknownVariables[0]}}}.`);
   if (rule.ruleType === "google_review") {
+    const transactionTypes = googleReviewTransactionTypes(rule.triggerConfig);
+    if (transactionTypes.length === 0) issues.push("Choisissez au moins un type de Transaction admissible.");
+    const delayDays = rule.triggerConfig.delayDays ?? 3;
+    if (!Number.isInteger(delayDays) || delayDays < 0 || delayDays > 365) issues.push("Le délai doit être compris entre 0 et 365 jours.");
     const url = rule.triggerConfig.googleReviewUrl?.trim() ?? "";
     if (!url) issues.push("Ajoutez l’URL Avis Google.");
     else {

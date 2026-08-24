@@ -28,8 +28,30 @@ describe("module Courriels Auto verrouillé", () => {
 
   it("ne crée aucune route capable de lancer un envoi automatique", () => {
     const apiRoot = resolve(root, "app/api/automatic-emails");
-    for (const route of ["run/route.ts", "send/route.ts"]) expect(() => readFileSync(resolve(apiRoot, route), "utf8")).toThrow();
+    for (const route of ["run/route.ts", "send/route.ts", "send-auto/route.ts"]) expect(() => readFileSync(resolve(apiRoot, route), "utf8")).toThrow();
     expect(source("app/api/automatic-emails/preview/route.ts")).not.toContain("sendGmailMessage");
     expect(source("app/api/automatic-emails/occurrences/route.ts")).not.toContain("sendGmailMessage");
+  });
+
+  it("bonifie la configuration et les aperçus Avis Google sans enlever le verrou", () => {
+    const page = source("app/automatic-emails/page.tsx");
+    for (const text of [
+      "Transactions admissibles",
+      "Achats + ventes",
+      "Achats seulement",
+      "Ventes seulement",
+      "Envoyer après",
+      "HEURE PRÉVUE",
+      "Lien direct pour donner un avis Google",
+      "TESTER LE LIEN",
+      "DEMANDE D’AVIS GOOGLE",
+      "Date de conclusion",
+      "Envoi prévu",
+      "AVIS GOOGLE",
+      "BLOQUÉ",
+      "PRÊT",
+    ]) expect(page).toContain(text);
+    expect(page).toContain("Ce choix sera utilisé seulement lorsque les envois automatiques seront activés dans une phase future.");
+    expect(page).toContain("Aucun courriel ne sera envoyé.");
   });
 });

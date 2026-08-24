@@ -27,6 +27,7 @@ type ContactRow = {
 type TransactionRow = {
   id: string;
   type: "purchase" | "sale";
+  address: string;
   status: string;
   notary_date: string | null;
   sale_finalized_at: string | null;
@@ -48,7 +49,7 @@ async function listRows<T>(table: string, columns: string): Promise<T[]> {
 export async function loadAutomaticEmailPreviewDataset(): Promise<AutomaticEmailPreviewDataset> {
   const [contacts, transactions, transactionContacts, connections] = await Promise.all([
     listRows<ContactRow>("contacts", "id, first_name, last_name, email, broker, birth_date, mortgage_renewal_date"),
-    listRows<TransactionRow>("transactions", "id, type, status, notary_date, sale_finalized_at, purchase_finalized_at"),
+    listRows<TransactionRow>("transactions", "id, type, address, status, notary_date, sale_finalized_at, purchase_finalized_at"),
     listRows<TransactionContactRow>("transaction_contacts", "transaction_id, contact_id"),
     listGoogleConnectionStatuses(),
   ]);
@@ -58,7 +59,7 @@ export async function loadAutomaticEmailPreviewDataset(): Promise<AutomaticEmail
       birthDate: row.birth_date, mortgageRenewalDate: row.mortgage_renewal_date,
     })),
     transactions: transactions.map((row): AutomaticEmailTransaction => ({
-      id: row.id, type: row.type, status: row.status, notaryDate: row.notary_date, saleFinalizedAt: row.sale_finalized_at,
+      id: row.id, type: row.type, address: row.address, status: row.status, notaryDate: row.notary_date, saleFinalizedAt: row.sale_finalized_at,
       purchaseFinalizedAt: row.purchase_finalized_at,
     })),
     transactionContacts: transactionContacts.map((row): AutomaticEmailTransactionContact => ({ transactionId: row.transaction_id, contactId: row.contact_id })),
