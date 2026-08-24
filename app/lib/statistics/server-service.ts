@@ -8,9 +8,9 @@ import type {
   StatisticsTransactionContactRow,
   StatisticsTransactionRow,
 } from "../../data/statistics-types";
-import type { StatisticsBroker, StatisticsPeriod } from "../../data/statistics-types";
+import type { StatisticsBroker, StatisticsPeriod, StatisticsYear } from "../../data/statistics-types";
 import { getSupabaseAdmin } from "../supabase/server";
-import { calculateStatistics, quebecDateKey, resolveStatisticsPeriod } from "./calculations";
+import { calculateStatistics, quebecDateKey, resolveStatisticsRange } from "./calculations";
 
 const PAGE_SIZE = 1000;
 
@@ -141,13 +141,20 @@ export async function loadStatisticsDataset(): Promise<StatisticsDataset> {
 export async function getStatistics(input: {
   period: StatisticsPeriod;
   broker: StatisticsBroker;
+  year: StatisticsYear;
   from?: string | null;
   to?: string | null;
   now?: Date;
 }): Promise<StatisticsSnapshot> {
   const today = quebecDateKey(input.now ?? new Date());
   if (!today) throw new TypeError("Date métier invalide.");
-  const range = resolveStatisticsPeriod(input.period, today, input.from, input.to);
+  const range = resolveStatisticsRange({
+    period: input.period,
+    year: input.year,
+    from: input.from,
+    to: input.to,
+    now: today,
+  });
   if (!range) throw new TypeError("Période invalide.");
-  return calculateStatistics(await loadStatisticsDataset(), range, input.broker, today);
+  return calculateStatistics(await loadStatisticsDataset(), range, input.broker, today, input.year);
 }

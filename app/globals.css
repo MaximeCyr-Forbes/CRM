@@ -9041,14 +9041,18 @@ button.destructive-button:disabled {
 .statistics-context strong { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 600; }
 
 .statistics-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 2rem; padding: 0.75rem; border: 1px solid rgba(17, 37, 31, 0.1); border-radius: 1rem; background: rgba(255, 253, 248, 0.78); box-shadow: 0 12px 40px rgba(38, 33, 24, 0.06); }
+.statistics-year-filter { display: grid; min-width: 7rem; gap: 0.25rem; padding: 0.25rem 0.65rem; border-right: 1px solid rgba(180, 139, 67, 0.28); color: var(--ink-soft); font-size: 0.58rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
+.statistics-year-filter select { min-height: 2.15rem; padding: 0 1.8rem 0 0.55rem; border: 1px solid rgba(17, 37, 31, 0.16); border-radius: 0.55rem; background: #fffdf8; color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; }
 .statistics-filter-group { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .statistics-filter-group button { min-height: 2.45rem; padding: 0.55rem 0.85rem; border: 0; border-radius: 0.65rem; background: transparent; color: var(--ink-soft); cursor: pointer; font: inherit; font-size: 0.71rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; transition: background 160ms ease, color 160ms ease, transform 160ms ease; }
 .statistics-filter-group button:hover { color: var(--ink); background: rgba(17, 37, 31, 0.06); }
 .statistics-filter-group button[aria-pressed="true"] { background: var(--ink); color: #fffdf8; box-shadow: 0 6px 16px rgba(19, 35, 59, 0.2); }
+.statistics-filter-group button:disabled { cursor: not-allowed; opacity: 0.4; }
 .statistics-custom-dates { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; width: 100%; padding-top: 0.7rem; border-top: 1px solid rgba(17, 37, 31, 0.09); }
 .statistics-custom-dates label { display: flex; align-items: center; gap: 0.45rem; color: var(--ink-soft); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .statistics-custom-dates input { min-height: 2.4rem; padding: 0.45rem 0.65rem; border: 1px solid rgba(17, 37, 31, 0.16); border-radius: 0.55rem; background: #fffdf8; color: var(--ink); font: inherit; }
 .statistics-custom-dates > span { color: #9e3c32; font-size: 0.75rem; font-weight: 700; }
+.statistics-period-note { width: 100%; color: var(--ink-soft); font-size: 0.68rem; }
 .statistics-message { margin: 1rem 0 2rem; padding: 1rem 1.2rem; border-radius: 0.8rem; background: #fffdf8; color: var(--ink-soft); }
 .statistics-message-error { border: 1px solid rgba(158, 60, 50, 0.2); color: #8d322a; }
 
@@ -9062,6 +9066,7 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .statistics-kpi-card > span:first-child { color: var(--ink-soft); font-size: 0.68rem; font-weight: 850; letter-spacing: 0.08em; line-height: 1.35; text-transform: uppercase; }
 .statistics-kpi-card > strong { margin: auto 0 0.5rem; font-family: var(--font-serif); font-size: clamp(1.8rem, 3.1vw, 2.85rem); font-weight: 550; letter-spacing: -0.04em; }
 .statistics-kpi-card > small { position: absolute; top: 1.1rem; right: 1.1rem; color: #8c6c32; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.statistics-kpi-card > em { max-width: 12rem; color: var(--ink-soft); font-size: 0.66rem; font-style: normal; line-height: 1.35; }
 .statistics-comparison { font-size: 0.67rem; font-weight: 750; line-height: 1.35; }
 .statistics-comparison.positive { color: #397361; }
 .statistics-comparison.negative { color: #a3483d; }
@@ -9146,6 +9151,8 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
   .statistics-heading { align-items: flex-start; flex-direction: column; }
   .statistics-context { width: 100%; }
   .statistics-filters { align-items: stretch; }
+  .statistics-year-filter { width: 100%; border-right: 0; border-bottom: 1px solid rgba(180, 139, 67, 0.28); }
+  .statistics-year-filter select { width: 100%; }
   .statistics-filter-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .statistics-filter-group button { width: 100%; }
   .statistics-kpi-grid { grid-template-columns: 1fr 1fr; gap: 0.55rem; }

@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
+  STATISTICS_YEARS,
+  defaultStatisticsYear,
   type StatisticsBroker,
   type StatisticsComparison,
   type StatisticsPeriod,
   type StatisticsSnapshot,
+  type StatisticsYear,
 } from "../data/statistics-types";
 
 const PERIODS: ReadonlyArray<{ value: StatisticsPeriod; label: string }> = [
@@ -32,13 +35,13 @@ function formatValue(value: number, kind: "number" | "currency") {
   return kind === "currency" ? currency.format(value) : integer.format(value);
 }
 
-function Comparison({ value }: { value: StatisticsComparison }) {
+function Comparison({ comparisonLabel, value }: { comparisonLabel: string; value: StatisticsComparison }) {
   const className = value.changePercent === null ? "neutral" : value.changePercent >= 0 ? "positive" : "negative";
   const text = value.changeLabel === "new"
-    ? "Nouveau ce mois-ci"
+    ? `Nouveau vs ${comparisonLabel}`
     : value.changePercent === null
       ? "Aucune variation calculable"
-      : `${value.changePercent >= 0 ? "+" : ""}${value.changePercent} % vs période comparable`;
+      : `${value.changePercent >= 0 ? "+" : ""}${value.changePercent} % vs ${comparisonLabel}`;
   return <span className={`statistics-comparison ${className}`}>{text}</span>;
 }
 
@@ -48,6 +51,8 @@ function days(value: number | null) {
 
 export default function StatisticsPage() {
   const router = useRouter();
+  const currentYear = defaultStatisticsYear(new Date());
+  const [year, setYear] = useState<StatisticsYear>(currentYear);
   const [period, setPeriod] = useState<StatisticsPeriod>("year");
   const [broker, setBroker] = useState<StatisticsBroker>("team");
   const [customFrom, setCustomFrom] = useState("");
@@ -55,16 +60,31 @@ export default function StatisticsPage() {
   const [data, setData] = useState<StatisticsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const customIsValid = period !== "custom" || Boolean(customFrom && customTo && customFrom <= customTo);
+  const yearMinimum = `${year}-01-01`;
+  const yearMaximum = `${year}-12-31`;
+  const customIsValid = period !== "custom" || Boolean(
+    customFrom
+    && customTo
+    && customFrom <= customTo
+    && customFrom >= yearMinimum
+    && customTo <= yearMaximum,
+  );
 
   const requestUrl = useMemo(() => {
-    const query = new URLSearchParams({ period, broker });
+    const query = new URLSearchParams({ period, broker, year: String(year) });
     if (period === "custom" && customIsValid) {
       query.set("from", customFrom);
       query.set("to", customTo);
     }
     return `/api/statistics?${query.toString()}`;
-  }, [broker, customFrom, customIsValid, customTo, period]);
+  }, [broker, customFrom, customIsValid, customTo, period, year]);
+
+  function changeYear(value: StatisticsYear) {
+    setYear(value);
+    setCustomFrom("");
+    setCustomTo("");
+    if (period === "twelve_months" && value !== currentYear) setPeriod("year");
+  }
 
   useEffect(() => {
     if (!customIsValid) {
@@ -97,11 +117,17 @@ export default function StatisticsPage() {
     { label: "Nouveaux contacts", value: data.kpis.newContacts, kind: "number" as const, href: "/contacts" },
     { label: "Nouveaux Listings", value: data.kpis.newListings, kind: "number" as const, href: "/listings" },
     { label: "PA acceptées", value: data.kpis.acceptedOffers, kind: "number" as const },
-    { label: "Transactions de vente", value: data.kpis.saleTransactions, kind: "number" as const, href: "/transactions?type=sale&state=completed" },
-    { label: "Transactions d’achat", value: data.kpis.purchaseTransactions, kind: "number" as const, href: "/transactions?type=purchase&state=completed" },
+    { label: "Transactions de vente", value: data.kpis.saleTransactions, kind: "number" as const, href: `/transactions?type=sale&state=sold&year=${year}` },
+    { label: "Transactions d’achat", value: data.kpis.purchaseTransactions, kind: "number" as const, href: `/transactions?type=purchase&state=sold&year=${year}` },
     { label: "Volume de vente", value: data.kpis.saleVolume, kind: "currency" as const },
     { label: "Volume d’achat", value: data.kpis.purchaseVolume, kind: "currency" as const },
-    { label: "Listings actifs", value: data.kpis.activeListings, kind: "number" as const, href: "/listings?status=active" },
+    {
+      label: "Listings actifs",
+      value: data.kpis.activeListings,
+      kind: "number" as const,
+      href: data.kpis.activeListings === null ? undefined : "/listings?status=active",
+      note: data.kpis.activeListings === null ? "Historique d’état non disponible" : undefined,
+    },
   ] : [];
 
   return (
@@ -113,17 +139,27 @@ export default function StatisticsPage() {
         </header>
 
         <section className="statistics-filters" aria-label="Filtres statistiques">
+          <label className="statistics-year-filter">
+            <span>Année</span>
+            <select aria-label="Année des statistiques" onChange={(event) => changeYear(Number(event.target.value) as StatisticsYear)} value={year}>
+              {STATISTICS_YEARS.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
           <div className="statistics-filter-group" aria-label="Période">
-            {PERIODS.map((option) => <button aria-pressed={period === option.value} key={option.value} onClick={() => setPeriod(option.value)} type="button">{option.label}</button>)}
+            {PERIODS.map((option) => {
+              const disabled = option.value === "twelve_months" && year !== currentYear;
+              return <button aria-pressed={period === option.value} disabled={disabled} key={option.value} onClick={() => setPeriod(option.value)} title={disabled ? "Disponible pour l’année courante seulement." : undefined} type="button">{option.label}</button>;
+            })}
           </div>
           <div className="statistics-filter-group" aria-label="Courtier">
             {BROKERS.map((option) => <button aria-pressed={broker === option.value} key={option.value} onClick={() => setBroker(option.value)} type="button">{option.label}</button>)}
           </div>
           {period === "custom" && <div className="statistics-custom-dates">
-            <label>Du<input max={customTo || undefined} onChange={(event) => setCustomFrom(event.target.value)} type="date" value={customFrom} /></label>
-            <label>Au<input min={customFrom || undefined} onChange={(event) => setCustomTo(event.target.value)} type="date" value={customTo} /></label>
+            <label>Du<input max={customTo || yearMaximum} min={yearMinimum} onChange={(event) => setCustomFrom(event.target.value)} type="date" value={customFrom} /></label>
+            <label>Au<input max={yearMaximum} min={customFrom || yearMinimum} onChange={(event) => setCustomTo(event.target.value)} type="date" value={customTo} /></label>
             {!customIsValid && <span>Choisissez une période valide.</span>}
           </div>}
+          {year !== currentYear && <small className="statistics-period-note">12 mois est disponible pour l’année courante seulement.</small>}
         </section>
 
         {error && <div className="statistics-message statistics-message-error" role="alert">{error}</div>}
@@ -134,7 +170,7 @@ export default function StatisticsPage() {
             <div className="statistics-section-title"><p className="section-kicker">Vue d’ensemble</p><h2 id="statistics-kpis-title">INDICATEURS CLÉS</h2></div>
             <div className="statistics-kpi-grid">
               {kpis.map((item) => {
-                const content = <><span>{item.label}</span><strong>{formatValue(item.value, item.kind)}</strong>{item.href && <small>Ouvrir <span aria-hidden="true">→</span></small>}</>;
+                const content = <><span>{item.label}</span><strong>{item.value === null ? "—" : formatValue(item.value, item.kind)}</strong>{"note" in item && item.note && <em>{item.note}</em>}{item.href && <small>Ouvrir <span aria-hidden="true">→</span></small>}</>;
                 return item.href
                   ? <button className="statistics-kpi-card statistics-kpi-link" key={item.label} onClick={() => router.push(item.href!)} type="button">{content}</button>
                   : <article className="statistics-kpi-card" key={item.label}>{content}</article>;
@@ -143,7 +179,7 @@ export default function StatisticsPage() {
           </section>
 
           <section className="statistics-month-panel" aria-labelledby="current-month-title">
-            <div className="statistics-section-title"><p className="section-kicker">Comparatif</p><h2 id="current-month-title">CE MOIS-CI</h2><p>Résultats du mois en cours comparés au même nombre de jours du mois précédent.</p></div>
+            <div className="statistics-section-title"><p className="section-kicker">Comparatif</p><h2 id="current-month-title">{data.monthContext.title}</h2><p>{data.monthContext.description}</p></div>
             <div className="statistics-month-grid">
               {([
                 ["Nouveaux contacts", data.currentMonth.newContacts, "number"],
@@ -153,7 +189,7 @@ export default function StatisticsPage() {
                 ["Achats", data.currentMonth.purchaseTransactions, "number"],
                 ["Volume vente", data.currentMonth.saleVolume, "currency"],
                 ["Volume achat", data.currentMonth.purchaseVolume, "currency"],
-              ] as const).map(([label, value, kind]) => <article key={label}><span>{label}</span><strong>{formatValue(value.current, kind)}</strong><Comparison value={value} /></article>)}
+              ] as const).map(([label, value, kind]) => <article key={label}><span>{label}</span><strong>{formatValue(value.current, kind)}</strong><Comparison comparisonLabel={data.monthContext.comparisonLabel} value={value} /></article>)}
             </div>
           </section>
 

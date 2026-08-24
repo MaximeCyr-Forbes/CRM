@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appNavigationOrder } from "../data/software-links";
+import { STATISTICS_YEARS } from "../data/statistics-types";
 
 const root = process.cwd();
 const source = (path: string) => readFileSync(resolve(root, path), "utf8");
@@ -37,10 +38,22 @@ describe("onglet Statistiques", () => {
 
   it("relie les indicateurs aux listes déjà filtrables", () => {
     const page = source("app/statistics/page.tsx");
-    expect(page).toContain('/transactions?type=sale&state=completed');
-    expect(page).toContain('/transactions?type=purchase&state=completed');
+    expect(page).toContain('/transactions?type=sale&state=sold&year=${year}');
+    expect(page).toContain('/transactions?type=purchase&state=sold&year=${year}');
     expect(page).toContain('/listings?status=active');
     expect(page).toContain('/contacts?broker=unassigned');
     expect(page).toContain('/contacts?followUp=overdue');
+  });
+
+  it("expose le sélecteur annuel borné et adapte les contrôles historiques", () => {
+    const page = source("app/statistics/page.tsx");
+    const styles = source("app/globals.css");
+    expect(STATISTICS_YEARS).toEqual([2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]);
+    expect(page).toContain('aria-label="Année des statistiques"');
+    expect(page).toContain('option.value === "twelve_months" && year !== currentYear');
+    expect(page).toContain('min={yearMinimum}');
+    expect(page).toContain('max={yearMaximum}');
+    expect(page).toContain('Historique d’état non disponible');
+    expect(styles).toContain('.statistics-year-filter select { width: 100%; }');
   });
 });

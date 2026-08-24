@@ -5,6 +5,23 @@ import type { TransactionBroker, TransactionStatus, TransactionType } from "./tr
 export const STATISTICS_PERIODS = ["month", "three_months", "year", "twelve_months", "custom"] as const;
 export type StatisticsPeriod = (typeof STATISTICS_PERIODS)[number];
 export type StatisticsBroker = "team" | TransactionBroker;
+export const STATISTICS_YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030] as const;
+export type StatisticsYear = (typeof STATISTICS_YEARS)[number];
+
+export function isStatisticsYear(value: unknown): value is StatisticsYear {
+  return typeof value === "number" && Number.isInteger(value)
+    && STATISTICS_YEARS.includes(value as StatisticsYear);
+}
+
+export function defaultStatisticsYear(date: Date): StatisticsYear {
+  const year = Number(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+  }).format(date));
+  if (year <= STATISTICS_YEARS[0]) return STATISTICS_YEARS[0];
+  if (year >= STATISTICS_YEARS[STATISTICS_YEARS.length - 1]) return STATISTICS_YEARS[STATISTICS_YEARS.length - 1];
+  return year as StatisticsYear;
+}
 
 export type StatisticsContactRow = {
   id: string;
@@ -76,6 +93,7 @@ export type StatisticsComparison = {
 
 export type StatisticsSnapshot = {
   broker: StatisticsBroker;
+  year: StatisticsYear;
   period: { key: StatisticsPeriod; from: string; to: string; label: string };
   kpis: {
     newContacts: number;
@@ -85,7 +103,12 @@ export type StatisticsSnapshot = {
     purchaseTransactions: number;
     saleVolume: number;
     purchaseVolume: number;
-    activeListings: number;
+    activeListings: number | null;
+  };
+  monthContext: {
+    title: string;
+    description: string;
+    comparisonLabel: string;
   };
   currentMonth: {
     newContacts: StatisticsComparison;

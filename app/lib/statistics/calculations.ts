@@ -10,6 +10,7 @@ import type {
   StatisticsPeriod,
   StatisticsSnapshot,
   StatisticsTransactionRow,
+  StatisticsYear,
 } from "../../data/statistics-types";
 
 const DAY_MS = 86_400_000;
@@ -30,6 +31,14 @@ export type StatisticsPeriodRange = {
   from: string;
   to: string;
   label: string;
+};
+
+export type ResolveStatisticsRangeInput = {
+  period: StatisticsPeriod;
+  year: StatisticsYear;
+  from?: string | null;
+  to?: string | null;
+  now: string;
 };
 
 function parts(value: string) {
@@ -78,22 +87,47 @@ export function quebecDateKey(value: string | Date) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export function resolveStatisticsPeriod(
-  period: StatisticsPeriod,
-  today: string,
-  customFrom?: string | null,
-  customTo?: string | null,
-): StatisticsPeriodRange | null {
-  if (!isStatisticsDate(today)) return null;
+function monthYearLabel(value: string) {
+  return new Intl.DateTimeFormat("fr-CA", { month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${value.slice(0, 7)}-01T12:00:00Z`))
+    .toLocaleUpperCase("fr-CA");
+}
+
+function customRangeLabel(from: string, to: string) {
+  const formatter = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", timeZone: "UTC" });
+  const start = formatter.format(new Date(`${from}T12:00:00Z`)).toLocaleUpperCase("fr-CA");
+  const end = formatter.format(new Date(`${to}T12:00:00Z`)).toLocaleUpperCase("fr-CA");
+  return `${start} → ${end} ${to.slice(0, 4)}`;
+}
+
+export function resolveStatisticsRange(input: ResolveStatisticsRangeInput): StatisticsPeriodRange | null {
+  const { period, year, from, to, now } = input;
+  if (!isStatisticsDate(now)) return null;
+  const [currentYear, currentMonth] = parts(now);
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
   if (period === "custom") {
-    if (!isStatisticsDate(customFrom) || !isStatisticsDate(customTo) || customFrom > customTo || customTo > today) return null;
-    return { key: period, from: customFrom, to: customTo, label: `${customFrom} → ${customTo}` };
+    if (!isStatisticsDate(from) || !isStatisticsDate(to) || from > to || from < yearStart || to > yearEnd) return null;
+    return { key: period, from, to, label: customRangeLabel(from, to) };
   }
-  const [year] = parts(today);
-  if (period === "month") return { key: period, from: shiftMonthStart(today, 0), to: today, label: "Ce mois" };
-  if (period === "three_months") return { key: period, from: shiftMonthStart(today, -2), to: today, label: "3 mois" };
-  if (period === "year") return { key: period, from: `${year}-01-01`, to: today, label: "Cette année" };
-  return { key: period, from: shiftMonthStart(today, -11), to: today, label: "12 derniers mois" };
+  if (period === "year") return { key: period, from: yearStart, to: yearEnd, label: String(year) };
+  if (period === "twelve_months") {
+    if (year !== currentYear) return null;
+    return { key: period, from: shiftMonthStart(now, -11), to: now, label: "12 DERNIERS MOIS" };
+  }
+  const referenceMonth = `${year}-${String(currentMonth).padStart(2, "0")}-01`;
+  const periodEnd = year === currentYear ? now : endOfMonth(referenceMonth);
+  if (period === "month") {
+    return { key: period, from: referenceMonth, to: periodEnd, label: monthYearLabel(referenceMonth) };
+  }
+  const shiftedStart = shiftMonthStart(referenceMonth, -2);
+  const fromDate = shiftedStart < yearStart ? yearStart : shiftedStart;
+  return {
+    key: period,
+    from: fromDate,
+    to: periodEnd,
+    label: `${monthYearLabel(fromDate).replace(` ${year}`, "")} → ${monthYearLabel(periodEnd)}`,
+  };
 }
 
 function inRange(value: string | null, range: Pick<StatisticsPeriodRange, "from" | "to">) {
@@ -141,8 +175,9 @@ function comparison(current: number, previous: number): StatisticsComparison {
 }
 
 function transactionDate(transaction: StatisticsTransactionRow) {
-  if (transaction.type === "sale") return quebecDateKey(transaction.saleFinalizedAt ?? "");
-  return transaction.notaryDate;
+  if (isStatisticsDate(transaction.notaryDate)) return transaction.notaryDate;
+  const finalizedAt = transaction.type === "sale" ? transaction.saleFinalizedAt : transaction.purchaseFinalizedAt;
+  return quebecDateKey(finalizedAt ?? "");
 }
 
 function transactionAmount(transaction: StatisticsTransactionRow) {
@@ -151,8 +186,8 @@ function transactionAmount(transaction: StatisticsTransactionRow) {
 
 function isConcluded(transaction: StatisticsTransactionRow) {
   if (transaction.status === "cancelled") return false;
-  if (transaction.type === "sale") return Boolean(transaction.saleFinalizedAt && transaction.soldPrice);
-  return Boolean(transaction.purchaseFinalizedAt && transaction.notaryDate && transaction.price);
+  if (transaction.type === "sale") return Boolean(transaction.saleFinalizedAt && transaction.soldPrice && transaction.soldPrice > 0);
+  return Boolean(transaction.purchaseFinalizedAt && transaction.price && transaction.price > 0);
 }
 
 function validAcceptedOffers(dataset: StatisticsDataset) {
@@ -211,8 +246,8 @@ function listingPerformance(dataset: StatisticsDataset, range: StatisticsPeriodR
   }
   const salesByListing = new Map<string, string[]>();
   for (const { link, transaction } of linkedSaleTransactions(dataset)) {
-    const finalized = quebecDateKey(transaction.saleFinalizedAt ?? "");
-    if (!finalized || transaction.status === "cancelled") continue;
+    const finalized = transactionDate(transaction);
+    if (!finalized || !isConcluded(transaction)) continue;
     const dates = salesByListing.get(link.listingId) ?? [];
     dates.push(finalized);
     salesByListing.set(link.listingId, dates);
@@ -253,14 +288,34 @@ function listingPerformance(dataset: StatisticsDataset, range: StatisticsPeriodR
   };
 }
 
-function monthRanges(today: string) {
-  const currentFrom = shiftMonthStart(today, 0);
+function monthComparisonRanges(today: string, year: StatisticsYear) {
+  const [currentYear, currentMonth] = parts(today);
+  const selectedFrom = `${year}-${String(currentMonth).padStart(2, "0")}-01`;
+  if (year !== currentYear) {
+    const previousFrom = `${year - 1}-${String(currentMonth).padStart(2, "0")}-01`;
+    const title = monthYearLabel(selectedFrom);
+    const comparisonLabel = monthYearLabel(previousFrom).toLocaleLowerCase("fr-CA");
+    return {
+      current: { key: "month", from: selectedFrom, to: endOfMonth(selectedFrom), label: title } as StatisticsPeriodRange,
+      previous: { key: "month", from: previousFrom, to: endOfMonth(previousFrom), label: comparisonLabel } as StatisticsPeriodRange,
+      context: {
+        title,
+        description: `Résultats de ${title.toLocaleLowerCase("fr-CA")} comparés à ${comparisonLabel}.`,
+        comparisonLabel,
+      },
+    };
+  }
   const previousFrom = shiftMonthStart(today, -1);
-  const elapsedDays = dayDifference(currentFrom, today);
+  const elapsedDays = dayDifference(selectedFrom, today);
   const previousTo = [addDays(previousFrom, elapsedDays), endOfMonth(previousFrom)].sort()[0];
   return {
-    current: { key: "month", from: currentFrom, to: today, label: "Ce mois" } as StatisticsPeriodRange,
+    current: { key: "month", from: selectedFrom, to: today, label: "Ce mois" } as StatisticsPeriodRange,
     previous: { key: "month", from: previousFrom, to: previousTo, label: "Mois précédent" } as StatisticsPeriodRange,
+    context: {
+      title: "CE MOIS-CI",
+      description: "Résultats du mois en cours comparés au même nombre de jours du mois précédent.",
+      comparisonLabel: "la période comparable",
+    },
   };
 }
 
@@ -285,9 +340,10 @@ export function calculateStatistics(
   range: StatisticsPeriodRange,
   broker: StatisticsBroker,
   today: string,
+  year: StatisticsYear,
 ): StatisticsSnapshot {
   const selected = intervalKpis(dataset, range, broker);
-  const month = monthRanges(today);
+  const month = monthComparisonRanges(today, year);
   const currentMonth = intervalKpis(dataset, month.current, broker);
   const previousMonth = intervalKpis(dataset, month.previous, broker);
   const businessContacts = dataset.contacts.filter((contact) => matchesBroker(contact.broker, broker));
@@ -339,11 +395,15 @@ export function calculateStatistics(
   ) as StatisticsSnapshot["currentMonth"];
   return {
     broker,
+    year,
     period: range,
     kpis: {
       ...selected,
-      activeListings: dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && ACTIVE_LISTING_STATUSES.has(listing.status)).length,
+      activeListings: year === parts(today)[0]
+        ? dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && ACTIVE_LISTING_STATUSES.has(listing.status)).length
+        : null,
     },
+    monthContext: month.context,
     currentMonth: currentMonthComparisons,
     listingPerformance: listingPerformance(dataset, range, broker),
     provenance,
@@ -375,7 +435,7 @@ export function calculateStatistics(
       };
     }),
     definitions: {
-      purchaseBusinessDate: "Achats finalisés explicitement classés par date du notaire.",
+      purchaseBusinessDate: "Achats finalisés classés par date du notaire, ou par date de finalisation si elle est absente.",
       paDelay: "Première mise en marché → première offre acceptée reliée à une Transaction de vente.",
       saleDelay: "Première mise en marché → finalisation d’une Transaction de vente explicitement reliée au Listing.",
     },

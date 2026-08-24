@@ -7,13 +7,17 @@ import type {
   StatisticsTransactionRow,
 } from "../../data/statistics-types";
 import {
+  STATISTICS_YEARS,
+  defaultStatisticsYear,
+} from "../../data/statistics-types";
+import {
   calculateStatistics,
   median,
   quebecDateKey,
-  resolveStatisticsPeriod,
+  resolveStatisticsRange,
 } from "./calculations";
 
-const today = "2026-08-23";
+const today = "2026-08-24";
 
 function contact(values: Partial<StatisticsContactRow> = {}): StatisticsContactRow {
   return {
@@ -59,7 +63,7 @@ function transaction(values: Partial<StatisticsTransactionRow> = {}): Statistics
     price: 700_000,
     soldPrice: 690_000,
     promiseDate: "2026-08-21",
-    notaryDate: "2026-09-15",
+    notaryDate: "2026-08-22",
     saleFinalizedAt: "2026-08-22T14:00:00.000Z",
     purchaseFinalizedAt: null,
     status: "completed",
@@ -81,18 +85,34 @@ function data(values: Partial<StatisticsDataset> = {}): StatisticsDataset {
 }
 
 function snapshot(dataset: StatisticsDataset, broker: "team" | "maxime" | "france" | "sandrine" = "team") {
-  const range = resolveStatisticsPeriod("month", today)!;
-  return calculateStatistics(dataset, range, broker, today);
+  const range = resolveStatisticsRange({ period: "month", year: 2026, now: today })!;
+  return calculateStatistics(dataset, range, broker, today, 2026);
 }
 
 describe("calculs Statistiques", () => {
-  it("calcule les périodes et valide une période personnalisée", () => {
-    expect(resolveStatisticsPeriod("month", today)).toMatchObject({ from: "2026-08-01", to: today });
-    expect(resolveStatisticsPeriod("three_months", today)).toMatchObject({ from: "2026-06-01", to: today });
-    expect(resolveStatisticsPeriod("year", today)).toMatchObject({ from: "2026-01-01", to: today });
-    expect(resolveStatisticsPeriod("twelve_months", today)).toMatchObject({ from: "2025-09-01", to: today });
-    expect(resolveStatisticsPeriod("custom", today, "2026-07-01", "2026-08-10")).toMatchObject({ from: "2026-07-01", to: "2026-08-10" });
-    expect(resolveStatisticsPeriod("custom", today, "2026-09-01", "2026-08-01")).toBeNull();
+  it("expose exactement les années 2020 à 2030 et choisit le fallback le plus proche", () => {
+    expect(STATISTICS_YEARS).toEqual([2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]);
+    expect(defaultStatisticsYear(new Date("2026-08-24T12:00:00-04:00"))).toBe(2026);
+    expect(defaultStatisticsYear(new Date("2018-08-24T12:00:00-04:00"))).toBe(2020);
+    expect(defaultStatisticsYear(new Date("2034-08-24T12:00:00-04:00"))).toBe(2030);
+  });
+
+  it("résout sérieusement les périodes historiques dans l’année sélectionnée", () => {
+    expect(resolveStatisticsRange({ period: "year", year: 2024, now: today })).toMatchObject({ from: "2024-01-01", to: "2024-12-31", label: "2024" });
+    expect(resolveStatisticsRange({ period: "month", year: 2023, now: today })).toMatchObject({ from: "2023-08-01", to: "2023-08-31", label: "AOÛT 2023" });
+    expect(resolveStatisticsRange({ period: "three_months", year: 2024, now: today })).toMatchObject({ from: "2024-06-01", to: "2024-08-31" });
+    expect(resolveStatisticsRange({ period: "month", year: 2026, now: today })).toMatchObject({ from: "2026-08-01", to: today });
+    expect(resolveStatisticsRange({ period: "twelve_months", year: 2026, now: today })).toMatchObject({ from: "2025-09-01", to: today });
+    expect(resolveStatisticsRange({ period: "twelve_months", year: 2024, now: today })).toBeNull();
+    expect(resolveStatisticsRange({ period: "three_months", year: 2024, now: "2026-02-24" }))
+      .toMatchObject({ from: "2024-01-01", to: "2024-02-29" });
+  });
+
+  it("borne strictement la période personnalisée à l’année sélectionnée", () => {
+    expect(resolveStatisticsRange({ period: "custom", year: 2025, now: today, from: "2025-03-01", to: "2025-07-31" }))
+      .toMatchObject({ from: "2025-03-01", to: "2025-07-31" });
+    expect(resolveStatisticsRange({ period: "custom", year: 2025, now: today, from: "2024-12-01", to: "2025-07-31" })).toBeNull();
+    expect(resolveStatisticsRange({ period: "custom", year: 2025, now: today, from: "2025-07-31", to: "2026-01-01" })).toBeNull();
   });
 
   it("respecte les frontières de date du Québec", () => {
@@ -169,6 +189,91 @@ describe("calculs Statistiques", () => {
     expect(result.listingPerformance).toMatchObject({ listingsSold: 1, averagePaDays: 20, averageSaleDays: 21 });
   });
 
+  it("sépare la cohorte Listing 2023 du volume de vente finalisé en 2024", () => {
+    const cohortRange = resolveStatisticsRange({ period: "year", year: 2023, now: today })!;
+    const currentListing = listing({ id: "cohort-2023", listingDate: "2023-12-20", status: "sold" });
+    const currentOffer = offer(currentListing.id, { id: "offer-2024", offerDate: "2024-01-05" });
+    const finalizedSale = transaction({
+      id: "sale-2024",
+      promiseDate: "2024-01-05",
+      notaryDate: "2024-02-01",
+      saleFinalizedAt: "2024-02-01T15:00:00.000Z",
+    });
+    const result = calculateStatistics(data({
+      listings: [currentListing],
+      offers: [currentOffer],
+      transactions: [finalizedSale],
+      listingTransactionLinks: [{ listingId: currentListing.id, offerId: currentOffer.id, transactionId: finalizedSale.id }],
+    }), cohortRange, "team", today, 2023);
+    expect(result.listingPerformance).toMatchObject({
+      listingsTaken: 1,
+      listingsWithAcceptedPa: 1,
+      listingsSold: 1,
+      averagePaDays: 16,
+      averageSaleDays: 43,
+    });
+    expect(result.kpis.saleTransactions).toBe(0);
+    expect(result.kpis.saleVolume).toBe(0);
+    expect(result.kpis.activeListings).toBeNull();
+  });
+
+  it("attribue achats et ventes à l’année réelle de finalisation avec priorité au notaire", () => {
+    const range2024 = resolveStatisticsRange({ period: "year", year: 2024, now: today })!;
+    const range2023 = resolveStatisticsRange({ period: "year", year: 2023, now: today })!;
+    const purchase = transaction({
+      id: "purchase-2024",
+      type: "purchase",
+      price: 600_000,
+      soldPrice: null,
+      notaryDate: "2024-05-15",
+      saleFinalizedAt: null,
+      purchaseFinalizedAt: "2024-05-16T14:00:00.000Z",
+      status: "notary",
+    });
+    const sale = transaction({
+      id: "sale-notary-2024",
+      soldPrice: 725_000,
+      notaryDate: "2024-06-10",
+      saleFinalizedAt: "2023-12-31T15:00:00.000Z",
+    });
+    const dataset = data({ transactions: [purchase, sale] });
+    const result2024 = calculateStatistics(dataset, range2024, "team", today, 2024);
+    const result2023 = calculateStatistics(dataset, range2023, "team", today, 2023);
+    expect(result2024.kpis).toMatchObject({
+      purchaseTransactions: 1,
+      purchaseVolume: 600_000,
+      saleTransactions: 1,
+      saleVolume: 725_000,
+    });
+    expect(result2023.kpis).toMatchObject({ purchaseTransactions: 0, purchaseVolume: 0, saleTransactions: 0, saleVolume: 0 });
+  });
+
+  it("utilise le marqueur de finalisation comme fallback si le notaire est absent", () => {
+    const range2024 = resolveStatisticsRange({ period: "year", year: 2024, now: today })!;
+    const purchase = transaction({
+      type: "purchase",
+      price: 500_000,
+      soldPrice: null,
+      notaryDate: null,
+      saleFinalizedAt: null,
+      purchaseFinalizedAt: "2024-03-10T15:00:00.000Z",
+      status: "notary",
+    });
+    const result = calculateStatistics(data({ transactions: [purchase] }), range2024, "team", today, 2024);
+    expect(result.kpis).toMatchObject({ purchaseTransactions: 1, purchaseVolume: 500_000 });
+  });
+
+  it("conserve les 12 mois vides dans les tendances annuelles", () => {
+    const range = resolveStatisticsRange({ period: "year", year: 2024, now: today })!;
+    const result = calculateStatistics(data(), range, "team", today, 2024);
+    expect(result.trends).toHaveLength(12);
+    expect(result.trends.map((item) => item.month)).toEqual([
+      "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06",
+      "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12",
+    ]);
+    expect(result.monthContext).toMatchObject({ title: "AOÛT 2024", comparisonLabel: "août 2023" });
+  });
+
   it("exclut les locations et applique le courtier du Listing à la performance", () => {
     const maximeListing = listing({ id: "maxime" });
     const franceListing = listing({ id: "france", broker: "france" });
@@ -195,6 +300,20 @@ describe("calculs Statistiques", () => {
       ],
     }));
     expect(result.provenance.find((item) => item.key === "referral")).toMatchObject({ contacts: 1, contactsWithTransaction: 1, conversionRate: 100 });
+  });
+
+  it("conserve la conversion future dans la cohorte de provenance du Contact", () => {
+    const range2023 = resolveStatisticsRange({ period: "year", year: 2023, now: today })!;
+    const referred = contact({ id: "lead-2023", clientProvenance: "referral", createdAt: "2023-04-10T14:00:00.000Z" });
+    const laterSale = transaction({ id: "sale-2024", notaryDate: "2024-03-15", saleFinalizedAt: "2024-03-15T14:00:00.000Z" });
+    const result = calculateStatistics(data({
+      contacts: [referred],
+      transactions: [laterSale],
+      transactionContacts: [{ contactId: referred.id, transactionId: laterSale.id }],
+    }), range2023, "team", today, 2023);
+    expect(result.provenance.find((item) => item.key === "referral"))
+      .toMatchObject({ contacts: 1, contactsWithTransaction: 1, conversionRate: 100 });
+    expect(result.kpis.saleTransactions).toBe(0);
   });
 
   it("sépare jamais contactés, inactifs 90 jours et relances en retard", () => {

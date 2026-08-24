@@ -1,5 +1,12 @@
 import { requireApiAccess } from "../../lib/crm-access";
-import { STATISTICS_PERIODS, type StatisticsBroker, type StatisticsPeriod } from "../../data/statistics-types";
+import {
+  STATISTICS_PERIODS,
+  defaultStatisticsYear,
+  isStatisticsYear,
+  type StatisticsBroker,
+  type StatisticsPeriod,
+  type StatisticsYear,
+} from "../../data/statistics-types";
 import { getStatistics } from "../../lib/statistics/server-service";
 
 export const dynamic = "force-dynamic";
@@ -14,18 +21,28 @@ function isBroker(value: string | null): value is StatisticsBroker {
   return Boolean(value && BROKERS.includes(value as StatisticsBroker));
 }
 
+function parseYear(value: string | null): StatisticsYear | null {
+  if (!value || !/^\d{4}$/.test(value)) return null;
+  const year = Number(value);
+  return isStatisticsYear(year) ? year : null;
+}
+
 export async function GET(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
   const periodValue = search.get("period") ?? "year";
   const brokerValue = search.get("broker") ?? "team";
+  const requestedYear = search.get("year");
+  const yearValue = requestedYear === null ? defaultStatisticsYear(new Date()) : parseYear(requestedYear);
   if (!isPeriod(periodValue)) return Response.json({ error: "Période invalide." }, { status: 400 });
   if (!isBroker(brokerValue)) return Response.json({ error: "Courtier invalide." }, { status: 400 });
+  if (yearValue === null) return Response.json({ error: "Année invalide." }, { status: 400 });
   try {
     const data = await getStatistics({
       period: periodValue,
       broker: brokerValue,
+      year: yearValue,
       from: search.get("from"),
       to: search.get("to"),
     });
