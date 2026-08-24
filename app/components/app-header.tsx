@@ -13,6 +13,7 @@ const links = [
   { label: "Transactions", href: "/transactions", match: "/transactions" },
   { label: "Calendrier", href: "/calendar", match: "/calendar" },
   { label: "Statistiques", href: "/statistics", match: "/statistics" },
+  { label: "Courriels Auto", href: "/automatic-emails", match: "/automatic-emails" },
   { label: "Paramètres", href: "/settings", match: "/settings" },
 ] as const;
 

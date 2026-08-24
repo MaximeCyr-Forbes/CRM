@@ -10,6 +10,7 @@ describe("navigation des logiciels", () => {
       "Transactions",
       "Calendrier",
       "Statistiques",
+      "Courriels Auto",
       "Logiciels",
       "Paramètres",
     ]);

@@ -15,6 +15,7 @@ describe("onglet Statistiques", () => {
       "Transactions",
       "Calendrier",
       "Statistiques",
+      "Courriels Auto",
       "Logiciels",
       "Paramètres",
     ]);

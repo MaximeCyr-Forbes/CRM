@@ -24,6 +24,7 @@ describe("retrait du parcours commercial des contacts", () => {
       "Transactions",
       "Calendrier",
       "Statistiques",
+      "Courriels Auto",
       "Logiciels",
       "Paramètres",
     ]);
