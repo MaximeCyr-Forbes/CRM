@@ -1,13 +1,14 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useClientNotes } from "../../client-notes-context";
 import { PencilIcon } from "../../components/action-icons";
 import { ClientHistory } from "../../components/client-history";
 import { ContactEditorModal, type ContactEditorMode } from "../../components/contact-editor-modal";
 import { ContactAddressManager } from "../../components/contact-address-manager";
 import { ContactEmailModal } from "../../components/contact-email-modal";
+import { ContactPropertyHistory } from "../../components/contact-property-history";
 import { DuplicateResolutionModal } from "../../components/duplicate-resolution-modal";
 import { DataStatus } from "../../components/data-status";
 import { FollowUpSchedulerModal } from "../../components/follow-up-scheduler-modal";
@@ -32,8 +33,8 @@ import { useFollowUps } from "../../follow-up-context";
 import { formatLastContact } from "../../lib/client-notes";
 import { formatFollowUpDate, toLocalISODate } from "../../lib/follow-up";
 import { findDuplicateMatches, type DuplicateReason } from "../../lib/contact-normalization";
-import { TRANSACTION_STATUS_LABELS, TRANSACTION_TYPE_LABELS } from "../../data/transaction-types";
 import { useTransactions } from "../../transactions-context";
+import { useListings } from "../../listings-context";
 import { getFollowUpQueue } from "../../lib/follow-up-queue";
 import { formatBirthDate } from "../../lib/birth-date";
 import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
@@ -67,6 +68,7 @@ export default function ContactProfilePage() {
   const { getFollowUpDate } = useFollowUps();
   const { getNotesForContact, loadNotesForContact, addNote, updateNote, deleteNote } = useClientNotes();
   const { transactions } = useTransactions();
+  const { listings } = useListings();
   const { selectedBroker } = useBroker();
   const [isDirectFollowUpOpen, setIsDirectFollowUpOpen] = useState(false);
   const [isPostNoteFollowUpOpen, setIsPostNoteFollowUpOpen] = useState(false);
@@ -87,9 +89,13 @@ export default function ContactProfilePage() {
   const contactName = contact ? getContactName(contact) : "";
   const followUpDate = contact ? getFollowUpDate(contact.id) : null;
   const notes = contact ? getNotesForContact(contact.id) : [];
-  const linkedTransactions = contact
+  const linkedTransactions = useMemo(() => contact
     ? transactions.filter((transaction) => transaction.contactIds.includes(contact.id))
-    : [];
+    : [], [contact, transactions]);
+  const listingsById = useMemo(
+    () => new Map(listings.map((listing) => [listing.id, listing])),
+    [listings],
+  );
 
   async function refreshBirthdaySyncStatus(contactId: string, hasBirthDate: boolean) {
     if (!hasBirthDate) {
@@ -552,24 +558,9 @@ export default function ContactProfilePage() {
           </div>
         </section>
 
-        <ClientHistory notes={notes} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
+        <ContactPropertyHistory listingsById={listingsById} transactions={linkedTransactions} />
 
-        <section className="profile-transactions-section" aria-labelledby="profile-transactions-title">
-          <div>
-            <p className="section-kicker">Dossiers immobiliers</p>
-            <h2 id="profile-transactions-title">TRANSACTIONS LIÉES</h2>
-          </div>
-          <div className="profile-transaction-list">
-            {linkedTransactions.map((transaction) => (
-              <button key={transaction.id} onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">
-                <span>{transaction.address}</span>
-                <small>{TRANSACTION_TYPE_LABELS[transaction.type]} · {TRANSACTION_STATUS_LABELS[transaction.status]}</small>
-                <strong>Ouvrir →</strong>
-              </button>
-            ))}
-            {linkedTransactions.length === 0 && <p>Aucune transaction liée à ce contact.</p>}
-          </div>
-        </section>
+        <ClientHistory notes={notes} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
 
         <div className="contact-danger-zone">
           <button className="destructive-button" onClick={() => setIsDeleteConfirmationOpen(true)} type="button">

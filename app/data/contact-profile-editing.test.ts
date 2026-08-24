@@ -23,7 +23,7 @@ describe("édition rapide de la fiche contact", () => {
     expect(profile).toContain("Action");
     expect(profile).toContain("Changer le courtier");
     expect(profile).toContain("GÉRER LES ADRESSES");
-    expect(profile).toContain("TRANSACTIONS LIÉES");
+    expect(profile).toContain("ContactPropertyHistory");
   });
 
   it("préremplit les modes ciblés avec les champs demandés et le modèle complet du contact", () => {

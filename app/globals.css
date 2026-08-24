@@ -5345,26 +5345,19 @@ button:disabled {
 .transaction-delete-content > p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.65; }
 .transaction-delete-content .transaction-form-actions { margin-top: 1.4rem; }
 
-.transaction-detail-section,
-.profile-transactions-section { padding-top: clamp(2.5rem, 6vw, 4.5rem); }
+.transaction-detail-section { padding-top: clamp(2.5rem, 6vw, 4.5rem); }
 .transaction-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-.transaction-section-heading h2,
-.profile-transactions-section h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; }
+.transaction-section-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; }
 .transaction-source-listing > button { display: flex; width: 100%; min-height: 6.5rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.15rem 1.25rem; color: var(--ink); text-align: left; background: rgba(198, 168, 103, 0.09); border: 1px solid rgba(198, 168, 103, 0.3); cursor: pointer; }
 .transaction-source-listing > button span { display: grid; gap: 0.35rem; }
 .transaction-source-listing > button strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; font-weight: 400; }
 .transaction-source-listing > button small { color: var(--ink-soft); }
 .transaction-source-listing > button b { color: #8c7343; font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.transaction-linked-clients,
-.profile-transaction-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
-.transaction-linked-clients button,
-.profile-transaction-list button { display: grid; gap: 0.35rem; min-height: 7.5rem; padding: 1rem; color: var(--ink); text-align: left; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); border-radius: 0.25rem; cursor: pointer; }
-.transaction-linked-clients button span,
-.profile-transaction-list button span { font-family: Georgia, "Times New Roman", serif; font-size: 1.12rem; }
-.transaction-linked-clients button small,
-.profile-transaction-list button small { color: var(--ink-soft); }
-.transaction-linked-clients button strong,
-.profile-transaction-list button strong { align-self: end; color: #8c7343; font-size: 0.62rem; text-transform: uppercase; }
+.transaction-linked-clients { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
+.transaction-linked-clients button { display: grid; gap: 0.35rem; min-height: 7.5rem; padding: 1rem; color: var(--ink); text-align: left; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); border-radius: 0.25rem; cursor: pointer; }
+.transaction-linked-clients button span { font-family: Georgia, "Times New Roman", serif; font-size: 1.12rem; }
+.transaction-linked-clients button small { color: var(--ink-soft); }
+.transaction-linked-clients button strong { align-self: end; color: #8c7343; font-size: 0.62rem; text-transform: uppercase; }
 
 .transaction-deadlines { overflow: hidden; border: 1px solid var(--line); background: rgba(255, 253, 248, 0.82); }
 .transaction-deadlines article { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; min-height: 6.5rem; padding: 1rem 1.2rem; }
@@ -5401,8 +5394,39 @@ button:disabled {
 .transaction-notes-list time { color: var(--ink-soft); font-size: 0.63rem; }
 .transaction-notes-list p { margin: 0.55rem 0 0; white-space: pre-wrap; line-height: 1.55; }
 
-.profile-transactions-section { display: grid; grid-template-columns: minmax(12rem, 0.6fr) 1.4fr; gap: 2rem; }
-.profile-transaction-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.contact-property-history { display: grid; gap: 1.2rem; padding-top: clamp(2.5rem, 6vw, 4.5rem); }
+.contact-property-history > header { display: grid; gap: 0.25rem; }
+.contact-property-history > header h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.85rem, 4vw, 2.8rem); font-weight: 400; letter-spacing: -0.02em; }
+.contact-property-history > header > p:last-child { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.78rem; }
+.contact-property-history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; background: rgba(255, 253, 248, 0.78); border: 1px solid var(--line); }
+.contact-property-history-summary article { display: grid; min-height: 6.3rem; align-content: center; gap: 0.42rem; padding: 1rem 1.2rem; }
+.contact-property-history-summary article + article { border-left: 1px solid var(--line); }
+.contact-property-history-summary strong { font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.15rem, 2.4vw, 1.55rem); font-weight: 400; }
+.contact-property-history-summary span { color: var(--ink-soft); font-size: 0.57rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.contact-property-history-grid { display: grid; gap: 0.8rem; }
+.contact-property-history-card { display: grid; grid-template-columns: minmax(12rem, 1.05fr) minmax(20rem, 1.7fr) auto; gap: 1.15rem 1.5rem; align-items: center; padding: 1.25rem 1.35rem; background: rgba(255, 253, 248, 0.86); border: 1px solid var(--line); border-left: 3px solid rgba(198, 168, 103, 0.72); box-shadow: 0 0.8rem 2.4rem rgba(19, 35, 59, 0.035); }
+.contact-property-history-card.is-cancelled { background: rgba(244, 241, 234, 0.66); border-left-color: rgba(19, 35, 59, 0.2); }
+.contact-property-history-badges { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.contact-property-history-badges span,
+.contact-property-history-badges strong { display: inline-flex; min-height: 1.65rem; align-items: center; padding: 0.28rem 0.5rem; border-radius: 999px; font-size: 0.53rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.contact-property-history-badges span { color: var(--paper); background: var(--ink); }
+.contact-property-history-badges span.is-listing { color: #6e5830; background: rgba(198, 168, 103, 0.18); border: 1px solid rgba(198, 168, 103, 0.38); }
+.contact-property-history-badges strong { margin-left: auto; color: var(--ink-soft); background: rgba(19, 35, 59, 0.07); }
+.contact-property-history-badges strong.is-completed { color: #436346; background: rgba(76, 116, 79, 0.11); }
+.contact-property-history-badges strong.is-cancelled { color: #7e615d; background: rgba(147, 76, 69, 0.1); }
+.contact-property-history-address h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.08rem, 2.4vw, 1.35rem); font-weight: 400; line-height: 1.25; }
+.contact-property-history-address p { margin: 0.45rem 0 0; color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.04em; }
+.contact-property-history-details { display: grid; grid-template-columns: repeat(4, minmax(6.5rem, 1fr)); gap: 0.85rem 1rem; margin: 0; }
+.contact-property-history-details div { min-width: 0; }
+.contact-property-history-details dt { color: var(--ink-soft); font-size: 0.54rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.contact-property-history-details dd { margin: 0.28rem 0 0; font-size: 0.72rem; line-height: 1.35; }
+.contact-property-history-actions { display: grid; min-width: 10.5rem; gap: 0.45rem; }
+.contact-property-history-actions a { display: flex; min-height: 2.65rem; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.6rem 0.75rem; color: var(--paper); text-align: center; text-decoration: none; background: var(--ink); border: 1px solid var(--ink); font-size: 0.57rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.contact-property-history-actions a + a { color: #75603b; background: transparent; border-color: rgba(198, 168, 103, 0.5); }
+.contact-property-history-actions a:hover { transform: translateY(-1px); }
+.contact-property-history-empty { display: grid; gap: 0.4rem; padding: 1.35rem; background: rgba(255, 253, 248, 0.65); border: 1px dashed rgba(19, 35, 59, 0.2); }
+.contact-property-history-empty strong { font-size: 0.62rem; letter-spacing: 0.09em; }
+.contact-property-history-empty p { margin: 0; color: var(--ink-soft); font-size: 0.76rem; }
 
 @media (max-width: 950px) {
   .transactions-nav,
@@ -5414,6 +5438,9 @@ button:disabled {
   .transaction-overview article:nth-child(4) { border-top: 1px solid var(--line); }
   .transaction-overview article:nth-child(5) { border-top: 1px solid var(--line); border-left: 0; }
   .transaction-linked-clients { grid-template-columns: repeat(2, 1fr); }
+  .contact-property-history-card { grid-template-columns: minmax(11rem, 0.8fr) minmax(0, 1.5fr); }
+  .contact-property-history-actions { grid-column: 1 / -1; display: flex; }
+  .contact-property-history-actions a { flex: 1; }
 }
 
 @media (max-width: 700px) {
@@ -5451,14 +5478,19 @@ button:disabled {
   .transaction-overview { grid-template-columns: 1fr; }
   .transaction-overview article + article,
   .transaction-overview article:nth-child(3) { border-top: 1px solid var(--line); border-left: 0; }
-  .transaction-linked-clients,
-  .profile-transaction-list { grid-template-columns: 1fr; }
+  .transaction-linked-clients { grid-template-columns: 1fr; }
   .transaction-deadlines article { grid-template-columns: auto 1fr; }
   .deadline-actions { grid-column: 2; flex-wrap: wrap; }
   .deadline-presets { grid-template-columns: 1fr; }
-  .profile-transactions-section { grid-template-columns: 1fr; gap: 1rem; }
   .transaction-section-heading { align-items: stretch; flex-direction: column; }
   .transaction-add-deadline { width: 100%; }
+  .contact-property-history-summary { grid-template-columns: repeat(2, 1fr); }
+  .contact-property-history-summary article:nth-child(3) { border-top: 1px solid var(--line); border-left: 0; }
+  .contact-property-history-summary article:nth-child(4) { border-top: 1px solid var(--line); }
+  .contact-property-history-card { grid-template-columns: 1fr; gap: 1rem; padding: 1rem; }
+  .contact-property-history-badges strong { width: 100%; margin-left: 0; justify-content: center; }
+  .contact-property-history-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contact-property-history-actions { grid-column: auto; display: grid; }
 }
 
 /* Barre d’application unifiée */

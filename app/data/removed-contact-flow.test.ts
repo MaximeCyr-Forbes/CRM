@@ -57,7 +57,7 @@ describe("retrait du parcours commercial des contacts", () => {
     expect(contactProfile).toContain("FollowUpSchedulerModal");
     expect(contactProfile).toContain("ClientHistory");
     expect(contactProfile).toContain("ContactAddressManager");
-    expect(contactProfile).toContain("TRANSACTIONS LIÉES");
+    expect(contactProfile).toContain("ContactPropertyHistory");
     expect(calculateFollowUpDate("one-week", undefined, new Date(2026, 7, 19))).toBe("2026-08-26");
   });
 
