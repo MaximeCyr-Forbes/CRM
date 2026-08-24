@@ -40,8 +40,19 @@ export function parseTransactionPurchaseCompletion(value: unknown): TransactionP
     || !Number.isFinite(data.purchasePrice)
     || data.purchasePrice <= 0
     || !validCalendarDate(data.notaryDate)
+    || typeof data.collaboratingBrokerName !== "string"
+    || typeof data.noCollaboratingBroker !== "boolean"
+    || (!data.noCollaboratingBroker && (
+      !data.collaboratingBrokerName.trim()
+      || data.collaboratingBrokerName.trim().length > 240
+    ))
   ) return null;
-  return { purchasePrice: data.purchasePrice, notaryDate: data.notaryDate };
+  return {
+    purchasePrice: data.purchasePrice,
+    notaryDate: data.notaryDate,
+    collaboratingBrokerName: data.noCollaboratingBroker ? "" : data.collaboratingBrokerName.trim(),
+    noCollaboratingBroker: data.noCollaboratingBroker,
+  };
 }
 
 export function isFinalizedTransaction(
@@ -124,7 +135,7 @@ export function mapTransactionPurchaseCompletionError(error: unknown): Transacti
   if (message.includes("annulée")) {
     return new TransactionPurchaseCompletionError("cancelled", "Une Transaction annulée ne peut pas être finalisée.");
   }
-  if (message.includes("prix d’achat") || message.includes("date du notaire")) {
+  if (message.includes("prix d’achat") || message.includes("date du notaire") || message.includes("courtier collaborateur")) {
     return new TransactionPurchaseCompletionError("invalid_completion", "Finalisation de l’achat invalide.");
   }
   return null;

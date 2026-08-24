@@ -512,10 +512,13 @@ begin
 end;
 $$;
 
+drop function if exists public.complete_transaction_purchase(uuid, numeric, date);
+
 create or replace function public.complete_transaction_purchase(
   p_transaction_id uuid,
   p_purchase_price numeric,
-  p_notary_date date
+  p_notary_date date,
+  p_collaborating_broker_name text
 )
 returns public.transactions
 language plpgsql
@@ -548,11 +551,15 @@ begin
   if p_notary_date is null then
     raise exception 'Date du notaire requise.' using errcode = 'P0001';
   end if;
+  if p_collaborating_broker_name is null or char_length(trim(p_collaborating_broker_name)) > 240 then
+    raise exception 'Courtier collaborateur invalide.' using errcode = 'P0001';
+  end if;
 
   update public.transactions
   set
     price = p_purchase_price,
     notary_date = p_notary_date,
+    collaborating_broker_name = trim(p_collaborating_broker_name),
     purchase_finalized_at = now()
   where id = p_transaction_id
   returning * into v_transaction;
@@ -1381,10 +1388,10 @@ grant execute on function public.complete_transaction_sale(
   uuid, numeric, date, text, boolean
 ) to service_role;
 revoke execute on function public.complete_transaction_purchase(
-  uuid, numeric, date
+  uuid, numeric, date, text
 ) from public, anon, authenticated;
 grant execute on function public.complete_transaction_purchase(
-  uuid, numeric, date
+  uuid, numeric, date, text
 ) to service_role;
 revoke execute on function public.create_transaction_from_listing_offer(
   uuid, uuid, public.broker_assignment

@@ -208,6 +208,7 @@ export default function TransactionDetailPage() {
     {transaction.type === "purchase" && transaction.purchaseFinalizedAt && <section className="transaction-detail-section" aria-labelledby="transaction-purchase-result-title"><div className="transaction-section-heading"><div><p className="section-kicker">Résultat final</p><h2 id="transaction-purchase-result-title">RÉSULTAT FINAL DE L’ACHAT</h2></div><strong>ACHAT FINALISÉ ✓</strong></div><div className="transaction-overview transaction-purchase-result">
       <article><span>Prix d’achat</span><strong>{formatAmount(transaction.price)}</strong></article>
       <article><span>Date du notaire</span><strong>{transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée"}</strong></article>
+      <article><span>Courtier collaborateur</span><strong>{transaction.collaboratingBrokerName || "Aucun"}</strong></article>
       <article><span>Courtier responsable</span><strong>{BROKER_LABELS[transaction.broker]}</strong></article>
     </div></section>}
 
@@ -255,6 +256,7 @@ export default function TransactionDetailPage() {
   />}
   {isCompletingPurchase && <PurchaseCompletionModal
     address={transaction.address}
+    referenceCollaboratingBrokerName={transaction.collaboratingBrokerName}
     referenceNotaryDate={transaction.notaryDate}
     referencePrice={transaction.price}
     isSaving={isSaving}

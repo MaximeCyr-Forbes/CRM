@@ -93,6 +93,8 @@ export type TransactionSaleCompletion = {
 export type TransactionPurchaseCompletion = {
   purchasePrice: number;
   notaryDate: string;
+  collaboratingBrokerName: string;
+  noCollaboratingBroker: boolean;
 };
 
 export type TransactionDraft = Pick<

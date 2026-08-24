@@ -24,10 +24,39 @@ function transaction(values: Partial<Transaction> = {}): Transaction {
 
 describe("finalisation des achats", () => {
   it("valide le prix et la date du notaire", () => {
-    expect(parseTransactionPurchaseCompletion({ purchasePrice: 600_000, notaryDate: "2026-08-24" }))
-      .toEqual({ purchasePrice: 600_000, notaryDate: "2026-08-24" });
-    expect(parseTransactionPurchaseCompletion({ purchasePrice: 0, notaryDate: "2026-08-24" })).toBeNull();
-    expect(parseTransactionPurchaseCompletion({ purchasePrice: 600_000, notaryDate: "2026-02-30" })).toBeNull();
+    expect(parseTransactionPurchaseCompletion({
+      purchasePrice: 600_000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "  Jean Tremblay  ",
+      noCollaboratingBroker: false,
+    })).toEqual({
+      purchasePrice: 600_000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
+    });
+    expect(parseTransactionPurchaseCompletion({ purchasePrice: 0, notaryDate: "2026-08-24", collaboratingBrokerName: "Jean", noCollaboratingBroker: false })).toBeNull();
+    expect(parseTransactionPurchaseCompletion({ purchasePrice: 600_000, notaryDate: "2026-02-30", collaboratingBrokerName: "Jean", noCollaboratingBroker: false })).toBeNull();
+  });
+
+  it("normalise Aucun et refuse un collaborateur manquant si la case n’est pas cochée", () => {
+    expect(parseTransactionPurchaseCompletion({
+      purchasePrice: 600_000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "Nom ignoré",
+      noCollaboratingBroker: true,
+    })).toEqual({
+      purchasePrice: 600_000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "",
+      noCollaboratingBroker: true,
+    });
+    expect(parseTransactionPurchaseCompletion({
+      purchasePrice: 600_000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "  ",
+      noCollaboratingBroker: false,
+    })).toBeNull();
   });
 
   it("affiche l’action pour un achat actif ou legacy completed, jamais pour une annulation ou un achat finalisé", () => {
@@ -97,6 +126,7 @@ describe("catégories Transactions", () => {
     expect(mapTransactionPurchaseCompletionError({ message: "Cet achat est déjà finalisé." })?.message).toBe("Cet achat est déjà finalisé.");
     expect(mapTransactionPurchaseCompletionError({ message: "Une Transaction annulée ne peut pas être finalisée." })?.code).toBe("cancelled");
     expect(mapTransactionPurchaseCompletionError({ message: "Seule une Transaction d'achat peut être finalisée." })?.code).toBe("invalid_type");
+    expect(mapTransactionPurchaseCompletionError({ message: "Courtier collaborateur invalide." })?.code).toBe("invalid_completion");
     expect(mapTransactionPurchaseCompletionError({ message: "secret SQL" })).toBeNull();
   });
 });

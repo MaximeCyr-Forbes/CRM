@@ -333,6 +333,7 @@ export async function completeTransactionPurchase(
     p_transaction_id: transactionId,
     p_purchase_price: values.purchasePrice,
     p_notary_date: values.notaryDate,
+    p_collaborating_broker_name: values.collaboratingBrokerName,
   });
   if (error) {
     const transactionError = mapTransactionPurchaseCompletionError(error);

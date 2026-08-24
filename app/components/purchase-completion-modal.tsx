@@ -8,6 +8,7 @@ type PurchaseCompletionModalProps = {
   address: string;
   referencePrice: number | null;
   referenceNotaryDate: string | null;
+  referenceCollaboratingBrokerName: string;
   isSaving: boolean;
   onClose: () => void;
   onConfirm: (values: TransactionPurchaseCompletion) => Promise<void>;
@@ -26,12 +27,15 @@ export function PurchaseCompletionModal({
   address,
   referencePrice,
   referenceNotaryDate,
+  referenceCollaboratingBrokerName,
   isSaving,
   onClose,
   onConfirm,
 }: PurchaseCompletionModalProps) {
   const [purchasePrice, setPurchasePrice] = useState(referencePrice?.toString() ?? "");
   const [notaryDate, setNotaryDate] = useState(referenceNotaryDate ?? "");
+  const [collaboratingBrokerName, setCollaboratingBrokerName] = useState(referenceCollaboratingBrokerName);
+  const [noCollaboratingBroker, setNoCollaboratingBroker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
@@ -55,11 +59,21 @@ export function PurchaseCompletionModal({
       submittingRef.current = false;
       return;
     }
+    if (!noCollaboratingBroker && !collaboratingBrokerName.trim()) {
+      setError("Indiquez le courtier collaborateur ou choisissez Aucun.");
+      submittingRef.current = false;
+      return;
+    }
 
     setIsSubmitting(true);
     let succeeded = false;
     try {
-      await onConfirm({ purchasePrice: parsedPrice, notaryDate });
+      await onConfirm({
+        purchasePrice: parsedPrice,
+        notaryDate,
+        collaboratingBrokerName: noCollaboratingBroker ? "" : collaboratingBrokerName.trim(),
+        noCollaboratingBroker,
+      });
       succeeded = true;
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Impossible de finaliser l’achat.");
@@ -93,6 +107,26 @@ export function PurchaseCompletionModal({
           <label>
             <span>Date du notaire *</span>
             <input onChange={(event) => setNotaryDate(event.target.value)} required type="date" value={notaryDate} />
+          </label>
+          <label>
+            <span>Courtier collaborateur *</span>
+            <input
+              disabled={noCollaboratingBroker}
+              maxLength={240}
+              onChange={(event) => setCollaboratingBrokerName(event.target.value)}
+              placeholder="Nom du courtier collaborateur"
+              required={!noCollaboratingBroker}
+              type="text"
+              value={collaboratingBrokerName}
+            />
+          </label>
+          <label className="listing-sold-none">
+            <input
+              checked={noCollaboratingBroker}
+              onChange={(event) => setNoCollaboratingBroker(event.target.checked)}
+              type="checkbox"
+            />
+            <span>Aucun courtier collaborateur</span>
           </label>
           {error && <p className="listing-editor-error" role="alert">{error}</p>}
           <footer className="listing-sold-actions">

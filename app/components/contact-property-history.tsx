@@ -60,6 +60,7 @@ function TransactionCard({ transaction, listingsById }: { transaction: Transacti
         <DateDetail label="PA acceptée" value={transaction.promiseDate} />
         <DateDetail label="Date du notaire" value={transaction.notaryDate} />
         <div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div>
+        {transaction.type === "purchase" && transaction.purchaseFinalizedAt && transaction.collaboratingBrokerName && <div><dt>Courtier collaborateur</dt><dd>{transaction.collaboratingBrokerName}</dd></div>}
         {listing && <AmountDetail label="Prix demandé" value={listing.askingPrice} />}
         {listing && <DateDetail label="Mise en marché" value={listing.listingDate} />}
         {listing && paDelay !== null && <div><dt>Délai avant PA</dt><dd>{paDelay} jour{paDelay === 1 ? "" : "s"}</dd></div>}

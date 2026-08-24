@@ -5365,7 +5365,7 @@ button:disabled {
 .transaction-overview article + article { border-left: 1px solid var(--line); }
 .transaction-overview span { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .transaction-overview strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
-.transaction-purchase-result { grid-template-columns: repeat(3, 1fr); }
+.transaction-purchase-result { grid-template-columns: repeat(4, 1fr); }
 .transaction-delete-content { padding-top: 1.5rem; }
 .transaction-delete-content > strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; }
 .transaction-delete-content > p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.65; }

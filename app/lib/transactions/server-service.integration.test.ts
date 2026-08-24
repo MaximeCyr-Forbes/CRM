@@ -151,6 +151,7 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
       type: "purchase",
       price: 600000,
       notary_date: "2026-08-24",
+      collaborating_broker_name: "Jean Tremblay",
       purchase_finalized_at: "2026-08-24T15:00:00.000Z",
       status: "notary",
     };
@@ -161,12 +162,15 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
     const result = await completeTransactionPurchase(row.id, {
       purchasePrice: 600000,
       notaryDate: "2026-08-24",
+      collaboratingBrokerName: "Jean Tremblay",
+      noCollaboratingBroker: false,
     });
 
     expect(rpc).toHaveBeenCalledWith("complete_transaction_purchase", {
       p_transaction_id: row.id,
       p_purchase_price: 600000,
       p_notary_date: "2026-08-24",
+      p_collaborating_broker_name: "Jean Tremblay",
     });
     expect(result).toMatchObject({
       id: row.id,
@@ -175,8 +179,38 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
       contactIds: [],
       price: 600000,
       notaryDate: "2026-08-24",
+      collaboratingBrokerName: "Jean Tremblay",
       purchaseFinalizedAt: "2026-08-24T15:00:00.000Z",
     });
     expect(from).toHaveBeenCalledWith("transaction_contacts");
+  });
+
+  it("finalise un achat sans courtier collaborateur avec une valeur vide", async () => {
+    const finalizedRow: TransactionRow = {
+      ...row,
+      type: "purchase",
+      price: 600000,
+      notary_date: "2026-08-24",
+      collaborating_broker_name: "",
+      purchase_finalized_at: "2026-08-24T15:00:00.000Z",
+      status: "notary",
+    };
+    const rpc = vi.fn(async () => ({ data: finalizedRow, error: null }));
+    supabase.getAdmin.mockReturnValue({
+      from: vi.fn(() => readableQuery({ data: [], error: null })),
+      rpc,
+    });
+
+    const result = await completeTransactionPurchase(row.id, {
+      purchasePrice: 600000,
+      notaryDate: "2026-08-24",
+      collaboratingBrokerName: "Nom ignoré",
+      noCollaboratingBroker: true,
+    });
+
+    expect(rpc).toHaveBeenCalledWith("complete_transaction_purchase", expect.objectContaining({
+      p_collaborating_broker_name: "",
+    }));
+    expect(result.collaboratingBrokerName).toBe("");
   });
 });
