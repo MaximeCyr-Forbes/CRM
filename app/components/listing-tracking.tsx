@@ -3,6 +3,12 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react";
 import { BROKER_LABELS } from "../data/contact-types";
 import { LISTING_INTEREST_LABELS, type Listing, type ListingVisit } from "../data/listing-types";
+import {
+  getListingChecklistStats,
+  getListingDocumentGroups,
+  isListingDocumentTask,
+  listingTaskDisplayTitle,
+} from "../lib/listings/checklist";
 import { useListingTracking } from "../lib/listings/use-listing-tracking";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import { ListingVisitModal } from "./listing-visit-modal";
@@ -22,9 +28,14 @@ export function ListingTracking({ listing, ownerNames, onListingChanged }: { lis
   const tracking = useListingTracking(listing.id);
   const [newTask, setNewTask] = useState("");
   const [editingTask, setEditingTask] = useState<{ id: string; title: string } | null>(null);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
   const [visitModal, setVisitModal] = useState<ListingVisit | "new" | null>(null);
   const [deletingVisit, setDeletingVisit] = useState<ListingVisit | null>(null);
-  const completed = tracking.data.tasks.filter((task) => task.completed).length;
+  const checklist = getListingChecklistStats(tracking.data.tasks, listing.propertyType);
+  const documentGroups = getListingDocumentGroups(tracking.data.tasks, listing.propertyType);
+  const documentTasks = documentGroups.flatMap((group) => group.tasks);
+  const completedDocuments = documentTasks.filter((task) => task.completed).length;
+  const mainTasks = checklist.visibleTasks.filter((task) => !isListingDocumentTask(task));
   const visitSummary = useMemo(() => ({
     high: tracking.data.visits.filter((visit) => visit.interestLevel === "high").length,
     medium: tracking.data.visits.filter((visit) => visit.interestLevel === "medium").length,
@@ -41,6 +52,14 @@ export function ListingTracking({ listing, ownerNames, onListingChanged }: { lis
     setNewTask("");
   }
 
+  function taskRow(task: (typeof tracking.data.tasks)[number], nested = false) {
+    const title = listingTaskDisplayTitle(task);
+    return <article className={`${task.completed ? "listing-task-completed" : ""}${nested ? " listing-document-task" : ""}`} key={task.id}>
+      <label><input checked={task.completed} disabled={tracking.isSaving} onChange={() => void tracking.toggleTask(task.id, !task.completed)} type="checkbox" /><span><strong>{title}</strong>{task.completedAt && <small>Complétée{task.completedBy ? ` par ${BROKER_LABELS[task.completedBy]}` : ""} · {displayDate(task.completedAt)}</small>}</span></label>
+      {task.isCustom && <div><button aria-label={`Modifier ${title}`} onClick={() => setEditingTask({ id: task.id, title: task.title })} type="button">✎</button><button aria-label={`Supprimer ${title}`} className="listing-task-delete" onClick={() => window.confirm("Supprimer cette tâche personnalisée ?") && void tracking.deleteTask(task.id)} type="button">⌫</button></div>}
+    </article>;
+  }
+
   if (tracking.isLoading) return <section className="listing-detail-section listing-tracking-state" aria-live="polite">Chargement du suivi de mise en marché…</section>;
   if (tracking.error && tracking.data.tasks.length === 0) return <section className="listing-detail-section listing-tracking-state" role="alert"><span>{tracking.error}</span><button onClick={() => void tracking.retry()} type="button">Réessayer</button></section>;
 
@@ -51,13 +70,15 @@ export function ListingTracking({ listing, ownerNames, onListingChanged }: { lis
 
       <div className="listing-tracking-grid">
         <section className="listing-tracking-panel listing-checklist" aria-labelledby="listing-checklist-title">
-          <header><div><span>Checklist</span><h3 id="listing-checklist-title">MISE EN MARCHÉ</h3></div><strong>{completed} / {tracking.data.tasks.length}</strong></header>
-          <div className="listing-checklist-progress" aria-label={`${completed} tâches complétées sur ${tracking.data.tasks.length}`}><span style={{ width: `${tracking.data.tasks.length ? Math.round(completed / tracking.data.tasks.length * 100) : 0}%` }} /></div>
+          <header><div><span>Checklist</span><h3 id="listing-checklist-title">MISE EN MARCHÉ</h3></div><strong>{checklist.completed} / {checklist.total}</strong></header>
+          <div className="listing-checklist-progress" aria-label={`${checklist.completed} tâches complétées sur ${checklist.total}`}><span style={{ width: `${checklist.total ? Math.round(checklist.completed / checklist.total * 100) : 0}%` }} /></div>
           <div className="listing-task-list">
-            {tracking.data.tasks.map((task) => <article className={task.completed ? "listing-task-completed" : ""} key={task.id}>
-              <label><input checked={task.completed} disabled={tracking.isSaving} onChange={() => void tracking.toggleTask(task.id, !task.completed)} type="checkbox" /><span><strong>{task.title}</strong>{task.completedAt && <small>Complétée{task.completedBy ? ` par ${BROKER_LABELS[task.completedBy]}` : ""} · {displayDate(task.completedAt)}</small>}</span></label>
-              {task.isCustom && <div><button aria-label={`Modifier ${task.title}`} onClick={() => setEditingTask({ id: task.id, title: task.title })} type="button">✎</button><button aria-label={`Supprimer ${task.title}`} className="listing-task-delete" onClick={() => window.confirm("Supprimer cette tâche personnalisée ?") && void tracking.deleteTask(task.id)} type="button">⌫</button></div>}
-            </article>)}
+            {mainTasks.filter((task) => task.sortOrder < 30).map((task) => taskRow(task))}
+            <section className={`listing-documents-group${documentsOpen ? " listing-documents-open" : ""}`}>
+              <button aria-controls="listing-owner-documents" aria-expanded={documentsOpen} className="listing-documents-toggle" onClick={() => setDocumentsOpen((open) => !open)} type="button"><span>DOCUMENTS DU PROPRIÉTAIRE</span><strong>{completedDocuments} / {documentTasks.length}</strong><span aria-hidden="true">⌄</span></button>
+              <div className="listing-documents-content" hidden={!documentsOpen} id="listing-owner-documents">{documentGroups.map((group) => <section key={group.key}><h4>{group.title}</h4>{group.tasks.map((task) => taskRow(task, true))}</section>)}</div>
+            </section>
+            {mainTasks.filter((task) => task.sortOrder >= 30).map((task) => taskRow(task))}
           </div>
           {editingTask && <form className="listing-task-form" onSubmit={(event) => { event.preventDefault(); void tracking.updateTask(editingTask.id, editingTask.title).then(() => setEditingTask(null)); }}><input aria-label="Titre de la tâche" autoFocus value={editingTask.title} onChange={(event) => setEditingTask({ ...editingTask, title: event.target.value })} /><button type="submit">Enregistrer</button><button onClick={() => setEditingTask(null)} type="button">Annuler</button></form>}
           <form className="listing-task-form" onSubmit={(event) => void addTask(event)}><input aria-label="Nouvelle tâche personnalisée" placeholder="Nouvelle tâche personnalisée" value={newTask} onChange={(event) => setNewTask(event.target.value)} /><button disabled={tracking.isSaving || !newTask.trim()} type="submit">+ Ajouter une tâche</button></form>

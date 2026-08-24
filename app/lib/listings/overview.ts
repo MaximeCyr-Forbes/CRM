@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from "../supabase/server";
 import { listingAddressLines } from "./presentation";
 import { mapListing } from "./server-service";
 import type { ListingRow } from "./persistence";
+import { isListingTaskActionable } from "./checklist";
 
 const MARKET_STATUSES = new Set(["preparation", "coming_soon", "active", "offer_received", "conditional"]);
 const DAYS_ON_MARKET_STATUSES = new Set(["active", "offer_received", "conditional"]);
@@ -20,7 +21,7 @@ const torontoCalendar = new Intl.DateTimeFormat("en-CA", {
 });
 
 export type OverviewOfferRow = { listing_id: string; status: string };
-export type OverviewTaskRow = { listing_id: string; completed: boolean };
+export type OverviewTaskRow = { listing_id: string; completed: boolean; task_key: string | null; is_custom: boolean };
 export type ListingOverviewFilters = { broker?: ListingBroker; purpose?: ListingPurpose };
 
 export type ListingOverviewRepository = {
@@ -111,7 +112,7 @@ export function calculateListingOverview(
     if (listing.status === "conditional") items.push({ ...base, kind: "conditional", label: "Listing conditionnel", level: "attention" });
     const days = getListingDaysOnMarket(listing, today);
     if (listing.status === "active" && days !== null && days >= 45) items.push({ ...base, kind: "long_market", label: `${days} jours en marché`, level: "neutral" });
-    const listingTasks = tasksByListing.get(listing.id) ?? [];
+    const listingTasks = (tasksByListing.get(listing.id) ?? []).filter((task) => isListingTaskActionable({ taskKey: task.task_key, isCustom: task.is_custom }, listing.propertyType));
     const remaining = listingTasks.filter((task) => !task.completed).length;
     if (listingTasks.length > 0 && remaining > 0) items.push({ ...base, kind: "incomplete_checklist", label: `${remaining} action${remaining === 1 ? "" : "s"} de mise en marché à compléter`, level: "neutral" });
     return items;
@@ -152,7 +153,7 @@ export function createSupabaseListingOverviewRepository(): ListingOverviewReposi
       return (data ?? []) as OverviewOfferRow[];
     }),
     loadTasks: (listingIds) => loadOverviewRowsInBatches(listingIds, async (batch) => {
-      const { data, error } = await admin().from("listing_marketing_tasks").select("listing_id, completed").in("listing_id", [...batch]);
+      const { data, error } = await admin().from("listing_marketing_tasks").select("listing_id, completed, task_key, is_custom").in("listing_id", [...batch]);
       if (error) throw error;
       return (data ?? []) as OverviewTaskRow[];
     }),

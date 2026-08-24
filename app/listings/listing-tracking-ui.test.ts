@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("interface et sécurité du suivi Listings", () => {
   const detail = source("app/listings/[listingId]/page.tsx");
   const tracking = source("app/components/listing-tracking.tsx");
+  const checklist = source("app/lib/listings/checklist.ts");
   const visitModal = source("app/components/listing-visit-modal.tsx");
   const hook = source("app/lib/listings/use-listing-tracking.ts");
   const route = source("app/api/listings/[listingId]/tracking/route.ts");
@@ -35,6 +36,16 @@ describe("interface et sécurité du suivi Listings", () => {
     expect(tracking).toContain("+ Ajouter une tâche");
     expect(tracking).toContain("updateTask");
     expect(tracking).toContain("deleteTask");
+  });
+
+  it("présente les documents dans un accordéon conditionnel sans compter son parent", () => {
+    expect(tracking).toContain("DOCUMENTS DU PROPRIÉTAIRE");
+    expect(tracking).toContain("aria-expanded");
+    expect(tracking).toContain("getListingDocumentGroups");
+    expect(checklist).toContain("COPROPRIÉTÉ INDIVISE");
+    expect(checklist).toContain("COPROPRIÉTÉ DIVISE");
+    expect(checklist).toContain("TERRAIN");
+    expect(checklist).toContain("!isListingChecklistStructuralTask(task)");
   });
 
   it("gère visite date seule ou complète, feedback, intérêts et confirmation de suppression", () => {

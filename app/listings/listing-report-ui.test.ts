@@ -51,6 +51,7 @@ describe("rapport vendeur et propriétaire", () => {
     expect(report).toContain("PROCHAINES ACTIONS");
     expect(report).toContain("completedTasks");
     expect(report).toContain("remainingTasks");
+    expect(report).toContain("getListingChecklistStats");
   });
 
   it("n’affiche jamais les notes internes ou l’activité technique", () => {
@@ -101,6 +102,8 @@ describe("intégration et performance Listings", () => {
     expect(overviewService).toContain("loadOverviewRowsInBatches");
     expect(overviewService).toContain("LISTING_OVERVIEW_BATCH_SIZE = 150");
     expect(overviewService).toContain('.in("listing_id", [...batch])');
+    expect(overviewService).toContain('"listing_id, completed, task_key, is_custom"');
+    expect(overviewService).toContain("isListingTaskActionable");
     expect(overviewService).not.toMatch(/for\s*\([^)]*listing[^)]*\)[\s\S]*getSupabaseAdmin\(\)/i);
   });
 

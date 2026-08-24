@@ -104,7 +104,7 @@ describe("calculs du tableau de bord Listings", () => {
 
   it("produit les priorités expiration, négociation, conditionnel, ancienneté et checklist", () => {
     const current = listing({ listingDate: "2026-06-01", expirationDate: "2026-08-25", status: "conditional" });
-    const data = calculateListingOverview([current], [{ listing_id: current.id, status: "negotiating" }], [{ listing_id: current.id, completed: true }, { listing_id: current.id, completed: false }], today);
+    const data = calculateListingOverview([current], [{ listing_id: current.id, status: "negotiating" }], [{ listing_id: current.id, completed: true, task_key: "photos", is_custom: false }, { listing_id: current.id, completed: false, task_key: "sign", is_custom: false }], today);
     expect(data.attentionItems.map((item) => item.kind)).toEqual(expect.arrayContaining(["expiration", "open_offer", "conditional", "incomplete_checklist"]));
   });
 
@@ -113,11 +113,38 @@ describe("calculs du tableau de bord Listings", () => {
     const data = calculateListingOverview(
       [sold],
       [{ listing_id: sold.id, status: "negotiating" }],
-      [{ listing_id: sold.id, completed: false }],
+      [{ listing_id: sold.id, completed: false, task_key: "photos", is_custom: false }],
       today,
     );
     expect(data.activeListings).toBe(0);
     expect(data.attentionItems).toEqual([]);
+  });
+
+  it("ignore le parent, les descriptions historiques et les documents d’un autre type dans la checklist", () => {
+    const current = listing({ propertyType: "residential" });
+    const data = calculateListingOverview(
+      [current],
+      [],
+      [
+        { listing_id: current.id, completed: false, task_key: "documents", is_custom: false },
+        { listing_id: current.id, completed: false, task_key: "description_fr", is_custom: false },
+        { listing_id: current.id, completed: false, task_key: "condo_declaration", is_custom: false },
+        { listing_id: current.id, completed: true, task_key: "photos", is_custom: false },
+      ],
+      today,
+    );
+    expect(data.attentionItems.some(({ kind }) => kind === "incomplete_checklist")).toBe(false);
+  });
+
+  it("compte les tâches personnalisées comme actions visibles", () => {
+    const current = listing();
+    const data = calculateListingOverview(
+      [current],
+      [],
+      [{ listing_id: current.id, completed: false, task_key: null, is_custom: true }],
+      today,
+    );
+    expect(data.attentionItems.some(({ kind }) => kind === "incomplete_checklist")).toBe(true);
   });
 });
 

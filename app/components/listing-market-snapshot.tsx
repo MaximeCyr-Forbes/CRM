@@ -3,6 +3,7 @@
 import { getListingDaysOnMarket, getListingExpirationInfo } from "../lib/listings/overview";
 import { formatListingDate } from "../lib/listings/presentation";
 import { useListingReport } from "../lib/listings/use-listing-report";
+import { getListingChecklistStats } from "../lib/listings/checklist";
 
 export function ListingMarketSnapshot({ listingId }: { listingId: string }) {
   const report = useListingReport(listingId);
@@ -11,6 +12,6 @@ export function ListingMarketSnapshot({ listingId }: { listingId: string }) {
   const { listing, tracking, offers, transactionLink } = report.data;
   const days = getListingDaysOnMarket(listing);
   const expiration = getListingExpirationInfo(listing);
-  const completed = tracking?.tasks.filter((task) => task.completed).length ?? null;
-  return <section className="listing-market-snapshot" aria-labelledby="listing-market-snapshot-title"><header><div><p className="section-kicker">Lecture rapide</p><h2 id="listing-market-snapshot-title">MISE EN MARCHÉ</h2></div>{transactionLink && <button onClick={() => window.location.assign(`/transactions/${transactionLink.transactionId}`)} type="button">TRANSACTION LIÉE →</button>}</header><div><article><span>Jours en marché</span><strong>{days === null ? "—" : days === 1 ? "Jour 1" : `${days} jours`}</strong></article><article><span>Date de mise en marché</span><strong>{formatListingDate(listing.listingDate)}</strong></article><article><span>Expiration</span><strong>{expiration?.label ?? formatListingDate(listing.expirationDate)}</strong></article><article><span>Visites</span><strong>{tracking ? tracking.visits.length : "Indisponible"}</strong></article><article><span>Offres</span><strong>{offers ? offers.length : "Indisponible"}</strong></article><article><span>Progression checklist</span><strong>{tracking && completed !== null ? `${completed} / ${tracking.tasks.length}` : "Indisponible"}</strong></article></div></section>;
+  const checklist = tracking ? getListingChecklistStats(tracking.tasks, listing.propertyType) : null;
+  return <section className="listing-market-snapshot" aria-labelledby="listing-market-snapshot-title"><header><div><p className="section-kicker">Lecture rapide</p><h2 id="listing-market-snapshot-title">MISE EN MARCHÉ</h2></div>{transactionLink && <button onClick={() => window.location.assign(`/transactions/${transactionLink.transactionId}`)} type="button">TRANSACTION LIÉE →</button>}</header><div><article><span>Jours en marché</span><strong>{days === null ? "—" : days === 1 ? "Jour 1" : `${days} jours`}</strong></article><article><span>Date de mise en marché</span><strong>{formatListingDate(listing.listingDate)}</strong></article><article><span>Expiration</span><strong>{expiration?.label ?? formatListingDate(listing.expirationDate)}</strong></article><article><span>Visites</span><strong>{tracking ? tracking.visits.length : "Indisponible"}</strong></article><article><span>Offres</span><strong>{offers ? offers.length : "Indisponible"}</strong></article><article><span>Progression checklist</span><strong>{checklist ? `${checklist.completed} / ${checklist.total}` : "Indisponible"}</strong></article></div></section>;
 }
