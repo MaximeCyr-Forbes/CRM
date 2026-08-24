@@ -13,6 +13,7 @@ import {
   isTransactionCompleted,
   type TransactionBroker,
   type TransactionDraft,
+  type TransactionType,
 } from "../data/transaction-types";
 import { useTransactions } from "../transactions-context";
 import { toLocalISODate } from "../lib/follow-up";
@@ -20,6 +21,7 @@ import { transactionMatchesSearch } from "../lib/transactions/search";
 
 type BrokerFilter = "all" | TransactionBroker;
 type StateFilter = "active" | "completed";
+type TransactionTypeFilter = "all" | TransactionType;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
@@ -33,11 +35,14 @@ export default function TransactionsPage() {
   const { contacts } = useContacts();
   const { transactions, isLoading, isSaving, error, retry, createTransaction } = useTransactions();
   const queryBroker = searchParams.get("broker");
+  const queryState = searchParams.get("state");
+  const queryType = searchParams.get("type");
   const initialBroker = CONTACT_BROKERS.includes(queryBroker as TransactionBroker)
     ? queryBroker as TransactionBroker
     : selectedBroker?.toLowerCase() as TransactionBroker | undefined;
   const [brokerFilter, setBrokerFilter] = useState<BrokerFilter>(initialBroker ?? "all");
-  const [stateFilter, setStateFilter] = useState<StateFilter>("active");
+  const [stateFilter, setStateFilter] = useState<StateFilter>(queryState === "completed" ? "completed" : "active");
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>(queryType === "sale" || queryType === "purchase" ? queryType : "all");
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
@@ -46,6 +51,11 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (CONTACT_BROKERS.includes(queryBroker as TransactionBroker)) setBrokerFilter(queryBroker as TransactionBroker);
   }, [queryBroker]);
+
+  useEffect(() => {
+    if (queryState === "active" || queryState === "completed") setStateFilter(queryState);
+    if (queryType === "sale" || queryType === "purchase") setTypeFilter(queryType);
+  }, [queryState, queryType]);
 
   useEffect(() => {
     if (!confirmation) return;
@@ -63,6 +73,7 @@ export default function TransactionsPage() {
   const visibleTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
       if (brokerFilter !== "all" && transaction.broker !== brokerFilter) return false;
+      if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
       if (stateFilter === "active" ? isTransactionCompleted(transaction) : !isTransactionCompleted(transaction)) return false;
       const contactNames = transaction.contactIds.map((contactId) => {
         const contact = contacts.find((item) => item.id === contactId);
@@ -70,7 +81,7 @@ export default function TransactionsPage() {
       }).join(" ");
       return transactionMatchesSearch(transaction, contactNames, search);
     });
-  }, [brokerFilter, contacts, search, stateFilter, transactions]);
+  }, [brokerFilter, contacts, search, stateFilter, transactions, typeFilter]);
 
   return (
     <main className="transactions-page">
@@ -82,6 +93,7 @@ export default function TransactionsPage() {
 
         <section className="transactions-controls" aria-label="Filtres des transactions">
           <div className="transaction-filter-group">{(["all", ...CONTACT_BROKERS] as BrokerFilter[]).map((broker) => <button aria-pressed={brokerFilter === broker} key={broker} onClick={() => setBrokerFilter(broker)} type="button">{broker === "all" ? "Tous" : BROKER_LABELS[broker]}</button>)}</div>
+          <div className="transaction-filter-group"><button aria-pressed={typeFilter === "all"} onClick={() => setTypeFilter("all")} type="button">Tous types</button><button aria-pressed={typeFilter === "sale"} onClick={() => setTypeFilter("sale")} type="button">Ventes</button><button aria-pressed={typeFilter === "purchase"} onClick={() => setTypeFilter("purchase")} type="button">Achats</button></div>
           <div className="transaction-filter-group transaction-state-filter"><button aria-pressed={stateFilter === "active"} onClick={() => setStateFilter("active")} type="button">Actives</button><button aria-pressed={stateFilter === "completed"} onClick={() => setStateFilter("completed")} type="button">Terminées</button></div>
           <label className="transactions-search"><span aria-hidden="true">⌕</span><input aria-label="Rechercher par adresse, numéro Centris ou client" onChange={(event) => setSearch(event.target.value)} placeholder="Adresse, Centris ou client" type="search" value={search} /></label>
         </section>

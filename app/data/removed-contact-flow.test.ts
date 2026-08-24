@@ -23,6 +23,7 @@ describe("retrait du parcours commercial des contacts", () => {
       "Listings",
       "Transactions",
       "Calendrier",
+      "Statistiques",
       "Logiciels",
       "Paramètres",
     ]);

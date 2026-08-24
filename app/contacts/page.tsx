@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { DataStatus } from "../components/data-status";
 import { DuplicateResolutionModal } from "../components/duplicate-resolution-modal";
@@ -48,7 +48,7 @@ import {
   type DuplicateReason,
 } from "../lib/contact-normalization";
 import { addressInputFromDraft, primaryAddressFields } from "../lib/contact-addresses";
-import { formatFollowUpDate } from "../lib/follow-up";
+import { formatFollowUpDate, toLocalISODate } from "../lib/follow-up";
 
 type ContactFilter = "all" | ContactBroker;
 type ImportKind = "csv" | "vcard";
@@ -158,6 +158,7 @@ function automaticImportResolution(candidate: ImportCandidate): ImportResolution
 
 export default function ContactsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedBroker } = useBroker();
   const {
     contacts,
@@ -188,14 +189,22 @@ export default function ContactsPage() {
   const [emailContactId, setEmailContactId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(100);
+  const queryBroker = searchParams.get("broker");
+  const queryFollowUp = searchParams.get("followUp");
+  const today = toLocalISODate(new Date());
+
+  useEffect(() => {
+    if (filterOptions.some((option) => option.value === queryBroker)) setActiveFilter(queryBroker as ContactFilter);
+  }, [queryBroker]);
 
   const normalizedTerms = [normalizeName(search), normalizePhone(search), normalizeEmail(search)].filter(Boolean);
   const visibleContacts = useMemo(
     () => [...contacts]
       .filter((contact) => activeFilter === "all" || contact.broker === activeFilter)
+      .filter((contact) => queryFollowUp !== "overdue" || Boolean(contact.nextFollowUpDate && contact.nextFollowUpDate < today))
       .filter((contact) => normalizedTerms.length === 0 || normalizedTerms.some((term) => searchableContactText(contact).includes(term)))
       .sort((first, second) => second.createdAt.localeCompare(first.createdAt)),
-    [activeFilter, contacts, normalizedTerms.join("|")],
+    [activeFilter, contacts, normalizedTerms.join("|"), queryFollowUp, today],
   );
   const unassignedCount = contacts.filter((contact) => contact.broker === "unassigned").length;
   const pagedContacts = visibleContacts.slice(0, visibleLimit);

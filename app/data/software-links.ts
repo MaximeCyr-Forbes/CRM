@@ -17,6 +17,7 @@ export const appNavigationOrder = [
   "Listings",
   "Transactions",
   "Calendrier",
+  "Statistiques",
   "Logiciels",
   "Paramètres",
 ] as const;
