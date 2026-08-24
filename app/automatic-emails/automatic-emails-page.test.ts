@@ -17,6 +17,7 @@ describe("module Courriels Auto verrouillé", () => {
 
   it("affiche les quatre règles, le verrou et les simulations sans activation", () => {
     const page = source("app/automatic-emails/page.tsx");
+    const custom = source("app/automatic-emails/custom-campaigns-section.tsx");
     expect(page).toContain("ENVOIS AUTOMATIQUES VERROUILLÉS");
     expect(page).toContain("MODE SIMULATION");
     expect(page).toContain("SIMULATION SEULEMENT");
@@ -24,6 +25,9 @@ describe("module Courriels Auto verrouillé", () => {
     expect(page).not.toContain("ACTIVER LES ENVOIS");
     expect(page).not.toContain("sendGmailMessage");
     expect(page).not.toContain("messages.send");
+    for (const text of ["CAMPAGNES PERSONNALISÉES", "+ NOUVELLE CAMPAGNE", "DESTINATAIRES", "SÉQUENCE DE COURRIELS", "VOIR TOUS LES ENVOIS PRÉVUS"]) expect(custom).toContain(text);
+    expect(custom).toContain("SIMULATION SEULEMENT — AUCUN COURRIEL NE PEUT PARTIR");
+    expect(custom).not.toContain("sendGmailMessage");
   });
 
   it("ne crée aucune route capable de lancer un envoi automatique", () => {

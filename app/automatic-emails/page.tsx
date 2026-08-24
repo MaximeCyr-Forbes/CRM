@@ -16,6 +16,7 @@ import {
   type AutomaticEmailRule,
   type AutomaticEmailTransactionType,
 } from "../data/automatic-email-types";
+import CustomCampaignsSection from "./custom-campaigns-section";
 
 type RulesPayload = {
   rules: AutomaticEmailRule[];
@@ -173,6 +174,8 @@ export default function AutomaticEmailsPage() {
       <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><p className="section-kicker">Automatisations V1</p><h2 id="automatic-rules-title">RÈGLES PRÉPARÉES</h2><p>Même en mode « Automatique », aucune règle ne peut déclencher un envoi dans cette version.</p></div><div className="automatic-email-rule-grid">
         {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "CONFIGURATION INCOMPLÈTE" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status].toUpperCase()}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType].toUpperCase()}</h3><dl><div><dt>Mode prévu</dt><dd>{AUTOMATIC_EMAIL_MODE_LABELS[rule.executionMode]}</dd></div><div><dt>Expéditeur</dt><dd>Selon le courtier du Contact{rule.defaultBroker ? ` · secours ${BROKER_LABELS[rule.defaultBroker]}` : " · secours requis"}</dd></div><div><dt>Déclencheur</dt><dd>{triggerLabel(rule)}</dd></div><div><dt>Destinataires potentiels</dt><dd>{count} sur 30 jours</dd></div><div><dt>Prochaine occurrence</dt><dd>{next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : "Aucune dans les 30 jours"}</dd></div><div><dt>Signature Gmail</dt><dd>{rule.defaultBroker && connections.find((item) => item.broker === rule.defaultBroker)?.gmailSignatureEnabled ? "Utilisée automatiquement ✓" : "À vérifier / autoriser"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
       </div></section>
+
+      <CustomCampaignsSection />
 
       <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><p className="section-kicker">Infrastructure existante</p><h2>GMAIL ET SIGNATURES</h2></div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail prêt ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature réelle sera récupérée directement de Gmail au moment d’un futur envoi autorisé. Aucun nouveau scope OAuth n’est requis.</p></section>
 
