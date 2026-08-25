@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LISTING_STATUSES, type ListingBroker, type ListingStatus } from "../../data/listing-types";
-import { LISTING_BROKER_PHOTOS, listingBrokerPhoto } from "./broker-photos";
+import { BROKER_PHOTOS, LISTING_BROKER_PHOTOS, listingBrokerPhoto } from "./broker-photos";
 
 const root = process.cwd();
 
@@ -12,11 +12,12 @@ function listing(broker: ListingBroker, status: ListingStatus = "active") {
 
 describe("photos des courtiers responsables des Listings", () => {
   it("mappe exactement chaque courtier vers son portrait", () => {
-    expect(LISTING_BROKER_PHOTOS).toEqual({
+    expect(BROKER_PHOTOS).toEqual({
       france: "/brokers/france.jpg",
       maxime: "/brokers/maxime.jpg",
       sandrine: "/brokers/sandrine.jpg",
     });
+    expect(LISTING_BROKER_PHOTOS).toBe(BROKER_PHOTOS);
     expect(listingBrokerPhoto(listing("maxime"))).toBe("/brokers/maxime.jpg");
     expect(listingBrokerPhoto(listing("france"))).toBe("/brokers/france.jpg");
     expect(listingBrokerPhoto(listing("sandrine"))).toBe("/brokers/sandrine.jpg");
@@ -47,5 +48,17 @@ describe("photos des courtiers responsables des Listings", () => {
     expect(media).toContain("listing-broker-photo-${listing.broker}");
     expect(media).not.toContain("listing.primaryImageUrl");
     expect(media).toContain("courtier responsable du Listing");
+  });
+
+  it("réutilise les mêmes portraits dans les paramètres Google Agenda", () => {
+    const settings = readFileSync(resolve(root, "app/settings/page.tsx"), "utf8");
+    const styles = readFileSync(resolve(root, "app/globals.css"), "utf8");
+    expect(settings).toContain("BROKER_PHOTOS[connection.broker]");
+    expect(settings).toContain('alt=""');
+    expect(settings).not.toContain("calendar-broker-mark");
+    expect(styles).toContain(".calendar-broker-photo-france");
+    expect(styles).toContain(".calendar-broker-photo-maxime");
+    expect(styles).toContain(".calendar-broker-photo-sandrine");
+    expect(styles).toContain("object-fit: cover");
   });
 });

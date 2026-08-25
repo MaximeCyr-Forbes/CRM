@@ -8,6 +8,7 @@ import type {
 } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
 import { SettingsRecommendations } from "../components/settings-recommendations";
+import { BROKER_PHOTOS } from "../lib/listings/broker-photos";
 
 const emptyConnections: CalendarConnectionStatus[] = (
   ["france", "maxime", "sandrine"] as const
@@ -163,8 +164,12 @@ export default function SettingsPage() {
           {connections.map((connection) => (
             <article className="calendar-connection-card" key={connection.broker}>
               <div>
-                <span className="calendar-broker-mark" aria-hidden="true">
-                  {BROKER_LABELS[connection.broker].slice(0, 1)}
+                <span className="calendar-broker-photo-frame">
+                  <img
+                    alt=""
+                    className={`calendar-broker-photo calendar-broker-photo-${connection.broker}`}
+                    src={BROKER_PHOTOS[connection.broker]}
+                  />
                 </span>
                 <div>
                   <h2>{BROKER_LABELS[connection.broker]}</h2>

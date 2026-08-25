@@ -1277,17 +1277,36 @@ button:disabled {
   gap: 1rem;
 }
 
-.calendar-broker-mark {
-  display: grid;
+.calendar-broker-photo-frame {
+  display: block;
   width: 3.2rem;
   height: 3.2rem;
   flex: 0 0 auto;
-  place-items: center;
-  color: #8c7343;
+  overflow: hidden;
   background: rgba(198, 168, 103, 0.12);
   border: 1px solid rgba(198, 168, 103, 0.3);
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+}
+
+.calendar-broker-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(2.15);
+  transform-origin: center top;
+}
+
+.calendar-broker-photo-france {
+  object-position: center 14%;
+}
+
+.calendar-broker-photo-maxime {
+  object-position: center 40%;
+}
+
+.calendar-broker-photo-sandrine {
+  object-position: center 9%;
 }
 
 .calendar-connection-card h2,
