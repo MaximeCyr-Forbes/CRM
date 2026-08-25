@@ -82,6 +82,7 @@ class MemoryListingRepository implements ListingRepository {
   ownerLoadCalls = 0;
   nextId = 1;
   activity: Array<{ eventType: string; listingId: string }> = [];
+  transactionLinks = new Set<string>();
 
   async listRows(filters: ListingFilters) {
     return this.rows.filter((row) =>
@@ -168,6 +169,10 @@ class MemoryListingRepository implements ListingRepository {
       { eventType: "status_changed", listingId },
     );
     return this.rows[index];
+  }
+
+  async hasTransactionLinks(listingId: string) {
+    return this.transactionLinks.has(listingId);
   }
 
   async deleteRow(listingId: string) {
@@ -376,6 +381,31 @@ describe("CRUD Listings", () => {
     expect(repository.rows).toEqual([]);
     expect(repository.owners).toEqual([]);
     expect(repository.contacts).toEqual(new Set([owner1, owner2, owner3]));
+  });
+
+  it.each(["sold", "rented"] as const)("verrouille un Listing finalisé au statut %s", async (status) => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const created = await service.createListing(listingDraft({
+      purpose: status === "sold" ? "sale" : "rental",
+      status,
+    }));
+
+    await expect(service.updateListing(created.id, { generalNotes: "Modification interdite" }))
+      .rejects.toMatchObject({ code: "finalized_history" });
+    await expect(service.deleteListing(created.id))
+      .rejects.toMatchObject({ code: "finalized_history" });
+    expect(await service.getListing(created.id)).toMatchObject({ status, generalNotes: "" });
+  });
+
+  it("refuse de supprimer un Listing actif lié à l’historique d’une Transaction", async () => {
+    const repository = new MemoryListingRepository();
+    const service = createListingsService(repository);
+    const created = await service.createListing(listingDraft({ status: "active" }));
+    repository.transactionLinks.add(created.id);
+
+    await expect(service.deleteListing(created.id)).rejects.toMatchObject({ code: "linked_history" });
+    expect(await service.getListing(created.id)).toMatchObject({ status: "active" });
   });
 });
 

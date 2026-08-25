@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { transactionApiErrorMessage, transactionErrorMetadata } from "./api-error";
+import { transactionApiErrorMessage, transactionApiErrorStatus, transactionErrorMetadata } from "./api-error";
+import { FINALIZED_TRANSACTION_DELETE_MESSAGE, FINALIZED_TRANSACTION_UPDATE_MESSAGE } from "./history-protection";
 
 describe("erreurs fiables de l’API Transactions", () => {
   it("traduit les erreurs métier connues sans exposer les détails", () => {
@@ -13,6 +14,12 @@ describe("erreurs fiables de l’API Transactions", () => {
       .toBe("L’adresse de la transaction est invalide.");
     expect(transactionApiErrorMessage({ code: "XX000", message: "Détail technique" }, "create"))
       .toBe("La transaction n’a pas pu être créée.");
+    expect(transactionApiErrorMessage({ message: FINALIZED_TRANSACTION_UPDATE_MESSAGE }, "update"))
+      .toBe(FINALIZED_TRANSACTION_UPDATE_MESSAGE);
+    expect(transactionApiErrorMessage({ message: FINALIZED_TRANSACTION_DELETE_MESSAGE }, "delete"))
+      .toBe(FINALIZED_TRANSACTION_DELETE_MESSAGE);
+    expect(transactionApiErrorStatus({ message: FINALIZED_TRANSACTION_UPDATE_MESSAGE })).toBe(409);
+    expect(transactionApiErrorStatus({ message: "Erreur technique" })).toBe(502);
   });
 
   it("prépare les métadonnées techniques uniquement pour le journal serveur", () => {

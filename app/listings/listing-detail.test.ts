@@ -81,9 +81,8 @@ describe("fiche détaillée Listings", () => {
     expect(detail).toContain("listing.soldPrice");
     expect(detail).toContain("listing.notaryDate");
     expect(detail).toContain("listing.collaboratingBrokerName");
-    expect(context).toContain("markListingSold:");
-    expect(context).toContain("/complete-sale");
-    expect(context).toContain("return replaceListing(listing)");
+    expect(context).not.toContain("markListingSold:");
+    expect(context).not.toContain("/complete-sale");
   });
 
   it("rend la modal compacte, accessible, explicite et protégée contre le double clic", () => {
@@ -101,6 +100,12 @@ describe("fiche détaillée Listings", () => {
     expect(detail).toContain("ListingPaAcceptedAction");
     expect(soldModal).toContain("Prix de la Transaction");
     expect(context).not.toContain("/api/transactions");
+  });
+
+  it("verrouille visuellement les actions incompatibles d’un Listing finalisé", () => {
+    expect(detail).toContain("isFinalizedListing(listing)");
+    expect(detail).toContain("DOSSIER FINALISÉ");
+    expect(detail).toContain("finalized ?");
   });
 
   it("retourne à l’historique seulement lorsque la provenance est l’inventaire", () => {

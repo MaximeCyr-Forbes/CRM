@@ -46,12 +46,16 @@ describe("résultat de vente d’une Transaction", () => {
     expect(parseTransactionSaleCompletion({ ...valid, collaboratingBrokerName: "a".repeat(241) })).toBeNull();
   });
 
-  it.each(SALE_TRANSACTION_STATUSES)(
+  it.each(SALE_TRANSACTION_STATUSES.filter((status) => status !== "cancelled"))(
     "autorise VENDU au statut %s tant que la vente n’est pas finalisée",
     (status) => {
       expect(canCompleteTransactionSale({ type: "sale", status, saleFinalizedAt: null })).toBe(true);
     },
   );
+
+  it("refuse VENDU pour une Transaction annulée", () => {
+    expect(canCompleteTransactionSale({ type: "sale", status: "cancelled", saleFinalizedAt: null })).toBe(false);
+  });
 
   it("masque VENDU pour un achat et pour une vente déjà finalisée", () => {
     expect(canCompleteTransactionSale({ type: "purchase", status: "completed", saleFinalizedAt: null })).toBe(false);
@@ -67,6 +71,8 @@ describe("résultat de vente d’une Transaction", () => {
       .toBe("Seule une Transaction de vente peut être finalisée comme vendue.");
     expect(mapTransactionSaleCompletionError({ message: "Cette vente est déjà finalisée." })?.message)
       .toBe("Cette vente est déjà finalisée.");
+    expect(mapTransactionSaleCompletionError({ message: "Le Listing source est déjà finalisé." })?.code)
+      .toBe("already_finalized");
     expect(mapTransactionSaleCompletionError({ message: "détail interne secret" })).toBeNull();
   });
 });
@@ -80,6 +86,7 @@ describe("architecture de finalisation Transaction", () => {
     expect(route).toContain("isTransactionUuid(transactionId)");
     expect(route).toContain("parseTransactionSaleCompletion(body?.values)");
     expect(route).toContain("completeTransactionSale(transactionId, values)");
+    expect(route).toContain("code: error.code");
     expect(context).toContain("completeSale:");
     expect(context).toContain("/complete-sale");
     expect(context).toContain("return replaceTransaction(payload.data)");
@@ -97,21 +104,21 @@ describe("architecture de finalisation Transaction", () => {
   });
 
   it("définit une migration additive, atomique, protégée et sans suppression", () => {
-    const sql = source("supabase/migrations/20260822113000_add_transaction_sale_completion.sql");
+    const sql = source("supabase/migrations/20260824223000_harden_finalized_real_estate_history.sql");
     expect(sql.trimStart().startsWith("begin;")).toBe(true);
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
-    expect(sql).toContain("add column if not exists sold_price numeric(14, 2)");
-    expect(sql).toContain("add column if not exists notary_date date");
-    expect(sql).toContain("add column if not exists collaborating_broker_name text not null default ''");
-    expect(sql).toContain("add column if not exists sale_finalized_at timestamptz");
-    expect(sql).toContain("transactions_sold_price_check");
     expect(sql).toContain("complete_transaction_sale");
     expect(sql).toContain("for update");
-    expect(sql).toContain("v_transactions_before");
-    expect(sql).toContain("v_transactions_after");
+    expect(sql).toContain("from public.listing_transaction_links as link");
+    expect(sql).toContain("update public.listings");
+    expect(sql).toContain("status = 'sold'");
+    expect(sql).toContain("v_transaction.status = 'cancelled'");
+    expect(sql).toContain("protect_finalized_transaction_history");
+    expect(sql).toContain("protect_finalized_listing_history");
+    expect(sql).toContain("on delete restrict");
     expect(sql).toContain("to service_role");
     expect(sql).not.toMatch(/update\s+public\.transactions\s+set\s+status/i);
-    expect(sql).not.toMatch(/delete\s+from\s+public\.transactions/i);
-    expect(sql).not.toMatch(/truncate\s+(?:table\s+)?public\.transactions/i);
+    expect(sql).not.toMatch(/delete\s+from\s+public\.(transactions|listings|listing_offers|listing_transaction_links)/i);
+    expect(sql).not.toMatch(/truncate\s+(?:table\s+)?public\.(transactions|listings|listing_offers|listing_transaction_links)/i);
   });
 });

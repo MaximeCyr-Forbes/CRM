@@ -33,6 +33,9 @@ export function listingApiError(error: unknown, fallbackMessage: string) {
     if (error.code === "offer_linked" || error.code === "listing_already_linked") {
       return Response.json({ error: error.message }, { status: 409 });
     }
+    if (error.code === "finalized_history" || error.code === "linked_history") {
+      return Response.json({ error: error.message }, { status: 409 });
+    }
   }
   return Response.json({ error: fallbackMessage }, { status: 502 });
 }

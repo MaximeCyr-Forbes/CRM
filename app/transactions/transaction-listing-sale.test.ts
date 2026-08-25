@@ -39,17 +39,19 @@ describe("finalisation autonome de la vente dans la Transaction", () => {
     expect(styles).toContain("button.destructive-button {");
   });
 
-  it("finalise d’abord la Transaction puis synchronise le Listing lié si nécessaire", () => {
+  it("finalise la Transaction et son Listing source avec un seul appel atomique", () => {
     expect(transactionDetail).toContain("<SaleCompletionModal");
     expect(transactionDetail).toContain("await completeSale(transaction.id, values)");
-    expect(transactionDetail).toContain("await markListingSold(sourceListing.id, values)");
-    expect(transactionDetail).toContain("Vente enregistrée dans la Transaction. Le Listing lié n’a pas pu être synchronisé.");
+    expect(transactionDetail).not.toContain("markListingSold");
+    expect(transactionDetail).toContain("await retryListings()");
+    expect(transactionDetail).toContain("Vente et Listing lié finalisés ensemble.");
+    expect(transactionDetail).toContain("Vente finalisée dans la Transaction.");
     expect(soldModal).toContain("Prix vendu *");
     expect(soldModal).toContain("Date du notaire *");
     expect(soldModal).toContain("Courtier collaborateur *");
     expect(soldModal).toContain("FINALISER LA VENTE");
     expect(soldModal).toContain("Prix de la Transaction");
-    expect(listingsContext).toContain("return replaceListing(listing)");
+    expect(listingsContext).not.toContain("markListingSold");
   });
 
   it("conserve le bloc Listing source et signale la vente finalisée ou l’indisponibilité", () => {

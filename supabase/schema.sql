@@ -270,6 +270,24 @@ do $$ begin
       drop constraint if exists listing_transaction_links_listing_unique;
     create index if not exists listing_transaction_links_listing_idx
       on public.listing_transaction_links (listing_id);
+
+    alter table public.listing_transaction_links
+      drop constraint if exists listing_transaction_links_listing_id_fkey;
+    alter table public.listing_transaction_links
+      add constraint listing_transaction_links_listing_id_fkey
+      foreign key (listing_id) references public.listings(id) on delete restrict;
+
+    alter table public.listing_transaction_links
+      drop constraint if exists listing_transaction_links_offer_id_fkey;
+    alter table public.listing_transaction_links
+      add constraint listing_transaction_links_offer_id_fkey
+      foreign key (offer_id) references public.listing_offers(id) on delete restrict;
+
+    alter table public.listing_transaction_links
+      drop constraint if exists listing_transaction_links_transaction_id_fkey;
+    alter table public.listing_transaction_links
+      add constraint listing_transaction_links_transaction_id_fkey
+      foreign key (transaction_id) references public.transactions(id) on delete restrict;
   end if;
 end $$;
 
@@ -462,6 +480,9 @@ set search_path = public
 as $$
 declare
   v_transaction public.transactions;
+  v_listing public.listings;
+  v_listing_id uuid;
+  v_offer_id uuid;
   v_collaborating_broker_name text;
 begin
   select * into v_transaction
@@ -474,6 +495,9 @@ begin
   end if;
   if v_transaction.type <> 'sale' then
     raise exception 'Seule une Transaction de vente peut être finalisée comme vendue.' using errcode = 'P0001';
+  end if;
+  if v_transaction.status = 'cancelled' then
+    raise exception 'Une Transaction annulée ne peut pas être finalisée.' using errcode = 'P0001';
   end if;
   if v_transaction.sale_finalized_at is not null then
     raise exception 'Cette vente est déjà finalisée.' using errcode = 'P0001';
@@ -499,6 +523,28 @@ begin
     v_collaborating_broker_name := '';
   end if;
 
+  select link.listing_id, link.offer_id
+  into v_listing_id, v_offer_id
+  from public.listing_transaction_links as link
+  where link.transaction_id = p_transaction_id;
+
+  if v_listing_id is not null then
+    select * into v_listing
+    from public.listings
+    where id = v_listing_id
+    for update;
+
+    if not found then
+      raise exception 'Listing source introuvable.' using errcode = 'P0001';
+    end if;
+    if v_listing.purpose <> 'sale' then
+      raise exception 'Le Listing source n''est pas un mandat de vente.' using errcode = 'P0001';
+    end if;
+    if v_listing.status in ('sold', 'rented') then
+      raise exception 'Le Listing source est déjà finalisé.' using errcode = 'P0001';
+    end if;
+  end if;
+
   update public.transactions
   set
     sold_price = p_sold_price,
@@ -507,6 +553,50 @@ begin
     sale_finalized_at = now()
   where id = p_transaction_id
   returning * into v_transaction;
+
+  if v_listing_id is not null then
+    update public.listings
+    set
+      sold_price = p_sold_price,
+      notary_date = p_notary_date,
+      collaborating_broker_name = v_collaborating_broker_name,
+      status = 'sold'
+    where id = v_listing_id;
+
+    insert into public.listing_activity (
+      listing_id, event_type, title, detail, actor_broker, metadata
+    ) values (
+      v_listing_id,
+      'sale_completed',
+      'Listing vendu',
+      'Vendu ' || p_sold_price::text || ' $ · Notaire ' || p_notary_date::text
+        || ' · Courtier collaborateur : '
+        || case when v_collaborating_broker_name = '' then 'Aucun' else v_collaborating_broker_name end,
+      v_transaction.broker,
+      jsonb_build_object(
+        'transactionId', p_transaction_id,
+        'offerId', v_offer_id,
+        'soldPrice', p_sold_price,
+        'notaryDate', p_notary_date,
+        'collaboratingBrokerName', v_collaborating_broker_name
+      )
+    );
+
+    insert into public.listing_activity (
+      listing_id, event_type, title, detail, actor_broker, metadata
+    ) values (
+      v_listing_id,
+      'status_changed',
+      'Statut modifié',
+      v_listing.status || ' → sold',
+      v_transaction.broker,
+      jsonb_build_object(
+        'transactionId', p_transaction_id,
+        'before', v_listing.status,
+        'after', 'sold'
+      )
+    );
+  end if;
 
   return v_transaction;
 end;
@@ -568,12 +658,110 @@ begin
 end;
 $$;
 
+create or replace function public.protect_finalized_transaction_history()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if (old.type = 'sale' and old.sale_finalized_at is not null)
+    or (old.type = 'purchase' and old.purchase_finalized_at is not null) then
+    if tg_op = 'DELETE' then
+      raise exception 'Une transaction finalisée doit être conservée dans l’historique.' using errcode = 'P0001';
+    end if;
+    raise exception 'Une transaction finalisée ne peut plus être modifiée.' using errcode = 'P0001';
+  end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists transactions_protect_finalized_history on public.transactions;
+create trigger transactions_protect_finalized_history
+before update or delete on public.transactions
+for each row execute function public.protect_finalized_transaction_history();
+
+create or replace function public.protect_finalized_transaction_contacts()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_transaction public.transactions;
+begin
+  if tg_op in ('UPDATE', 'DELETE') then
+    select * into v_transaction from public.transactions where id = old.transaction_id;
+    if found and (
+      (v_transaction.type = 'sale' and v_transaction.sale_finalized_at is not null)
+      or (v_transaction.type = 'purchase' and v_transaction.purchase_finalized_at is not null)
+    ) then
+      raise exception 'Une transaction finalisée ne peut plus être modifiée.' using errcode = 'P0001';
+    end if;
+  end if;
+
+  if tg_op in ('INSERT', 'UPDATE') then
+    select * into v_transaction from public.transactions where id = new.transaction_id;
+    if found and (
+      (v_transaction.type = 'sale' and v_transaction.sale_finalized_at is not null)
+      or (v_transaction.type = 'purchase' and v_transaction.purchase_finalized_at is not null)
+    ) then
+      raise exception 'Une transaction finalisée ne peut plus être modifiée.' using errcode = 'P0001';
+    end if;
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.protect_finalized_listing_history()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if old.status in ('sold', 'rented') then
+    if tg_op = 'DELETE' then
+      raise exception 'Un Listing finalisé doit être conservé dans l’historique.' using errcode = 'P0001';
+    end if;
+    raise exception 'Un Listing finalisé ne peut plus être modifié.' using errcode = 'P0001';
+  end if;
+
+  if tg_op = 'DELETE' and exists (
+    select 1
+    from public.listing_transaction_links as link
+    where link.listing_id = old.id
+  ) then
+    raise exception 'Ce Listing possède un historique de Transaction et ne peut pas être supprimé.' using errcode = 'P0001';
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists listings_protect_finalized_history on public.listings;
+create trigger listings_protect_finalized_history
+before update or delete on public.listings
+for each row execute function public.protect_finalized_listing_history();
+
 create table if not exists public.transaction_contacts (
   transaction_id uuid not null references public.transactions(id) on delete cascade,
   contact_id uuid not null references public.contacts(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (transaction_id, contact_id)
 );
+
+drop trigger if exists transaction_contacts_protect_finalized_history on public.transaction_contacts;
+create trigger transaction_contacts_protect_finalized_history
+before insert or update or delete on public.transaction_contacts
+for each row execute function public.protect_finalized_transaction_contacts();
 
 create table if not exists public.transaction_deadlines (
   id uuid primary key default gen_random_uuid(),
@@ -1611,6 +1799,11 @@ revoke execute on function public.complete_transaction_sale(
 grant execute on function public.complete_transaction_sale(
   uuid, numeric, date, text, boolean
 ) to service_role;
+do $$ begin
+  if to_regprocedure('public.complete_listing_sale(uuid,numeric,date,text,boolean,public.broker_assignment)') is not null then
+    execute 'revoke execute on function public.complete_listing_sale(uuid,numeric,date,text,boolean,public.broker_assignment) from public, anon, authenticated, service_role';
+  end if;
+end $$;
 revoke execute on function public.complete_transaction_purchase(
   uuid, numeric, date, text
 ) from public, anon, authenticated;

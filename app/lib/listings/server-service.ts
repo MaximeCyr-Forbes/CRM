@@ -11,6 +11,7 @@ import {
   type ListingRow,
   type ListingUpdate,
 } from "./persistence";
+import { isFinalizedListing } from "./editor";
 
 export type { ListingFilters, ListingRow, ListingUpdate } from "./persistence";
 export { ListingServiceError } from "./persistence";
@@ -83,9 +84,12 @@ export function createListingsService(repository: ListingRepository) {
     async updateListing(listingId: string, input: ListingUpdate, actor: ListingBroker | null = null) {
       const values = parseListingUpdate(input);
       if (!values) throw new ListingServiceError("invalid_listing", "Modification du Listing invalide.");
+      const current = await repository.getRow(listingId);
+      if (!current) throw new ListingServiceError("not_found", "Listing introuvable.");
+      if (isFinalizedListing(current)) {
+        throw new ListingServiceError("finalized_history", "Un Listing finalisé ne peut plus être modifié.");
+      }
       if (values.status === "sold") {
-        const current = await repository.getRow(listingId);
-        if (!current) throw new ListingServiceError("not_found", "Listing introuvable.");
         if (current.status !== "sold") {
           throw new ListingServiceError(
             "invalid_listing",
@@ -117,6 +121,14 @@ export function createListingsService(repository: ListingRepository) {
     },
 
     async deleteListing(listingId: string) {
+      const current = await repository.getRow(listingId);
+      if (!current) throw new ListingServiceError("not_found", "Listing introuvable.");
+      if (isFinalizedListing(current)) {
+        throw new ListingServiceError("finalized_history", "Un Listing finalisé doit être conservé dans l’historique.");
+      }
+      if (await repository.hasTransactionLinks(listingId)) {
+        throw new ListingServiceError("linked_history", "Ce Listing possède un historique de Transaction et ne peut pas être supprimé.");
+      }
       const deleted = await repository.deleteRow(listingId);
       if (!deleted) throw new ListingServiceError("not_found", "Listing introuvable.");
     },

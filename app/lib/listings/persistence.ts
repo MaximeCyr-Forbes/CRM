@@ -60,6 +60,7 @@ export type ListingRepository = {
   createWithOwners: (draft: ListingDraft, actor: ListingBroker | null) => Promise<ListingRow>;
   updateWithOwners: (listingId: string, values: ListingUpdate, actor: ListingBroker | null) => Promise<ListingRow>;
   completeSale: (listingId: string, values: ListingSaleCompletion, actor: ListingBroker | null) => Promise<ListingRow>;
+  hasTransactionLinks: (listingId: string) => Promise<boolean>;
   deleteRow: (listingId: string) => Promise<boolean>;
 };
 
@@ -74,6 +75,8 @@ export type ListingServiceErrorCode =
   | "multiple_accepted_offers"
   | "offer_linked"
   | "listing_already_linked"
+  | "finalized_history"
+  | "linked_history"
   | "not_found";
 
 export class ListingServiceError extends Error {
@@ -305,6 +308,15 @@ function throwMappedPersistenceError(error: unknown): never {
   if (/déjà marqué comme vendu|déjà vendu/i.test(message)) {
     throw new ListingServiceError("already_sold", "Ce Listing est déjà marqué comme vendu.");
   }
+  if (/listing finalisé.*ne peut plus être modifié/i.test(message)) {
+    throw new ListingServiceError("finalized_history", "Un Listing finalisé ne peut plus être modifié.");
+  }
+  if (/listing finalisé.*conservé dans l’historique/i.test(message)) {
+    throw new ListingServiceError("finalized_history", "Un Listing finalisé doit être conservé dans l’historique.");
+  }
+  if (/historique de transaction.*ne peut pas être supprimé/i.test(message)) {
+    throw new ListingServiceError("linked_history", "Ce Listing possède un historique de Transaction et ne peut pas être supprimé.");
+  }
   if (/prix vendu invalide|date du notaire|courtier collaborateur/i.test(message)) {
     throw new ListingServiceError("invalid_sale_completion", "Finalisation de la vente invalide.");
   }
@@ -398,13 +410,22 @@ export function createSupabaseListingRepository(): ListingRepository {
       return row;
     },
 
+    async hasTransactionLinks(listingId) {
+      const { count, error } = await getSupabaseAdmin()
+        .from("listing_transaction_links")
+        .select("listing_id", { count: "exact", head: true })
+        .eq("listing_id", listingId);
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+
     async deleteRow(listingId) {
       const { data, error } = await getSupabaseAdmin()
         .from("listings")
         .delete()
         .eq("id", listingId)
         .select("id");
-      if (error) throw error;
+      if (error) throwMappedPersistenceError(error);
       return (data ?? []).length > 0;
     },
   };

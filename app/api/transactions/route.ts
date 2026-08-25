@@ -8,7 +8,13 @@ import {
   syncTransactionDeadline,
 } from "../../lib/google-calendar/service";
 import { deleteTransactionWithCalendarCleanup } from "../../lib/transactions/delete-workflow";
-import { transactionApiErrorMessage, transactionErrorMetadata, type TransactionAction } from "../../lib/transactions/api-error";
+import { transactionApiErrorMessage, transactionApiErrorStatus, transactionErrorMetadata, type TransactionAction } from "../../lib/transactions/api-error";
+import { isFinalizedTransaction } from "../../lib/transactions/completion";
+import {
+  FINALIZED_TRANSACTION_DELETE_MESSAGE,
+  FINALIZED_TRANSACTION_UPDATE_MESSAGE,
+  LINKED_TRANSACTION_DELETE_MESSAGE,
+} from "../../lib/transactions/history-protection";
 import {
   createTransaction,
   deleteDeadline,
@@ -98,6 +104,9 @@ export async function POST(request: Request) {
       if (!values) return Response.json({ error: "Modification invalide." }, { status: 400 });
       const allowed: Parameters<typeof updateTransaction>[1] = {};
       const existing = await getTransaction(transactionId);
+      if (isFinalizedTransaction(existing)) {
+        return Response.json({ error: FINALIZED_TRANSACTION_UPDATE_MESSAGE }, { status: 409 });
+      }
       if (values.type !== undefined && !isType(values.type)) return Response.json({ error: "Type invalide." }, { status: 400 });
       if (values.broker !== undefined && !isBroker(values.broker)) return Response.json({ error: "Courtier invalide." }, { status: 400 });
       if (values.contactIds !== undefined && (!Array.isArray(values.contactIds) || !values.contactIds.every((id) => typeof id === "string"))) {
@@ -121,6 +130,12 @@ export async function POST(request: Request) {
 
     if (body.action === "deleteTransaction") {
       const existing = await getTransaction(transactionId);
+      if (isFinalizedTransaction(existing)) {
+        return Response.json({ error: FINALIZED_TRANSACTION_DELETE_MESSAGE }, { status: 409 });
+      }
+      if (existing.sourceListing) {
+        return Response.json({ error: LINKED_TRANSACTION_DELETE_MESSAGE }, { status: 409 });
+      }
       const result = await deleteTransactionWithCalendarCleanup(
         existing,
         (deadline) => deleteCalendarEventForTransactionDeadline({
@@ -194,6 +209,6 @@ export async function POST(request: Request) {
           ? "delete"
           : "other";
     console.error("Opération transaction impossible", transactionErrorMetadata(error, requestedAction));
-    return Response.json({ error: transactionApiErrorMessage(error, action) }, { status: 502 });
+    return Response.json({ error: transactionApiErrorMessage(error, action) }, { status: transactionApiErrorStatus(error) });
   }
 }

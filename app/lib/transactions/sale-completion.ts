@@ -5,6 +5,7 @@ import type {
 
 export type TransactionSaleCompletionErrorCode =
   | "already_finalized"
+  | "cancelled"
   | "invalid_completion"
   | "invalid_type"
   | "not_found";
@@ -58,7 +59,9 @@ export function parseTransactionSaleCompletion(value: unknown): TransactionSaleC
 export function canCompleteTransactionSale(
   transaction: Pick<Transaction, "saleFinalizedAt" | "status" | "type">,
 ) {
-  return transaction.type === "sale" && transaction.saleFinalizedAt === null;
+  return transaction.type === "sale"
+    && transaction.saleFinalizedAt === null
+    && transaction.status !== "cancelled";
 }
 
 export function mapTransactionSaleCompletionError(error: unknown): TransactionSaleCompletionError | null {
@@ -75,8 +78,14 @@ export function mapTransactionSaleCompletionError(error: unknown): TransactionSa
       "Seule une Transaction de vente peut être finalisée comme vendue.",
     );
   }
-  if (message.includes("déjà finalisée")) {
-    return new TransactionSaleCompletionError("already_finalized", "Cette vente est déjà finalisée.");
+  if (message.includes("déjà finalisée") || message.includes("listing source est déjà finalisé")) {
+    return new TransactionSaleCompletionError(
+      "already_finalized",
+      message.includes("listing source") ? "Le Listing source est déjà finalisé." : "Cette vente est déjà finalisée.",
+    );
+  }
+  if (message.includes("annulée")) {
+    return new TransactionSaleCompletionError("cancelled", "Une Transaction annulée ne peut pas être finalisée.");
   }
   if (
     message.includes("prix vendu")

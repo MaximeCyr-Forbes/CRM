@@ -6931,6 +6931,20 @@ textarea:focus-visible,
   text-transform: uppercase;
 }
 
+.finalized-record-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(20, 31, 46, 0.18);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(20, 31, 46, 0.06);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .listing-sold-button {
   color: #fffdf8;
   background: #315b4b;

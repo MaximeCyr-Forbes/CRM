@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useAuth } from "./auth-context";
 import { useBroker } from "./broker-context";
-import type { Listing, ListingDraft, ListingSaleCompletion } from "./data/listing-types";
+import type { Listing, ListingDraft } from "./data/listing-types";
 import type { ListingUpdate } from "./lib/listings/server-service";
 
 type ListingsContextValue = {
@@ -22,7 +22,6 @@ type ListingsContextValue = {
   retry: () => Promise<void>;
   createListing: (draft: ListingDraft) => Promise<Listing>;
   updateListing: (listingId: string, values: ListingUpdate) => Promise<Listing>;
-  markListingSold: (listingId: string, values: ListingSaleCompletion) => Promise<Listing>;
   deleteListing: (listingId: string) => Promise<void>;
 };
 
@@ -105,15 +104,6 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     return replaceListing(listing);
   }), [actorBroker, replaceListing, runWrite]);
 
-  const markSold = useCallback((listingId: string, values: ListingSaleCompletion) => runWrite(async () => {
-    const listing = await listingRequest<Listing>(`/api/listings/${encodeURIComponent(listingId)}/complete-sale`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ values, actorBroker: actorBroker ?? null }),
-    });
-    return replaceListing(listing);
-  }), [actorBroker, replaceListing, runWrite]);
-
   const remove = useCallback((listingId: string) => runWrite(async () => {
     await listingRequest<{ listingId: string }>(`/api/listings/${encodeURIComponent(listingId)}`, {
       method: "DELETE",
@@ -129,9 +119,8 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
     retry: loadListings,
     createListing: create,
     updateListing: update,
-    markListingSold: markSold,
     deleteListing: remove,
-  }), [listings, isLoading, pendingWrites, error, loadListings, create, update, markSold, remove]);
+  }), [listings, isLoading, pendingWrites, error, loadListings, create, update, remove]);
 
   return <ListingsContext.Provider value={value}>{children}</ListingsContext.Provider>;
 }

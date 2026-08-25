@@ -17,7 +17,9 @@ describe("sécurité et activation visuelle des Listings", () => {
     expect(detailRoute.match(/isSameOriginRequest\(request\)/g)).toHaveLength(2);
     expect(completeSaleRoute).toContain("requireApiAccess()");
     expect(completeSaleRoute).toContain("isSameOriginRequest(request)");
-    expect(completeSaleRoute).toContain("parseListingSaleCompletion");
+    expect(completeSaleRoute).toContain("Finalisez la vente depuis la Transaction liée afin de protéger l’historique.");
+    expect(completeSaleRoute).toContain("{ status: 409 }");
+    expect(completeSaleRoute).not.toContain("completeListingSale");
     expect(returnToMarketRoute).toContain("requireApiAccess()");
     expect(returnToMarketRoute).toContain("isSameOriginRequest(request)");
   });

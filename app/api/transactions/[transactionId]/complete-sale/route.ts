@@ -36,8 +36,8 @@ export async function POST(request: Request, context: Context) {
     if (error instanceof TransactionSaleCompletionError) {
       const status = error.code === "not_found"
         ? 404
-        : error.code === "already_finalized" ? 409 : 400;
-      return Response.json({ error: error.message }, { status });
+        : error.code === "already_finalized" || error.code === "cancelled" ? 409 : 400;
+      return Response.json({ error: error.message, code: error.code }, { status });
     }
     return Response.json({ error: "Impossible de finaliser la vente." }, { status: 502 });
   }

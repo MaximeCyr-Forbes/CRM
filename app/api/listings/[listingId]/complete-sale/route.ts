@@ -1,12 +1,6 @@
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
-import { listingApiError } from "../../../../lib/listings/api-response";
-import {
-  isListingBroker,
-  isUuid,
-  parseListingSaleCompletion,
-} from "../../../../lib/listings/persistence";
-import { completeListingSale } from "../../../../lib/listings/server-service";
+import { isUuid } from "../../../../lib/listings/persistence";
 
 export const dynamic = "force-dynamic";
 
@@ -24,24 +18,8 @@ export async function POST(request: Request, context: Context) {
     return Response.json({ error: "Listing invalide." }, { status: 400 });
   }
 
-  const body = (await request.json().catch(() => null)) as {
-    values?: unknown;
-    actorBroker?: unknown;
-  } | null;
-  const values = parseListingSaleCompletion(body?.values);
-  if (!values) {
-    return Response.json({ error: "Finalisation de la vente invalide." }, { status: 400 });
-  }
-  const actor = body?.actorBroker === null || body?.actorBroker === undefined
-    ? null
-    : isListingBroker(body.actorBroker) ? body.actorBroker : undefined;
-  if (actor === undefined) {
-    return Response.json({ error: "Courtier acteur invalide." }, { status: 400 });
-  }
-
-  try {
-    return Response.json({ data: await completeListingSale(listingId, values, actor) });
-  } catch (error) {
-    return listingApiError(error, "Impossible d’enregistrer la vente.");
-  }
+  return Response.json(
+    { error: "Finalisez la vente depuis la Transaction liée afin de protéger l’historique." },
+    { status: 409 },
+  );
 }

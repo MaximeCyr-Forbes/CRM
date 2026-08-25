@@ -58,6 +58,10 @@ export function canMarkListingSold(listing: Pick<Listing, "purpose" | "status">)
     && listing.status !== "withdrawn";
 }
 
+export function isFinalizedListing(listing: Pick<Listing, "status">) {
+  return listing.status === "sold" || listing.status === "rented";
+}
+
 export function normalizeListingCentrisNumber(value: string) {
   return value.trim().replace(/\s+/g, "").toUpperCase();
 }

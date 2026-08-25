@@ -1,4 +1,5 @@
 import type { DatabaseErrorMetadata } from "./optional-listing-links";
+import { transactionHistoryConflict } from "./history-protection";
 
 export type TransactionAction = "list" | "create" | "update" | "delete" | "other";
 
@@ -7,6 +8,8 @@ function errorText(error: DatabaseErrorMetadata) {
 }
 
 export function transactionApiErrorMessage(error: unknown, action: TransactionAction) {
+  const historyConflict = transactionHistoryConflict(error);
+  if (historyConflict) return historyConflict.message;
   const metadata = error && typeof error === "object" ? error as DatabaseErrorMetadata : {};
   const text = errorText(metadata);
   if (metadata.code === "23503" && (text.includes("contact") || text.includes("transaction_contacts"))) {
@@ -23,6 +26,10 @@ export function transactionApiErrorMessage(error: unknown, action: TransactionAc
   if (action === "list") return "Impossible de charger les transactions.";
   if (action === "delete") return "La transaction n’a pas pu être supprimée.";
   return "L’opération sur la transaction a échoué.";
+}
+
+export function transactionApiErrorStatus(error: unknown) {
+  return transactionHistoryConflict(error) ? 409 : 502;
 }
 
 export function transactionErrorMetadata(error: unknown, action: string) {

@@ -28,6 +28,11 @@ import {
   TransactionReturnToMarketError,
   type TransactionReturnToMarketResult,
 } from "./return-to-market";
+import {
+  assertTransactionHistoryMutable,
+  LINKED_TRANSACTION_DELETE_MESSAGE,
+  TransactionHistoryProtectionError,
+} from "./history-protection";
 
 export type TransactionRow = {
   id: string;
@@ -250,6 +255,19 @@ export async function updateTransaction(
   values: Partial<Pick<Transaction, "status" | "address" | "centrisNumber" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "generalNotes">>,
 ) {
   const admin = getSupabaseAdmin();
+  const { data: historyState, error: historyError } = await admin
+    .from("transactions")
+    .select("type, sale_finalized_at, purchase_finalized_at")
+    .eq("id", transactionId)
+    .maybeSingle();
+  if (historyError) throw historyError;
+  if (historyState) {
+    assertTransactionHistoryMutable({
+      type: historyState.type as TransactionType,
+      saleFinalizedAt: historyState.sale_finalized_at as string | null,
+      purchaseFinalizedAt: historyState.purchase_finalized_at as string | null,
+    }, "update");
+  }
   const payload = transactionUpdateValues(values);
   if (Object.keys(payload).length > 0) {
     const { error } = await admin.from("transactions").update(payload).eq("id", transactionId);
@@ -382,7 +400,29 @@ export async function returnListingTransactionToMarket(
 }
 
 export async function deleteTransaction(transactionId: string) {
-  const { error } = await getSupabaseAdmin().from("transactions").delete().eq("id", transactionId);
+  const admin = getSupabaseAdmin();
+  const { data: historyState, error: historyError } = await admin
+    .from("transactions")
+    .select("type, sale_finalized_at, purchase_finalized_at")
+    .eq("id", transactionId)
+    .maybeSingle();
+  if (historyError) throw historyError;
+  if (historyState) {
+    assertTransactionHistoryMutable({
+      type: historyState.type as TransactionType,
+      saleFinalizedAt: historyState.sale_finalized_at as string | null,
+      purchaseFinalizedAt: historyState.purchase_finalized_at as string | null,
+    }, "delete");
+  }
+  const { count: linkCount, error: linkError } = await admin
+    .from("listing_transaction_links")
+    .select("transaction_id", { count: "exact", head: true })
+    .eq("transaction_id", transactionId);
+  if (linkError) throw linkError;
+  if ((linkCount ?? 0) > 0) {
+    throw new TransactionHistoryProtectionError("delete", LINKED_TRANSACTION_DELETE_MESSAGE);
+  }
+  const { error } = await admin.from("transactions").delete().eq("id", transactionId);
   if (error) throw error;
 }
 

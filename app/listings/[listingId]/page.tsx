@@ -15,7 +15,7 @@ import {
   LISTING_PURPOSE_LABELS,
   LISTING_STATUS_LABELS,
 } from "../../data/listing-types";
-import { listingDraftFromListing } from "../../lib/listings/editor";
+import { isFinalizedListing, listingDraftFromListing } from "../../lib/listings/editor";
 import {
   formatListingAmount,
   formatListingDate,
@@ -100,6 +100,7 @@ export default function ListingDetailPage() {
   }
 
   const addressLines = listingAddressLines(listing);
+  const finalized = isFinalizedListing(listing);
 
   return (
     <main className="listing-detail-page">
@@ -115,9 +116,11 @@ export default function ListingDetailPage() {
           </div>
           <div className="listing-detail-actions">
             <button className="listing-report-button" onClick={() => router.push(`/listings/${listing.id}/report`)} type="button">{listing.purpose === "sale" ? "Rapport vendeur" : "Rapport propriétaire"}</button>
-            <button onClick={() => setIsEditing(true)} type="button">Modifier <span aria-hidden="true">✎</span></button>
-            <ListingPaAcceptedAction listing={listing} onListingChanged={retry} />
-            <button className="destructive-button" onClick={() => setIsDeleting(true)} type="button">Supprimer</button>
+            {finalized ? <span className="finalized-record-badge">DOSSIER FINALISÉ</span> : <>
+              <button onClick={() => setIsEditing(true)} type="button">Modifier <span aria-hidden="true">✎</span></button>
+              <ListingPaAcceptedAction listing={listing} onListingChanged={retry} />
+              <button className="destructive-button" onClick={() => setIsDeleting(true)} type="button">Supprimer</button>
+            </>}
           </div>
         </header>
 

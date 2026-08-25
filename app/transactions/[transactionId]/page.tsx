@@ -24,7 +24,7 @@ import {
 } from "../../lib/transactions/deadline-title";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
 import { canCompleteTransactionSale } from "../../lib/transactions/sale-completion";
-import { canCompleteTransactionPurchase } from "../../lib/transactions/completion";
+import { canCompleteTransactionPurchase, isFinalizedTransaction } from "../../lib/transactions/completion";
 import { canReturnTransactionToMarket } from "../../lib/transactions/return-to-market";
 import { listingAddressLines } from "../../lib/listings/presentation";
 import { useListings } from "../../listings-context";
@@ -123,7 +123,7 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const { contacts } = useContacts();
   const { transactions, isLoading, isSaving, error, updateTransaction, updateStatus, completeSale, completePurchase, returnToMarket, deleteTransaction, addDeadline, updateDeadline, deleteDeadline, addNote } = useTransactions();
-  const { listings, markListingSold, retry: retryListings } = useListings();
+  const { listings, retry: retryListings } = useListings();
   const transaction = transactions.find((item) => item.id === params.transactionId);
   const linkedContacts = useMemo(() => transaction?.contactIds.map((id) => contacts.find((contact) => contact.id === id)).filter(Boolean) ?? [], [contacts, transaction]);
   const sourceListing = useMemo(
@@ -153,6 +153,7 @@ export default function TransactionDetailPage() {
   const showSaleAction = canCompleteTransactionSale(transaction);
   const showPurchaseAction = canCompleteTransactionPurchase(transaction);
   const showReturnToMarketAction = canReturnTransactionToMarket(transaction, sourceListing);
+  const finalized = isFinalizedTransaction(transaction);
 
   async function saveDeadline(values: { title: string; dueDate: string; syncToGoogle: boolean }) {
     const result = deadlineModal === "new"
@@ -186,9 +187,9 @@ export default function TransactionDetailPage() {
     {error && <div className="transaction-status transaction-status-error" role="alert">{error}</div>}
     {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
 
-    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div><button onClick={() => setIsEditing(true)} type="button">Modifier</button>{showReturnToMarketAction && <button className="transaction-return-market-button" disabled={isSaving} onClick={() => setIsReturningToMarket(true)} type="button">RETOUR SUR LE MARCHÉ</button>}{showSaleAction && <button className="listing-sold-button" disabled={isSaving} onClick={() => setIsMarkingSold(true)} type="button">VENDU</button>}{showPurchaseAction && <button className="listing-sold-button" disabled={isSaving} onClick={() => setIsCompletingPurchase(true)} type="button">FINALISER L’ACHAT</button>}<button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></div></div>
+    <div className="transaction-detail-actions"><button onClick={() => router.push("/transactions")} type="button"><span aria-hidden="true">←</span> Retour aux transactions</button><div>{finalized ? <span className="finalized-record-badge">DOSSIER FINALISÉ</span> : <><button onClick={() => setIsEditing(true)} type="button">Modifier</button>{showReturnToMarketAction && <button className="transaction-return-market-button" disabled={isSaving} onClick={() => setIsReturningToMarket(true)} type="button">RETOUR SUR LE MARCHÉ</button>}{showSaleAction && <button className="listing-sold-button" disabled={isSaving} onClick={() => setIsMarkingSold(true)} type="button">VENDU</button>}{showPurchaseAction && <button className="listing-sold-button" disabled={isSaving} onClick={() => setIsCompletingPurchase(true)} type="button">FINALISER L’ACHAT</button>}<button className="destructive-button" onClick={() => setIsConfirmingDelete(true)} type="button">Supprimer</button></>}</div></div>
 
-    <header className="transaction-detail-header"><div><p className="section-kicker">{TRANSACTION_TYPE_LABELS[transaction.type]} · {BROKER_LABELS[transaction.broker]}</p><h1>{transaction.address}</h1><p>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun client lié"}</p></div><label><span>Statut actuel</span><select disabled={isSaving} onChange={(event) => void updateStatus(transaction.id, event.target.value as TransactionStatus)} value={transaction.status}>{statusesForTransaction(transaction.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label></header>
+    <header className="transaction-detail-header"><div><p className="section-kicker">{TRANSACTION_TYPE_LABELS[transaction.type]} · {BROKER_LABELS[transaction.broker]}</p><h1>{transaction.address}</h1><p>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun client lié"}</p></div><label><span>Statut actuel</span><select disabled={isSaving || finalized} onChange={(event) => void updateStatus(transaction.id, event.target.value as TransactionStatus)} value={transaction.status}>{statusesForTransaction(transaction.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label></header>
 
     <section className="transaction-overview" aria-label="Résumé de la transaction">
       <article><span>Type</span><strong>{TRANSACTION_TYPE_LABELS[transaction.type]}</strong></article>
@@ -241,16 +242,9 @@ export default function TransactionDetailPage() {
     onClose={() => setIsMarkingSold(false)}
     onConfirm={async (values) => {
       await completeSale(transaction.id, values);
-      let listingSyncFailed = false;
-      if (transaction.sourceListing) {
-        if (!sourceListing) listingSyncFailed = true;
-        else if (sourceListing.status !== "sold") {
-          try { await markListingSold(sourceListing.id, values); }
-          catch { listingSyncFailed = true; }
-        }
-      }
-      setConfirmation(listingSyncFailed
-        ? "Vente enregistrée dans la Transaction. Le Listing lié n’a pas pu être synchronisé."
+      await retryListings();
+      setConfirmation(transaction.sourceListing
+        ? "Vente et Listing lié finalisés ensemble."
         : "Vente finalisée dans la Transaction.");
     }}
   />}
