@@ -56,12 +56,14 @@ describe("relation Listing facultative des transactions", () => {
       .toThrow();
   });
 
-  it("crée une transaction depuis la ligne insérée sans relecture Listing fragile", () => {
+  it("crée une transaction par RPC atomique puis recharge ses relations", () => {
     const source = readFileSync(resolve(process.cwd(), "app/lib/transactions/server-service.ts"), "utf8");
     const createSource = source.slice(source.indexOf("export async function createTransaction"), source.indexOf("export async function updateTransaction"));
-    expect(createSource).toContain('.insert(transactionInsertValues(draft))\n    .select("*")');
+    expect(createSource).toContain('rpc("create_transaction_with_contacts"');
+    expect(createSource).toContain("loadRelations([row.id])");
     expect(createSource).toContain("return mapTransaction(");
-    expect(createSource).not.toContain("return getTransaction(transactionId);");
+    expect(createSource).not.toContain('.from("transactions")');
+    expect(createSource).not.toContain('.from("transaction_contacts")');
     expect(source).toContain("optionalListingLinkRows<TransactionListingLinkRow>({ data: null, error })");
   });
 });

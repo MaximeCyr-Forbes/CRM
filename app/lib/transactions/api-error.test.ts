@@ -7,7 +7,9 @@ import { FINALIZED_TRANSACTION_DELETE_MESSAGE, FINALIZED_TRANSACTION_UPDATE_MESS
 describe("erreurs fiables de l’API Transactions", () => {
   it("traduit les erreurs métier connues sans exposer les détails", () => {
     expect(transactionApiErrorMessage({ code: "23503", details: "transaction_contacts contact_id" }, "create"))
-      .toBe("Un des contacts liés n’est plus disponible.");
+      .toBe("Contact lié invalide.");
+    expect(transactionApiErrorMessage({ code: "P0001", message: "Contact lié invalide." }, "update"))
+      .toBe("Contact lié invalide.");
     expect(transactionApiErrorMessage({ code: "23514", message: "transactions_status_check" }, "create"))
       .toBe("Le statut sélectionné n’est pas accepté.");
     expect(transactionApiErrorMessage({ code: "23502", message: "null value in column address" }, "create"))
@@ -19,6 +21,7 @@ describe("erreurs fiables de l’API Transactions", () => {
     expect(transactionApiErrorMessage({ message: FINALIZED_TRANSACTION_DELETE_MESSAGE }, "delete"))
       .toBe(FINALIZED_TRANSACTION_DELETE_MESSAGE);
     expect(transactionApiErrorStatus({ message: FINALIZED_TRANSACTION_UPDATE_MESSAGE })).toBe(409);
+    expect(transactionApiErrorStatus({ code: "P0001", message: "Contact lié invalide." })).toBe(400);
     expect(transactionApiErrorStatus({ message: "Erreur technique" })).toBe(502);
   });
 

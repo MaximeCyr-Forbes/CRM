@@ -42,6 +42,11 @@ function isDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function isUuid(value: unknown): value is string {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function parseDraft(value: unknown): TransactionDraft | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Record<string, unknown>;
@@ -91,7 +96,10 @@ export async function POST(request: Request) {
       }
       const draft = parseDraft(body.draft);
       if (!draft) return Response.json({ error: "Transaction invalide." }, { status: 400 });
-      return Response.json({ data: await createTransaction(draft) });
+      if (body.creationKey !== undefined && !isUuid(body.creationKey)) {
+        return Response.json({ error: "Clé de création invalide." }, { status: 400 });
+      }
+      return Response.json({ data: await createTransaction(draft, body.creationKey as string | undefined) });
     }
 
     const transactionId = typeof body.transactionId === "string" ? body.transactionId : "";

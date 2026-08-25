@@ -14,7 +14,7 @@ import {
   listAllSupabaseRows,
   type SupabaseOrderedRangeQuery,
 } from "../supabase/pagination";
-import { transactionContactChanges, transactionContactLinkRows, transactionInsertValues, transactionUpdateValues } from "./persistence";
+import { transactionInsertValues, transactionUpdateValues } from "./persistence";
 import {
   isOptionalListingLinksUnavailableError,
   optionalListingLinkRows,
@@ -266,88 +266,42 @@ export async function getTransaction(transactionId: string) {
   return mapTransaction(data as TransactionRow, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows);
 }
 
-export async function createTransaction(draft: TransactionDraft) {
+function rpcTransactionRow(data: unknown, message: string) {
+  const row = (Array.isArray(data) ? data[0] : data) as TransactionRow | null;
+  if (!row) throw new Error(message);
+  return row;
+}
+
+export async function createTransaction(
+  draft: TransactionDraft,
+  creationKey = crypto.randomUUID(),
+) {
   const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from("transactions")
-    .insert(transactionInsertValues(draft))
-    .select("*")
-    .single();
+  const { data, error } = await admin.rpc("create_transaction_with_contacts", {
+    p_values: transactionInsertValues(draft),
+    p_contact_ids: [...new Set(draft.contactIds)],
+    p_creation_key: creationKey,
+  });
   if (error) throw error;
-  const row = data as TransactionRow;
-  const transactionId = row.id;
-  if (draft.contactIds.length > 0) {
-    const { error: linksError } = await admin.from("transaction_contacts").insert(
-      transactionContactLinkRows(transactionId, draft.contactIds),
-    );
-    if (linksError) {
-      const { error: cleanupError } = await admin.from("transactions").delete().eq("id", transactionId);
-      if (cleanupError) {
-        console.error("Nettoyage de la transaction partielle impossible", {
-          action: "create-cleanup",
-          code: cleanupError.code,
-          message: cleanupError.message,
-        });
-      }
-      throw linksError;
-    }
-  }
-  return mapTransaction(
-    row,
-    transactionContactLinkRows(transactionId, draft.contactIds),
-    [],
-    [],
-    [],
-  );
+  const row = rpcTransactionRow(data, "La Transaction créée est introuvable.");
+  const relations = await loadRelations([row.id]);
+  return mapTransaction(row, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows);
 }
 
 export async function updateTransaction(
   transactionId: string,
   values: Partial<Pick<Transaction, "status" | "address" | "centrisNumber" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "generalNotes">>,
 ) {
-  const admin = getSupabaseAdmin();
-  const { data: historyState, error: historyError } = await admin
-    .from("transactions")
-    .select("type, sale_finalized_at, purchase_finalized_at")
-    .eq("id", transactionId)
-    .maybeSingle();
-  if (historyError) throw historyError;
-  if (historyState) {
-    assertTransactionHistoryMutable({
-      type: historyState.type as TransactionType,
-      saleFinalizedAt: historyState.sale_finalized_at as string | null,
-      purchaseFinalizedAt: historyState.purchase_finalized_at as string | null,
-    }, "update");
-  }
   const payload = transactionUpdateValues(values);
-  if (Object.keys(payload).length > 0) {
-    const { error } = await admin.from("transactions").update(payload).eq("id", transactionId);
-    if (error) throw error;
-  }
-  if (values.contactIds !== undefined) {
-    const { data, error } = await admin
-      .from("transaction_contacts")
-      .select("contact_id")
-      .eq("transaction_id", transactionId);
-    if (error) throw error;
-    const existingContactIds = (data ?? []).map((row: { contact_id: string }) => row.contact_id);
-    const changes = transactionContactChanges(existingContactIds, values.contactIds);
-    if (changes.removed.length > 0) {
-      const { error: removeError } = await admin
-        .from("transaction_contacts")
-        .delete()
-        .eq("transaction_id", transactionId)
-        .in("contact_id", changes.removed);
-      if (removeError) throw removeError;
-    }
-    if (changes.added.length > 0) {
-      const { error: addError } = await admin
-        .from("transaction_contacts")
-        .insert(transactionContactLinkRows(transactionId, changes.added));
-      if (addError) throw addError;
-    }
-  }
-  return getTransaction(transactionId);
+  const { data, error } = await getSupabaseAdmin().rpc("update_transaction_with_contacts", {
+    p_transaction_id: transactionId,
+    p_values: payload,
+    p_contact_ids: values.contactIds === undefined ? null : [...new Set(values.contactIds)],
+  });
+  if (error) throw error;
+  const row = rpcTransactionRow(data, "La Transaction modifiée est introuvable.");
+  const relations = await loadRelations([row.id]);
+  return mapTransaction(row, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows);
 }
 
 export async function completeTransactionSale(

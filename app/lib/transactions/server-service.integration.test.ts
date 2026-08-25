@@ -10,6 +10,7 @@ import {
   createTransaction,
   listTransactions,
   TRANSACTION_RELATION_BATCH_SIZE,
+  updateTransaction,
   type TransactionRow,
 } from "./server-service";
 
@@ -165,35 +166,159 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
     expect(Math.max(...receivedBatches.map((batch) => batch.length))).toBeLessThanOrEqual(TRANSACTION_RELATION_BATCH_SIZE);
   });
 
-  it("confirme une création normale sans requête de relecture Listing", async () => {
-    const transactionTable = {
-      insert: vi.fn(() => ({ select: () => ({ single: async () => ({ data: row, error: null }) }) })),
-    };
-    const contactTable = { insert: vi.fn(async () => ({ error: null })) };
-    const from = vi.fn((table: string) => table === "transactions" ? transactionTable : contactTable);
-    supabase.getAdmin.mockReturnValue({ from });
+  it("crée atomiquement la Transaction et ses Contacts avec une clé idempotente", async () => {
+    const creationKey = "b7fb7047-6f55-4d32-81d8-eec032de6ebb";
+    const rpc = vi.fn(async (_name: string, _values: { p_creation_key: string }) => ({ data: row, error: null }));
+    const receivedBatches: string[][] = [];
+    const from = vi.fn((table: string) => tableQuery(
+      table === "transaction_contacts"
+        ? [{ transaction_id: row.id, contact_id: "contact-1" }]
+        : [],
+      receivedBatches,
+    ));
+    supabase.getAdmin.mockReturnValue({ from, rpc });
 
-    const result = await createTransaction(draft);
+    const result = await createTransaction(draft, creationKey);
 
     expect(result).toMatchObject({ id: row.id, contactIds: ["contact-1"], sourceListing: null });
-    expect(from).not.toHaveBeenCalledWith("listing_transaction_links");
+    expect(rpc).toHaveBeenCalledWith("create_transaction_with_contacts", {
+      p_values: {
+        address: row.address,
+        centris_number: row.centris_number,
+        type: row.type,
+        broker: row.broker,
+        price: row.price,
+        promise_date: row.promise_date,
+        status: row.status,
+        general_notes: row.general_notes,
+      },
+      p_contact_ids: ["contact-1"],
+      p_creation_key: creationKey,
+    });
   });
 
-  it("nettoie la transaction nouvellement insérée si les contacts liés échouent", async () => {
-    const deleteEq = vi.fn(async () => ({ error: null }));
-    const transactionTable = {
-      insert: vi.fn(() => ({ select: () => ({ single: async () => ({ data: row, error: null }) }) })),
-      delete: vi.fn(() => ({ eq: deleteEq })),
-    };
-    const contactError = { code: "23503", message: "contact absent" };
-    const contactTable = { insert: vi.fn(async () => ({ error: contactError })) };
+  it("propage un rollback create de la RPC sans écriture ni nettoyage manuel", async () => {
+    const contactError = { code: "P0001", message: "Contact lié invalide." };
+    const from = vi.fn();
     supabase.getAdmin.mockReturnValue({
-      from: vi.fn((table: string) => table === "transactions" ? transactionTable : contactTable),
+      from,
+      rpc: vi.fn(async () => ({ data: null, error: contactError })),
     });
 
     await expect(createTransaction(draft)).rejects.toBe(contactError);
-    expect(transactionTable.delete).toHaveBeenCalledOnce();
-    expect(deleteEq).toHaveBeenCalledWith("id", row.id);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("réutilise la même creation_key pour un retry et distingue deux tentatives", async () => {
+    const rpc = vi.fn(async (_name: string, _values: { p_creation_key: string }) => ({ data: row, error: null }));
+    supabase.getAdmin.mockReturnValue({
+      rpc,
+      from: vi.fn(() => tableQuery([], [])),
+    });
+    const firstKey = "b7fb7047-6f55-4d32-81d8-eec032de6ebb";
+    const secondKey = "32e0cd24-366e-4c08-b664-b2af112911bc";
+
+    await createTransaction({ ...draft, contactIds: [] }, firstKey);
+    await createTransaction({ ...draft, contactIds: [] }, firstKey);
+    await createTransaction({ ...draft, contactIds: [] }, secondKey);
+
+    expect(rpc.mock.calls.map((call) => call[1].p_creation_key)).toEqual([
+      firstKey,
+      firstKey,
+      secondKey,
+    ]);
+  });
+
+  it("modifie atomiquement les champs et remplace les Contacts en conservant le Listing source", async () => {
+    const updatedRow = { ...row, price: 525000 };
+    const rpc = vi.fn(async () => ({ data: updatedRow, error: null }));
+    const receivedBatches: string[][] = [];
+    const from = vi.fn((table: string) => tableQuery(
+      table === "transaction_contacts"
+        ? [
+            { transaction_id: row.id, contact_id: "contact-b" },
+            { transaction_id: row.id, contact_id: "contact-c" },
+          ]
+        : table === "listing_transaction_links"
+          ? [{
+              transaction_id: row.id,
+              listing_id: "listing-1",
+              offer_id: "offer-1",
+              listings: {
+                civic_number: "1010",
+                address: "Av. Laurier E.",
+                apartment: "",
+                city: "Montréal",
+                province: "QC",
+                postal_code: "H2J 1G9",
+              },
+            }]
+          : [],
+      receivedBatches,
+    ));
+    supabase.getAdmin.mockReturnValue({ from, rpc });
+
+    const result = await updateTransaction(row.id, {
+      price: 525000,
+      contactIds: ["contact-b", "contact-c", "contact-b"],
+    });
+
+    expect(rpc).toHaveBeenCalledWith("update_transaction_with_contacts", {
+      p_transaction_id: row.id,
+      p_values: { price: 525000 },
+      p_contact_ids: ["contact-b", "contact-c"],
+    });
+    expect(result).toMatchObject({
+      price: 525000,
+      contactIds: ["contact-b", "contact-c"],
+      sourceListing: { listingId: "listing-1", offerId: "offer-1" },
+    });
+  });
+
+  it("distingue NULL et tableau vide pour les Contacts lors d’un update", async () => {
+    const rpc = vi.fn(async () => ({ data: row, error: null }));
+    supabase.getAdmin.mockReturnValue({
+      rpc,
+      from: vi.fn(() => tableQuery([], [])),
+    });
+
+    await updateTransaction(row.id, { status: "negotiation" });
+    await updateTransaction(row.id, { contactIds: [] });
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "update_transaction_with_contacts", expect.objectContaining({
+      p_contact_ids: null,
+    }));
+    expect(rpc).toHaveBeenNthCalledWith(2, "update_transaction_with_contacts", expect.objectContaining({
+      p_values: {},
+      p_contact_ids: [],
+    }));
+  });
+
+  it("propage le refus SQL d’un update finalisé sans lecture ni écriture manuelle", async () => {
+    const finalizedError = { code: "P0001", message: "Une transaction finalisée ne peut plus être modifiée." };
+    const from = vi.fn();
+    supabase.getAdmin.mockReturnValue({
+      from,
+      rpc: vi.fn(async () => ({ data: null, error: finalizedError })),
+    });
+
+    await expect(updateTransaction(row.id, { price: 525000 })).rejects.toBe(finalizedError);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("propage le rollback update si un nouveau Contact est invalide", async () => {
+    const contactError = { code: "P0001", message: "Contact lié invalide." };
+    const from = vi.fn();
+    supabase.getAdmin.mockReturnValue({
+      from,
+      rpc: vi.fn(async () => ({ data: null, error: contactError })),
+    });
+
+    await expect(updateTransaction(row.id, {
+      price: 525000,
+      contactIds: ["contact-invalide"],
+    })).rejects.toBe(contactError);
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("finalise une vente sans Listing et conserve le statut de workflow", async () => {

@@ -7,14 +7,19 @@ function errorText(error: DatabaseErrorMetadata) {
   return [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
 }
 
+function isInvalidLinkedContactError(error: unknown) {
+  const metadata = error && typeof error === "object" ? error as DatabaseErrorMetadata : {};
+  const text = errorText(metadata);
+  return text.includes("contact lié invalide")
+    || metadata.code === "23503" && (text.includes("contact") || text.includes("transaction_contacts"));
+}
+
 export function transactionApiErrorMessage(error: unknown, action: TransactionAction) {
   const historyConflict = transactionHistoryConflict(error);
   if (historyConflict) return historyConflict.message;
   const metadata = error && typeof error === "object" ? error as DatabaseErrorMetadata : {};
   const text = errorText(metadata);
-  if (metadata.code === "23503" && (text.includes("contact") || text.includes("transaction_contacts"))) {
-    return "Un des contacts liés n’est plus disponible.";
-  }
+  if (isInvalidLinkedContactError(error)) return "Contact lié invalide.";
   if (metadata.code === "23514" && text.includes("status")) {
     return "Le statut sélectionné n’est pas accepté.";
   }
@@ -29,7 +34,8 @@ export function transactionApiErrorMessage(error: unknown, action: TransactionAc
 }
 
 export function transactionApiErrorStatus(error: unknown) {
-  return transactionHistoryConflict(error) ? 409 : 502;
+  if (transactionHistoryConflict(error)) return 409;
+  return isInvalidLinkedContactError(error) ? 400 : 502;
 }
 
 export function transactionErrorMetadata(error: unknown, action: string) {
