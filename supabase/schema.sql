@@ -1,8 +1,10 @@
--- Équipe Forbes CRM — schéma Supabase
--- À exécuter dans l’éditeur SQL du projet Supabase.
+-- Équipe Forbes CRM — schéma Supabase canonique.
+-- Référence structurelle et bootstrap d’un environnement neuf seulement.
+-- Les changements de production doivent toujours passer par les migrations.
 
 create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
+create extension if not exists unaccent;
 
 do $$ begin
   create type public.broker_assignment as enum ('france', 'maxime', 'sandrine', 'unassigned');
@@ -10,11 +12,9 @@ exception when duplicate_object then null;
 end $$;
 
 do $$ begin
-  create type public.client_type as enum ('buyer', 'seller');
+  create type public.client_type as enum ('buyer', 'seller', 'buyer_seller');
 exception when duplicate_object then null;
 end $$;
-
-alter type public.client_type add value if not exists 'buyer_seller';
 
 do $$ begin
   create type public.contact_priority as enum ('hot', 'warm', 'cold');
@@ -82,41 +82,6 @@ create table if not exists public.contacts (
   )
 );
 
-alter table public.contacts
-  add column if not exists civic_number text not null default '',
-  add column if not exists address text not null default '',
-  add column if not exists apartment text not null default '',
-  add column if not exists city text not null default '',
-  add column if not exists province text not null default '',
-  add column if not exists postal_code text not null default '',
-  add column if not exists country text not null default '',
-  add column if not exists birth_date date,
-  add column if not exists mortgage_renewal_date date,
-  add column if not exists client_provenance text,
-  add column if not exists creation_key uuid,
-  add column if not exists google_calendar_event_id text,
-  add column if not exists google_calendar_event_broker public.broker_assignment,
-  add column if not exists google_calendar_sync_status public.calendar_sync_status not null default 'synced',
-  add column if not exists google_calendar_last_error text;
-
-do $$ begin
-  alter table public.contacts
-    add constraint contacts_google_event_broker_check check (
-      google_calendar_event_broker is null
-      or google_calendar_event_broker <> 'unassigned'
-    );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  alter table public.contacts
-    add constraint contacts_client_provenance_check check (
-      client_provenance is null
-      or client_provenance in ('friend_family', 'referral', 'prospecting', 'confia')
-    );
-exception when duplicate_object then null;
-end $$;
-
 create table if not exists public.client_notes (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid not null references public.contacts(id) on delete cascade,
@@ -126,15 +91,31 @@ create table if not exists public.client_notes (
   created_by_user_id uuid references auth.users(id) on delete set null
 );
 
-alter table public.client_notes
-  add column if not exists created_by_user_id uuid references auth.users(id) on delete set null;
-
 create table if not exists public.contact_merges (
   id uuid primary key default gen_random_uuid(),
   merged_into_contact_id uuid references public.contacts(id) on delete set null,
   merged_from jsonb not null,
   merged_by_user_id uuid references auth.users(id) on delete set null,
   merged_at timestamptz not null default now()
+);
+
+create table if not exists public.contact_addresses (
+  id uuid primary key default gen_random_uuid(),
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  civic_number text not null default '',
+  address text not null default '',
+  apartment text not null default '',
+  city text not null default '',
+  province text not null default '',
+  postal_code text not null default '',
+  country text not null default '',
+  is_primary boolean not null default false,
+  label text not null default 'Ancienne adresse' check (
+    label = any (array['Principale', 'Ancienne adresse', 'Résidence secondaire', 'Autre'])
+  ),
+  normalized_key text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.listings (
@@ -199,18 +180,6 @@ create table if not exists public.listings (
   )
 );
 
-alter table public.listings
-  add column if not exists sold_price numeric(14, 2),
-  add column if not exists notary_date date,
-  add column if not exists collaborating_broker_name text not null default '';
-
-do $$ begin
-  alter table public.listings
-    add constraint listings_sold_price_check
-    check (sold_price is null or sold_price >= 0);
-exception when duplicate_object then null;
-end $$;
-
 create table if not exists public.listing_contacts (
   listing_id uuid not null references public.listings(id) on delete cascade,
   contact_id uuid not null references public.contacts(id) on delete cascade,
@@ -218,6 +187,95 @@ create table if not exists public.listing_contacts (
   created_at timestamptz not null default now(),
   primary key (listing_id, contact_id),
   constraint listing_contacts_role_check check (role = 'owner')
+);
+
+create table if not exists public.listing_marketing_tasks (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  title text not null,
+  task_key text,
+  completed boolean not null default false,
+  completed_at timestamptz,
+  completed_by public.broker_assignment,
+  sort_order integer not null default 0,
+  is_custom boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint listing_marketing_tasks_title_check check (length(trim(title)) > 0),
+  constraint listing_marketing_tasks_completed_by_check check (completed_by is null or completed_by <> 'unassigned'),
+  constraint listing_marketing_tasks_completion_check check (
+    (completed and completed_at is not null)
+    or (not completed and completed_at is null and completed_by is null)
+  ),
+  constraint listing_marketing_tasks_custom_key_check check (
+    (is_custom and task_key is null) or not is_custom
+  )
+);
+
+create table if not exists public.listing_visits (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  visit_date date not null,
+  visit_time time,
+  visiting_broker_name text not null default '',
+  visiting_broker_agency text not null default '',
+  buyer_names text not null default '',
+  feedback text not null default '',
+  interest_level text,
+  created_by public.broker_assignment,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint listing_visits_interest_check check (
+    interest_level is null or interest_level = any (array['low', 'medium', 'high'])
+  ),
+  constraint listing_visits_created_by_check check (created_by is null or created_by <> 'unassigned')
+);
+
+create table if not exists public.listing_activity (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  event_type text not null,
+  title text not null,
+  detail text not null default '',
+  actor_broker public.broker_assignment,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint listing_activity_actor_check check (actor_broker is null or actor_broker <> 'unassigned')
+);
+
+create table if not exists public.listing_price_history (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  purpose text not null,
+  amount numeric(14, 2),
+  changed_by public.broker_assignment,
+  changed_at timestamptz not null default now(),
+  constraint listing_price_history_purpose_check check (purpose = any (array['sale', 'rental'])),
+  constraint listing_price_history_amount_check check (amount is null or amount >= 0),
+  constraint listing_price_history_actor_check check (changed_by is null or changed_by <> 'unassigned')
+);
+
+create table if not exists public.listing_offers (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings(id) on delete cascade,
+  purpose text not null,
+  offer_date date not null,
+  amount numeric(14, 2) not null,
+  status text not null default 'received',
+  buyer_names text not null default '',
+  collaborating_broker_name text not null default '',
+  collaborating_broker_agency text not null default '',
+  notes text not null default '',
+  accepted_at timestamptz,
+  created_by public.broker_assignment,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint listing_offers_purpose_check check (purpose = any (array['sale', 'rental'])),
+  constraint listing_offers_amount_check check (amount >= 0),
+  constraint listing_offers_status_check check (
+    status = any (array['received', 'negotiating', 'countered', 'accepted', 'rejected', 'withdrawn', 'expired'])
+  ),
+  constraint listing_offers_created_by_check check (created_by is null or created_by <> 'unassigned')
 );
 
 create table if not exists public.transactions (
@@ -247,53 +305,20 @@ create table if not exists public.transactions (
   constraint transactions_sold_price_check check (sold_price is null or sold_price > 0)
 );
 
-alter table public.transactions
-  add column if not exists sold_price numeric(14, 2),
-  add column if not exists notary_date date,
-  add column if not exists collaborating_broker_name text not null default '',
-  add column if not exists sale_finalized_at timestamptz,
-  add column if not exists purchase_finalized_at timestamptz,
-  add column if not exists creation_key uuid;
-
-do $$ begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.transactions'::regclass
-      and conname = 'transactions_sold_price_check'
-  ) then
-    alter table public.transactions
-      add constraint transactions_sold_price_check
-      check (sold_price is null or sold_price > 0);
-  end if;
-end $$;
-
-do $$ begin
-  if to_regclass('public.listing_transaction_links') is not null then
-    alter table public.listing_transaction_links
-      drop constraint if exists listing_transaction_links_listing_unique;
-    create index if not exists listing_transaction_links_listing_idx
-      on public.listing_transaction_links (listing_id);
-
-    alter table public.listing_transaction_links
-      drop constraint if exists listing_transaction_links_listing_id_fkey;
-    alter table public.listing_transaction_links
-      add constraint listing_transaction_links_listing_id_fkey
-      foreign key (listing_id) references public.listings(id) on delete restrict;
-
-    alter table public.listing_transaction_links
-      drop constraint if exists listing_transaction_links_offer_id_fkey;
-    alter table public.listing_transaction_links
-      add constraint listing_transaction_links_offer_id_fkey
-      foreign key (offer_id) references public.listing_offers(id) on delete restrict;
-
-    alter table public.listing_transaction_links
-      drop constraint if exists listing_transaction_links_transaction_id_fkey;
-    alter table public.listing_transaction_links
-      add constraint listing_transaction_links_transaction_id_fkey
-      foreign key (transaction_id) references public.transactions(id) on delete restrict;
-  end if;
-end $$;
+create table if not exists public.listing_transaction_links (
+  listing_id uuid not null,
+  offer_id uuid not null,
+  transaction_id uuid not null,
+  created_at timestamptz not null default now(),
+  constraint listing_transaction_links_listing_id_fkey
+    foreign key (listing_id) references public.listings(id) on delete restrict,
+  constraint listing_transaction_links_offer_id_fkey
+    foreign key (offer_id) references public.listing_offers(id) on delete restrict,
+  constraint listing_transaction_links_transaction_id_fkey
+    foreign key (transaction_id) references public.transactions(id) on delete restrict,
+  constraint listing_transaction_links_offer_unique unique (offer_id),
+  constraint listing_transaction_links_transaction_unique unique (transaction_id)
+);
 
 create or replace function public.create_transaction_from_listing_offer(
   p_listing_id uuid,
@@ -307,7 +332,7 @@ set search_path = public
 as $$
 declare
   v_listing public.listings;
-  v_offer record;
+  v_offer public.listing_offers;
   v_existing uuid;
   v_transaction_id uuid;
   v_address text;
@@ -1252,6 +1277,562 @@ begin
 end;
 $$;
 
+create or replace function public.normalize_contact_address_part(p_value text)
+returns text
+language sql
+stable
+set search_path = public, extensions
+as $$
+  select trim(regexp_replace(lower(unaccent(coalesce(trim(p_value), ''))), '[^a-z0-9]+', ' ', 'g'));
+$$;
+
+create or replace function public.normalize_contact_address(
+  p_civic_number text, p_address text, p_apartment text, p_city text,
+  p_province text, p_postal_code text, p_country text
+)
+returns text
+language sql
+stable
+set search_path = public, extensions
+as $$
+  select array_to_string(array[
+    public.normalize_contact_address_part(p_civic_number),
+    public.normalize_contact_address_part(
+      regexp_replace(
+        regexp_replace(
+          regexp_replace(lower(unaccent(coalesce(trim(p_address), ''))), '\mav\.?\M', 'avenue', 'g'),
+          '\mboul\.?\M', 'boulevard', 'g'),
+        '\mch\.?\M', 'chemin', 'g')),
+    public.normalize_contact_address_part(p_apartment),
+    public.normalize_contact_address_part(p_city),
+    public.normalize_contact_address_part(p_province),
+    replace(public.normalize_contact_address_part(p_postal_code), ' ', ''),
+    public.normalize_contact_address_part(p_country)
+  ], '|');
+$$;
+
+create or replace function public.save_contact_addresses(p_contact_id uuid, p_addresses jsonb)
+returns public.contacts
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_item jsonb;
+  v_key text;
+  v_primary_key text;
+  v_kept_keys text[] := array[]::text[];
+  v_primary public.contact_addresses;
+  v_result public.contacts;
+begin
+  perform 1 from public.contacts where id = p_contact_id for update;
+  if not found then raise exception 'Contact introuvable'; end if;
+
+  update public.contact_addresses set is_primary = false, label = case when label = 'Principale' then 'Ancienne adresse' else label end where contact_id = p_contact_id;
+
+  for v_item in select value from jsonb_array_elements(coalesce(p_addresses, '[]'::jsonb)) loop
+    v_key := public.normalize_contact_address(
+      v_item->>'civic_number', v_item->>'address', v_item->>'apartment', v_item->>'city',
+      v_item->>'province', v_item->>'postal_code', v_item->>'country'
+    );
+    if replace(v_key, '|', '') = '' or v_key = any(v_kept_keys) then continue; end if;
+    v_kept_keys := array_append(v_kept_keys, v_key);
+    if coalesce((v_item->>'is_primary')::boolean, false) and v_primary_key is null then v_primary_key := v_key; end if;
+
+    insert into public.contact_addresses (
+      contact_id, civic_number, address, apartment, city, province, postal_code, country,
+      is_primary, label, normalized_key
+    ) values (
+      p_contact_id,
+      trim(coalesce(v_item->>'civic_number', '')), trim(coalesce(v_item->>'address', '')),
+      trim(coalesce(v_item->>'apartment', '')), trim(coalesce(v_item->>'city', '')),
+      trim(coalesce(v_item->>'province', '')), trim(coalesce(v_item->>'postal_code', '')),
+      trim(coalesce(v_item->>'country', '')), false,
+      case when v_item->>'label' = any(array['Ancienne adresse', 'Résidence secondaire', 'Autre']) then v_item->>'label' else 'Ancienne adresse' end,
+      v_key
+    )
+    on conflict (contact_id, normalized_key) do update set
+      civic_number = excluded.civic_number, address = excluded.address, apartment = excluded.apartment,
+      city = excluded.city, province = excluded.province, postal_code = excluded.postal_code,
+      country = excluded.country, label = excluded.label;
+  end loop;
+
+  if cardinality(v_kept_keys) = 0 then
+    delete from public.contact_addresses where contact_id = p_contact_id;
+    update public.contacts set civic_number='', address='', apartment='', city='', province='', postal_code='', country='' where id=p_contact_id returning * into v_result;
+    return v_result;
+  end if;
+
+  delete from public.contact_addresses where contact_id = p_contact_id and not (normalized_key = any(v_kept_keys));
+  v_primary_key := coalesce(v_primary_key, v_kept_keys[1]);
+  update public.contact_addresses set
+    is_primary = normalized_key = v_primary_key,
+    label = case when normalized_key = v_primary_key then 'Principale' when label = 'Principale' then 'Ancienne adresse' else label end
+  where contact_id = p_contact_id;
+
+  select * into v_primary from public.contact_addresses where contact_id = p_contact_id and is_primary;
+  update public.contacts set
+    civic_number=v_primary.civic_number, address=v_primary.address, apartment=v_primary.apartment,
+    city=v_primary.city, province=v_primary.province, postal_code=v_primary.postal_code, country=v_primary.country
+  where id=p_contact_id returning * into v_result;
+  return v_result;
+end;
+$$;
+
+create or replace function public.import_contacts_with_addresses(p_entries jsonb, p_source public.contact_source)
+returns setof public.contacts
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_entry jsonb; v_contact public.contacts;
+begin
+  for v_entry in select value from jsonb_array_elements(coalesce(p_entries, '[]'::jsonb)) loop
+    insert into public.contacts (first_name,last_name,phone,email,birth_date,civic_number,address,apartment,city,province,postal_code,country,broker,source)
+    values (
+      trim(coalesce(v_entry#>>'{contact,firstName}','')), trim(coalesce(v_entry#>>'{contact,lastName}','')),
+      trim(coalesce(v_entry#>>'{contact,phone}','')), trim(coalesce(v_entry#>>'{contact,email}','')),
+      nullif(v_entry#>>'{contact,birthDate}','')::date,
+      trim(coalesce(v_entry#>>'{contact,civicNumber}','')), trim(coalesce(v_entry#>>'{contact,address}','')),
+      trim(coalesce(v_entry#>>'{contact,apartment}','')), trim(coalesce(v_entry#>>'{contact,city}','')),
+      trim(coalesce(v_entry#>>'{contact,province}','')), trim(coalesce(v_entry#>>'{contact,postalCode}','')),
+      trim(coalesce(v_entry#>>'{contact,country}','')), 'unassigned', p_source
+    ) returning * into v_contact;
+    if jsonb_array_length(coalesce(v_entry->'addresses','[]'::jsonb)) > 0 then
+      select * into v_contact from public.save_contact_addresses(v_contact.id, v_entry->'addresses');
+    end if;
+    return next v_contact;
+  end loop;
+end;
+$$;
+
+create or replace function public.merge_contacts_with_addresses(
+  p_target_id uuid, p_source_id uuid, p_addresses jsonb,
+  p_first_name text, p_last_name text, p_phone text, p_email text,
+  p_civic_number text, p_address text, p_apartment text, p_city text, p_province text, p_postal_code text, p_country text,
+  p_broker public.broker_assignment, p_client_type public.client_type, p_priority public.contact_priority, p_status public.contact_status,
+  p_next_follow_up_date date, p_google_event_id text, p_google_event_broker public.broker_assignment, p_merged_by_user_id uuid
+)
+returns public.contacts
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_source public.contacts; v_target public.contacts; v_result public.contacts; v_last_contact timestamptz; v_addresses jsonb;
+begin
+  if p_target_id=p_source_id then raise exception 'Les contacts à fusionner doivent être différents'; end if;
+  select * into v_target from public.contacts where id=p_target_id for update;
+  select * into v_source from public.contacts where id=p_source_id for update;
+  if v_target.id is null or v_source.id is null then raise exception 'Contact de fusion introuvable'; end if;
+
+  update public.client_notes set contact_id=p_target_id where contact_id=p_source_id;
+  insert into public.transaction_contacts(transaction_id,contact_id)
+    select transaction_id,p_target_id from public.transaction_contacts where contact_id=p_source_id on conflict do nothing;
+  delete from public.transaction_contacts where contact_id=p_source_id;
+  select max(created_at) into v_last_contact from public.client_notes where contact_id=p_target_id;
+
+  update public.contacts set
+    first_name=trim(p_first_name),last_name=trim(p_last_name),phone=trim(p_phone),email=trim(p_email),
+    civic_number=trim(p_civic_number),address=trim(p_address),apartment=trim(p_apartment),city=trim(p_city),province=trim(p_province),postal_code=trim(p_postal_code),country=trim(p_country),
+    broker=p_broker,client_type=p_client_type,priority=p_priority,status=p_status,
+    last_contact_date=greatest(v_target.last_contact_date,v_source.last_contact_date,v_last_contact),
+    next_follow_up_date=p_next_follow_up_date,google_calendar_event_id=p_google_event_id,google_calendar_event_broker=p_google_event_broker,
+    google_calendar_sync_status=case when p_next_follow_up_date is null then 'synced' else 'pending' end,google_calendar_last_error=null
+  where id=p_target_id;
+
+  v_addresses := coalesce(p_addresses,'[]'::jsonb);
+  if jsonb_array_length(v_addresses)=0 then
+    select coalesce(jsonb_agg(jsonb_build_object(
+      'civic_number',civic_number,'address',address,'apartment',apartment,'city',city,'province',province,'postal_code',postal_code,'country',country,
+      'is_primary',contact_id=p_target_id and is_primary,'label',case when contact_id=p_target_id and is_primary then 'Principale' else 'Ancienne adresse' end
+    ) order by (contact_id=p_target_id and is_primary) desc),'[]'::jsonb) into v_addresses
+    from public.contact_addresses where contact_id in (p_target_id,p_source_id);
+  end if;
+  if jsonb_array_length(v_addresses)>0 then select * into v_result from public.save_contact_addresses(p_target_id,v_addresses); end if;
+  insert into public.contact_merges(merged_into_contact_id,merged_from,merged_by_user_id) values(p_target_id,to_jsonb(v_source),p_merged_by_user_id);
+  delete from public.contacts where id=p_source_id;
+  select * into v_result from public.contacts where id=p_target_id;
+  return v_result;
+end;
+$$;
+
+create or replace function public.merge_contacts_with_birthdays(
+  p_target_id uuid, p_source_id uuid, p_addresses jsonb,
+  p_first_name text, p_last_name text, p_phone text, p_email text, p_birth_date date,
+  p_civic_number text, p_address text, p_apartment text, p_city text, p_province text, p_postal_code text, p_country text,
+  p_broker public.broker_assignment, p_client_type public.client_type, p_priority public.contact_priority, p_status public.contact_status,
+  p_next_follow_up_date date, p_google_event_id text, p_google_event_broker public.broker_assignment, p_merged_by_user_id uuid
+)
+returns public.contacts
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare v_result public.contacts;
+begin
+  select * into v_result from public.merge_contacts_with_addresses(
+    p_target_id,p_source_id,p_addresses,p_first_name,p_last_name,p_phone,p_email,
+    p_civic_number,p_address,p_apartment,p_city,p_province,p_postal_code,p_country,
+    p_broker,p_client_type,p_priority,p_status,p_next_follow_up_date,p_google_event_id,p_google_event_broker,p_merged_by_user_id
+  );
+  update public.contacts set birth_date=p_birth_date where id=p_target_id returning * into v_result;
+  return v_result;
+end;
+$$;
+
+create or replace function public.set_listing_marketing_task_completion(
+  p_listing_id uuid, p_task_id uuid, p_completed boolean, p_actor public.broker_assignment default null
+)
+returns public.listing_marketing_tasks language plpgsql security definer set search_path = public as $$
+declare v_task public.listing_marketing_tasks;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  update public.listing_marketing_tasks set completed = p_completed,
+    completed_at = case when p_completed then now() else null end,
+    completed_by = case when p_completed then p_actor else null end
+  where id = p_task_id and listing_id = p_listing_id returning * into v_task;
+  if not found then raise exception 'Tâche introuvable' using errcode = 'P0001'; end if;
+  insert into public.listing_activity (listing_id, event_type, title, actor_broker)
+  values (p_listing_id, case when p_completed then 'marketing_task_completed' else 'marketing_task_reopened' end,
+    v_task.title || case when p_completed then ' complétée' else ' rouverte' end, p_actor);
+  return v_task;
+end; $$;
+
+create or replace function public.create_custom_listing_marketing_task(
+  p_listing_id uuid, p_title text, p_actor public.broker_assignment default null
+)
+returns public.listing_marketing_tasks language plpgsql security definer set search_path = public as $$
+declare v_task public.listing_marketing_tasks;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  insert into public.listing_marketing_tasks (listing_id, title, sort_order, is_custom)
+  select p_listing_id, trim(p_title), coalesce(max(sort_order), 0) + 10, true
+  from public.listing_marketing_tasks where listing_id = p_listing_id returning * into v_task;
+  insert into public.listing_activity (listing_id, event_type, title, actor_broker)
+  values (p_listing_id, 'custom_task_added', 'Tâche ajoutée · ' || v_task.title, p_actor);
+  return v_task;
+end; $$;
+
+create or replace function public.update_custom_listing_marketing_task(
+  p_listing_id uuid, p_task_id uuid, p_title text, p_actor public.broker_assignment default null
+)
+returns public.listing_marketing_tasks language plpgsql security definer set search_path = public as $$
+declare v_task public.listing_marketing_tasks;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  update public.listing_marketing_tasks set title = trim(p_title)
+  where id = p_task_id and listing_id = p_listing_id and is_custom returning * into v_task;
+  if not found then raise exception 'Tâche personnalisée introuvable' using errcode = 'P0001'; end if;
+  insert into public.listing_activity (listing_id, event_type, title, actor_broker)
+  values (p_listing_id, 'custom_task_updated', 'Tâche modifiée · ' || v_task.title, p_actor);
+  return v_task;
+end; $$;
+
+create or replace function public.delete_custom_listing_marketing_task(
+  p_listing_id uuid, p_task_id uuid, p_actor public.broker_assignment default null
+)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_title text;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  delete from public.listing_marketing_tasks where id = p_task_id and listing_id = p_listing_id and is_custom
+  returning title into v_title;
+  if not found then raise exception 'Tâche personnalisée introuvable' using errcode = 'P0001'; end if;
+  insert into public.listing_activity (listing_id, event_type, title, actor_broker)
+  values (p_listing_id, 'custom_task_deleted', 'Tâche supprimée · ' || v_title, p_actor);
+  return p_task_id;
+end; $$;
+
+create or replace function public.create_listing_visit(
+  p_listing_id uuid, p_values jsonb, p_actor public.broker_assignment default null
+)
+returns public.listing_visits language plpgsql security definer set search_path = public as $$
+declare v_visit public.listing_visits;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  insert into public.listing_visits (listing_id, visit_date, visit_time, visiting_broker_name,
+    visiting_broker_agency, buyer_names, feedback, interest_level, created_by)
+  values (p_listing_id, (p_values->>'visitDate')::date, nullif(p_values->>'visitTime', '')::time,
+    trim(coalesce(p_values->>'visitingBrokerName', '')), trim(coalesce(p_values->>'visitingBrokerAgency', '')),
+    trim(coalesce(p_values->>'buyerNames', '')), trim(coalesce(p_values->>'feedback', '')),
+    nullif(p_values->>'interestLevel', ''), p_actor) returning * into v_visit;
+  insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+  values (p_listing_id, 'visit_added', 'Visite ajoutée', v_visit.visit_date::text, p_actor,
+    jsonb_build_object('visitId', v_visit.id));
+  return v_visit;
+end; $$;
+
+create or replace function public.update_listing_visit(
+  p_listing_id uuid, p_visit_id uuid, p_values jsonb, p_actor public.broker_assignment default null
+)
+returns public.listing_visits language plpgsql security definer set search_path = public as $$
+declare v_before public.listing_visits; v_visit public.listing_visits;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  select * into v_before from public.listing_visits where id = p_visit_id and listing_id = p_listing_id for update;
+  if not found then raise exception 'Visite introuvable' using errcode = 'P0001'; end if;
+  update public.listing_visits set visit_date = (p_values->>'visitDate')::date,
+    visit_time = nullif(p_values->>'visitTime', '')::time,
+    visiting_broker_name = trim(coalesce(p_values->>'visitingBrokerName', '')),
+    visiting_broker_agency = trim(coalesce(p_values->>'visitingBrokerAgency', '')),
+    buyer_names = trim(coalesce(p_values->>'buyerNames', '')),
+    feedback = trim(coalesce(p_values->>'feedback', '')),
+    interest_level = nullif(p_values->>'interestLevel', '')
+  where id = p_visit_id and listing_id = p_listing_id returning * into v_visit;
+  insert into public.listing_activity (listing_id, event_type, title, actor_broker, metadata)
+  values (p_listing_id, 'visit_updated',
+    case when v_before.feedback is distinct from v_visit.feedback then 'Feedback de visite modifié' else 'Visite modifiée' end,
+    p_actor, jsonb_build_object('visitId', v_visit.id));
+  return v_visit;
+end; $$;
+
+create or replace function public.delete_listing_visit(
+  p_listing_id uuid, p_visit_id uuid, p_actor public.broker_assignment default null
+)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_date date;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  delete from public.listing_visits where id = p_visit_id and listing_id = p_listing_id returning visit_date into v_date;
+  if not found then raise exception 'Visite introuvable' using errcode = 'P0001'; end if;
+  insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+  values (p_listing_id, 'visit_deleted', 'Visite supprimée', v_date::text, p_actor,
+    jsonb_build_object('visitId', p_visit_id));
+  return p_visit_id;
+end; $$;
+
+create or replace function public.create_listing_offer(
+  p_listing_id uuid,
+  p_values jsonb,
+  p_actor public.broker_assignment default null
+)
+returns public.listing_offers
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_listing public.listings;
+  v_offer public.listing_offers;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  select * into v_listing from public.listings where id = p_listing_id for update;
+  if not found then raise exception 'Listing introuvable' using errcode = 'P0001'; end if;
+
+  insert into public.listing_offers (
+    listing_id, purpose, offer_date, amount, status, buyer_names,
+    collaborating_broker_name, collaborating_broker_agency, notes, accepted_at, created_by
+  ) values (
+    p_listing_id, v_listing.purpose, (p_values->>'offerDate')::date,
+    (p_values->>'amount')::numeric, p_values->>'status',
+    trim(coalesce(p_values->>'buyerNames', '')),
+    trim(coalesce(p_values->>'collaboratingBrokerName', '')),
+    trim(coalesce(p_values->>'collaboratingBrokerAgency', '')),
+    trim(coalesce(p_values->>'notes', '')),
+    case when p_values->>'status' = 'accepted' then now() else null end,
+    p_actor
+  ) returning * into v_offer;
+
+  if v_listing.status = 'active' then
+    update public.listings
+    set status = case when v_offer.status = 'accepted' then 'conditional' else 'offer_received' end
+    where id = p_listing_id;
+  elsif v_listing.status = 'offer_received' and v_offer.status = 'accepted' then
+    update public.listings set status = 'conditional' where id = p_listing_id;
+  end if;
+
+  insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+  values (p_listing_id, 'offer_added', 'Offre reçue', v_offer.amount::text, p_actor,
+    jsonb_build_object('offerId', v_offer.id, 'status', v_offer.status, 'amount', v_offer.amount));
+  return v_offer;
+end;
+$$;
+
+create or replace function public.update_listing_offer(
+  p_listing_id uuid,
+  p_offer_id uuid,
+  p_values jsonb,
+  p_actor public.broker_assignment default null
+)
+returns public.listing_offers
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_listing public.listings;
+  v_before public.listing_offers;
+  v_offer public.listing_offers;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  select * into v_listing from public.listings where id = p_listing_id for update;
+  if not found then raise exception 'Listing introuvable' using errcode = 'P0001'; end if;
+  select * into v_before from public.listing_offers
+  where id = p_offer_id and listing_id = p_listing_id for update;
+  if not found then raise exception 'Offre introuvable' using errcode = 'P0001'; end if;
+
+  update public.listing_offers set
+    offer_date = (p_values->>'offerDate')::date,
+    amount = (p_values->>'amount')::numeric,
+    status = p_values->>'status',
+    buyer_names = trim(coalesce(p_values->>'buyerNames', '')),
+    collaborating_broker_name = trim(coalesce(p_values->>'collaboratingBrokerName', '')),
+    collaborating_broker_agency = trim(coalesce(p_values->>'collaboratingBrokerAgency', '')),
+    notes = trim(coalesce(p_values->>'notes', '')),
+    accepted_at = case
+      when accepted_at is not null then accepted_at
+      when p_values->>'status' = 'accepted' then now()
+      else null
+    end
+  where id = p_offer_id and listing_id = p_listing_id returning * into v_offer;
+
+  if v_listing.status = 'active' then
+    update public.listings
+    set status = case when v_offer.status = 'accepted' then 'conditional' else 'offer_received' end
+    where id = p_listing_id;
+  elsif v_listing.status = 'offer_received' and v_offer.status = 'accepted' then
+    update public.listings set status = 'conditional' where id = p_listing_id;
+  end if;
+
+  insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+  values (p_listing_id, 'offer_updated', 'Offre modifiée', v_offer.amount::text, p_actor,
+    jsonb_build_object('offerId', v_offer.id, 'status', v_offer.status, 'amount', v_offer.amount));
+  if v_before.status is distinct from v_offer.status then
+    insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+    values (p_listing_id, 'offer_status_changed', 'Statut de l’offre modifié',
+      v_before.status || ' → ' || v_offer.status, p_actor,
+      jsonb_build_object('offerId', v_offer.id, 'before', v_before.status, 'after', v_offer.status));
+  end if;
+  return v_offer;
+end;
+$$;
+
+create or replace function public.delete_listing_offer(
+  p_listing_id uuid,
+  p_offer_id uuid,
+  p_actor public.broker_assignment default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_offer public.listing_offers;
+begin
+  if p_actor = 'unassigned' then p_actor := null; end if;
+  if exists (select 1 from public.listing_transaction_links where offer_id = p_offer_id) then
+    raise exception 'Offre liée à une transaction' using errcode = 'P0001';
+  end if;
+  delete from public.listing_offers
+  where id = p_offer_id and listing_id = p_listing_id returning * into v_offer;
+  if not found then raise exception 'Offre introuvable' using errcode = 'P0001'; end if;
+  insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
+  values (p_listing_id, 'offer_deleted', 'Offre supprimée', v_offer.amount::text, p_actor,
+    jsonb_build_object('offerId', v_offer.id, 'status', v_offer.status, 'amount', v_offer.amount));
+  return p_offer_id;
+end;
+$$;
+
+create or replace function public.complete_listing_sale(
+  p_listing_id uuid,
+  p_sold_price numeric,
+  p_notary_date date,
+  p_collaborating_broker_name text,
+  p_no_collaborating_broker boolean,
+  p_actor_broker public.broker_assignment
+)
+returns public.listings
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_before public.listings;
+  v_listing public.listings;
+  v_actor public.broker_assignment;
+  v_collaborating_broker_name text;
+begin
+  if p_sold_price is null or p_sold_price <= 0 then
+    raise exception 'Prix vendu invalide.' using errcode = 'P0001';
+  end if;
+  if p_notary_date is null then
+    raise exception 'Date du notaire requise.' using errcode = 'P0001';
+  end if;
+  if p_no_collaborating_broker is null then
+    raise exception 'Choix du courtier collaborateur requis.' using errcode = 'P0001';
+  end if;
+
+  v_collaborating_broker_name := trim(coalesce(p_collaborating_broker_name, ''));
+  if not p_no_collaborating_broker and v_collaborating_broker_name = '' then
+    raise exception 'Courtier collaborateur requis.' using errcode = 'P0001';
+  end if;
+  if length(v_collaborating_broker_name) > 240 then
+    raise exception 'Courtier collaborateur invalide.' using errcode = 'P0001';
+  end if;
+  if p_no_collaborating_broker then
+    v_collaborating_broker_name := '';
+  end if;
+
+  v_actor := p_actor_broker;
+  if v_actor = 'unassigned' then v_actor := null; end if;
+
+  select * into v_before
+  from public.listings
+  where id = p_listing_id
+  for update;
+
+  if not found then
+    raise exception 'Listing introuvable.' using errcode = 'P0001';
+  end if;
+  if v_before.purpose <> 'sale' then
+    raise exception 'Seul un Listing en vente peut être marqué comme vendu.' using errcode = 'P0001';
+  end if;
+  if v_before.status = 'sold' then
+    raise exception 'Ce Listing est déjà marqué comme vendu.' using errcode = 'P0001';
+  end if;
+
+  update public.listings
+  set
+    sold_price = p_sold_price,
+    notary_date = p_notary_date,
+    collaborating_broker_name = v_collaborating_broker_name,
+    status = 'sold'
+  where id = p_listing_id
+  returning * into v_listing;
+
+  insert into public.listing_activity (
+    listing_id, event_type, title, detail, actor_broker, metadata
+  ) values (
+    p_listing_id,
+    'sale_completed',
+    'Listing vendu',
+    'Vendu ' || p_sold_price::text || ' $ · Notaire ' || p_notary_date::text
+      || ' · Courtier collaborateur : '
+      || case when v_collaborating_broker_name = '' then 'Aucun' else v_collaborating_broker_name end,
+    v_actor,
+    jsonb_build_object(
+      'soldPrice', p_sold_price,
+      'notaryDate', p_notary_date,
+      'collaboratingBrokerName', v_collaborating_broker_name
+    )
+  );
+
+  insert into public.listing_activity (
+    listing_id, event_type, title, detail, actor_broker, metadata
+  ) values (
+    p_listing_id,
+    'status_changed',
+    'Statut modifié',
+    v_before.status || ' → sold',
+    v_actor,
+    jsonb_build_object('before', v_before.status, 'after', 'sold')
+  );
+
+  return v_listing;
+end;
+$$;
+
 create or replace function public.notify_google_calendar_change(
   p_channel_id text,
   p_resource_id text,
@@ -1305,6 +1886,26 @@ for each row execute function public.set_updated_at();
 drop trigger if exists listings_set_updated_at on public.listings;
 create trigger listings_set_updated_at
 before update on public.listings
+for each row execute function public.set_updated_at();
+
+drop trigger if exists contact_addresses_set_updated_at on public.contact_addresses;
+create trigger contact_addresses_set_updated_at
+before update on public.contact_addresses
+for each row execute function public.set_updated_at();
+
+drop trigger if exists listing_marketing_tasks_set_updated_at on public.listing_marketing_tasks;
+create trigger listing_marketing_tasks_set_updated_at
+before update on public.listing_marketing_tasks
+for each row execute function public.set_updated_at();
+
+drop trigger if exists listing_visits_set_updated_at on public.listing_visits;
+create trigger listing_visits_set_updated_at
+before update on public.listing_visits
+for each row execute function public.set_updated_at();
+
+drop trigger if exists listing_offers_set_updated_at on public.listing_offers;
+create trigger listing_offers_set_updated_at
+before update on public.listing_offers
 for each row execute function public.set_updated_at();
 
 drop trigger if exists automatic_email_rules_set_updated_at on public.automatic_email_rules;
@@ -1476,30 +2077,17 @@ declare
   v_actor public.broker_assignment;
 begin
   v_actor := nullif(p_values->>'actorBroker', '')::public.broker_assignment;
-  if v_actor = 'unassigned' then
-    v_actor := null;
-  end if;
-
-  select * into v_before
-  from public.listings
-  where id = p_listing_id
-  for update;
-
-  if not found then
-    raise exception 'Listing introuvable' using errcode = 'P0001';
-  end if;
+  if v_actor = 'unassigned' then v_actor := null; end if;
+  select * into v_before from public.listings where id = p_listing_id for update;
+  if not found then raise exception 'Listing introuvable' using errcode = 'P0001'; end if;
 
   if p_owner_contact_ids is not null and exists (
-    select 1
-    from unnest(p_owner_contact_ids) as requested(owner_id)
+    select 1 from unnest(p_owner_contact_ids) as requested(owner_id)
     left join public.contacts as contacts on contacts.id = requested.owner_id
     where contacts.id is null
-  ) then
-    raise exception 'Propriétaire invalide' using errcode = 'P0001';
-  end if;
+  ) then raise exception 'Propriétaire invalide' using errcode = 'P0001'; end if;
 
-  update public.listings
-  set
+  update public.listings set
     civic_number = case when p_values ? 'civicNumber' then trim(coalesce(p_values->>'civicNumber', '')) else civic_number end,
     address = case when p_values ? 'address' then trim(coalesce(p_values->>'address', '')) else address end,
     apartment = case when p_values ? 'apartment' then trim(coalesce(p_values->>'apartment', '')) else apartment end,
@@ -1520,21 +2108,13 @@ begin
     public_url = case when p_values ? 'publicUrl' then trim(coalesce(p_values->>'publicUrl', '')) else public_url end,
     primary_image_url = case when p_values ? 'primaryImageUrl' then trim(coalesce(p_values->>'primaryImageUrl', '')) else primary_image_url end,
     general_notes = case when p_values ? 'generalNotes' then trim(coalesce(p_values->>'generalNotes', '')) else general_notes end
-  where id = p_listing_id
-  returning * into v_listing;
-
-  if not found then
-    raise exception 'Listing introuvable' using errcode = 'P0001';
-  end if;
+  where id = p_listing_id returning * into v_listing;
 
   if p_owner_contact_ids is not null then
     delete from public.listing_contacts where listing_id = p_listing_id;
     insert into public.listing_contacts (listing_id, contact_id, role)
     select p_listing_id, owners.owner_id, 'owner'
-    from (
-      select distinct owner_id
-      from unnest(p_owner_contact_ids) as requested(owner_id)
-    ) as owners;
+    from (select distinct owner_id from unnest(p_owner_contact_ids) as requested(owner_id)) as owners;
   end if;
 
   insert into public.listing_marketing_tasks (listing_id, title, task_key, sort_order)
@@ -1572,54 +2152,36 @@ begin
     insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker)
     values (p_listing_id, 'purpose_changed', 'Type de mandat modifié', v_before.purpose || ' → ' || v_listing.purpose, v_actor);
   end if;
-
   if v_before.status is distinct from v_listing.status then
     insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker)
     values (p_listing_id, 'status_changed', 'Statut modifié', v_before.status || ' → ' || v_listing.status, v_actor);
   end if;
-
   if v_before.broker is distinct from v_listing.broker then
     insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker)
     values (p_listing_id, 'broker_changed', 'Courtier responsable modifié', v_before.broker || ' → ' || v_listing.broker, v_actor);
   end if;
-
   if v_before.general_notes is distinct from v_listing.general_notes then
     insert into public.listing_activity (listing_id, event_type, title, actor_broker)
     values (p_listing_id, 'note_updated', 'Notes internes mises à jour', v_actor);
   end if;
 
-  if v_listing.purpose = 'sale'
-    and v_listing.asking_price is not null
+  if v_listing.purpose = 'sale' and v_listing.asking_price is not null
     and (v_before.purpose is distinct from 'sale' or v_before.asking_price is distinct from v_listing.asking_price) then
     insert into public.listing_price_history (listing_id, purpose, amount, changed_by)
     values (p_listing_id, 'sale', v_listing.asking_price, v_actor);
-
     insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
-    values (
-      p_listing_id,
-      'price_changed',
-      'Prix demandé modifié',
-      coalesce(v_before.asking_price::text, '—') || ' → ' || v_listing.asking_price::text,
-      v_actor,
-      jsonb_build_object('before', v_before.asking_price, 'after', v_listing.asking_price)
-    );
-  elsif v_listing.purpose = 'rental'
-    and v_listing.monthly_rent is not null
+    values (p_listing_id, 'price_changed', 'Prix demandé modifié',
+      coalesce(v_before.asking_price::text, '—') || ' → ' || v_listing.asking_price::text, v_actor,
+      jsonb_build_object('before', v_before.asking_price, 'after', v_listing.asking_price));
+  elsif v_listing.purpose = 'rental' and v_listing.monthly_rent is not null
     and (v_before.purpose is distinct from 'rental' or v_before.monthly_rent is distinct from v_listing.monthly_rent) then
     insert into public.listing_price_history (listing_id, purpose, amount, changed_by)
     values (p_listing_id, 'rental', v_listing.monthly_rent, v_actor);
-
     insert into public.listing_activity (listing_id, event_type, title, detail, actor_broker, metadata)
-    values (
-      p_listing_id,
-      'rent_changed',
-      'Loyer mensuel modifié',
-      coalesce(v_before.monthly_rent::text, '—') || ' → ' || v_listing.monthly_rent::text,
-      v_actor,
-      jsonb_build_object('before', v_before.monthly_rent, 'after', v_listing.monthly_rent)
-    );
+    values (p_listing_id, 'rent_changed', 'Loyer mensuel modifié',
+      coalesce(v_before.monthly_rent::text, '—') || ' → ' || v_listing.monthly_rent::text, v_actor,
+      jsonb_build_object('before', v_before.monthly_rent, 'after', v_listing.monthly_rent));
   end if;
-
   return v_listing;
 end;
 $$;
@@ -2146,10 +2708,7 @@ begin
     raise exception 'Contact de fusion introuvable';
   end if;
 
-  update public.client_notes
-  set contact_id = p_target_id
-  where contact_id = p_source_id;
-
+  update public.client_notes set contact_id = p_target_id where contact_id = p_source_id;
   select max(created_at) into v_last_contact
   from public.client_notes
   where contact_id = p_target_id;
@@ -2180,15 +2739,8 @@ begin
   where id = p_target_id
   returning * into v_result;
 
-  insert into public.contact_merges (
-    merged_into_contact_id,
-    merged_from,
-    merged_by_user_id
-  ) values (
-    p_target_id,
-    to_jsonb(v_source),
-    p_merged_by_user_id
-  );
+  insert into public.contact_merges (merged_into_contact_id, merged_from, merged_by_user_id)
+  values (p_target_id, to_jsonb(v_source), p_merged_by_user_id);
 
   delete from public.contacts where id = p_source_id;
   return v_result;
@@ -2531,6 +3083,18 @@ create index if not exists contacts_google_event_broker_idx
 create index if not exists contacts_calendar_sync_status_idx
   on public.contacts (google_calendar_sync_status)
   where google_calendar_sync_status <> 'synced';
+create unique index if not exists contact_addresses_one_primary_idx
+  on public.contact_addresses (contact_id) where is_primary;
+create unique index if not exists contact_addresses_contact_normalized_idx
+  on public.contact_addresses (contact_id, normalized_key);
+create index if not exists contact_addresses_contact_idx
+  on public.contact_addresses (contact_id, created_at desc);
+create index if not exists contact_addresses_address_trgm_idx
+  on public.contact_addresses using gin (address gin_trgm_ops);
+create index if not exists contact_addresses_city_trgm_idx
+  on public.contact_addresses using gin (city gin_trgm_ops);
+create index if not exists contact_addresses_postal_trgm_idx
+  on public.contact_addresses using gin (postal_code gin_trgm_ops);
 create index if not exists transactions_broker_status_idx
   on public.transactions (broker, status, updated_at desc);
 create index if not exists transactions_address_trgm_idx
@@ -2551,6 +3115,25 @@ create index if not exists listings_updated_at_idx
   on public.listings (updated_at desc);
 create index if not exists listing_contacts_contact_idx
   on public.listing_contacts (contact_id, listing_id);
+create unique index if not exists listing_marketing_tasks_standard_unique_idx
+  on public.listing_marketing_tasks (listing_id, task_key)
+  where task_key is not null;
+create index if not exists listing_marketing_tasks_listing_idx
+  on public.listing_marketing_tasks (listing_id, sort_order, created_at);
+create index if not exists listing_visits_listing_date_idx
+  on public.listing_visits (listing_id, visit_date desc, visit_time desc);
+create index if not exists listing_activity_listing_created_idx
+  on public.listing_activity (listing_id, created_at desc);
+create index if not exists listing_price_history_listing_changed_idx
+  on public.listing_price_history (listing_id, changed_at desc);
+create index if not exists listing_offers_listing_date_idx
+  on public.listing_offers (listing_id, offer_date desc, created_at desc);
+create index if not exists listing_offers_listing_status_idx
+  on public.listing_offers (listing_id, status);
+create index if not exists listing_transaction_links_listing_idx
+  on public.listing_transaction_links (listing_id);
+create index if not exists listing_transaction_links_transaction_idx
+  on public.listing_transaction_links (transaction_id);
 create index if not exists transaction_contacts_contact_idx
   on public.transaction_contacts (contact_id, transaction_id);
 create index if not exists transaction_deadlines_transaction_due_idx
@@ -2568,8 +3151,15 @@ alter table public.google_calendar_watch_channels enable row level security;
 alter table public.contact_birthday_calendar_events enable row level security;
 alter table public.contact_mortgage_renewal_calendar_events enable row level security;
 alter table public.contact_merges enable row level security;
+alter table public.contact_addresses enable row level security;
 alter table public.listings enable row level security;
 alter table public.listing_contacts enable row level security;
+alter table public.listing_marketing_tasks enable row level security;
+alter table public.listing_visits enable row level security;
+alter table public.listing_activity enable row level security;
+alter table public.listing_price_history enable row level security;
+alter table public.listing_offers enable row level security;
+alter table public.listing_transaction_links enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_contacts enable row level security;
 alter table public.transaction_deadlines enable row level security;
@@ -2592,10 +3182,24 @@ drop policy if exists "temporary anon notes update" on public.client_notes;
 revoke all on public.contacts from anon, authenticated;
 revoke all on public.client_notes from anon, authenticated;
 revoke all on public.contact_merges from anon, authenticated;
+revoke all on public.contact_addresses from public, anon, authenticated;
 revoke all on public.listings from public, anon, authenticated;
 revoke all on public.listing_contacts from public, anon, authenticated;
+revoke all on public.listing_marketing_tasks, public.listing_visits,
+  public.listing_activity, public.listing_price_history from public, anon, authenticated;
+revoke all on public.listing_offers, public.listing_transaction_links from public, anon, authenticated;
 revoke execute on function public.create_listing_with_owners(jsonb, uuid[]) from public, anon, authenticated;
 revoke execute on function public.update_listing_with_owners(uuid, jsonb, uuid[]) from public, anon, authenticated;
+revoke execute on function public.set_listing_marketing_task_completion(uuid, uuid, boolean, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.create_custom_listing_marketing_task(uuid, text, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.update_custom_listing_marketing_task(uuid, uuid, text, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.delete_custom_listing_marketing_task(uuid, uuid, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.create_listing_visit(uuid, jsonb, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.update_listing_visit(uuid, uuid, jsonb, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.delete_listing_visit(uuid, uuid, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.create_listing_offer(uuid, jsonb, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.update_listing_offer(uuid, uuid, jsonb, public.broker_assignment) from public, anon, authenticated;
+revoke execute on function public.delete_listing_offer(uuid, uuid, public.broker_assignment) from public, anon, authenticated;
 revoke all on public.transactions from anon, authenticated;
 revoke all on public.transaction_contacts from anon, authenticated;
 revoke all on public.transaction_deadlines from anon, authenticated;
@@ -2631,6 +3235,17 @@ revoke all on public.google_calendar_watch_channels from public, anon, authentic
 revoke all on public.contact_birthday_calendar_events from public, anon, authenticated;
 revoke all on public.contact_mortgage_renewal_calendar_events from public, anon, authenticated;
 revoke execute on function public.queue_contact_mortgage_renewal_calendar_events() from public, anon, authenticated;
+revoke execute on function public.queue_contact_birthday_calendar_events() from public, anon, authenticated;
+revoke execute on function public.save_contact_addresses(uuid,jsonb) from public,anon,authenticated;
+revoke execute on function public.import_contacts_with_addresses(jsonb,public.contact_source) from public,anon,authenticated;
+revoke execute on function public.merge_contacts_with_addresses(
+  uuid,uuid,jsonb,text,text,text,text,text,text,text,text,text,text,text,
+  public.broker_assignment,public.client_type,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
+) from public,anon,authenticated;
+revoke execute on function public.merge_contacts_with_birthdays(
+  uuid,uuid,jsonb,text,text,text,text,date,text,text,text,text,text,text,text,
+  public.broker_assignment,public.client_type,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
+) from public,anon,authenticated;
 revoke execute on function public.merge_contacts_with_contact_dates(
   uuid,uuid,jsonb,text,text,text,text,date,date,text,text,text,text,text,text,text,
   public.broker_assignment,public.client_type,text,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
@@ -2645,6 +3260,17 @@ revoke execute on function public.notify_google_calendar_change(text, text, text
 grant execute on function public.notify_google_calendar_change(text, text, text) to service_role;
 grant select, insert, update, delete on public.contact_birthday_calendar_events to service_role;
 grant select, insert, update, delete on public.contact_mortgage_renewal_calendar_events to service_role;
+grant select, insert, update, delete on public.contact_addresses to service_role;
+grant execute on function public.save_contact_addresses(uuid,jsonb) to service_role;
+grant execute on function public.import_contacts_with_addresses(jsonb,public.contact_source) to service_role;
+grant execute on function public.merge_contacts_with_addresses(
+  uuid,uuid,jsonb,text,text,text,text,text,text,text,text,text,text,text,
+  public.broker_assignment,public.client_type,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
+) to service_role;
+grant execute on function public.merge_contacts_with_birthdays(
+  uuid,uuid,jsonb,text,text,text,text,date,text,text,text,text,text,text,text,
+  public.broker_assignment,public.client_type,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
+) to service_role;
 grant execute on function public.merge_contacts_with_contact_dates(
   uuid,uuid,jsonb,text,text,text,text,date,date,text,text,text,text,text,text,text,
   public.broker_assignment,public.client_type,text,public.contact_priority,public.contact_status,date,text,public.broker_assignment,uuid
@@ -2658,8 +3284,21 @@ grant select, insert, update, delete on public.client_notes to service_role;
 grant select, insert, update, delete on public.contact_merges to service_role;
 grant select, insert, update, delete on public.listings to service_role;
 grant select, insert, update, delete on public.listing_contacts to service_role;
+grant select, insert, update, delete on public.listing_marketing_tasks, public.listing_visits to service_role;
+grant select, insert on public.listing_activity, public.listing_price_history to service_role;
+grant select, insert, update, delete on public.listing_offers, public.listing_transaction_links to service_role;
 grant execute on function public.create_listing_with_owners(jsonb, uuid[]) to service_role;
 grant execute on function public.update_listing_with_owners(uuid, jsonb, uuid[]) to service_role;
+grant execute on function public.set_listing_marketing_task_completion(uuid, uuid, boolean, public.broker_assignment) to service_role;
+grant execute on function public.create_custom_listing_marketing_task(uuid, text, public.broker_assignment) to service_role;
+grant execute on function public.update_custom_listing_marketing_task(uuid, uuid, text, public.broker_assignment) to service_role;
+grant execute on function public.delete_custom_listing_marketing_task(uuid, uuid, public.broker_assignment) to service_role;
+grant execute on function public.create_listing_visit(uuid, jsonb, public.broker_assignment) to service_role;
+grant execute on function public.update_listing_visit(uuid, uuid, jsonb, public.broker_assignment) to service_role;
+grant execute on function public.delete_listing_visit(uuid, uuid, public.broker_assignment) to service_role;
+grant execute on function public.create_listing_offer(uuid, jsonb, public.broker_assignment) to service_role;
+grant execute on function public.update_listing_offer(uuid, uuid, jsonb, public.broker_assignment) to service_role;
+grant execute on function public.delete_listing_offer(uuid, uuid, public.broker_assignment) to service_role;
 grant select, insert, update, delete on public.transactions to service_role;
 grant execute on function public.create_transaction_with_contacts(jsonb, uuid[], uuid)
   to service_role;
@@ -2716,6 +3355,7 @@ grant usage on type public.calendar_sync_status to service_role;
 grant usage on type public.client_type to service_role;
 grant usage on type public.contact_priority to service_role;
 grant usage on type public.contact_status to service_role;
+grant usage on type public.contact_source to service_role;
 grant execute on function public.merge_contacts(
   uuid, uuid, text, text, text, text, text, text, text, text, text, text, text,
   public.broker_assignment, public.client_type, public.contact_priority,

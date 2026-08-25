@@ -29,8 +29,9 @@ function actionSource(action: string, nextAction: string) {
 
 describe("écritures atomiques des Contacts", () => {
   it("ajoute une creation_key nullable protégée par un index unique partiel", () => {
+    expect(migration).toContain("add column if not exists creation_key uuid");
+    expect(schema).toContain("creation_key uuid");
     for (const source of [migration, schema]) {
-      expect(source).toContain("add column if not exists creation_key uuid");
       expect(source).toContain("contacts_creation_key_unique_idx");
       expect(source).toContain("where creation_key is not null");
     }
