@@ -26,8 +26,9 @@ type CRMActionBody = Record<string, unknown> & {
   contactIds?: unknown;
   noteId?: unknown;
   actorBroker?: unknown;
+  creationKey?: unknown;
+  content?: unknown;
   nextDate?: unknown;
-  brokerChanged?: unknown;
   clientType?: unknown;
   clientProvenance?: unknown;
   draft?: Record<string, unknown>;
@@ -47,6 +48,48 @@ function isActorBroker(value: unknown): value is Exclude<ContactBroker, "unassig
 
 function textValue(value: unknown) {
   return String(value ?? "").trim().normalize("NFC");
+}
+
+const NOTE_CONTENT_MAX_LENGTH = 10_000;
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function rpcRow<T>(data: T | T[] | null): T | null {
+  return Array.isArray(data) ? data[0] ?? null : data;
+}
+
+function contactValuesPayload(values: Record<string, unknown>, broker?: Exclude<ContactBroker, "unassigned">) {
+  return {
+    first_name: textValue(values.firstName),
+    last_name: textValue(values.lastName),
+    phone: textValue(values.phone),
+    email: textValue(values.email),
+    birth_date: birthDateValue(values.birthDate),
+    mortgage_renewal_date: mortgageRenewalDateValue(values.mortgageRenewalDate),
+    broker: broker ?? values.broker,
+    client_type: values.clientType ?? null,
+    client_provenance: normalizeClientProvenance(values.clientProvenance),
+    priority: values.priority ?? null,
+    status: values.status ?? "active",
+  };
+}
+
+function crmErrorResponse(error: unknown) {
+  const details = error && typeof error === "object"
+    ? error as { code?: string; message?: string }
+    : {};
+  const message = details.message ?? "";
+  if (details.code === "P0002" || /(?:Contact|Note) introuvable/i.test(message)) {
+    return Response.json({ error: /Note/i.test(message) ? "Note introuvable." : "Contact introuvable." }, { status: 404 });
+  }
+  if (details.code === "22023" || details.code === "22P02" || /invalide|requis|attribué|dépasser|minimum/i.test(message)) {
+    const safeMessage = (!details.code || details.code === "22023") && message ? message : "Données invalides.";
+    return Response.json({ error: safeMessage }, { status: 400 });
+  }
+  return Response.json({ error: "Opération CRM impossible." }, { status: 502 });
 }
 
 function birthDateValue(value: unknown) {
@@ -241,34 +284,30 @@ export async function POST(request: Request) {
   try {
     if (body.action === "addManualContact") {
       if (!isActorBroker(body.broker)) throw new Error("Courtier invalide");
-      const { data, error } = await client.from("contacts").insert({
-        first_name: textValue(body.draft?.firstName),
-        last_name: textValue(body.draft?.lastName),
-        phone: textValue(body.draft?.phone),
-        email: textValue(body.draft?.email),
-        birth_date: birthDateValue(body.draft?.birthDate),
-        mortgage_renewal_date: mortgageRenewalDateValue(body.draft?.mortgageRenewalDate),
-        civic_number: textValue(body.draft?.civicNumber),
-        address: textValue(body.draft?.address),
-        apartment: textValue(body.draft?.apartment),
-        city: textValue(body.draft?.city),
-        province: textValue(body.draft?.province),
-        postal_code: textValue(body.draft?.postalCode),
-        country: textValue(body.draft?.country),
-        broker: body.broker,
-        source: "manual",
-        client_type: body.clientType ?? null,
-        client_provenance: normalizeClientProvenance(body.clientProvenance),
-      }).select("*").single();
+      if (!isUuid(body.creationKey)) throw new Error("Clé de création invalide");
+      const draft = body.draft ?? {};
+      const address = addressPayload(draft);
+      const hasAddress = [
+        address.civic_number,
+        address.address,
+        address.apartment,
+        address.city,
+        address.province,
+        address.postal_code,
+        address.country,
+      ].some(Boolean);
+      const { data, error } = await client.rpc("create_manual_contact_with_addresses", {
+        p_values: contactValuesPayload({
+          ...draft,
+          clientType: body.clientType,
+          clientProvenance: body.clientProvenance,
+        }, body.broker),
+        p_addresses: hasAddress ? [{ ...address, is_primary: true, label: "Principale" }] : [],
+        p_creation_key: body.creationKey,
+      });
       if (error) throw error;
-      if (data) {
-        const address = addressPayload(body.draft ?? {});
-        if (Object.values(address).some((value) => typeof value === "string" && value.length > 0)) {
-          const { error: addressError } = await client.rpc("save_contact_addresses", { p_contact_id: data.id, p_addresses: [{ ...address, is_primary: true, label: "Principale" }] });
-          if (addressError && !isAddressHistoryUnavailableError(addressError)) throw addressError;
-        }
-      }
-      return Response.json({ data: (await attachAddresses(data ? [data] : [], true))[0] });
+      const row = rpcRow(data as Record<string, unknown> | Array<Record<string, unknown>> | null);
+      return Response.json({ data: (await attachAddresses(row && "id" in row ? [row as Record<string, unknown> & { id: unknown }] : [], true))[0] });
     }
 
     if (body.action === "importContacts") {
@@ -377,97 +416,53 @@ export async function POST(request: Request) {
     if (body.action === "updateContact") {
       const values = body.values ?? {};
       if (!isBroker(values.broker)) throw new Error("Courtier invalide");
-      const { data, error } = await client.from("contacts").update({
-        first_name: textValue(values.firstName),
-        last_name: textValue(values.lastName),
-        phone: textValue(values.phone),
-        email: textValue(values.email),
-        birth_date: birthDateValue(values.birthDate),
-        mortgage_renewal_date: mortgageRenewalDateValue(values.mortgageRenewalDate),
-        civic_number: textValue(values.civicNumber),
-        address: textValue(values.address),
-        apartment: textValue(values.apartment),
-        city: textValue(values.city),
-        province: textValue(values.province),
-        postal_code: textValue(values.postalCode),
-        country: textValue(values.country),
-        broker: values.broker,
-        client_type: values.clientType ?? null,
-        client_provenance: normalizeClientProvenance(values.clientProvenance),
-        priority: values.priority ?? null,
-        status: values.status,
-        ...(body.brokerChanged ? { google_calendar_sync_status: "pending", google_calendar_last_error: null } : {}),
-      }).eq("id", body.contactId).select("*").single();
+      if (!isUuid(body.contactId)) throw new Error("Contact invalide");
+      const { data, error } = await client.rpc("update_contact_with_addresses", {
+        p_contact_id: body.contactId,
+        p_values: contactValuesPayload(values),
+        p_addresses: Array.isArray(body.addresses) ? body.addresses.map(addressPayload) : null,
+      });
       if (error) throw error;
-      if (Array.isArray(body.addresses)) {
-        const addressResult = await client.rpc("save_contact_addresses", { p_contact_id: body.contactId, p_addresses: body.addresses.map(addressPayload) });
-        if (addressResult.error && !isAddressHistoryUnavailableError(addressResult.error)) throw addressResult.error;
-      }
-      return Response.json({ data: (await attachAddresses(data ? [data] : [], true))[0] });
+      const row = rpcRow(data as Record<string, unknown> | Array<Record<string, unknown>> | null);
+      return Response.json({ data: (await attachAddresses(row && "id" in row ? [row as Record<string, unknown> & { id: unknown }] : [], true))[0] });
     }
 
     if (body.action === "addNote") {
-      const { data: contact, error: contactError } = await client.from("contacts").select("broker").eq("id", body.contactId).single();
-      if (contactError || !contact) throw contactError ?? new Error("Contact introuvable");
-      const author = isActorBroker(body.actorBroker) ? body.actorBroker : contact.broker;
-      if (!isActorBroker(author)) throw new Error("Courtier requis");
-      const createdAt = new Date().toISOString();
-      const { data, error } = await client.from("client_notes").insert({
-        contact_id: body.contactId,
-        content: String(body.content ?? "").trim(),
-        created_by: author,
-        created_by_user_id: null,
-        created_at: createdAt,
-      }).select("*").single();
+      if (!isUuid(body.contactId)) throw new Error("Contact invalide");
+      const content = textValue(body.content);
+      if (!content || content.length > NOTE_CONTENT_MAX_LENGTH) throw new Error("Contenu de note invalide");
+      const { data, error } = await client.rpc("add_contact_note", {
+        p_contact_id: body.contactId,
+        p_content: content,
+        p_created_by: isActorBroker(body.actorBroker) ? body.actorBroker : null,
+      });
       if (error) throw error;
-      const { error: updateError } = await client.from("contacts").update({ last_contact_date: createdAt }).eq("id", body.contactId);
-      if (updateError) throw updateError;
-      return Response.json({ data });
+      return Response.json({ data: rpcRow(data) });
     }
 
     if (body.action === "updateNote") {
-      const { error } = await client.from("client_notes").update({ content: String(body.content ?? "").trim() }).eq("id", body.noteId);
+      const noteId = typeof body.noteId === "string" ? body.noteId.trim() : "";
+      const content = textValue(body.content);
+      if (!isUuid(noteId) || !content || content.length > NOTE_CONTENT_MAX_LENGTH) {
+        return Response.json({ error: "Note invalide." }, { status: 400 });
+      }
+      const { data, error } = await client.from("client_notes").update({ content }).eq("id", noteId).select("id").maybeSingle();
       if (error) throw error;
+      if (!data) return Response.json({ error: "Note introuvable." }, { status: 404 });
       return Response.json({ data: true });
     }
 
     if (body.action === "deleteNote") {
       const noteId = typeof body.noteId === "string" ? body.noteId.trim() : "";
-      if (!noteId) return Response.json({ error: "Note invalide." }, { status: 400 });
-
-      const { data: note, error: noteError } = await client
-        .from("client_notes")
-        .select("contact_id, created_at")
-        .eq("id", noteId)
-        .single();
-      if (noteError || !note) throw noteError ?? new Error("Note introuvable");
-
-      const { error: deleteError } = await client.from("client_notes").delete().eq("id", noteId);
-      if (deleteError) throw deleteError;
-
-      const { data: latestNotes, error: latestError } = await client
-        .from("client_notes")
-        .select("created_at")
-        .eq("contact_id", note.contact_id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (latestError) throw latestError;
-
-      const lastContactDate = latestNotes?.[0]?.created_at ?? null;
-      const { error: contactError } = await client
-        .from("contacts")
-        .update({ last_contact_date: lastContactDate })
-        .eq("id", note.contact_id);
-      if (contactError) throw contactError;
-
-      return Response.json({
-        data: { noteId, contactId: note.contact_id, lastContactDate },
-      });
+      if (!isUuid(noteId)) return Response.json({ error: "Note invalide." }, { status: 400 });
+      const { data, error } = await client.rpc("delete_contact_note", { p_note_id: noteId });
+      if (error) throw error;
+      return Response.json({ data });
     }
 
     return Response.json({ error: "Action inconnue." }, { status: 400 });
   } catch (error) {
     console.error("Action CRM refusée:", error instanceof Error ? error.message : "erreur inconnue");
-    return Response.json({ error: "Opération CRM impossible." }, { status: 502 });
+    return crmErrorResponse(error);
   }
 }

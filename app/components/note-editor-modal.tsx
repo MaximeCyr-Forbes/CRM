@@ -75,6 +75,7 @@ export function NoteEditorModal({
           <textarea
             autoFocus
             id={textareaId}
+            maxLength={10000}
             onChange={(event) => setContent(event.target.value)}
             placeholder="Écrivez les informations importantes de cet échange…"
             rows={8}

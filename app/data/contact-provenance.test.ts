@@ -44,9 +44,10 @@ describe("provenance commerciale du client", () => {
   it("sépare la provenance commerciale de la source technique", () => {
     const context = source("app/crm-data-context.tsx");
     const api = source("app/api/crm/data/route.ts");
+    const atomicMigration = source("supabase/migrations/20260825120000_make_contact_writes_atomic.sql");
     expect(context).toContain("clientProvenance: row.client_provenance ?? null");
-    expect(api).toContain('source: "manual"');
-    expect(api).toContain("client_provenance: normalizeClientProvenance(body.clientProvenance)");
+    expect(atomicMigration).toContain("'manual',");
+    expect(api).toContain("client_provenance: normalizeClientProvenance(values.clientProvenance)");
     expect(api).toContain("client_provenance: null");
   });
 

@@ -24,6 +24,7 @@ const testState = vi.hoisted(() => ({
   notes: [] as TestNote[],
   deletedNoteIds: [] as string[],
   lastContactDates: {} as Record<string, string | null>,
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }));
 
 vi.mock("../../../lib/crm-access", () => ({
@@ -104,14 +105,31 @@ vi.mock("../../../lib/supabase/server", () => ({
       }
       throw new Error(`Table inattendue dans le test: ${table}`);
     },
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      testState.rpcCalls.push({ name, args });
+      if (name !== "delete_contact_note") throw new Error(`RPC inattendue dans le test: ${name}`);
+      const noteId = args.p_note_id as string;
+      const note = testState.notes.find((item) => item.id === noteId);
+      if (!note) return { data: null, error: { code: "P0002", message: "Note introuvable." } };
+      testState.deletedNoteIds.push(noteId);
+      testState.notes = testState.notes.filter((item) => item.id !== noteId);
+      const lastContactDate = [...testState.notes]
+        .filter((item) => item.contact_id === note.contact_id)
+        .sort((first, second) => second.created_at.localeCompare(first.created_at))[0]?.created_at ?? null;
+      testState.lastContactDates[note.contact_id] = lastContactDate;
+      return {
+        data: { noteId, contactId: note.contact_id, lastContactDate },
+        error: null,
+      };
+    },
   })),
 }));
 
 import { GET, POST } from "./route";
 
-const note10: TestNote = { id: "note-10", contact_id: "contact-1", content: "Note du 10 août", created_at: "2026-08-10T13:00:00.000Z" };
-const note15: TestNote = { id: "note-15", contact_id: "contact-1", content: "Note du 15 août", created_at: "2026-08-15T13:00:00.000Z" };
-const note19: TestNote = { id: "note-19", contact_id: "contact-1", content: "Note du 19 août", created_at: "2026-08-19T13:00:00.000Z" };
+const note10: TestNote = { id: "00000000-0000-4000-8000-000000000010", contact_id: "contact-1", content: "Note du 10 août", created_at: "2026-08-10T13:00:00.000Z" };
+const note15: TestNote = { id: "00000000-0000-4000-8000-000000000015", contact_id: "contact-1", content: "Note du 15 août", created_at: "2026-08-15T13:00:00.000Z" };
+const note19: TestNote = { id: "00000000-0000-4000-8000-000000000019", contact_id: "contact-1", content: "Note du 19 août", created_at: "2026-08-19T13:00:00.000Z" };
 
 function deleteNoteRequest(noteId: unknown) {
   return POST(new Request("http://localhost/api/crm/data", {
@@ -170,6 +188,7 @@ describe("POST action=deleteNote", () => {
     testState.notes = [note10, note15, note19];
     testState.deletedNoteIds = [];
     testState.lastContactDates = {};
+    testState.rpcCalls = [];
   });
 
   it("supprime uniquement une note intermédiaire et conserve le dernier contact le plus récent", async () => {
@@ -182,6 +201,7 @@ describe("POST action=deleteNote", () => {
     expect(testState.contactRows).toHaveLength(1250);
     expect(testState.lastContactDates["contact-1"]).toBe(note19.created_at);
     expect(payload.data).toEqual({ noteId: note15.id, contactId: "contact-1", lastContactDate: note19.created_at });
+    expect(testState.rpcCalls).toEqual([{ name: "delete_contact_note", args: { p_note_id: note15.id } }]);
   });
 
   it("recalcule le dernier contact quand la note la plus récente est supprimée", async () => {

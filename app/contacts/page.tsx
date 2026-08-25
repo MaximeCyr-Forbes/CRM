@@ -176,6 +176,7 @@ export default function ContactsPage() {
   const [manualStep, setManualStep] = useState<"closed" | "details" | "assignment">("closed");
   const [manualDraft, setManualDraft] = useState<ContactDraft>(emptyDraft);
   const [manualClientProvenance, setManualClientProvenance] = useState<ClientProvenance>(null);
+  const [manualCreationKey, setManualCreationKey] = useState<string | null>(null);
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualDuplicate, setManualDuplicate] = useState<PendingManualDuplicate | null>(null);
   const [importKind, setImportKind] = useState<ImportKind | null>(null);
@@ -234,7 +235,13 @@ export default function ContactsPage() {
     setManualStep("closed");
     setManualDraft(emptyDraft);
     setManualClientProvenance(null);
+    setManualCreationKey(null);
     setManualError(null);
+  }
+
+  function openManualModal() {
+    setManualCreationKey(crypto.randomUUID());
+    setManualStep("details");
   }
 
   function submitManualDetails(event: FormEvent<HTMLFormElement>) {
@@ -258,7 +265,12 @@ export default function ContactsPage() {
   }
 
   async function createManualContact(broker: (typeof CONTACT_BROKERS)[number]) {
-    const contact = await addManualContact(manualDraft, broker, { clientProvenance: manualClientProvenance });
+    const creationKey = manualCreationKey ?? crypto.randomUUID();
+    if (!manualCreationKey) setManualCreationKey(creationKey);
+    const contact = await addManualContact(manualDraft, broker, {
+      clientProvenance: manualClientProvenance,
+      creationKey,
+    });
     closeManualModal();
     setManualDuplicate(null);
     showConfirmation(`${getContactName(contact)} a été ajouté.`);
@@ -473,7 +485,7 @@ export default function ContactsPage() {
         <header className="contacts-header">
           <div><p className="section-kicker">Répertoire de l’équipe</p><h1>CONTACTS</h1><p>{contacts.length} contacts sauvegardés dans le CRM.</p></div>
           <div className="contacts-main-actions">
-            <button className="contact-action contact-action-primary" disabled={isSaving} onClick={() => setManualStep("details")} type="button">Ajouter un contact</button>
+            <button className="contact-action contact-action-primary" disabled={isSaving} onClick={openManualModal} type="button">Ajouter un contact</button>
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("csv")} type="button">Importer CSV</button>
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("vcard")} type="button">Importer vCard</button>
           </div>

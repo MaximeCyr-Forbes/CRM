@@ -105,6 +105,7 @@ type CRMDataContextValue = {
     defaults?: {
       clientType?: Exclude<Contact["clientType"], null>;
       clientProvenance?: Contact["clientProvenance"];
+      creationKey?: string;
     },
   ) => Promise<Contact>;
   importContacts: (
@@ -365,6 +366,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       defaults?: {
         clientType?: Exclude<Contact["clientType"], null>;
         clientProvenance?: Contact["clientProvenance"];
+        creationKey?: string;
       },
     ) =>
       runWrite("Impossible d’enregistrer le contact.", async () => {
@@ -374,9 +376,10 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           broker,
           clientType: defaults?.clientType ?? null,
           clientProvenance: defaults?.clientProvenance ?? null,
+          creationKey: defaults?.creationKey ?? crypto.randomUUID(),
         });
         const contact = mapContact(data);
-        setContacts((current) => [contact, ...current]);
+        setContacts((current) => [contact, ...current.filter((item) => item.id !== contact.id)]);
         await Promise.all([
           requestBirthdaySync([contact.id]),
           requestMortgageRenewalSync([contact.id]),
@@ -545,13 +548,12 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         const currentContact = contacts.find((contact) => contact.id === contactId);
         if (!currentContact) throw new Error("Contact introuvable.");
         const brokerChanged = currentContact.broker !== values.broker;
-        const shouldResync = brokerChanged && Boolean(currentContact.nextFollowUpDate || currentContact.googleCalendarEventId);
         const previousAddresses = fallbackAddresses(currentContact).map((address) => ({ ...address, isPrimary: false, label: address.isPrimary ? "Ancienne adresse" as const : address.label }));
         const editedPrimary = addressInputFromDraft(values);
         const addresses = editedPrimary
           ? setPrimaryAddress(mergeAddressCollections([editedPrimary], previousAddresses), normalizeAddressKey(editedPrimary))
           : previousAddresses;
-        const data = await crmDataRequest<ContactRow>({ action: "updateContact", contactId, values, addresses, brokerChanged: shouldResync });
+        const data = await crmDataRequest<ContactRow>({ action: "updateContact", contactId, values, addresses });
         let updated = mapContact(data);
         setContacts((current) => current.map((contact) => contact.id === contactId ? updated : contact));
         if (brokerChanged && (updated.nextFollowUpDate || updated.googleCalendarEventId)) {
