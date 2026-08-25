@@ -4,7 +4,11 @@ const state = vi.hoisted(() => ({
   connections: [] as Array<{ broker: "france" | "maxime" | "sandrine"; connected: boolean; gmailSendEnabled: boolean; gmailSignatureEnabled: boolean }>,
   exchange: vi.fn(),
   save: vi.fn(),
-  verified: { broker: "maxime" as const, capability: "gmail" as const, returnTo: "/contacts/11111111-1111-4111-8111-111111111111" },
+  verified: {
+    broker: "maxime" as const,
+    capability: "gmail" as "calendar" | "gmail",
+    returnTo: "/contacts/11111111-1111-4111-8111-111111111111",
+  },
 }));
 
 vi.mock("../../lib/crm-access", () => ({ requireApiAccess: vi.fn(async () => ({ response: null })) }));
@@ -25,6 +29,7 @@ vi.mock("../../lib/google-calendar/service", () => ({
 
 import { GET as connect } from "./connect/route";
 import { GET as callback } from "./callback/route";
+import { GoogleAccountRefreshTokenMismatchError } from "../../lib/google/google-account";
 
 describe("routes OAuth Gmail", () => {
   beforeEach(() => {
@@ -56,5 +61,25 @@ describe("routes OAuth Gmail", () => {
     const location = new URL(response.headers.get("location")!);
     expect(location.pathname).toBe("/contacts/11111111-1111-4111-8111-111111111111");
     expect(location.searchParams.get("gmail")).toBe("connected");
+  });
+
+  it.each([
+    { capability: "calendar" as const, parameter: "google" },
+    { capability: "gmail" as const, parameter: "gmail" },
+  ])("redirige $capability vers account-change-required sans annoncer une connexion", async ({ capability, parameter }) => {
+    state.verified = { broker: "maxime", capability, returnTo: "/settings" };
+    state.save.mockRejectedValueOnce(new GoogleAccountRefreshTokenMismatchError());
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await callback(new Request("https://crm.example.com/api/google-calendar/callback?code=oauth-code&state=signed-state"));
+    const location = new URL(response.headers.get("location")!);
+
+    expect(location.pathname).toBe("/settings");
+    expect(location.searchParams.get(parameter)).toBe("account-change-required");
+    expect(location.searchParams.get(parameter)).not.toBe("connected");
+    expect(consoleError).toHaveBeenCalledWith(
+      "Erreur callback Google OAuth:",
+      expect.stringContaining("compte Google sélectionné est différent"),
+    );
   });
 });

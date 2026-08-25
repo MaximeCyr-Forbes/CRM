@@ -4,11 +4,24 @@ const state = vi.hoisted(() => ({
   update: vi.fn(),
   decrypt: vi.fn(),
   encrypt: vi.fn(),
+  updateResult: { data: { broker: "maxime" }, error: null } as { data: { broker: string } | null; error: unknown },
+  builder: null as null | { eq: ReturnType<typeof vi.fn> },
 }));
 
 vi.mock("../supabase/server", () => ({
   getSupabaseAdmin: () => ({
-    from: () => ({ update: state.update }),
+    from: () => ({
+      update: (values: unknown) => {
+        state.update(values);
+        const builder = {
+          eq: vi.fn(() => builder),
+          select: vi.fn(() => builder),
+          maybeSingle: vi.fn(async () => state.updateResult),
+        };
+        state.builder = builder;
+        return builder;
+      },
+    }),
   }),
 }));
 vi.mock("../google-calendar/config", () => ({
@@ -19,7 +32,12 @@ vi.mock("../google-calendar/token-crypto", () => ({
   encryptGoogleToken: state.encrypt,
 }));
 
-import { googleAuthenticatedRequest, type GoogleConnectionRow } from "./connection";
+import {
+  GoogleConnectionChangedError,
+  googleAuthenticatedRequest,
+  refreshGoogleAccessToken,
+  type GoogleConnectionRow,
+} from "./connection";
 
 const connection: GoogleConnectionRow = {
   broker: "maxime",
@@ -36,7 +54,9 @@ describe("requêtes Google authentifiées", () => {
     vi.restoreAllMocks();
     state.decrypt.mockReset().mockImplementation(async (value: string) => value === "refresh-encrypted" ? "refresh-token" : "access-token");
     state.encrypt.mockReset().mockResolvedValue("new-access-encrypted");
-    state.update.mockReset().mockReturnValue({ eq: vi.fn(async () => ({ error: null })) });
+    state.update.mockReset();
+    state.updateResult = { data: { broker: "maxime" }, error: null };
+    state.builder = null;
   });
 
   it("rafraîchit le jeton et réessaie exactement une fois après un 401", async () => {
@@ -50,5 +70,20 @@ describe("requêtes Google authentifiées", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[1][0]).toBe("https://oauth2.googleapis.com/token");
     expect((fetchMock.mock.calls[2][1]?.headers as Record<string, string>).Authorization).toBe("Bearer new-access-token");
+    expect(state.builder?.eq).toHaveBeenCalledWith("google_account_email", "maxime@example.com");
+    expect(state.builder?.eq).toHaveBeenCalledWith("encrypted_refresh_token", "refresh-encrypted");
+  });
+
+  it("refuse d’écraser une connexion remplacée pendant un renouvellement", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({
+      access_token: "new-access-token",
+      expires_in: 3600,
+    }));
+    state.updateResult = { data: null, error: null };
+
+    await expect(refreshGoogleAccessToken(connection)).rejects.toBeInstanceOf(GoogleConnectionChangedError);
+    expect(state.builder?.eq).toHaveBeenCalledWith("broker", "maxime");
+    expect(state.builder?.eq).toHaveBeenCalledWith("google_account_email", "maxime@example.com");
+    expect(state.builder?.eq).toHaveBeenCalledWith("encrypted_refresh_token", "refresh-encrypted");
   });
 });

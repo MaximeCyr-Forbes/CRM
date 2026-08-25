@@ -6,6 +6,8 @@ import {
   saveGoogleConnection,
 } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
+import { GoogleAccountRefreshTokenMismatchError } from "../../../lib/google/google-account";
+import { GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS } from "../../../lib/google/oauth-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +63,12 @@ export async function GET(request: Request) {
       "Erreur callback Google OAuth:",
       caughtError instanceof Error ? caughtError.message : "Erreur inconnue",
     );
-    destinationUrl.searchParams.set(destinationCapability === "gmail" ? "gmail" : "google", "error");
+    destinationUrl.searchParams.set(
+      destinationCapability === "gmail" ? "gmail" : "google",
+      caughtError instanceof GoogleAccountRefreshTokenMismatchError
+        ? GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS
+        : "error",
+    );
   }
 
   return Response.redirect(destinationUrl.toString(), 302);

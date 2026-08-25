@@ -9,6 +9,7 @@ import type {
 import { BROKER_LABELS } from "../data/contact-types";
 import { SettingsRecommendations } from "../components/settings-recommendations";
 import { BROKER_PHOTOS } from "../lib/listings/broker-photos";
+import { getGoogleOAuthFeedback } from "../lib/google/oauth-feedback";
 
 const emptyConnections: CalendarConnectionStatus[] = (
   ["france", "maxime", "sandrine"] as const
@@ -54,9 +55,9 @@ export default function SettingsPage() {
     }
   }
 
-  async function loadConnections() {
+  async function loadConnections(preserveError = false) {
     setIsLoading(true);
-    setError(null);
+    if (!preserveError) setError(null);
     try {
       const response = await fetch("/api/google-calendar/connections", {
         cache: "no-store",
@@ -76,27 +77,17 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get("google");
-    if (status === "connected") {
-      setMessage("Google Agenda connecté avec succès.");
-    } else if (status === "already-connected") {
-      setMessage("Ce courtier possède déjà un Google Agenda connecté.");
-    } else if (status === "cancelled") {
-      setMessage("Connexion Google Agenda annulée.");
-    } else if (status === "error") {
-      setError("La connexion Google Agenda n’a pas pu être terminée.");
+    const search = new URLSearchParams(window.location.search);
+    let preserveOAuthError = false;
+    for (const [capability, parameter] of [["calendar", "google"], ["gmail", "gmail"]] as const) {
+      const feedback = getGoogleOAuthFeedback(capability, search.get(parameter));
+      if (feedback?.type === "message") setMessage(feedback.text);
+      if (feedback?.type === "error") {
+        setError(feedback.text);
+        preserveOAuthError = true;
+      }
     }
-    const gmailStatus = new URLSearchParams(window.location.search).get("gmail");
-    if (gmailStatus === "connected") {
-      setMessage("Gmail activé avec succès.");
-    } else if (gmailStatus === "already-connected") {
-      setMessage("Gmail est déjà activé pour ce courtier.");
-    } else if (gmailStatus === "cancelled") {
-      setMessage("Activation Gmail annulée.");
-    } else if (gmailStatus === "error") {
-      setError("L’activation Gmail n’a pas pu être terminée.");
-    }
-    void loadConnections();
+    void loadConnections(preserveOAuthError);
     void syncBirthdays(false);
   }, []);
 

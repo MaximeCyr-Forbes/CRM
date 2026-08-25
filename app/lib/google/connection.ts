@@ -18,6 +18,13 @@ type GoogleRefreshTokenResponse = {
   expires_in: number;
 };
 
+export class GoogleConnectionChangedError extends Error {
+  constructor() {
+    super("La connexion Google a changé pendant le renouvellement. Réessayez l’opération.");
+    this.name = "GoogleConnectionChangedError";
+  }
+}
+
 export async function getGoogleConnection(broker: CalendarBroker) {
   const { data, error } = await getSupabaseAdmin()
     .from("google_calendar_connections")
@@ -44,14 +51,19 @@ export async function refreshGoogleAccessToken(connection: GoogleConnectionRow) 
   if (!response.ok) throw new Error(`Renouvellement Google refusé (${response.status}).`);
 
   const tokens = (await response.json()) as GoogleRefreshTokenResponse;
-  const { error } = await getSupabaseAdmin()
+  const { data, error } = await getSupabaseAdmin()
     .from("google_calendar_connections")
     .update({
       encrypted_access_token: await encryptGoogleToken(tokens.access_token),
       access_token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
     })
-    .eq("broker", connection.broker);
+    .eq("broker", connection.broker)
+    .eq("google_account_email", connection.google_account_email)
+    .eq("encrypted_refresh_token", connection.encrypted_refresh_token)
+    .select("broker")
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new GoogleConnectionChangedError();
   return tokens.access_token;
 }
 

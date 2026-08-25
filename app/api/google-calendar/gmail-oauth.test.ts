@@ -15,12 +15,12 @@ describe("upgrade OAuth Gmail", () => {
     expect(connect).toContain("connection.gmailSignatureEnabled");
   });
 
-  it("préserve le returnTo signé et fusionne les scopes existants", () => {
+  it("préserve le returnTo signé et ne fusionne les scopes que pour le même compte", () => {
     const callback = readFileSync("app/api/google-calendar/callback/route.ts", "utf8");
-    const service = readFileSync("app/lib/google-calendar/service.ts", "utf8");
+    const googleAccount = readFileSync("app/lib/google/google-account.ts", "utf8");
     expect(callback).toContain("new URL(returnTo, applicationOrigin)");
     expect(callback).toContain('capability === "gmail"');
-    expect(service).toContain("...(existingConnection?.scopes ?? [])");
-    expect(service).toContain("...(tokens.scope?.split");
+    expect(googleAccount).toContain("...(sameAccount ? existingConnection?.scopes ?? [] : [])");
+    expect(googleAccount).toContain("...googleScopes(tokens.scope)");
   });
 });

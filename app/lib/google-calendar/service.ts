@@ -12,7 +12,7 @@ import type { TransactionBroker } from "../../data/transaction-types";
 import type { TransactionDeadlineRow, TransactionRow } from "../transactions/server-service";
 import { getSupabaseAdmin } from "../supabase/server";
 import { getGoogleOAuthConfig } from "./config";
-import { decryptGoogleToken, encryptGoogleToken } from "./token-crypto";
+import { decryptGoogleToken } from "./token-crypto";
 import { formatBirthDate, normalizeBirthDate } from "../birth-date";
 import { formatMortgageRenewalDate } from "../mortgage-renewal-date";
 import type { CRMCalendarEvent, CRMCalendarEventInput } from "../../data/calendar-event-types";
@@ -27,6 +27,10 @@ import {
   googleAuthenticatedRequest,
   type GoogleConnectionRow,
 } from "../google/connection";
+import {
+  persistGoogleConnection,
+  type GoogleTokenResponse,
+} from "../google/google-account";
 
 export type ServerContactRow = {
   id: string;
@@ -57,13 +61,6 @@ export type ServerContactRow = {
   google_calendar_last_error: string | null;
   created_at: string;
   updated_at: string;
-};
-
-type GoogleTokenResponse = {
-  access_token: string;
-  expires_in: number;
-  refresh_token?: string;
-  scope?: string;
 };
 
 type GoogleCalendarEventsListResponse = {
@@ -1352,47 +1349,7 @@ export async function saveGoogleConnection(
   broker: CalendarBroker,
   tokens: GoogleTokenResponse,
 ) {
-  const userInfoResponse = await fetch(
-    "https://openidconnect.googleapis.com/v1/userinfo",
-    { headers: { Authorization: `Bearer ${tokens.access_token}` } },
-  );
-  if (!userInfoResponse.ok) {
-    throw new Error("Impossible d’identifier le compte Google connecté.");
-  }
-  const userInfo = (await userInfoResponse.json()) as { email?: string };
-  if (!userInfo.email) {
-    throw new Error("Le compte Google n’a retourné aucune adresse courriel.");
-  }
-
-  const existingConnection = await getConnection(broker);
-  const refreshToken = tokens.refresh_token
-    ? tokens.refresh_token
-    : existingConnection
-      ? await decryptGoogleToken(existingConnection.encrypted_refresh_token)
-      : null;
-  if (!refreshToken) {
-    throw new Error("Google n’a retourné aucun jeton de renouvellement.");
-  }
-
-  const { error } = await getSupabaseAdmin()
-    .from("google_calendar_connections")
-    .upsert({
-      broker,
-      google_account_email: userInfo.email,
-      calendar_id: "primary",
-      encrypted_access_token: await encryptGoogleToken(tokens.access_token),
-      encrypted_refresh_token: await encryptGoogleToken(refreshToken),
-      access_token_expires_at: new Date(
-        Date.now() + tokens.expires_in * 1000,
-      ).toISOString(),
-      scopes: [...new Set([
-        ...(existingConnection?.scopes ?? []),
-        ...(tokens.scope?.split(" ").filter(Boolean) ?? []),
-      ])],
-    });
-  if (error) {
-    throw error;
-  }
+  await persistGoogleConnection(broker, tokens);
 
   const { data: contacts, error: contactsError } = await getSupabaseAdmin()
     .from("contacts")
