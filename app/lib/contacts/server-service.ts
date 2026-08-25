@@ -122,6 +122,7 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
       p_country: input.values.country,
       p_broker: input.values.broker,
       p_client_type: input.values.clientType,
+      p_client_provenance: input.values.clientProvenance,
       p_priority: input.values.priority,
       p_status: input.values.status,
       p_next_follow_up_date: nextFollowUpDate,
@@ -131,15 +132,7 @@ export async function mergeExistingContacts(input: ExistingMergeInput) {
     });
     if (addressRpc.error) throw addressRpc.error;
     const data = addressRpc.data;
-    const provenanceResult = await getSupabaseAdmin()
-      .from("contacts")
-      .update({ client_provenance: input.values.clientProvenance })
-      .eq("id", input.targetId)
-      .select("*")
-      .single();
-    if (provenanceResult.error) throw provenanceResult.error;
-
-    const merged = mapServerContact((provenanceResult.data ?? (Array.isArray(data) ? data[0] : data)) as ServerContactRow);
+    const merged = mapServerContact((Array.isArray(data) ? data[0] : data) as ServerContactRow);
     await syncContactMortgageRenewals({ contactIds: [merged.id], limit: 3 });
     if (merged.nextFollowUpDate) {
       const sync = await syncContactFollowUp(merged.id);
@@ -177,61 +170,8 @@ export async function mergeDraftIntoContact(
     p_incoming_draft: incomingDraft,
     p_merged_by_user_id: mergedByUserId,
   });
-  if (!atomic.error) {
-    const provenanceResult = await getSupabaseAdmin()
-      .from("contacts")
-      .update({ client_provenance: values.clientProvenance })
-      .eq("id", targetId)
-      .select("*")
-      .single();
-    if (provenanceResult.error) throw provenanceResult.error;
-    const merged = mapServerContact((provenanceResult.data ?? (Array.isArray(atomic.data) ? atomic.data[0] : atomic.data)) as ServerContactRow);
-    await syncContactMortgageRenewals({ contactIds: [targetId], limit: 3 });
-    if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
-      const sync = await syncContactFollowUp(targetId);
-      return withAddressHistory(sync.contact ?? merged);
-    }
-    return withAddressHistory(merged);
-  }
-  if (!isAddressHistoryUnavailableError(atomic.error)) throw atomic.error;
-  const { data, error } = await getSupabaseAdmin()
-    .from("contacts")
-    .update({
-      first_name: values.firstName.trim(),
-      last_name: values.lastName.trim(),
-      phone: values.phone.trim(),
-      email: values.email.trim(),
-      birth_date: values.birthDate || null,
-      mortgage_renewal_date: values.mortgageRenewalDate || null,
-      civic_number: values.civicNumber.trim().normalize("NFC"),
-      address: values.address.trim().normalize("NFC"),
-      apartment: values.apartment.trim().normalize("NFC"),
-      city: values.city.trim().normalize("NFC"),
-      province: values.province.trim().normalize("NFC"),
-      postal_code: values.postalCode.trim().normalize("NFC"),
-      country: values.country.trim().normalize("NFC"),
-      broker: values.broker,
-      client_provenance: values.clientProvenance,
-      next_follow_up_date: values.nextFollowUpDate,
-      google_calendar_sync_status:
-        brokerChanged || values.nextFollowUpDate ? "pending" : target.google_calendar_sync_status,
-      google_calendar_last_error: null,
-    })
-    .eq("id", targetId)
-    .select("*")
-    .single();
-  if (error) throw error;
-
-  const { error: auditError } = await getSupabaseAdmin()
-    .from("contact_merges")
-    .insert({
-      merged_into_contact_id: targetId,
-      merged_from: incomingDraft,
-      merged_by_user_id: mergedByUserId,
-    });
-  if (auditError) throw auditError;
-
-  const merged = mapServerContact(data as ServerContactRow);
+  if (atomic.error) throw atomic.error;
+  const merged = mapServerContact((Array.isArray(atomic.data) ? atomic.data[0] : atomic.data) as ServerContactRow);
   await syncContactMortgageRenewals({ contactIds: [targetId], limit: 3 });
   if (brokerChanged || merged.nextFollowUpDate || merged.googleCalendarEventId) {
     const sync = await syncContactFollowUp(targetId);

@@ -81,8 +81,8 @@ describe("provenance commerciale du client", () => {
     const duplicateLogic = source("app/lib/contact-normalization.ts");
     expect(modal).toContain("Provenance du client");
     expect(modal).toContain("clientProvenance,");
-    expect(service).toContain("client_provenance: input.values.clientProvenance");
-    expect(service).toContain("client_provenance: values.clientProvenance");
+    expect(service).toContain("p_client_provenance: input.values.clientProvenance");
+    expect(service).not.toContain("provenanceResult");
     expect(duplicateLogic).not.toContain("clientProvenance");
   });
 
