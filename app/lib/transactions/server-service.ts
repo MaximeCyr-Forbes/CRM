@@ -10,8 +10,16 @@ import type {
   TransactionType,
 } from "../../data/transaction-types";
 import { getSupabaseAdmin } from "../supabase/server";
+import {
+  listAllSupabaseRows,
+  type SupabaseOrderedRangeQuery,
+} from "../supabase/pagination";
 import { transactionContactChanges, transactionContactLinkRows, transactionInsertValues, transactionUpdateValues } from "./persistence";
-import { optionalListingLinkRows } from "./optional-listing-links";
+import {
+  isOptionalListingLinksUnavailableError,
+  optionalListingLinkRows,
+  type DatabaseErrorMetadata,
+} from "./optional-listing-links";
 import {
   mapTransactionSaleCompletionError,
   parseTransactionSaleCompletion,
@@ -88,6 +96,8 @@ type TransactionNoteRow = {
   created_at: string;
 };
 
+export const TRANSACTION_RELATION_BATCH_SIZE = 150;
+
 function mapDeadline(row: TransactionDeadlineRow): TransactionDeadline {
   return {
     id: row.id,
@@ -162,43 +172,84 @@ export function mapTransaction(
   };
 }
 
-async function loadRelations(transactionIds?: string[]) {
+async function loadRelations(transactionIds: ReadonlyArray<string>) {
   const admin = getSupabaseAdmin();
-  let contactsQuery = admin.from("transaction_contacts").select("transaction_id, contact_id");
-  let deadlinesQuery = admin.from("transaction_deadlines").select("*");
-  let notesQuery = admin.from("transaction_notes").select("*");
-  let listingLinksQuery = admin.from("listing_transaction_links").select("listing_id, offer_id, transaction_id, listings(civic_number, address, apartment, city, province, postal_code)");
-  if (transactionIds) {
-    contactsQuery = contactsQuery.in("transaction_id", transactionIds);
-    deadlinesQuery = deadlinesQuery.in("transaction_id", transactionIds);
-    notesQuery = notesQuery.in("transaction_id", transactionIds);
-    listingLinksQuery = listingLinksQuery.in("transaction_id", transactionIds);
+  const uniqueIds = [...new Set(transactionIds)];
+  const contactRows: TransactionContactRow[] = [];
+  const deadlineRows: TransactionDeadlineRow[] = [];
+  const noteRows: TransactionNoteRow[] = [];
+  const listingLinkRows: TransactionListingLinkRow[] = [];
+  let listingLinksAvailable = true;
+
+  for (let index = 0; index < uniqueIds.length; index += TRANSACTION_RELATION_BATCH_SIZE) {
+    const batch = uniqueIds.slice(index, index + TRANSACTION_RELATION_BATCH_SIZE);
+    const [batchContacts, batchDeadlines, batchNotes, batchListingLinks] = await Promise.all([
+      listAllSupabaseRows<TransactionContactRow>({
+        buildQuery: () => admin
+          .from("transaction_contacts")
+          .select("transaction_id, contact_id")
+          .in("transaction_id", batch) as unknown as SupabaseOrderedRangeQuery<TransactionContactRow>,
+        orders: [
+          { column: "transaction_id", ascending: true },
+          { column: "contact_id", ascending: true },
+        ],
+      }),
+      listAllSupabaseRows<TransactionDeadlineRow>({
+        buildQuery: () => admin
+          .from("transaction_deadlines")
+          .select("*")
+          .in("transaction_id", batch) as unknown as SupabaseOrderedRangeQuery<TransactionDeadlineRow>,
+        orders: [
+          { column: "transaction_id", ascending: true },
+          { column: "due_date", ascending: true },
+          { column: "id", ascending: true },
+        ],
+      }),
+      listAllSupabaseRows<TransactionNoteRow>({
+        buildQuery: () => admin
+          .from("transaction_notes")
+          .select("*")
+          .in("transaction_id", batch) as unknown as SupabaseOrderedRangeQuery<TransactionNoteRow>,
+        orders: [
+          { column: "transaction_id", ascending: true },
+          { column: "created_at", ascending: false },
+          { column: "id", ascending: false },
+        ],
+      }),
+      listingLinksAvailable
+        ? listAllSupabaseRows<TransactionListingLinkRow>({
+            buildQuery: () => admin
+              .from("listing_transaction_links")
+              .select("listing_id, offer_id, transaction_id, listings(civic_number, address, apartment, city, province, postal_code)")
+              .in("transaction_id", batch) as unknown as SupabaseOrderedRangeQuery<TransactionListingLinkRow>,
+            orders: [
+              { column: "transaction_id", ascending: true },
+              { column: "listing_id", ascending: true },
+            ],
+          }).catch((error: DatabaseErrorMetadata) => {
+            if (isOptionalListingLinksUnavailableError(error)) listingLinksAvailable = false;
+            return optionalListingLinkRows<TransactionListingLinkRow>({ data: null, error });
+          })
+        : Promise.resolve([]),
+    ]);
+    contactRows.push(...batchContacts);
+    deadlineRows.push(...batchDeadlines);
+    noteRows.push(...batchNotes);
+    listingLinkRows.push(...batchListingLinks);
   }
-  const [contactsResult, deadlinesResult, notesResult, listingLinksResult] = await Promise.all([
-    contactsQuery,
-    deadlinesQuery,
-    notesQuery,
-    listingLinksQuery,
-  ]);
-  if (contactsResult.error) throw contactsResult.error;
-  if (deadlinesResult.error) throw deadlinesResult.error;
-  if (notesResult.error) throw notesResult.error;
-  const listingLinkRows = optionalListingLinkRows(listingLinksResult);
-  return {
-    contactRows: (contactsResult.data ?? []) as TransactionContactRow[],
-    deadlineRows: (deadlinesResult.data ?? []) as TransactionDeadlineRow[],
-    noteRows: (notesResult.data ?? []) as TransactionNoteRow[],
-    listingLinkRows: listingLinkRows as unknown as TransactionListingLinkRow[],
-  };
+  return { contactRows, deadlineRows, noteRows, listingLinkRows };
 }
 
 export async function listTransactions() {
-  const { data, error } = await getSupabaseAdmin()
-    .from("transactions")
-    .select("*")
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  const rows = (data ?? []) as TransactionRow[];
+  const rows = await listAllSupabaseRows<TransactionRow>({
+    buildQuery: () => getSupabaseAdmin()
+      .from("transactions")
+      .select("*") as unknown as SupabaseOrderedRangeQuery<TransactionRow>,
+    orders: [
+      { column: "updated_at", ascending: false },
+      { column: "id", ascending: false },
+    ],
+  });
   if (rows.length === 0) return [];
   const relations = await loadRelations(rows.map((row) => row.id));
   return rows.map((row) => mapTransaction(row, relations.contactRows, relations.deadlineRows, relations.noteRows, relations.listingLinkRows));

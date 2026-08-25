@@ -62,6 +62,6 @@ describe("relation Listing facultative des transactions", () => {
     expect(createSource).toContain('.insert(transactionInsertValues(draft))\n    .select("*")');
     expect(createSource).toContain("return mapTransaction(");
     expect(createSource).not.toContain("return getTransaction(transactionId);");
-    expect(source).toContain("const listingLinkRows = optionalListingLinkRows(listingLinksResult);");
+    expect(source).toContain("optionalListingLinkRows<TransactionListingLinkRow>({ data: null, error })");
   });
 });

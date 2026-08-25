@@ -14,6 +14,11 @@ import {
   LISTING_STATUSES,
 } from "../../data/listing-types";
 import { getSupabaseAdmin } from "../supabase/server";
+import {
+  listAllSupabaseRows,
+  mapWithConcurrency,
+  type SupabaseOrderedRangeQuery,
+} from "../supabase/pagination";
 
 export type ListingRow = {
   id: string;
@@ -90,6 +95,7 @@ export class ListingServiceError extends Error {
 }
 
 export const LISTING_OWNER_BATCH_SIZE = 150;
+export const LISTING_OWNER_BATCH_CONCURRENCY = 4;
 
 export function isListingBroker(value: unknown): value is ListingBroker {
   return typeof value === "string" && LISTING_BROKERS.includes(value as ListingBroker);
@@ -334,19 +340,29 @@ export async function loadListingOwnerRowsInBatches(
   for (let index = 0; index < uniqueIds.length; index += batchSize) {
     batches.push(uniqueIds.slice(index, index + batchSize));
   }
-  return (await Promise.all(batches.map(loadBatch))).flat();
+  return (await mapWithConcurrency(
+    batches,
+    LISTING_OWNER_BATCH_CONCURRENCY,
+    (batch) => loadBatch(batch),
+  )).flat();
 }
 
 export function createSupabaseListingRepository(): ListingRepository {
   return {
     async listRows(filters) {
-      let query = getSupabaseAdmin().from("listings").select("*");
-      if (filters.broker) query = query.eq("broker", filters.broker);
-      if (filters.status) query = query.eq("status", filters.status);
-      if (filters.purpose) query = query.eq("purpose", filters.purpose);
-      const { data, error } = await query.order("updated_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as ListingRow[];
+      return listAllSupabaseRows<ListingRow>({
+        buildQuery: () => {
+          let query = getSupabaseAdmin().from("listings").select("*");
+          if (filters.broker) query = query.eq("broker", filters.broker);
+          if (filters.status) query = query.eq("status", filters.status);
+          if (filters.purpose) query = query.eq("purpose", filters.purpose);
+          return query as unknown as SupabaseOrderedRangeQuery<ListingRow>;
+        },
+        orders: [
+          { column: "updated_at", ascending: false },
+          { column: "id", ascending: false },
+        ],
+      });
     },
 
     async getRow(listingId) {
@@ -362,13 +378,17 @@ export function createSupabaseListingRepository(): ListingRepository {
     async listOwnerRows(listingIds) {
       const admin = getSupabaseAdmin();
       return loadListingOwnerRowsInBatches(listingIds, async (batch) => {
-        const { data, error } = await admin
-          .from("listing_contacts")
-          .select("listing_id, contact_id, role")
-          .in("listing_id", [...batch])
-          .eq("role", "owner");
-        if (error) throw error;
-        return (data ?? []) as ListingOwnerRow[];
+        return listAllSupabaseRows<ListingOwnerRow>({
+          buildQuery: () => admin
+            .from("listing_contacts")
+            .select("listing_id, contact_id, role")
+            .in("listing_id", [...batch])
+            .eq("role", "owner") as unknown as SupabaseOrderedRangeQuery<ListingOwnerRow>,
+          orders: [
+            { column: "listing_id", ascending: true },
+            { column: "contact_id", ascending: true },
+          ],
+        });
       });
     },
 

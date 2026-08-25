@@ -8,7 +8,7 @@ type TestNote = {
 };
 
 const testState = vi.hoisted(() => ({
-  contactRows: Array.from({ length: 702 }, (_, index) => ({
+  contactRows: Array.from({ length: 1250 }, (_, index) => ({
     id: `contact-${index + 1}`,
     first_name: `Contact ${index + 1}`,
     civic_number: String(index + 1),
@@ -19,6 +19,8 @@ const testState = vi.hoisted(() => ({
     postal_code: "J7R 1A1",
     country: "Canada",
   })),
+  addressRows: [] as Array<{ id: string; contact_id: string; created_at: string; address: string }>,
+  addressError: new Error("panne simulée de contact_addresses") as Error | null,
   notes: [] as TestNote[],
   deletedNoteIds: [] as string[],
   lastContactDates: {} as Record<string, string | null>,
@@ -33,9 +35,16 @@ vi.mock("../../../lib/supabase/server", () => ({
     from: (table: string) => {
       if (table === "contacts") {
         return {
-          select: () => ({
-            order: async () => ({ data: testState.contactRows, error: null }),
-          }),
+          select: () => {
+            const query = {
+              order: () => query,
+              range: async (from: number, to: number) => ({
+                data: testState.contactRows.slice(from, to + 1),
+                error: null,
+              }),
+            };
+            return query;
+          },
           update: (values: { last_contact_date: string | null }) => ({
             eq: async (_field: string, contactId: string) => {
               testState.lastContactDates[contactId] = values.last_contact_date;
@@ -46,12 +55,21 @@ vi.mock("../../../lib/supabase/server", () => ({
       }
       if (table === "contact_addresses") {
         return {
-          select: () => ({
-            in: async () => ({
-              data: null,
-              error: new Error("panne simulée de contact_addresses"),
-            }),
-          }),
+          select: () => {
+            let rows = testState.addressRows;
+            const query = {
+              in: (_field: string, contactIds: string[]) => {
+                rows = testState.addressRows.filter((row) => contactIds.includes(row.contact_id));
+                return query;
+              },
+              order: () => query,
+              range: async (from: number, to: number) => ({
+                data: testState.addressError ? null : rows.slice(from, to + 1),
+                error: testState.addressError,
+              }),
+            };
+            return query;
+          },
         };
       }
       if (table === "client_notes") {
@@ -104,16 +122,20 @@ function deleteNoteRequest(noteId: unknown) {
 }
 
 describe("GET resource=contacts", () => {
+  beforeEach(() => {
+    testState.addressRows = [];
+    testState.addressError = new Error("panne simulée de contact_addresses");
+  });
   afterEach(() => vi.restoreAllMocks());
 
-  it("retourne 702 contacts avec statut 200 si l’historique des adresses échoue", async () => {
+  it("retourne 1250 contacts avec statut 200 si l’historique des adresses échoue", async () => {
     const serverLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const response = await GET(new Request("http://localhost/api/crm/data?resource=contacts"));
     const payload = await response.json() as { data: typeof testState.contactRows };
 
     expect(response.status).toBe(200);
-    expect(payload.data).toHaveLength(702);
+    expect(payload.data).toHaveLength(1250);
     expect(payload.data[0]).toMatchObject({
       civic_number: "1",
       address: "rue Principale",
@@ -123,6 +145,23 @@ describe("GET resource=contacts", () => {
       "Chargement de l'historique des adresses impossible:",
       "panne simulée de contact_addresses",
     );
+  });
+
+  it("pagine toutes les adresses d’un même lot sans troncature", async () => {
+    testState.addressError = null;
+    testState.addressRows = Array.from({ length: 1100 }, (_, index) => ({
+      id: `address-${index}`,
+      contact_id: "contact-1",
+      created_at: `2026-08-24T${String(index % 24).padStart(2, "0")}:00:00.000Z`,
+      address: `Adresse ${index}`,
+    }));
+
+    const response = await GET(new Request("http://localhost/api/crm/data?resource=contacts"));
+    const payload = await response.json() as { data: Array<{ id: string; contact_addresses?: unknown[] }> };
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toHaveLength(1250);
+    expect(payload.data.find((contact) => contact.id === "contact-1")?.contact_addresses).toHaveLength(1100);
   });
 });
 
@@ -140,7 +179,7 @@ describe("POST action=deleteNote", () => {
     expect(response.status).toBe(200);
     expect(testState.deletedNoteIds).toEqual([note15.id]);
     expect(testState.notes.map((note) => note.id)).toEqual([note10.id, note19.id]);
-    expect(testState.contactRows).toHaveLength(702);
+    expect(testState.contactRows).toHaveLength(1250);
     expect(testState.lastContactDates["contact-1"]).toBe(note19.created_at);
     expect(payload.data).toEqual({ noteId: note15.id, contactId: "contact-1", lastContactDate: note19.created_at });
   });
@@ -172,6 +211,6 @@ describe("POST action=deleteNote", () => {
     expect(response.status).toBe(400);
     expect(testState.deletedNoteIds).toEqual([]);
     expect(testState.notes).toHaveLength(3);
-    expect(testState.contactRows).toHaveLength(702);
+    expect(testState.contactRows).toHaveLength(1250);
   });
 });

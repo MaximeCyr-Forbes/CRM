@@ -36,9 +36,10 @@ describe("interface et vase communicant des offres", () => {
     expect(transactionService).toContain(": null");
   });
 
-  it("charge les liens de toutes les Transactions par une requête batch", () => {
+  it("charge les liens de toutes les Transactions par lots paginés", () => {
     expect(transactionService).toContain('from("listing_transaction_links")');
-    expect(transactionService).toContain('listingLinksQuery = listingLinksQuery.in("transaction_id", transactionIds)');
-    expect(transactionService).not.toMatch(/for\s*\([^)]*transaction[^)]*\)[\s\S]*from\("listing_transaction_links"\)/i);
+    expect(transactionService).toContain("TRANSACTION_RELATION_BATCH_SIZE = 150");
+    expect(transactionService).toContain('.in("transaction_id", batch)');
+    expect(transactionService).toContain("listAllSupabaseRows<TransactionListingLinkRow>");
   });
 });

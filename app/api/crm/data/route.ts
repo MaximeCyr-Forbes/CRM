@@ -11,6 +11,10 @@ import { normalizeBirthDate } from "../../../lib/birth-date";
 import { normalizeMortgageRenewalDate } from "../../../lib/mortgage-renewal-date";
 import { mapListing, type ListingRow } from "../../../lib/listings/server-service";
 import { listingAddressLines } from "../../../lib/listings/presentation";
+import {
+  listAllSupabaseRows,
+  type SupabaseOrderedRangeQuery,
+} from "../../../lib/supabase/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -78,12 +82,17 @@ function addressPayload(value: Record<string, unknown>) {
 
 async function loadAddressBatch(contactIds: ReadonlyArray<string>) {
   const client = getSupabaseAdmin();
-  const { data, error } = await client
-    .from("contact_addresses")
-    .select("*")
-    .in("contact_id", [...contactIds]);
-  if (error) throw error;
-  return (data ?? []) as Array<Record<string, unknown> & { contact_id: unknown }>;
+  type AddressRow = Record<string, unknown> & { contact_id: unknown };
+  return listAllSupabaseRows<AddressRow>({
+    buildQuery: () => client
+      .from("contact_addresses")
+      .select("*")
+      .in("contact_id", [...contactIds]) as unknown as SupabaseOrderedRangeQuery<AddressRow>,
+    orders: [
+      { column: "created_at", ascending: false },
+      { column: "id", ascending: false },
+    ],
+  });
 }
 
 async function attachAddresses<T extends Record<string, unknown> & { id: unknown }>(
@@ -106,9 +115,21 @@ export async function GET(request: Request) {
   const client = getSupabaseAdmin();
 
   if (resource === "contacts") {
-    const { data, error } = await client.from("contacts").select("*").order("created_at", { ascending: false });
-    if (error) return Response.json({ error: "Chargement impossible." }, { status: 502 });
-    const contactRows = (data ?? []) as Array<Record<string, unknown> & { id: unknown }>;
+    type ContactRow = Record<string, unknown> & { id: unknown };
+    let contactRows: ContactRow[];
+    try {
+      contactRows = await listAllSupabaseRows<ContactRow>({
+        buildQuery: () => client
+          .from("contacts")
+          .select("*") as unknown as SupabaseOrderedRangeQuery<ContactRow>,
+        orders: [
+          { column: "created_at", ascending: false },
+          { column: "id", ascending: false },
+        ],
+      });
+    } catch {
+      return Response.json({ error: "Chargement impossible." }, { status: 502 });
+    }
     const contactsWithAddresses = await attachAddressesWithFallback(
       contactRows,
       loadAddressBatch,

@@ -1,4 +1,7 @@
+import { mapWithConcurrency } from "../supabase/pagination";
+
 export const CONTACT_ADDRESS_BATCH_SIZE = 150;
+export const CONTACT_ADDRESS_BATCH_CONCURRENCY = 4;
 
 type ContactRow = Record<string, unknown> & { id: unknown };
 type AddressRow = Record<string, unknown> & { contact_id: unknown };
@@ -25,8 +28,10 @@ export async function attachAddressesInBatches<
     batches.push(contactIds.slice(index, index + batchSize));
   }
 
-  const addressBatches = await Promise.all(
-    batches.map((batch) => loadAddressBatch(batch)),
+  const addressBatches = await mapWithConcurrency(
+    batches,
+    CONTACT_ADDRESS_BATCH_CONCURRENCY,
+    (batch) => loadAddressBatch(batch),
   );
   const addressesByContact = new Map<string, TAddress[]>();
   for (const address of addressBatches.flat()) {

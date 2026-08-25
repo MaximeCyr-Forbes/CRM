@@ -9,6 +9,7 @@ import {
   completeTransactionSale,
   createTransaction,
   listTransactions,
+  TRANSACTION_RELATION_BATCH_SIZE,
   type TransactionRow,
 } from "./server-service";
 
@@ -48,10 +49,32 @@ function readableQuery(result: { data: unknown; error: unknown }) {
     select: vi.fn(() => query),
     order: vi.fn(() => query),
     in: vi.fn(() => query),
+    range: vi.fn(async (from: number, to: number) => ({
+      data: Array.isArray(result.data) ? result.data.slice(from, to + 1) : result.data,
+      error: result.error,
+    })),
     then: (resolve: (value: typeof result) => unknown, reject: (reason: unknown) => unknown) =>
       Promise.resolve(result).then(resolve, reject),
   };
   return query;
+}
+
+function tableQuery(rows: ReadonlyArray<Record<string, unknown>>, receivedBatches: string[][]) {
+  return {
+    select: () => {
+      let filtered = [...rows];
+      const query = {
+        in: (_column: string, ids: string[]) => {
+          receivedBatches.push([...ids]);
+          filtered = rows.filter((item) => ids.includes(String(item.transaction_id)));
+          return query;
+        },
+        order: () => query,
+        range: async (from: number, to: number) => ({ data: filtered.slice(from, to + 1), error: null }),
+      };
+      return query;
+    },
+  };
 }
 
 describe("service Transactions sans dépendance obligatoire aux Listings", () => {
@@ -74,6 +97,72 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ id: row.id, sourceListing: null });
     expect(console.warn).toHaveBeenCalledOnce();
+  });
+
+  it("charge 1300 Transactions et 1500 notes sans troncature ni lot UUID démesuré", async () => {
+    const transactionRows = Array.from({ length: 1300 }, (_, index) => ({
+      ...row,
+      id: `transaction-${index}`,
+      address: `${index} rue Principale`,
+      updated_at: `2026-08-${String((index % 24) + 1).padStart(2, "0")}T12:00:00.000Z`,
+    }));
+    const noteRows = Array.from({ length: 1500 }, (_, index) => ({
+      id: `note-${index}`,
+      transaction_id: "transaction-0",
+      content: `Note ${index}`,
+      created_at: `2026-08-24T12:${String(index % 60).padStart(2, "0")}:00.000Z`,
+    }));
+    const contactRows = transactionRows.map((transaction, index) => ({
+      transaction_id: transaction.id,
+      contact_id: `contact-${index}`,
+    }));
+    const deadlineRows = transactionRows.map((transaction, index) => ({
+      id: `deadline-${index}`,
+      transaction_id: transaction.id,
+      title: `Échéance ${index}`,
+      due_date: "2026-09-01",
+      completed: false,
+      google_calendar_event_id: null,
+      google_calendar_event_broker: null,
+      google_calendar_sync_status: "not_synced",
+      google_calendar_last_error: null,
+      created_at: "2026-08-24T12:00:00.000Z",
+      updated_at: "2026-08-24T12:00:00.000Z",
+    }));
+    const listingLinkRows = transactionRows.map((transaction, index) => ({
+      transaction_id: transaction.id,
+      listing_id: `listing-${index}`,
+      offer_id: `offer-${index}`,
+      listings: {
+        civic_number: String(index),
+        address: "rue Principale",
+        apartment: "",
+        city: "Montréal",
+        province: "QC",
+        postal_code: "H2X 1Y4",
+      },
+    }));
+    const receivedBatches: string[][] = [];
+    const from = vi.fn((table: string) => {
+      if (table === "transactions") return tableQuery(transactionRows, receivedBatches);
+      if (table === "transaction_notes") return tableQuery(noteRows, receivedBatches);
+      if (table === "transaction_contacts") return tableQuery(contactRows, receivedBatches);
+      if (table === "transaction_deadlines") return tableQuery(deadlineRows, receivedBatches);
+      if (table === "listing_transaction_links") return tableQuery(listingLinkRows, receivedBatches);
+      return tableQuery([], receivedBatches);
+    });
+    supabase.getAdmin.mockReturnValue({ from });
+
+    const result = await listTransactions();
+
+    expect(result).toHaveLength(1300);
+    expect(result.find((transaction) => transaction.id === "transaction-0")?.notes).toHaveLength(1500);
+    expect(result.find((transaction) => transaction.id === "transaction-1299")).toMatchObject({
+      contactIds: ["contact-1299"],
+      deadlines: [{ id: "deadline-1299" }],
+      sourceListing: { listingId: "listing-1299", offerId: "offer-1299" },
+    });
+    expect(Math.max(...receivedBatches.map((batch) => batch.length))).toBeLessThanOrEqual(TRANSACTION_RELATION_BATCH_SIZE);
   });
 
   it("confirme une création normale sans requête de relecture Listing", async () => {
