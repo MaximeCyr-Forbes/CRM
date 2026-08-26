@@ -84,6 +84,19 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain("La recommandation n’a pas pu être supprimée. Réessayez.");
   });
 
+  it("ouvre automatiquement une recommandation ciblée par le lien du Dashboard", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    expect(component).toContain("useSearchParams()");
+    expect(component).toContain('searchParams.get("recommendation")');
+    expect(component).toContain("recommendations.find((item) => item.id === linkedRecommendationId)");
+    expect(component).toContain("openedDeepLinkRef.current = linkedRecommendationId");
+    expect(component).toContain("void openRecommendation(recommendation)");
+    expect(component).toContain('method: "PATCH"');
+    expect(component.indexOf("setOpenedRecommendation(recommendation)")).toBeLessThan(component.indexOf('method: "PATCH"'));
+    expect(component).toContain("setOpenedRecommendation(updated)");
+    expect(component).toContain("La recommandation n’a pas pu être marquée comme lue.");
+  });
+
   it("supprime uniquement la recommandation ciblée dans Supabase", () => {
     const persistence = source("app/lib/recommendations/persistence.ts");
     expect(persistence).toContain("export async function deleteRecommendation(recommendationId: string)");

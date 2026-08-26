@@ -14,6 +14,7 @@ import {
 } from "../data/contact-types";
 import { toLocalISODate } from "../lib/follow-up";
 import { isTransactionCompleted } from "../data/transaction-types";
+import type { CRMRecommendation } from "../data/recommendation-types";
 import { useListings } from "../listings-context";
 import { useTransactions } from "../transactions-context";
 import { getFollowUpQueue } from "../lib/follow-up-queue";
@@ -35,6 +36,8 @@ export default function Dashboard() {
   const completingFollowUpIdsRef = useRef(new Set<string>());
   const [completingFollowUpIds, setCompletingFollowUpIds] = useState<ReadonlySet<string>>(new Set());
   const [followUpNotice, setFollowUpNotice] = useState<FollowUpNotice | null>(null);
+  const [recommendations, setRecommendations] = useState<CRMRecommendation[]>([]);
+  const [recommendationsUnavailable, setRecommendationsUnavailable] = useState(false);
   const today = toLocalISODate(new Date());
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
   const brokerContacts = brokerKey
@@ -51,9 +54,9 @@ export default function Dashboard() {
     : [];
   const dailyNotifications = useMemo(
     () => brokerKey && brokerKey !== "unassigned"
-      ? getDailyNotifications({ contacts, transactions, listings, broker: brokerKey, today })
+      ? getDailyNotifications({ contacts, transactions, listings, recommendations, broker: brokerKey, today })
       : [],
-    [brokerKey, contacts, listings, today, transactions],
+    [brokerKey, contacts, listings, recommendations, today, transactions],
   );
   const metrics = [
     { label: "Relances aujourd’hui", value: todaysClients.length, tone: "today", href: todaysClients[0] ? `/contacts/${todaysClients[0].id}?mode=followups` : "/contacts" },
@@ -92,6 +95,33 @@ export default function Dashboard() {
       router.replace("/");
     }
   }, [isBrokerReady, router, selectedBroker]);
+
+  useEffect(() => {
+    if (selectedBroker !== "Maxime") {
+      setRecommendations([]);
+      setRecommendationsUnavailable(false);
+      return;
+    }
+
+    let isCurrent = true;
+    setRecommendations([]);
+    setRecommendationsUnavailable(false);
+    void fetch("/api/recommendations", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Chargement impossible");
+        return response.json() as Promise<{ data?: CRMRecommendation[] }>;
+      })
+      .then((payload) => {
+        if (!Array.isArray(payload.data)) throw new Error("Réponse invalide");
+        if (isCurrent) setRecommendations(payload.data);
+      })
+      .catch(() => {
+        if (isCurrent) setRecommendationsUnavailable(true);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedBroker]);
 
   useEffect(() => {
     if (!followUpNotice) return;
@@ -264,6 +294,7 @@ export default function Dashboard() {
             listingsUnavailable={areListingsLoading || Boolean(listingsError)}
             notifications={dailyNotifications}
             onNavigate={(href) => router.push(href)}
+            recommendationsUnavailable={recommendationsUnavailable}
             transactionsUnavailable={areTransactionsLoading || Boolean(transactionsError)}
           />
         </div>

@@ -47,8 +47,18 @@ describe("interface Notifications du jour", () => {
   it("signale les sources temporairement indisponibles sans masquer les autres notifications", () => {
     expect(dashboard).toContain("areListingsLoading || Boolean(listingsError)");
     expect(dashboard).toContain("areTransactionsLoading || Boolean(transactionsError)");
+    expect(dashboard).toContain('selectedBroker !== "Maxime"');
+    expect(dashboard).toContain('fetch("/api/recommendations", { cache: "no-store" })');
+    expect(dashboard).toContain("recommendationsUnavailable={recommendationsUnavailable}");
     expect(panel).toContain("Certaines données Listings sont temporairement indisponibles.");
     expect(panel).toContain("Certaines données Transactions sont temporairement indisponibles.");
+    expect(panel).toContain("Certaines recommandations sont temporairement indisponibles.");
+  });
+
+  it("affiche les recommandations avec leur lien profond sans les marquer comme lues", () => {
+    expect(panel).toContain('recommendation: "RECOMMANDATION"');
+    expect(dashboard).toContain("getDailyNotifications({ contacts, transactions, listings, recommendations");
+    expect(dashboard).not.toContain('method: "PATCH"');
   });
 
   it("conserve toutes les métriques et le workflow Relances du jour", () => {

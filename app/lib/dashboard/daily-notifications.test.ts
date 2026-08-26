@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Contact } from "../../data/contact-types";
 import type { Listing } from "../../data/listing-types";
+import type { CRMRecommendation } from "../../data/recommendation-types";
 import type { Transaction, TransactionDeadline } from "../../data/transaction-types";
 import { toLocalISODate } from "../follow-up";
 import { birthdayMatchesDate, getDailyNotifications } from "./daily-notifications";
@@ -119,10 +120,25 @@ function listing(values: Partial<Listing> = {}): Listing {
   };
 }
 
+function recommendation(values: Partial<CRMRecommendation> = {}): CRMRecommendation {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    title: "Améliorer le calendrier",
+    content: "Ajouter une vue simplifiée.",
+    submittedBy: "sandrine",
+    status: "unread",
+    createdAt: "2026-08-10T14:42:00.000Z",
+    openedAt: null,
+    openedBy: null,
+    ...values,
+  };
+}
+
 function notifications(values: {
   contacts?: Contact[];
   transactions?: Transaction[];
   listings?: Listing[];
+  recommendations?: CRMRecommendation[];
   broker?: "france" | "maxime" | "sandrine";
   date?: string;
 }) {
@@ -130,12 +146,50 @@ function notifications(values: {
     contacts: values.contacts ?? [],
     transactions: values.transactions ?? [],
     listings: values.listings ?? [],
+    recommendations: values.recommendations ?? [],
     broker: values.broker ?? "maxime",
     today: values.date ?? today,
   });
 }
 
 describe("notifications quotidiennes du dashboard", () => {
+  it("affiche en priorité une recommandation non lue, même ancienne, pour Maxime", () => {
+    const results = notifications({
+      contacts: [contact({ mortgageRenewalDate: today })],
+      recommendations: [recommendation({ createdAt: "2026-08-10T14:42:00.000Z" })],
+    });
+    expect(results[0]).toMatchObject({
+      id: "recommendation:11111111-1111-4111-8111-111111111111",
+      type: "recommendation",
+      title: "Améliorer le calendrier",
+      detail: "Envoyée par Sandrine",
+      href: "/settings?recommendation=11111111-1111-4111-8111-111111111111",
+      priority: 5,
+      entityId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(results[0].secondaryDetail).toContain("Reçue le 10 août 2026");
+  });
+
+  it("exclut les recommandations lues et celles consultées sous France ou Sandrine", () => {
+    expect(notifications({ recommendations: [recommendation({ status: "read" })] })).toEqual([]);
+    expect(notifications({ recommendations: [recommendation()], broker: "france" })).toEqual([]);
+    expect(notifications({ recommendations: [recommendation()], broker: "sandrine" })).toEqual([]);
+  });
+
+  it("inclut chaque recommandation non lue dans le compteur de notifications", () => {
+    const results = notifications({
+      contacts: [contact({ mortgageRenewalDate: today, birthDate: "1980-08-20" })],
+      recommendations: [
+        recommendation(),
+        recommendation({ id: "22222222-2222-4222-8222-222222222222", submittedBy: "maxime" }),
+        recommendation({ id: "33333333-3333-4333-8333-333333333333", submittedBy: "france" }),
+      ],
+    });
+    expect(results).toHaveLength(5);
+    expect(results.filter((item) => item.type === "recommendation")).toHaveLength(3);
+    expect(results.some((item) => item.detail === "Envoyée par Maxime")).toBe(true);
+  });
+
   it("affiche un anniversaire au même mois et jour, peu importe l’année", () => {
     expect(notifications({ contacts: [contact({ birthDate: "1980-08-20" })] })).toMatchObject([
       { id: "birthday:contact-1", type: "birthday", href: "/contacts/contact-1" },
@@ -216,13 +270,15 @@ describe("notifications quotidiennes du dashboard", () => {
     expect(notifications({ listings: [listing({ status })] })).toEqual([]);
   });
 
-  it("trie renouvellement, échéance, Listing, relance puis anniversaire", () => {
+  it("trie recommandation, renouvellement, échéance, Listing, relance puis anniversaire", () => {
     const results = notifications({
       contacts: [contact({ mortgageRenewalDate: today, nextFollowUpDate: today, birthDate: "1980-08-20" })],
       transactions: [transaction()],
       listings: [listing()],
+      recommendations: [recommendation()],
     });
     expect(results.map((item) => item.type)).toEqual([
+      "recommendation",
       "mortgage_renewal",
       "transaction_deadline",
       "listing_expiration",

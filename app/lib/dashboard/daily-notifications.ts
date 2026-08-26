@@ -1,9 +1,11 @@
-import { getContactName, type Contact, type ContactBroker } from "../../data/contact-types";
+import { BROKER_LABELS, getContactName, type Contact, type ContactBroker } from "../../data/contact-types";
 import type { Listing } from "../../data/listing-types";
+import { formatRecommendationDate, type CRMRecommendation } from "../../data/recommendation-types";
 import { isTransactionCompleted, type Transaction } from "../../data/transaction-types";
 import { listingAddressLines } from "../listings/presentation";
 
 export type DailyNotificationType =
+  | "recommendation"
   | "mortgage_renewal"
   | "transaction_deadline"
   | "listing_expiration"
@@ -22,6 +24,7 @@ export type DailyNotification = {
 };
 
 export const DAILY_NOTIFICATION_PRIORITIES: Record<DailyNotificationType, number> = {
+  recommendation: 5,
   mortgage_renewal: 10,
   transaction_deadline: 20,
   listing_expiration: 30,
@@ -55,20 +58,41 @@ function deduplicateAndSort(notifications: DailyNotification[]) {
     );
 }
 
+export function recommendationNotifications(
+  recommendations: ReadonlyArray<CRMRecommendation>,
+  broker: Exclude<ContactBroker, "unassigned">,
+) {
+  if (broker !== "maxime") return [];
+  return recommendations
+    .filter((recommendation) => recommendation.status === "unread")
+    .map((recommendation): DailyNotification => ({
+      id: `recommendation:${recommendation.id}`,
+      type: "recommendation",
+      title: recommendation.title,
+      detail: `Envoyée par ${BROKER_LABELS[recommendation.submittedBy]}`,
+      secondaryDetail: `Reçue le ${formatRecommendationDate(recommendation.createdAt)}`,
+      href: `/settings?recommendation=${encodeURIComponent(recommendation.id)}`,
+      priority: DAILY_NOTIFICATION_PRIORITIES.recommendation,
+      entityId: recommendation.id,
+    }));
+}
+
 export function getDailyNotifications({
   contacts,
   transactions,
   listings,
+  recommendations = [],
   broker,
   today,
 }: {
   contacts: ReadonlyArray<Contact>;
   transactions: ReadonlyArray<Transaction>;
   listings: ReadonlyArray<Listing>;
+  recommendations?: ReadonlyArray<CRMRecommendation>;
   broker: Exclude<ContactBroker, "unassigned">;
   today: string;
 }) {
-  const notifications: DailyNotification[] = [];
+  const notifications: DailyNotification[] = recommendationNotifications(recommendations, broker);
 
   for (const contact of contacts) {
     const name = getContactName(contact);

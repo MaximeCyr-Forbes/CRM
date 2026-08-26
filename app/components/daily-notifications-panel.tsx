@@ -3,6 +3,7 @@
 import type { DailyNotification, DailyNotificationType } from "../lib/dashboard/daily-notifications";
 
 const TYPE_LABELS: Record<DailyNotificationType, string> = {
+  recommendation: "RECOMMANDATION",
   mortgage_renewal: "RENOUVELLEMENT",
   transaction_deadline: "ÉCHÉANCE",
   listing_expiration: "LISTING",
@@ -14,11 +15,13 @@ export function DailyNotificationsPanel({
   notifications,
   onNavigate,
   listingsUnavailable = false,
+  recommendationsUnavailable = false,
   transactionsUnavailable = false,
 }: {
   notifications: ReadonlyArray<DailyNotification>;
   onNavigate: (href: string) => void;
   listingsUnavailable?: boolean;
+  recommendationsUnavailable?: boolean;
   transactionsUnavailable?: boolean;
 }) {
   return (
@@ -61,9 +64,10 @@ export function DailyNotificationsPanel({
         </div>
       )}
 
-      {(listingsUnavailable || transactionsUnavailable) && (
+      {(listingsUnavailable || recommendationsUnavailable || transactionsUnavailable) && (
         <div className="daily-notifications-data-warning" role="status">
           {listingsUnavailable && <p>Certaines données Listings sont temporairement indisponibles.</p>}
+          {recommendationsUnavailable && <p>Certaines recommandations sont temporairement indisponibles.</p>}
           {transactionsUnavailable && <p>Certaines données Transactions sont temporairement indisponibles.</p>}
         </div>
       )}

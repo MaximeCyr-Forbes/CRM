@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { type Broker, useBroker } from "../broker-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
@@ -24,7 +25,9 @@ const BROKER_KEYS: Record<Broker, RecommendationAuthor> = {
 };
 
 export function SettingsRecommendations() {
+  const searchParams = useSearchParams();
   const { selectedBroker } = useBroker();
+  const linkedRecommendationId = searchParams.get("recommendation");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -40,6 +43,7 @@ export function SettingsRecommendations() {
   const [deletingRecommendationId, setDeletingRecommendationId] = useState<string | null>(null);
   const [deletionConfirmation, setDeletionConfirmation] = useState(false);
   const deletionLock = useRef<string | null>(null);
+  const openedDeepLinkRef = useRef<string | null>(null);
 
   const submittedBy = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
   // TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur
@@ -78,6 +82,19 @@ export function SettingsRecommendations() {
       isCurrent = false;
     };
   }, [reloadAdminKey, showAdministration]);
+
+  useEffect(() => {
+    if (
+      !showAdministration
+      || isLoadingAdmin
+      || !linkedRecommendationId
+      || openedDeepLinkRef.current === linkedRecommendationId
+    ) return;
+    const recommendation = recommendations.find((item) => item.id === linkedRecommendationId);
+    if (!recommendation) return;
+    openedDeepLinkRef.current = linkedRecommendationId;
+    void openRecommendation(recommendation);
+  }, [isLoadingAdmin, linkedRecommendationId, recommendations, showAdministration]);
 
   async function submitRecommendation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

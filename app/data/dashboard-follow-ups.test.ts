@@ -28,12 +28,16 @@ describe("relances du jour sur le dashboard", () => {
   });
 
   it("centralise FAIT avec updateFollowUp(contactId, null)", () => {
+    const followUpWorkflow = dashboard.slice(
+      dashboard.indexOf("async function finishFollowUp"),
+      dashboard.indexOf("if (!isBrokerReady"),
+    );
     expect(followUpContext).toContain("const completeFollowUp = useCallback(");
     expect(followUpContext).toContain("await updateFollowUp(clientId, null)");
     expect(dashboard).toContain("const { completeFollowUp } = useFollowUps()");
     expect(dashboard).toContain("await completeFollowUp(contactId)");
     expect(dashboard).not.toContain("/api/complete-follow-up");
-    expect(dashboard).not.toContain("fetch(");
+    expect(followUpWorkflow).not.toContain("fetch(");
   });
 
   it("bloque le double clic et charge uniquement le Contact ciblé", () => {
