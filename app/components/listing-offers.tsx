@@ -13,6 +13,7 @@ import { useListingOffers } from "../lib/listings/use-listing-offers";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import { useTransactions } from "../transactions-context";
 import { ListingOfferModal } from "./listing-offer-modal";
+import { PurchaseAgreementImport } from "./purchase-agreement-import";
 
 const date = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const displayDate = (value: string) => date.format(new Date(`${value.slice(0, 10)}T12:00:00Z`));
@@ -52,6 +53,7 @@ export function ListingOffers({ listing, ownerNames, onChanged }: {
     <header><div><span>Propositions reçues</span><h3 id="listing-offers-title">OFFRES REÇUES</h3></div><button onClick={() => setEditing("new")} type="button">+ Ajouter une offre</button></header>
     {offers.error && <p className="listing-editor-error" role="alert">{offers.error}</p>}
     <div className="listing-offer-summary"><article><strong>{offers.offers.length}</strong><span>Total</span></article><article><strong>{summary.negotiating}</strong><span>En négociation</span></article><article><strong>{summary.accepted}</strong><span>Acceptée{summary.accepted === 1 ? "" : "s"}</span></article></div>
+    {listing.purpose === "sale" && <PurchaseAgreementImport listing={listing} ownerNames={ownerNames} disabled={offers.isSaving} onCreateOffer={offers.createOffer} />}
 
     {offers.transactionLink && <article className="listing-linked-transaction"><span>TRANSACTION CRÉÉE ✓</span><strong>{offers.transactionLink.transaction.price === null ? "Prix non renseigné" : formatListingAmount(offers.transactionLink.transaction.price, "sale")}</strong><small>PA du {offers.transactionLink.transaction.promiseDate ? displayDate(offers.transactionLink.transaction.promiseDate) : "—"} · {BROKER_LABELS[offers.transactionLink.transaction.broker]}</small><button onClick={() => router.push(`/transactions/${offers.transactionLink!.transactionId}`)} type="button">Ouvrir la transaction →</button></article>}
 
