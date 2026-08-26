@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useBroker } from "../broker-context";
 import { appNavigationOrder, softwareLinks } from "../data/software-links";
+import { AccountMenu } from "./account-menu";
 import { GlobalSearch } from "./global-search";
 
 const links = [
@@ -22,6 +23,7 @@ export function AppHeader() {
   const router = useRouter();
   const { selectedBroker, clearBroker } = useBroker();
   const headerRef = useRef<HTMLElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
   const softwareButtonRef = useRef<HTMLButtonElement>(null);
   const softwareMenuRef = useRef<HTMLDivElement>(null);
   const [isSoftwareOpen, setIsSoftwareOpen] = useState(false);
@@ -57,10 +59,13 @@ export function AppHeader() {
     document.addEventListener("pointerdown", closeOnOutsideClick);
     document.addEventListener("keydown", closeOnEscape);
     window.addEventListener("resize", positionSoftwareMenu);
+    const navigation = navigationRef.current;
+    navigation?.addEventListener("scroll", positionSoftwareMenu, { passive: true });
     return () => {
       document.removeEventListener("pointerdown", closeOnOutsideClick);
       document.removeEventListener("keydown", closeOnEscape);
       window.removeEventListener("resize", positionSoftwareMenu);
+      navigation?.removeEventListener("scroll", positionSoftwareMenu);
     };
   }, [isSoftwareOpen]);
 
@@ -84,7 +89,7 @@ export function AppHeader() {
           width="1337"
         />
       </button>
-      <nav className="app-header-links" aria-label="Navigation principale">
+      <nav className="app-header-links" aria-label="Navigation principale" ref={navigationRef}>
         {appNavigationOrder.map((label) => {
           if (label === "Logiciels") {
             return (
@@ -125,6 +130,7 @@ export function AppHeader() {
           <strong>{selectedBroker?.toUpperCase() ?? "AUCUN"}</strong>
         </div>
         <button className="app-change-broker" onClick={changeBroker} type="button">Changer</button>
+        <AccountMenu />
       </div>
       {isSoftwareOpen && (
         <div

@@ -5632,10 +5632,11 @@ button:disabled {
   top: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
   min-height: 4.4rem;
   align-items: center;
   gap: 1.1rem;
-  padding: 0.6rem 13.5rem 0.6rem clamp(1rem, 3vw, 2.25rem);
+  padding: 0.6rem clamp(1rem, 3vw, 2.25rem);
   background: rgba(246, 243, 235, 0.94);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(14px);
@@ -5643,8 +5644,10 @@ button:disabled {
 
 .app-header-brand {
   display: flex;
+  min-width: 0;
   min-height: 2.85rem;
   align-items: center;
+  flex-shrink: 0;
   padding: 0;
   color: var(--ink);
   background: transparent;
@@ -5670,6 +5673,10 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.15rem;
+}
+
+.app-header-links::-webkit-scrollbar {
+  display: none;
 }
 
 .app-header-links button,
@@ -5764,8 +5771,14 @@ button:disabled {
 
 .app-header-tools {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.5rem;
+  justify-self: end;
+}
+
+.app-header-tools > * {
+  flex: 0 0 auto;
 }
 
 .global-search-trigger {
@@ -5777,7 +5790,7 @@ button:disabled {
 }
 
 .global-search-trigger > span:first-child { color: #8c7343; font-size: 1rem; }
-.app-broker-state { display: grid; gap: 0.12rem; padding: 0 0.35rem; }
+.app-broker-state { display: grid; flex-shrink: 0; gap: 0.12rem; padding: 0 0.35rem; }
 .app-broker-state span { color: rgba(19, 35, 59, 0.48); font-size: 0.5rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .app-broker-state strong { font-size: 0.72rem; letter-spacing: 0.08em; }
 .app-change-broker { min-height: 2.5rem; padding: 0.5rem 0.58rem; border-color: var(--line); }
@@ -5906,14 +5919,43 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
-@media (max-width: 1240px) {
-  .app-header { grid-template-columns: auto 1fr; padding-right: 11rem; }
-  .app-header-links { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; overflow-x: auto; padding-bottom: 0.2rem; }
-  .app-header-tools { justify-self: end; }
+@media (max-width: 1399px) {
+  .app-header {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: clamp(0.75rem, 2vw, 1.5rem);
+    row-gap: 0.25rem;
+    padding-block: 0.55rem 0.35rem;
+  }
+
+  .app-header-brand-logo {
+    width: clamp(108px, 11vw, 132px);
+  }
+
+  .app-header-tools {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .app-header-links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    gap: clamp(0rem, 0.35vw, 0.3rem);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 0.1rem 0 0.2rem;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+
+  .app-header-links button {
+    flex: 0 0 auto;
+  }
 }
 
-@media (max-width: 700px) {
-  .app-header { position: sticky; grid-template-columns: 1fr auto; gap: 0.5rem; min-height: auto; padding: 0.55rem 4.7rem 0.5rem 0.75rem; }
+@media (max-width: 849px) {
+  .app-header { position: sticky; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; min-height: auto; padding: 0.55rem 0.75rem 0.5rem; }
   .app-header-brand-logo { width: clamp(100px, 28vw, 120px); }
   .app-header-tools { gap: 0.25rem; }
   .global-search-trigger { width: 2.75rem; padding: 0; justify-content: center; }
@@ -5921,9 +5963,8 @@ textarea:focus-visible,
   .app-broker-state span { display: none; }
   .app-broker-state { padding: 0 0.25rem; }
   .app-change-broker { min-height: 2.75rem; }
-  .app-header-links { gap: 0; padding: 0.2rem 0 0.15rem; scrollbar-width: none; }
+  .app-header-links { justify-content: flex-start; gap: 0; padding: 0.2rem 0 0.15rem; }
   .app-header-links button { min-height: 2.75rem; font-size: 0.58rem; }
-  .account-menu { top: 0.6rem; right: 0.55rem; }
   .account-menu-trigger { width: 2.75rem; min-height: 2.75rem; justify-content: center; padding: 0; }
   .account-menu-trigger strong { display: none; }
   .dashboard-header { align-items: flex-start; }
@@ -5939,6 +5980,12 @@ textarea:focus-visible,
   .settings-page,
   .client-page,
   .dashboard-page { padding: 0.85rem; }
+}
+
+@media (max-width: 360px) {
+  .app-broker-state {
+    display: none;
+  }
 }
 
 /* Inventaire Listings */
@@ -8994,10 +9041,9 @@ button.destructive-button:disabled {
 }
 
 .account-menu {
-  position: fixed;
+  position: relative;
   z-index: 80;
-  top: 1rem;
-  right: 1rem;
+  flex-shrink: 0;
 }
 
 .account-menu-trigger {
@@ -9026,9 +9072,12 @@ button.destructive-button:disabled {
 }
 
 .account-menu-panel {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 0.45rem);
+  right: 0;
   display: grid;
   min-width: 12rem;
-  margin-top: 0.45rem;
   padding: 0.45rem;
   border: 1px solid rgba(16, 37, 31, 0.12);
   border-radius: 0.8rem;
@@ -9124,15 +9173,6 @@ button.destructive-button:disabled {
 
   .contact-editor-field-wide {
     grid-column: auto;
-  }
-
-  .account-menu {
-    top: 0.75rem;
-    right: 0.75rem;
-  }
-
-  .account-menu-trigger > span:first-child {
-    display: none;
   }
 
   .profile-account-details {
