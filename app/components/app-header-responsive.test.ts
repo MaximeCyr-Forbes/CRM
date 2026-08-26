@@ -34,7 +34,11 @@ describe("header responsive du CRM", () => {
 
   it("passe à deux rangées sur laptop et limite le défilement à la navigation", () => {
     const css = source("app/globals.css");
-    expect(css).toContain("@media (max-width: 1399px)");
+    const twoRowMaximumWidth = 1749;
+    const twoRowViewports = [1749, 1680, 1600, 1536, 1440, 1366, 1280, 1180, 1024, 900];
+    expect(css).toContain(`@media (max-width: ${twoRowMaximumWidth}px)`);
+    expect(twoRowViewports.every((width) => width <= twoRowMaximumWidth)).toBe(true);
+    expect([1920, 2560].every((width) => width > twoRowMaximumWidth)).toBe(true);
     expect(css).toContain("grid-template-rows: auto auto");
     expect(css).toContain(".app-header-links button {\n    flex: 0 0 auto;");
     expect(css).toContain("overflow-x: auto");

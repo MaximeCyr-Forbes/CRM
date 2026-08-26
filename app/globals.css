@@ -5919,7 +5919,7 @@ textarea:focus-visible,
   outline-offset: 3px;
 }
 
-@media (max-width: 1399px) {
+@media (max-width: 1749px) {
   .app-header {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto auto;
