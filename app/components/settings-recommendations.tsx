@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type Broker, useBroker } from "../broker-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
@@ -25,6 +25,7 @@ const BROKER_KEYS: Record<Broker, RecommendationAuthor> = {
 };
 
 export function SettingsRecommendations() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedBroker } = useBroker();
   const linkedRecommendationId = searchParams.get("recommendation");
@@ -160,6 +161,23 @@ export function SettingsRecommendations() {
     }
   }
 
+  function clearRecommendationDeepLink() {
+    if (!searchParams.has("recommendation")) {
+      openedDeepLinkRef.current = null;
+      return;
+    }
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.delete("recommendation");
+    openedDeepLinkRef.current = null;
+    const query = nextSearchParams.toString();
+    router.replace(query ? `/settings?${query}` : "/settings", { scroll: false });
+  }
+
+  function closeRecommendationDetail() {
+    setOpenedRecommendation(null);
+    clearRecommendationDeepLink();
+  }
+
   function requestRecommendationDeletion(recommendation: CRMRecommendation) {
     setAdminError(null);
     setDeletionConfirmation(false);
@@ -182,9 +200,10 @@ export function SettingsRecommendations() {
       }
 
       setRecommendations((current) => current.filter((item) => item.id !== recommendationId));
-      setOpenedRecommendation((current) => current?.id === recommendationId ? null : current);
+      setOpenedRecommendation(null);
       setPendingDeletion(null);
       setDeletionConfirmation(true);
+      clearRecommendationDeepLink();
     } catch {
       throw new Error("La recommandation n’a pas pu être supprimée. Réessayez.");
     } finally {
@@ -314,10 +333,10 @@ export function SettingsRecommendations() {
         </section>
       )}
 
-      {openedRecommendation && (
+      {openedRecommendation && !pendingDeletion && (
         <RecommendationDetailModal
           isDeleting={deletingRecommendationId === openedRecommendation.id}
-          onClose={() => { if (!pendingDeletion) setOpenedRecommendation(null); }}
+          onClose={closeRecommendationDetail}
           onDelete={() => requestRecommendationDeletion(openedRecommendation)}
           recommendation={openedRecommendation}
         />

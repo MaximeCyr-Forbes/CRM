@@ -65,13 +65,40 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain("requestRecommendationDeletion(recommendation)");
     expect(component).toContain("requestRecommendationDeletion(openedRecommendation)");
     expect(component).toContain("current.filter((item) => item.id !== recommendationId)");
-    expect(component).toContain("current?.id === recommendationId ? null : current");
+    expect(component).toContain("setOpenedRecommendation(null)");
     expect(detail).toContain("Supprimer");
     expect(confirmation).toContain("SUPPRIMER CETTE RECOMMANDATION ?");
     expect(confirmation).toContain("Cette action est définitive.");
     expect(confirmation).toContain("Annuler");
     expect(confirmation).not.toContain("window.alert");
     expect(confirmation).not.toContain("window.confirm");
+  });
+
+  it("ne monte jamais le détail et la confirmation de suppression en même temps", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    expect(component).toContain("openedRecommendation && !pendingDeletion");
+    expect(component).toContain("pendingDeletion &&");
+    expect(component).toContain("onClose={() => setPendingDeletion(null)}");
+    expect(component).toContain("onClose={closeRecommendationDetail}");
+  });
+
+  it("nettoie le lien profond après fermeture ou suppression sans recharger la page", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    expect(component).toContain("useRouter()");
+    expect(component).toContain("function clearRecommendationDeepLink()");
+    expect(component).toContain('nextSearchParams.delete("recommendation")');
+    expect(component).toContain('router.replace(query ? `/settings?${query}` : "/settings", { scroll: false })');
+    expect(component).toContain("function closeRecommendationDetail()");
+    expect(component).toContain("clearRecommendationDeepLink()");
+    expect(component).not.toContain("window.location");
+  });
+
+  it("restaure le focus entre la confirmation, le détail et la page", () => {
+    const detail = source("app/components/recommendation-detail-modal.tsx");
+    const confirmation = source("app/components/recommendation-delete-confirmation-modal.tsx");
+    expect(detail).toContain("previousFocus?.focus()");
+    expect(confirmation).toContain("closeButtonRef.current?.focus()");
+    expect(confirmation).toContain("previousFocus?.focus()");
   });
 
   it("maintient un état ciblé et recalcule le compteur depuis la liste filtrée", () => {
