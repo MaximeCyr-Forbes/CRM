@@ -6,6 +6,7 @@ import { DataStatus } from "../components/data-status";
 import { DuplicateResolutionModal } from "../components/duplicate-resolution-modal";
 import { ImportContactReviewModal } from "../components/import-contact-review-modal";
 import { ContactEmailModal } from "../components/contact-email-modal";
+import { ContactBulkDeleteModal } from "../components/contact-bulk-delete-modal";
 import { useContacts } from "../contacts-context";
 import { useCRMData } from "../crm-data-context";
 import { useBroker } from "../broker-context";
@@ -49,6 +50,7 @@ import {
 } from "../lib/contact-normalization";
 import { addressInputFromDraft, primaryAddressFields } from "../lib/contact-addresses";
 import { formatFollowUpDate, toLocalISODate } from "../lib/follow-up";
+import { deleteContactsSequentially, retainUnassignedContactSelection, toggleVisibleContactSelection } from "../lib/contacts/bulk-delete";
 
 type ContactFilter = "all" | ContactBroker;
 type ImportKind = "csv" | "vcard";
@@ -166,10 +168,13 @@ export default function ContactsPage() {
     importContacts,
     enrichContactBirthDates,
     assignContact,
+    deleteContact,
     mergeDraftIntoContact,
   } = useContacts();
   const { notes, loadNotesForContact, isLoading, isSaving } = useCRMData();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const bulkDeleteLockRef = useRef(false);
 
   const [activeFilter, setActiveFilter] = useState<ContactFilter>("all");
   const [search, setSearch] = useState("");
@@ -190,6 +195,11 @@ export default function ContactsPage() {
   const [emailContactId, setEmailContactId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(100);
+  // TEMPORAIRE — outil de ménage initial des Contacts non attribués.
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ completed: number; total: number } | null>(null);
   const queryBroker = searchParams.get("broker");
   const queryFollowUp = searchParams.get("followUp");
   const today = toLocalISODate(new Date());
@@ -209,6 +219,10 @@ export default function ContactsPage() {
   );
   const unassignedCount = contacts.filter((contact) => contact.broker === "unassigned").length;
   const pagedContacts = visibleContacts.slice(0, visibleLimit);
+  const pagedContactIds = pagedContacts.map((contact) => contact.id);
+  const selectedVisibleCount = pagedContactIds.filter((id) => selectedContactIds.has(id)).length;
+  const areAllVisibleSelected = pagedContactIds.length > 0 && selectedVisibleCount === pagedContactIds.length;
+  const selectedContacts = contacts.filter((contact) => contact.broker === "unassigned" && selectedContactIds.has(contact.id));
   const assignmentTarget = contacts.find((contact) => contact.id === assignmentTargetId);
   const emailContact = contacts.find((contact) => contact.id === emailContactId) ?? null;
   const activeImportCandidate = pendingImport?.candidates.find((candidate) => candidate.id === activeImportDuplicateId) ?? null;
@@ -463,6 +477,63 @@ export default function ContactsPage() {
     showConfirmation(`${getContactName(contact)} · ${BROKER_LABELS[broker]}`);
   }
 
+  function toggleContactSelection(contactId: string) {
+    if (isBulkDeleting) return;
+    setSelectedContactIds((current) => {
+      const next = new Set(current);
+      if (next.has(contactId)) next.delete(contactId);
+      else next.add(contactId);
+      return next;
+    });
+  }
+
+  function clearContactSelection() {
+    if (!isBulkDeleting) setSelectedContactIds(new Set());
+  }
+
+  async function confirmBulkDelete() {
+    if (bulkDeleteLockRef.current || isBulkDeleting) return;
+    const contactIds = selectedContacts.map((contact) => contact.id);
+    if (contactIds.length === 0) {
+      setIsBulkDeleteModalOpen(false);
+      return;
+    }
+
+    bulkDeleteLockRef.current = true;
+    setIsBulkDeleting(true);
+    setBulkDeleteProgress({ completed: 0, total: contactIds.length });
+    let completed = 0;
+
+    try {
+      const result = await deleteContactsSequentially(contactIds, async (contactId) => {
+        try {
+          await deleteContact(contactId);
+        } finally {
+          completed += 1;
+          setBulkDeleteProgress({ completed, total: contactIds.length });
+        }
+      }, (contactId) => {
+        setSelectedContactIds((current) => {
+          const next = new Set(current);
+          next.delete(contactId);
+          return next;
+        });
+      });
+
+      setSelectedContactIds(new Set(result.failedIds));
+      setIsBulkDeleteModalOpen(false);
+      if (result.failedIds.length === 0) {
+        showConfirmation(`${result.deletedIds.length} Contact${result.deletedIds.length > 1 ? "s" : ""} supprimé${result.deletedIds.length > 1 ? "s" : ""}.`);
+      } else {
+        showConfirmation(`${result.deletedIds.length} Contact${result.deletedIds.length > 1 ? "s" : ""} supprimé${result.deletedIds.length > 1 ? "s" : ""}. ${result.failedIds.length} Contact${result.failedIds.length > 1 ? "s" : ""} n’${result.failedIds.length > 1 ? "ont" : "a"} pas pu être supprimé${result.failedIds.length > 1 ? "s" : ""}.`);
+      }
+    } finally {
+      bulkDeleteLockRef.current = false;
+      setIsBulkDeleting(false);
+      setBulkDeleteProgress(null);
+    }
+  }
+
   const reviewCounts = pendingImport ? {
     all: pendingImport.candidates.length,
     new: pendingImport.candidates.filter((candidate) => candidate.status === "new").length,
@@ -477,6 +548,20 @@ export default function ContactsPage() {
   useEffect(() => {
     setVisibleLimit(100);
   }, [activeFilter, search]);
+
+  useEffect(() => {
+    if (activeFilter !== "unassigned") setSelectedContactIds(new Set());
+  }, [activeFilter]);
+
+  useEffect(() => {
+    setSelectedContactIds((current) => retainUnassignedContactSelection(current, contacts));
+  }, [contacts]);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = selectedVisibleCount > 0 && !areAllVisibleSelected;
+    }
+  }, [areAllVisibleSelected, selectedVisibleCount]);
 
   return (
     <main className="contacts-page">
@@ -496,10 +581,14 @@ export default function ContactsPage() {
             <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => setActiveFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
             <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
           </div>
+          {activeFilter === "unassigned" && <div className={`contacts-bulk-actions${selectedContactIds.size > 0 ? " contacts-bulk-actions-active" : ""}`}>
+            <label className="contacts-select-all"><input aria-label="Sélectionner tous les contacts visibles" checked={areAllVisibleSelected} disabled={isBulkDeleting || pagedContacts.length === 0} onChange={() => setSelectedContactIds((current) => toggleVisibleContactSelection(current, pagedContactIds))} ref={selectAllCheckboxRef} type="checkbox" /><span>Tout sélectionner</span></label>
+            {selectedContactIds.size > 0 && <div className="contacts-selection-summary"><strong>{selectedContactIds.size} CONTACT{selectedContactIds.size > 1 ? "S" : ""} SÉLECTIONNÉ{selectedContactIds.size > 1 ? "S" : ""}</strong><div><button disabled={isBulkDeleting} onClick={clearContactSelection} type="button">Annuler la sélection</button><button className="destructive-button" disabled={isBulkDeleting} onClick={() => setIsBulkDeleteModalOpen(true)} type="button">{isBulkDeleting ? "Suppression…" : "Supprimer"}</button></div></div>}
+          </div>}
           <div className="contacts-list">
             <div className="contacts-list-head" aria-hidden="true"><span>Contact</span><span>Coordonnées</span><span>Courtier</span><span>Suivi</span><span>Actions</span></div>
-            {pagedContacts.map((contact) => <article className="contact-row" key={contact.id}>
-              <div className="contact-main-cell"><span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => router.push(`/contacts/${contact.id}`)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
+            {pagedContacts.map((contact) => <article className={`contact-row${selectedContactIds.has(contact.id) ? " contact-row-selected" : ""}`} key={contact.id}>
+              <div className="contact-main-cell">{activeFilter === "unassigned" && <label className="contact-select-control" onClick={(event) => event.stopPropagation()}><input aria-label={`Sélectionner ${getContactName(contact)}`} checked={selectedContactIds.has(contact.id)} disabled={isBulkDeleting} onChange={() => toggleContactSelection(contact.id)} type="checkbox" /><span className="sr-only">Sélectionner {getContactName(contact)}</span></label>}<span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => router.push(`/contacts/${contact.id}`)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
               <div className="contact-coordinates">{contact.phone ? <a href={`tel:${contact.phone}`}>{contact.phone}</a> : <span>Téléphone non renseigné</span>}{contact.email ? <button aria-label={`Envoyer un courriel à ${getContactName(contact)}`} className="contact-email-link" onClick={() => setEmailContactId(contact.id)} type="button">{contact.email}</button> : <span>Email non renseigné</span>}</div>
               <span className={`contact-broker-badge broker-${contact.broker}`}>{BROKER_LABELS[contact.broker]}</span><span className="contact-follow-up-cell">{contact.nextFollowUpDate ? formatFollowUpDate(contact.nextFollowUpDate) : "Aucune relance"}</span>
               <div className="contact-row-actions"><button onClick={() => router.push(`/contacts/${contact.id}`)} type="button">Ouvrir</button><button onClick={() => setAssignmentTargetId(contact.id)} type="button">Changer le courtier</button></div>
@@ -509,6 +598,8 @@ export default function ContactsPage() {
           </div>
         </section>
       </div>
+
+      {isBulkDeleteModalOpen && selectedContacts.length > 0 && <ContactBulkDeleteModal contacts={selectedContacts} isDeleting={isBulkDeleting} onClose={() => { if (!isBulkDeleting) setIsBulkDeleteModalOpen(false); }} onConfirm={() => void confirmBulkDelete()} progress={bulkDeleteProgress} />}
 
       {manualStep !== "closed" && <div className="contact-modal-backdrop"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">
         <header className="contact-modal-header"><div><p className="section-kicker">{manualStep === "details" ? "Nouveau contact" : "Attribution obligatoire"}</p><h2>{manualStep === "details" ? "Ajouter un contact" : "À QUI ATTRIBUER CE CONTACT ?"}</h2></div><button aria-label="Fermer" onClick={closeManualModal} type="button">×</button></header>

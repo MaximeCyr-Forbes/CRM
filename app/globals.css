@@ -3314,8 +3314,98 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.contacts-bulk-actions {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.2rem;
+  background: rgba(246, 243, 235, 0.52);
+  border-top: 1px solid var(--line);
+}
+
+.contacts-bulk-actions-active {
+  background: rgba(198, 168, 103, 0.13);
+}
+
+.contacts-select-all,
+.contact-select-control {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.contacts-select-all {
+  gap: 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.contacts-select-all input,
+.contact-select-control input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.contacts-select-all input:disabled,
+.contact-select-control input:disabled {
+  cursor: not-allowed;
+}
+
+.contacts-selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.contacts-selection-summary > strong {
+  color: var(--ink);
+  font-size: 0.63rem;
+  letter-spacing: 0.08em;
+}
+
+.contacts-selection-summary > div {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.contacts-selection-summary button {
+  min-height: 2.45rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.57rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.contacts-selection-summary button:not(.destructive-button) {
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.contacts-selection-summary button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .contact-row {
   padding: 1.05rem 1.2rem;
+}
+
+.contact-row-selected {
+  background: rgba(198, 168, 103, 0.11);
+  box-shadow: inset 0.18rem 0 0 rgba(198, 168, 103, 0.75);
 }
 
 .contact-row + .contact-row {
@@ -3327,6 +3417,67 @@ button:disabled {
   min-width: 0;
   align-items: center;
   gap: 0.85rem;
+}
+
+.contact-select-control {
+  min-width: 1.4rem;
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+
+.contact-bulk-delete-modal {
+  width: min(100%, 38rem);
+}
+
+.contact-bulk-delete-content > p:first-child {
+  margin: 0 0 1.25rem;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.contact-bulk-delete-content ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-bulk-delete-content li {
+  padding: 0.7rem 0.8rem;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.contact-bulk-delete-more,
+.contact-bulk-delete-progress {
+  margin: 0.85rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.contact-bulk-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 1.75rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--line);
+}
+
+.contact-bulk-delete-actions button:not(.destructive-button) {
+  min-height: 2.55rem;
+  padding: 0.62rem 0.9rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-weight: 750;
+  text-transform: uppercase;
 }
 
 .contact-initials {
@@ -4335,6 +4486,32 @@ button:disabled {
     padding: 0.75rem;
   }
 
+  .contacts-bulk-actions,
+  .contacts-selection-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .contacts-selection-summary {
+    width: 100%;
+  }
+
+  .contacts-selection-summary > div,
+  .contacts-selection-summary button {
+    width: 100%;
+  }
+
+  .contacts-select-all,
+  .contact-select-control {
+    min-height: 2.75rem;
+  }
+
+  .contacts-select-all input,
+  .contact-select-control input {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
   .contact-row {
     grid-template-columns: 1fr auto;
     gap: 0.8rem;
@@ -4373,6 +4550,14 @@ button:disabled {
     border-bottom: 0;
     border-left: 0;
     border-radius: 0.65rem 0.65rem 0 0;
+  }
+
+  .contact-bulk-delete-actions {
+    flex-direction: column-reverse;
+  }
+
+  .contact-bulk-delete-actions button {
+    width: 100%;
   }
 
   .manual-contact-form,
