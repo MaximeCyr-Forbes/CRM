@@ -5508,6 +5508,9 @@ button:disabled {
 .deadline-actions button { min-height: 2.35rem; padding: 0.5rem 0.65rem; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; }
 
 .deadline-form { display: grid; gap: 1rem; padding-top: 1.2rem; }
+.deadline-date-time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.deadline-date-time-fields .transaction-field > span { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.deadline-date-time-fields .transaction-field > span small { color: var(--ink-soft); font-size: 0.52rem; font-weight: 600; letter-spacing: 0.04em; }
 .deadline-presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.45rem; }
 .deadline-presets button { min-height: 3.2rem; padding: 0.6rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; }
 .deadline-presets button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
@@ -5614,6 +5617,7 @@ button:disabled {
   .transaction-deadlines article { grid-template-columns: auto 1fr; }
   .deadline-actions { grid-column: 2; flex-wrap: wrap; }
   .deadline-presets { grid-template-columns: 1fr; }
+  .deadline-date-time-fields { grid-template-columns: 1fr; }
   .transaction-section-heading { align-items: stretch; flex-direction: column; }
   .transaction-add-deadline { width: 100%; }
   .contact-property-history-summary { grid-template-columns: repeat(2, 1fr); }

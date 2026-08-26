@@ -1,4 +1,5 @@
 import type { CalendarSyncStatus, ContactBroker } from "./contact-types";
+import { compareTransactionDeadlines } from "../lib/transactions/deadline-time";
 
 export const PURCHASE_TRANSACTION_STATUSES = [
   "new",
@@ -40,6 +41,7 @@ export type TransactionDeadline = {
   transactionId: string;
   title: string;
   dueDate: string;
+  dueTime: string | null;
   completed: boolean;
   googleCalendarEventId: string | null;
   googleCalendarEventBroker: TransactionBroker | null;
@@ -142,7 +144,7 @@ export function isTransactionCompleted(
 export function getNextTransactionDeadline(transaction: Pick<Transaction, "deadlines">) {
   return [...transaction.deadlines]
     .filter((deadline) => !deadline.completed)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0] ?? null;
+    .sort(compareTransactionDeadlines)[0] ?? null;
 }
 
 export function statusesForTransaction(type: TransactionType) {

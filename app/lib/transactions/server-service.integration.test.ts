@@ -122,6 +122,7 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
       transaction_id: transaction.id,
       title: `Échéance ${index}`,
       due_date: "2026-09-01",
+      due_time: null,
       completed: false,
       google_calendar_event_id: null,
       google_calendar_event_broker: null,

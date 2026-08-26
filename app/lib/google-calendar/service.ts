@@ -10,6 +10,11 @@ import type { Contact, ContactBroker, ContactSource } from "../../data/contact-t
 import { BROKER_LABELS, CLIENT_TYPE_LABELS, CONTACT_BROKERS, PRIORITY_LABELS, getContactName } from "../../data/contact-types";
 import type { TransactionBroker } from "../../data/transaction-types";
 import type { TransactionDeadlineRow, TransactionRow } from "../transactions/server-service";
+import {
+  addOneHourToTransactionDeadline,
+  normalizeTransactionDeadlineTime,
+  TRANSACTION_DEADLINE_TIME_ZONE,
+} from "../transactions/deadline-time";
 import { getSupabaseAdmin } from "../supabase/server";
 import { getGoogleOAuthConfig } from "./config";
 import { decryptGoogleToken } from "./token-crypto";
@@ -93,12 +98,15 @@ export class GoogleCalendarNotConnectedError extends Error {}
 export class GoogleCalendarEventNotFoundError extends Error {}
 export class ManagedGoogleCalendarEventError extends Error {}
 
-type GoogleEventPayload = {
+type GoogleEventDate = { date: string; dateTime?: never; timeZone?: never };
+type GoogleEventDateTime = { date?: never; dateTime: string; timeZone: string };
+
+export type GoogleEventPayload = {
   id?: string;
   summary: string;
   description: string;
-  start: { date: string };
-  end: { date: string };
+  start: GoogleEventDate | GoogleEventDateTime;
+  end: GoogleEventDate | GoogleEventDateTime;
   recurrence?: string[];
   transparency?: "transparent";
   visibility?: "private";
@@ -695,7 +703,7 @@ export async function processGoogleCalendarWebhook(headers: Headers) {
   return true;
 }
 
-function buildDeadlineEventPayload(
+export function buildDeadlineEventPayload(
   transaction: TransactionRow,
   deadline: TransactionDeadlineRow,
   eventId?: string,
@@ -708,12 +716,30 @@ function buildDeadlineEventPayload(
     `Échéance : ${deadline.title}`,
     appUrl ? `Fiche CRM : ${appUrl}/transactions/${transaction.id}` : null,
   ].filter((line): line is string => Boolean(line));
+  const dueTime = normalizeTransactionDeadlineTime(deadline.due_time);
+  const eventTiming = dueTime
+    ? (() => {
+      const end = addOneHourToTransactionDeadline(deadline.due_date, dueTime);
+      return {
+        start: {
+          dateTime: `${deadline.due_date}T${dueTime}:00`,
+          timeZone: TRANSACTION_DEADLINE_TIME_ZONE,
+        },
+        end: {
+          dateTime: `${end.date}T${end.time}:00`,
+          timeZone: TRANSACTION_DEADLINE_TIME_ZONE,
+        },
+      };
+    })()
+    : {
+      start: { date: deadline.due_date },
+      end: { date: addOneDay(deadline.due_date) },
+    };
   return {
     ...(eventId ? { id: eventId } : {}),
     summary: `${deadline.title} — ${transaction.address}`,
     description: details.join("\n"),
-    start: { date: deadline.due_date },
-    end: { date: addOneDay(deadline.due_date) },
+    ...eventTiming,
   };
 }
 

@@ -9,6 +9,7 @@ import type {
   TransactionStatus,
   TransactionType,
 } from "../../data/transaction-types";
+import { compareTransactionDeadlines, normalizeTransactionDeadlineTime } from "./deadline-time";
 import { getSupabaseAdmin } from "../supabase/server";
 import {
   listAllSupabaseRows,
@@ -66,6 +67,7 @@ export type TransactionDeadlineRow = {
   transaction_id: string;
   title: string;
   due_date: string;
+  due_time: string | null;
   completed: boolean;
   google_calendar_event_id: string | null;
   google_calendar_event_broker: TransactionBroker | null;
@@ -104,6 +106,7 @@ function mapDeadline(row: TransactionDeadlineRow): TransactionDeadline {
     transactionId: row.transaction_id,
     title: row.title,
     dueDate: row.due_date,
+    dueTime: normalizeTransactionDeadlineTime(row.due_time),
     completed: row.completed,
     googleCalendarEventId: row.google_calendar_event_id,
     googleCalendarEventBroker: row.google_calendar_event_broker,
@@ -157,7 +160,7 @@ export function mapTransaction(
     deadlines: deadlineRows
       .filter((item) => item.transaction_id === row.id)
       .map(mapDeadline)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+      .sort(compareTransactionDeadlines),
     notes: noteRows
       .filter((item) => item.transaction_id === row.id)
       .map(mapNote)
@@ -435,6 +438,7 @@ export async function insertDeadline(
   transactionId: string,
   title: string,
   dueDate: string,
+  dueTime: string | null,
   syncToGoogle: boolean,
 ) {
   const { data, error } = await getSupabaseAdmin()
@@ -443,6 +447,7 @@ export async function insertDeadline(
       transaction_id: transactionId,
       title: title.trim(),
       due_date: dueDate,
+      due_time: dueTime,
       google_calendar_sync_status: syncToGoogle ? "pending" : "synced",
     })
     .select("id")
@@ -454,11 +459,12 @@ export async function insertDeadline(
 export async function updateDeadline(
   transactionId: string,
   deadlineId: string,
-  values: { title?: string; dueDate?: string; completed?: boolean; syncToGoogle?: boolean },
+  values: { title?: string; dueDate?: string; dueTime?: string | null; completed?: boolean; syncToGoogle?: boolean },
 ) {
   const payload: Record<string, unknown> = {};
   if (values.title !== undefined) payload.title = values.title.trim();
   if (values.dueDate !== undefined) payload.due_date = values.dueDate;
+  if (values.dueTime !== undefined) payload.due_time = values.dueTime;
   if (values.completed !== undefined) payload.completed = values.completed;
   if (values.syncToGoogle) payload.google_calendar_sync_status = "pending";
   const { error } = await getSupabaseAdmin()

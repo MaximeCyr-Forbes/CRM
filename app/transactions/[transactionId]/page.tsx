@@ -16,12 +16,12 @@ import {
   type TransactionDeadline,
   type TransactionStatus,
 } from "../../data/transaction-types";
-import { toLocalISODate } from "../../lib/follow-up";
 import {
   deadlineTitleEditorState,
   deadlineTitleFromChoice,
   showOtherConditionField,
 } from "../../lib/transactions/deadline-title";
+import { formatTransactionDeadlineTime, isTransactionDeadlineOverdue } from "../../lib/transactions/deadline-time";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
 import { canCompleteTransactionSale } from "../../lib/transactions/sale-completion";
 import { canCompleteTransactionPurchase, isFinalizedTransaction } from "../../lib/transactions/completion";
@@ -56,13 +56,14 @@ function DeadlineModal({
   initial?: TransactionDeadline;
   isSaving: boolean;
   onClose: () => void;
-  onSave: (values: { title: string; dueDate: string; syncToGoogle: boolean }) => Promise<void>;
+  onSave: (values: { title: string; dueDate: string; dueTime: string | null; syncToGoogle: boolean }) => Promise<void>;
 }) {
   const initialTitleState = deadlineTitleEditorState(initial?.title);
   const [choice, setChoice] = useState(initialTitleState.choice);
   const [customTitle, setCustomTitle] = useState(initialTitleState.customTitle);
   const [otherConditionTitle, setOtherConditionTitle] = useState(initialTitleState.otherConditionTitle);
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
+  const [dueTime, setDueTime] = useState(initial?.dueTime ?? "");
   const [syncToGoogle, setSyncToGoogle] = useState(Boolean(initial?.googleCalendarEventId));
   const [error, setError] = useState<string | null>(null);
   useDialogLifecycle(true, onClose);
@@ -74,7 +75,7 @@ function DeadlineModal({
     }
     const title = deadlineTitleFromChoice(choice, customTitle, otherConditionTitle);
     if (!title || !dueDate) return setError("Ajoutez un titre et une date.");
-    try { await onSave({ title, dueDate, syncToGoogle }); }
+    try { await onSave({ title, dueDate, dueTime: dueTime || null, syncToGoogle }); }
     catch { setError("L’échéance n’a pas pu être enregistrée."); }
   }
 
@@ -84,7 +85,10 @@ function DeadlineModal({
       <div className="deadline-presets">{DEADLINE_PRESETS.map((preset) => <button aria-pressed={choice === preset} key={preset} onClick={() => setChoice(preset)} type="button">{preset}</button>)}<button aria-pressed={choice === "custom"} onClick={() => setChoice("custom")} type="button">Titre personnalisé</button></div>
       {showOtherConditionField(choice) && <label className="transaction-field"><span>Précisez la condition</span><input autoFocus onChange={(event) => setOtherConditionTitle(event.target.value)} placeholder="Ex. Vente de la propriété de l'acheteur" required value={otherConditionTitle} /></label>}
       {choice === "custom" && <label className="transaction-field"><span>Titre</span><input autoFocus onChange={(event) => setCustomTitle(event.target.value)} value={customTitle} /></label>}
-      <label className="transaction-field"><span>Date</span><input onChange={(event) => setDueDate(event.target.value)} required type="date" value={dueDate} /></label>
+      <div className="deadline-date-time-fields">
+        <label className="transaction-field"><span>Date</span><input onChange={(event) => setDueDate(event.target.value)} required type="date" value={dueDate} /></label>
+        <label className="transaction-field"><span>Heure <small>Facultative</small></span><input aria-label="Heure facultative de l’échéance" onChange={(event) => setDueTime(event.target.value)} type="time" value={dueTime} /></label>
+      </div>
       <label className="deadline-calendar-choice"><input checked={syncToGoogle} onChange={(event) => setSyncToGoogle(event.target.checked)} type="checkbox" /><span>Ajouter à Google Agenda du courtier responsable</span></label>
       {error && <p className="transaction-form-error" role="alert">{error}</p>}
       <div className="transaction-form-actions"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isSaving} type="submit">Enregistrer</button></div>
@@ -140,7 +144,6 @@ export default function TransactionDetailPage() {
   const [isReturningToMarket, setIsReturningToMarket] = useState(false);
   const [note, setNote] = useState("");
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const today = toLocalISODate(new Date());
 
   useEffect(() => {
     if (!confirmation) return;
@@ -155,9 +158,9 @@ export default function TransactionDetailPage() {
   const showReturnToMarketAction = canReturnTransactionToMarket(transaction, sourceListing);
   const finalized = isFinalizedTransaction(transaction);
 
-  async function saveDeadline(values: { title: string; dueDate: string; syncToGoogle: boolean }) {
+  async function saveDeadline(values: { title: string; dueDate: string; dueTime: string | null; syncToGoogle: boolean }) {
     const result = deadlineModal === "new"
-      ? await addDeadline(transaction!.id, values.title, values.dueDate, values.syncToGoogle)
+      ? await addDeadline(transaction!.id, values.title, values.dueDate, values.dueTime, values.syncToGoogle)
       : await updateDeadline(transaction!.id, deadlineModal!.id, values);
     setDeadlineModal(null);
     setConfirmation(result.message ?? "Échéance enregistrée.");
@@ -217,7 +220,7 @@ export default function TransactionDetailPage() {
 
     <section className="transaction-detail-section" aria-labelledby="transaction-clients-title"><div className="transaction-section-heading"><div><p className="section-kicker">Relations</p><h2 id="transaction-clients-title">CLIENTS LIÉS</h2></div></div><div className="transaction-linked-clients">{linkedContacts.map((contact) => <button key={contact!.id} onClick={() => router.push(`/contacts/${contact!.id}`)} type="button"><span>{getContactName(contact!)}</span><small>{BROKER_LABELS[contact!.broker]}</small><strong>Ouvrir →</strong></button>)}{linkedContacts.length === 0 && <p>Aucun contact lié à cette transaction.</p>}</div></section>
 
-    <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title"><div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">DATES IMPORTANTES</h2></div><button className="transaction-add-deadline" onClick={() => setDeadlineModal("new")} type="button">+ Ajouter une échéance</button></div><div className="transaction-deadlines">{transaction.deadlines.map((deadline) => { const overdue = !deadline.completed && deadline.dueDate < today; return <article className={deadline.completed ? "deadline-completed" : ""} key={deadline.id}><label><input checked={deadline.completed} onChange={(event) => void updateDeadline(transaction.id, deadline.id, { completed: event.target.checked })} type="checkbox" /><span aria-hidden="true" /></label><div><div className="deadline-title-line"><h3>{deadline.title}</h3>{overdue && <strong>EN RETARD</strong>}</div><p>{formatDate(deadline.dueDate)}</p><small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? "Google Agenda · " : ""}{deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}</small></div><div className="deadline-actions"><button onClick={() => setDeadlineModal(deadline)} type="button">Modifier</button><button className="destructive-button" onClick={async () => { if (window.confirm("Supprimer cette échéance ?")) { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); } }} type="button">Supprimer</button></div></article>; })}{transaction.deadlines.length === 0 && <div className="transaction-section-empty">Aucune échéance pour le moment.</div>}</div></section>
+    <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title"><div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">DATES IMPORTANTES</h2></div><button className="transaction-add-deadline" onClick={() => setDeadlineModal("new")} type="button">+ Ajouter une échéance</button></div><div className="transaction-deadlines">{transaction.deadlines.map((deadline) => { const overdue = isTransactionDeadlineOverdue(deadline); const formattedTime = formatTransactionDeadlineTime(deadline.dueTime); return <article className={deadline.completed ? "deadline-completed" : ""} key={deadline.id}><label><input checked={deadline.completed} onChange={(event) => void updateDeadline(transaction.id, deadline.id, { completed: event.target.checked })} type="checkbox" /><span aria-hidden="true" /></label><div><div className="deadline-title-line"><h3>{deadline.title}</h3>{overdue && <strong>EN RETARD</strong>}</div><p>{formatDate(deadline.dueDate)}{formattedTime ? ` · ${formattedTime}` : ""}</p><small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? "Google Agenda · " : ""}{deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}</small></div><div className="deadline-actions"><button onClick={() => setDeadlineModal(deadline)} type="button">Modifier</button><button className="destructive-button" onClick={async () => { if (window.confirm("Supprimer cette échéance ?")) { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); } }} type="button">Supprimer</button></div></article>; })}{transaction.deadlines.length === 0 && <div className="transaction-section-empty">Aucune échéance pour le moment.</div>}</div></section>
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
   </div>

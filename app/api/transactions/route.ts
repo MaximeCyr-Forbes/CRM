@@ -10,6 +10,7 @@ import {
 import { deleteTransactionWithCalendarCleanup } from "../../lib/transactions/delete-workflow";
 import { transactionApiErrorMessage, transactionApiErrorStatus, transactionErrorMetadata, type TransactionAction } from "../../lib/transactions/api-error";
 import { isFinalizedTransaction } from "../../lib/transactions/completion";
+import { parseTransactionDeadlineTimeInput } from "../../lib/transactions/deadline-time";
 import {
   FINALIZED_TRANSACTION_DELETE_MESSAGE,
   FINALIZED_TRANSACTION_UPDATE_MESSAGE,
@@ -158,9 +159,10 @@ export async function POST(request: Request) {
     if (body.action === "addDeadline") {
       const title = typeof body.title === "string" ? body.title.trim() : "";
       const dueDate = body.dueDate;
+      const dueTime = parseTransactionDeadlineTimeInput(body.dueTime);
       const syncToGoogle = body.syncToGoogle === true;
-      if (!title || !isDate(dueDate)) return Response.json({ error: "Échéance invalide." }, { status: 400 });
-      const deadlineId = await insertDeadline(transactionId, title, dueDate, syncToGoogle);
+      if (!title || !isDate(dueDate) || !dueTime.valid) return Response.json({ error: "Échéance invalide." }, { status: 400 });
+      const deadlineId = await insertDeadline(transactionId, title, dueDate, dueTime.value ?? null, syncToGoogle);
       const calendar = syncToGoogle ? await syncTransactionDeadline(deadlineId) : null;
       return Response.json({ data: await getTransaction(transactionId), calendar });
     }
@@ -168,6 +170,10 @@ export async function POST(request: Request) {
     if (body.action === "updateDeadline") {
       const deadlineId = typeof body.deadlineId === "string" ? body.deadlineId : "";
       if (!deadlineId) return Response.json({ error: "Échéance invalide." }, { status: 400 });
+      const dueTime = parseTransactionDeadlineTimeInput(body.dueTime);
+      if (!dueTime.valid || (body.dueDate !== undefined && !isDate(body.dueDate))) {
+        return Response.json({ error: "Échéance invalide." }, { status: 400 });
+      }
       const existing = await getDeadlineRow(deadlineId);
       if (existing.transaction_id !== transactionId) {
         return Response.json({ error: "Échéance invalide." }, { status: 400 });
@@ -175,6 +181,7 @@ export async function POST(request: Request) {
       await updateDeadline(transactionId, deadlineId, {
         ...(typeof body.title === "string" && body.title.trim() ? { title: body.title } : {}),
         ...(isDate(body.dueDate) ? { dueDate: body.dueDate } : {}),
+        ...(dueTime.value !== undefined ? { dueTime: dueTime.value } : {}),
         ...(typeof body.completed === "boolean" ? { completed: body.completed } : {}),
         ...(body.syncToGoogle === true ? { syncToGoogle: true } : {}),
       });

@@ -37,6 +37,7 @@ function deadline(id: string, googleCalendarEventId: string | null) {
     transactionId: "transaction-1",
     title: "Inspection",
     dueDate: "2026-08-22",
+    dueTime: null,
     completed: false,
     googleCalendarEventId,
     googleCalendarEventBroker: googleCalendarEventId ? "maxime" as const : null,

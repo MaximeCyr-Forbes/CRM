@@ -1024,6 +1024,7 @@ create table if not exists public.transaction_deadlines (
   transaction_id uuid not null references public.transactions(id) on delete cascade,
   title text not null check (length(trim(title)) > 0),
   due_date date not null,
+  due_time time without time zone,
   completed boolean not null default false,
   google_calendar_event_id text,
   google_calendar_event_broker public.broker_assignment,

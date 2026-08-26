@@ -48,6 +48,7 @@ function deadline(values: Partial<TransactionDeadline> = {}): TransactionDeadlin
     transactionId: "transaction-1",
     title: "Financement",
     dueDate: today,
+    dueTime: null,
     completed: false,
     googleCalendarEventId: null,
     googleCalendarEventBroker: null,

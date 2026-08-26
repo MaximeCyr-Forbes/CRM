@@ -15,7 +15,7 @@ import {
   type TransactionType,
 } from "../data/transaction-types";
 import { useTransactions } from "../transactions-context";
-import { toLocalISODate } from "../lib/follow-up";
+import { currentTorontoDateTime, formatTransactionDeadlineTime, isTransactionDeadlineOverdue } from "../lib/transactions/deadline-time";
 import { transactionMatchesSearch } from "../lib/transactions/search";
 import {
   FINALIZED_TRANSACTION_YEARS,
@@ -61,7 +61,7 @@ export default function TransactionsPage() {
   const [brokerFilter, setBrokerFilter] = useState<BrokerFilter>(initialBroker ?? "all");
   const [stateFilter, setStateFilter] = useState<TransactionStateFilter>(queryState === "sold" || queryState === "completed" ? queryState : "active");
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>(queryType === "sale" || queryType === "purchase" ? queryType : "all");
-  const today = toLocalISODate(new Date());
+  const today = currentTorontoDateTime().date;
   const currentYear = today.slice(0, 4) as `${number}`;
   const defaultSoldYear: YearFilter = validYearFilter(currentYear) ? currentYear : "all";
   const [yearFilter, setYearFilter] = useState<YearFilter>(validYearFilter(queryYear) ? queryYear : queryState === "sold" ? defaultSoldYear : "all");
@@ -136,11 +136,12 @@ export default function TransactionsPage() {
           {visibleTransactions.map((transaction) => {
             const linkedContacts = transaction.contactIds.map((contactId) => contacts.find((contact) => contact.id === contactId)).filter(Boolean);
             const nextDeadline = getNextTransactionDeadline(transaction);
-            const isOverdue = Boolean(nextDeadline && nextDeadline.dueDate < today);
+            const isOverdue = Boolean(nextDeadline && isTransactionDeadlineOverdue(nextDeadline));
+            const nextDeadlineTime = nextDeadline ? formatTransactionDeadlineTime(nextDeadline.dueTime) : null;
             return <article className={`transaction-card ${isOverdue ? "transaction-card-overdue" : ""}`} key={transaction.id}>
               <div className="transaction-card-top"><span>{TRANSACTION_TYPE_LABELS[transaction.type]}</span><span className={`transaction-status-badge ${stateFilter === "sold" ? "status-finalized" : `status-${transaction.status}`}`}>{stateFilter === "sold" ? finalizedTransactionLabel(transaction) : TRANSACTION_STATUS_LABELS[transaction.status]}</span></div>
               <h2>{transaction.address}</h2>
-              <dl><div><dt>Clients</dt><dd>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</dd></div><div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div>{stateFilter === "sold" ? <><div><dt>Date du notaire</dt><dd>{transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée"}</dd></div><div><dt>Prix final</dt><dd>{formatAmount(transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</dd></div></> : <div><dt>Prochaine échéance</dt><dd className={isOverdue ? "transaction-deadline-overdue" : ""}>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}` : "Aucune échéance"}</dd></div>}</dl>
+              <dl><div><dt>Clients</dt><dd>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</dd></div><div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div>{stateFilter === "sold" ? <><div><dt>Date du notaire</dt><dd>{transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée"}</dd></div><div><dt>Prix final</dt><dd>{formatAmount(transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</dd></div></> : <div><dt>Prochaine échéance</dt><dd className={isOverdue ? "transaction-deadline-overdue" : ""}>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}${nextDeadlineTime ? ` · ${nextDeadlineTime}` : ""}` : "Aucune échéance"}</dd></div>}</dl>
               <button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">Ouvrir <span aria-hidden="true">→</span></button>
             </article>;
           })}
