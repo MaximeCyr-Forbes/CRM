@@ -101,7 +101,19 @@ const filterOptions: ReadonlyArray<{ label: string; value: ContactFilter }> = [
   { label: "Sandrine", value: "sandrine" },
   { label: "Non attribués", value: "unassigned" },
 ];
+const PAGINATION_LIST_HEADER_GAP = 12;
 const RETURNED_CONTACT_HEADER_GAP = 12;
+
+function scrollContactsListAfterPagination(list: HTMLElement) {
+  const header = document.querySelector<HTMLElement>(".app-header");
+  const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+  const listTop = list.getBoundingClientRect().top;
+
+  window.scrollTo({
+    top: Math.max(0, window.scrollY + listTop - headerBottom - PAGINATION_LIST_HEADER_GAP),
+    behavior: "smooth",
+  });
+}
 
 function scrollReturnedContactIntoView(target: HTMLElement) {
   const header = document.querySelector<HTMLElement>(".app-header");
@@ -610,10 +622,16 @@ export default function ContactsPage() {
   useEffect(() => {
     if (!pendingPageScrollRef.current) return;
     pendingPageScrollRef.current = false;
+    let layoutFrame: number | undefined;
     const frame = window.requestAnimationFrame(() => {
-      contactsListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      layoutFrame = window.requestAnimationFrame(() => {
+        if (contactsListRef.current) scrollContactsListAfterPagination(contactsListRef.current);
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (layoutFrame !== undefined) window.cancelAnimationFrame(layoutFrame);
+    };
   }, [currentPage]);
 
   useEffect(() => {

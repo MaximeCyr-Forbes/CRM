@@ -35,6 +35,16 @@ describe("pagination et retour dans la liste Contacts", () => {
     expect(listPage).toContain('id={`contact-${contact.id}`}');
   });
 
+  it("place le début de la liste sous le header après une pagination manuelle", () => {
+    expect(listPage).toContain("pendingPageScrollRef.current = true");
+    expect(listPage).toContain("scrollContactsListAfterPagination(contactsListRef.current)");
+    expect(listPage).toContain('document.querySelector<HTMLElement>(".app-header")');
+    expect(listPage).toContain("const listTop = list.getBoundingClientRect().top");
+    expect(listPage).toContain("window.scrollY + listTop - headerBottom - PAGINATION_LIST_HEADER_GAP");
+    expect(listPage).toContain('behavior: "smooth"');
+    expect(listPage).not.toContain('contactsListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })');
+  });
+
   it("aligne la ligne sous le header réel et la met temporairement en évidence", () => {
     expect(listPage).toContain('window.location.hash.startsWith("#contact-")');
     expect(listPage).toContain('document.querySelector<HTMLElement>(".app-header")');
