@@ -101,6 +101,18 @@ const filterOptions: ReadonlyArray<{ label: string; value: ContactFilter }> = [
   { label: "Sandrine", value: "sandrine" },
   { label: "Non attribués", value: "unassigned" },
 ];
+const RETURNED_CONTACT_HEADER_GAP = 12;
+
+function scrollReturnedContactIntoView(target: HTMLElement) {
+  const header = document.querySelector<HTMLElement>(".app-header");
+  const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+  const targetTop = target.getBoundingClientRect().top;
+
+  window.scrollTo({
+    top: Math.max(0, window.scrollY + targetTop - headerBottom - RETURNED_CONTACT_HEADER_GAP),
+    behavior: "auto",
+  });
+}
 const reviewLabels: Record<ReviewFilter, string> = {
   all: "TOUS",
   new: "NOUVEAUX",
@@ -616,13 +628,17 @@ export default function ContactsPage() {
     if (!target) return;
 
     let highlightTimeout: number | undefined;
+    let layoutFrame: number | undefined;
     const frame = window.requestAnimationFrame(() => {
-      target.scrollIntoView({ block: "center" });
-      setHighlightedContactId(contactId);
-      highlightTimeout = window.setTimeout(() => setHighlightedContactId(null), 1800);
+      layoutFrame = window.requestAnimationFrame(() => {
+        scrollReturnedContactIntoView(target);
+        setHighlightedContactId(contactId);
+        highlightTimeout = window.setTimeout(() => setHighlightedContactId(null), 1800);
+      });
     });
     return () => {
       window.cancelAnimationFrame(frame);
+      if (layoutFrame !== undefined) window.cancelAnimationFrame(layoutFrame);
       if (highlightTimeout !== undefined) window.clearTimeout(highlightTimeout);
     };
   }, [currentPage, isLoading, pagedContacts.map((contact) => contact.id).join("|")]);

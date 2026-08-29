@@ -35,9 +35,15 @@ describe("pagination et retour dans la liste Contacts", () => {
     expect(listPage).toContain('id={`contact-${contact.id}`}');
   });
 
-  it("recentre et met temporairement en évidence la ligne rendue", () => {
+  it("aligne la ligne sous le header réel et la met temporairement en évidence", () => {
     expect(listPage).toContain('window.location.hash.startsWith("#contact-")');
-    expect(listPage).toContain('target.scrollIntoView({ block: "center" })');
+    expect(listPage).toContain('document.querySelector<HTMLElement>(".app-header")');
+    expect(listPage).toContain("header?.getBoundingClientRect().bottom ?? 0");
+    expect(listPage).toContain("target.getBoundingClientRect().top");
+    expect(listPage).toContain("window.scrollTo({");
+    expect(listPage).toContain('behavior: "auto"');
+    expect(listPage).toContain("layoutFrame = window.requestAnimationFrame");
+    expect(listPage).not.toContain('target.scrollIntoView({ block: "center" })');
     expect(listPage).toContain("setHighlightedContactId(contactId)");
     expect(listPage).toContain("1800");
     expect(styles).toContain(".contact-row-return-highlight");
