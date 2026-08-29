@@ -38,6 +38,7 @@ import { useListings } from "../../listings-context";
 import { getFollowUpQueue } from "../../lib/follow-up-queue";
 import { formatBirthDate } from "../../lib/birth-date";
 import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
+import { safeContactReturnTo } from "../../lib/contacts/list-pagination";
 import { useBroker } from "../../broker-context";
 
 type NoteEditorState = {
@@ -85,6 +86,7 @@ export default function ContactProfilePage() {
   const [editDuplicate, setEditDuplicate] = useState<EditDuplicate>(null);
   const [birthdaySync, setBirthdaySync] = useState({ synced: 0, pending: 0, error: 0 });
   const [mortgageRenewalSync, setMortgageRenewalSync] = useState({ synced: 0, pending: 0, error: 0 });
+  const returnTo = safeContactReturnTo(searchParams.get("returnTo"));
   const contact = contacts.find((item) => item.id === params.contactId);
   const contactName = contact ? getContactName(contact) : "";
   const followUpDate = contact ? getFollowUpDate(contact.id) : null;
@@ -137,9 +139,9 @@ export default function ContactProfilePage() {
 
   useEffect(() => {
     if (!isLoading && !error && !contact) {
-      router.replace("/contacts");
+      router.replace(returnTo);
     }
-  }, [contact, error, isLoading, router]);
+  }, [contact, error, isLoading, returnTo, router]);
 
   useEffect(() => {
     if (contact) {
@@ -335,7 +337,7 @@ export default function ContactProfilePage() {
 
   async function confirmDeleteContact() {
     await deleteContact(params.contactId);
-    router.replace("/contacts");
+    router.replace(returnTo);
   }
 
   async function keepEditedDuplicate() {
@@ -381,13 +383,14 @@ export default function ContactProfilePage() {
       selection.addresses,
     );
     setEditDuplicate(null);
-    router.replace(`/contacts/${merged.id}`);
+    router.replace(`/contacts/${merged.id}?returnTo=${encodeURIComponent(returnTo)}`);
   }
 
   return (
     <main className="client-page">
       <div className="profile-shell">
         <DataStatus />
+        <button className="contact-profile-back" onClick={() => router.push(returnTo)} type="button">← RETOUR AUX CONTACTS</button>
         <header className="profile-hero">
           <div className="profile-title">
             <div className="profile-avatar" aria-hidden="true">

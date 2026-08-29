@@ -51,6 +51,14 @@ import {
 import { addressInputFromDraft, primaryAddressFields } from "../lib/contact-addresses";
 import { formatFollowUpDate, toLocalISODate } from "../lib/follow-up";
 import { deleteContactsSequentially, retainUnassignedContactSelection, toggleVisibleContactSelection } from "../lib/contacts/bulk-delete";
+import {
+  buildContactProfileHref,
+  buildContactReturnTo,
+  contactsListHref,
+  getContactsPaginationItems,
+  paginateContacts,
+  parseContactsPage,
+} from "../lib/contacts/list-pagination";
 
 type ContactFilter = "all" | ContactBroker;
 type ImportKind = "csv" | "vcard";
@@ -175,9 +183,10 @@ export default function ContactsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const bulkDeleteLockRef = useRef(false);
+  const contactsListRef = useRef<HTMLDivElement>(null);
+  const pendingPageScrollRef = useRef(false);
 
-  const [activeFilter, setActiveFilter] = useState<ContactFilter>("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [manualStep, setManualStep] = useState<"closed" | "details" | "assignment">("closed");
   const [manualDraft, setManualDraft] = useState<ContactDraft>(emptyDraft);
   const [manualClientProvenance, setManualClientProvenance] = useState<ClientProvenance>(null);
@@ -194,7 +203,7 @@ export default function ContactsPage() {
   const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(null);
   const [emailContactId, setEmailContactId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const [visibleLimit, setVisibleLimit] = useState(100);
+  const [highlightedContactId, setHighlightedContactId] = useState<string | null>(null);
   // TEMPORAIRE — outil de ménage initial des Contacts non attribués.
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
@@ -202,11 +211,12 @@ export default function ContactsPage() {
   const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ completed: number; total: number } | null>(null);
   const queryBroker = searchParams.get("broker");
   const queryFollowUp = searchParams.get("followUp");
+  const querySearch = searchParams.get("q") ?? "";
+  const currentQuery = searchParams.toString();
+  const activeFilter = filterOptions.some((option) => option.value === queryBroker)
+    ? queryBroker as ContactFilter
+    : "all";
   const today = toLocalISODate(new Date());
-
-  useEffect(() => {
-    if (filterOptions.some((option) => option.value === queryBroker)) setActiveFilter(queryBroker as ContactFilter);
-  }, [queryBroker]);
 
   const normalizedTerms = [normalizeName(search), normalizePhone(search), normalizeEmail(search)].filter(Boolean);
   const visibleContacts = useMemo(
@@ -218,7 +228,10 @@ export default function ContactsPage() {
     [activeFilter, contacts, normalizedTerms.join("|"), queryFollowUp, today],
   );
   const unassignedCount = contacts.filter((contact) => contact.broker === "unassigned").length;
-  const pagedContacts = visibleContacts.slice(0, visibleLimit);
+  const pagination = paginateContacts(visibleContacts, parseContactsPage(searchParams.get("page")));
+  const { contacts: pagedContacts, currentPage, pageStart, totalPages } = pagination;
+  const pageEnd = Math.min(pageStart + pagedContacts.length, visibleContacts.length);
+  const paginationItems = getContactsPaginationItems(currentPage, totalPages);
   const pagedContactIds = pagedContacts.map((contact) => contact.id);
   const selectedVisibleCount = pagedContactIds.filter((id) => selectedContactIds.has(id)).length;
   const areAllVisibleSelected = pagedContactIds.length > 0 && selectedVisibleCount === pagedContactIds.length;
@@ -239,6 +252,34 @@ export default function ContactsPage() {
     ? pendingImport?.candidates[reviewedImportCandidate.duplicateDraftIndex] ?? null
     : null;
   const reviewedImportExisting = reviewedImportCandidate?.duplicateMatches[0]?.contact ?? (reviewedBatchCandidate ? syntheticContact(reviewedBatchCandidate, pendingImport?.addresses[reviewedBatchCandidate.id]) : null);
+
+  function changeContactFilter(filter: ContactFilter) {
+    router.replace(contactsListHref(currentQuery, {
+      broker: filter === "all" ? null : filter,
+      page: "1",
+    }), { scroll: false });
+  }
+
+  function changeContactSearch(value: string) {
+    setSearch(value);
+    router.replace(contactsListHref(currentQuery, {
+      q: value || null,
+      page: "1",
+    }), { scroll: false });
+  }
+
+  function changeContactsPage(page: number) {
+    const nextPage = Math.min(Math.max(1, page), totalPages);
+    if (nextPage === currentPage) return;
+    pendingPageScrollRef.current = true;
+    router.push(contactsListHref(currentQuery, { page: String(nextPage) }), { scroll: false });
+  }
+
+  function openContact(contactId: string) {
+    const returnTo = buildContactReturnTo(currentQuery, currentPage, contactId);
+    window.history.replaceState(window.history.state, "", returnTo);
+    router.push(buildContactProfileHref(contactId, returnTo));
+  }
 
   function showConfirmation(message: string) {
     setConfirmation(message);
@@ -546,8 +587,45 @@ export default function ContactsPage() {
     : false;
 
   useEffect(() => {
-    setVisibleLimit(100);
-  }, [activeFilter, search]);
+    setSearch(querySearch);
+  }, [querySearch]);
+
+  useEffect(() => {
+    if (isLoading || search !== querySearch || searchParams.get("page") === String(currentPage)) return;
+    router.replace(contactsListHref(currentQuery, { page: String(currentPage) }), { scroll: false });
+  }, [currentPage, currentQuery, isLoading, querySearch, router, search, searchParams]);
+
+  useEffect(() => {
+    if (!pendingPageScrollRef.current) return;
+    pendingPageScrollRef.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      contactsListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (isLoading || pagedContacts.length === 0 || !window.location.hash.startsWith("#contact-")) return;
+    let contactId = "";
+    try {
+      contactId = decodeURIComponent(window.location.hash.slice("#contact-".length));
+    } catch {
+      return;
+    }
+    const target = document.getElementById(`contact-${contactId}`);
+    if (!target) return;
+
+    let highlightTimeout: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      target.scrollIntoView({ block: "center" });
+      setHighlightedContactId(contactId);
+      highlightTimeout = window.setTimeout(() => setHighlightedContactId(null), 1800);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (highlightTimeout !== undefined) window.clearTimeout(highlightTimeout);
+    };
+  }, [currentPage, isLoading, pagedContacts.map((contact) => contact.id).join("|")]);
 
   useEffect(() => {
     if (activeFilter !== "unassigned") setSelectedContactIds(new Set());
@@ -575,27 +653,37 @@ export default function ContactsPage() {
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("vcard")} type="button">Importer vCard</button>
           </div>
         </header>
-        {unassignedCount > 0 && <button className="unassigned-alert" onClick={() => setActiveFilter("unassigned")} type="button"><span className="unassigned-alert-count">{unassignedCount}</span><span><strong>NON ATTRIBUÉS</strong><small>{unassignedCount} contact{unassignedCount > 1 ? "s" : ""} à classer</small></span><span aria-hidden="true">→</span></button>}
+        {unassignedCount > 0 && <button className="unassigned-alert" onClick={() => changeContactFilter("unassigned")} type="button"><span className="unassigned-alert-count">{unassignedCount}</span><span><strong>NON ATTRIBUÉS</strong><small>{unassignedCount} contact{unassignedCount > 1 ? "s" : ""} à classer</small></span><span aria-hidden="true">→</span></button>}
         <section className="contacts-directory">
           <div className="contacts-tools">
-            <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => setActiveFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
-            <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
+            <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => changeContactFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
+            <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => changeContactSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
           </div>
           {activeFilter === "unassigned" && <div className={`contacts-bulk-actions${selectedContactIds.size > 0 ? " contacts-bulk-actions-active" : ""}`}>
             <label className="contacts-select-all"><input aria-label="Sélectionner tous les contacts visibles" checked={areAllVisibleSelected} disabled={isBulkDeleting || pagedContacts.length === 0} onChange={() => setSelectedContactIds((current) => toggleVisibleContactSelection(current, pagedContactIds))} ref={selectAllCheckboxRef} type="checkbox" /><span>Tout sélectionner</span></label>
             {selectedContactIds.size > 0 && <div className="contacts-selection-summary"><strong>{selectedContactIds.size} CONTACT{selectedContactIds.size > 1 ? "S" : ""} SÉLECTIONNÉ{selectedContactIds.size > 1 ? "S" : ""}</strong><div><button disabled={isBulkDeleting} onClick={clearContactSelection} type="button">Annuler la sélection</button><button className="destructive-button" disabled={isBulkDeleting} onClick={() => setIsBulkDeleteModalOpen(true)} type="button">{isBulkDeleting ? "Suppression…" : "Supprimer"}</button></div></div>}
           </div>}
-          <div className="contacts-list">
+          <div className="contacts-list" ref={contactsListRef}>
             <div className="contacts-list-head" aria-hidden="true"><span>Contact</span><span>Coordonnées</span><span>Courtier</span><span>Suivi</span><span>Actions</span></div>
-            {pagedContacts.map((contact) => <article className={`contact-row${selectedContactIds.has(contact.id) ? " contact-row-selected" : ""}`} key={contact.id}>
-              <div className="contact-main-cell">{activeFilter === "unassigned" && <label className="contact-select-control" onClick={(event) => event.stopPropagation()}><input aria-label={`Sélectionner ${getContactName(contact)}`} checked={selectedContactIds.has(contact.id)} disabled={isBulkDeleting} onChange={() => toggleContactSelection(contact.id)} type="checkbox" /><span className="sr-only">Sélectionner {getContactName(contact)}</span></label>}<span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => router.push(`/contacts/${contact.id}`)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
+            {pagedContacts.map((contact) => <article className={`contact-row${selectedContactIds.has(contact.id) ? " contact-row-selected" : ""}${highlightedContactId === contact.id ? " contact-row-return-highlight" : ""}`} id={`contact-${contact.id}`} key={contact.id}>
+              <div className="contact-main-cell">{activeFilter === "unassigned" && <label className="contact-select-control" onClick={(event) => event.stopPropagation()}><input aria-label={`Sélectionner ${getContactName(contact)}`} checked={selectedContactIds.has(contact.id)} disabled={isBulkDeleting} onChange={() => toggleContactSelection(contact.id)} type="checkbox" /><span className="sr-only">Sélectionner {getContactName(contact)}</span></label>}<span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => openContact(contact.id)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
               <div className="contact-coordinates">{contact.phone ? <a href={`tel:${contact.phone}`}>{contact.phone}</a> : <span>Téléphone non renseigné</span>}{contact.email ? <button aria-label={`Envoyer un courriel à ${getContactName(contact)}`} className="contact-email-link" onClick={() => setEmailContactId(contact.id)} type="button">{contact.email}</button> : <span>Email non renseigné</span>}</div>
               <span className={`contact-broker-badge broker-${contact.broker}`}>{BROKER_LABELS[contact.broker]}</span><span className="contact-follow-up-cell">{contact.nextFollowUpDate ? formatFollowUpDate(contact.nextFollowUpDate) : "Aucune relance"}</span>
-              <div className="contact-row-actions"><button onClick={() => router.push(`/contacts/${contact.id}`)} type="button">Ouvrir</button><button onClick={() => setAssignmentTargetId(contact.id)} type="button">Changer le courtier</button></div>
+              <div className="contact-row-actions"><button onClick={() => openContact(contact.id)} type="button">Ouvrir</button><button onClick={() => setAssignmentTargetId(contact.id)} type="button">Changer le courtier</button></div>
             </article>)}
             {!isLoading && visibleContacts.length === 0 && <div className="contacts-empty"><span aria-hidden="true">○</span><h2>Aucun contact trouvé</h2><p>Modifiez le filtre ou la recherche.</p></div>}
-            {visibleLimit < visibleContacts.length && <div className="contacts-load-more"><span>{pagedContacts.length} sur {visibleContacts.length} contacts affichés</span><button onClick={() => setVisibleLimit((current) => current + 100)} type="button">Afficher 100 contacts de plus</button></div>}
           </div>
+          {visibleContacts.length > 0 && <nav aria-label="Pagination des contacts" className="contacts-pagination">
+            <p>Contacts {pageStart + 1}–{pageEnd} sur {visibleContacts.length}</p>
+            <div>
+              <button aria-label="Page précédente" disabled={currentPage === 1} onClick={() => changeContactsPage(currentPage - 1)} type="button">← PRÉCÉDENT</button>
+              <span className="contacts-pagination-mobile">Page {currentPage} / {totalPages}</span>
+              <span className="contacts-pagination-pages">{paginationItems.map((item) => typeof item === "number"
+                ? <button aria-current={item === currentPage ? "page" : undefined} aria-label={`Page ${item}`} className={item === currentPage ? "is-current" : ""} key={item} onClick={() => changeContactsPage(item)} type="button">{item}</button>
+                : <span aria-hidden="true" key={item}>…</span>)}</span>
+              <button aria-label="Page suivante" disabled={currentPage === totalPages} onClick={() => changeContactsPage(currentPage + 1)} type="button">SUIVANT →</button>
+            </div>
+          </nav>}
         </section>
       </div>
 

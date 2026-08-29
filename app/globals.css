@@ -2441,6 +2441,27 @@ button:disabled {
   padding-bottom: 4rem;
 }
 
+.contact-profile-back {
+  min-height: 2.65rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.contact-profile-back:hover {
+  background: var(--paper);
+  border-color: rgba(198, 168, 103, 0.65);
+  transform: translateX(-2px);
+}
+
 .profile-nav {
   display: flex;
   align-items: center;
@@ -3438,11 +3459,17 @@ button:disabled {
 
 .contact-row {
   padding: 1.05rem 1.2rem;
+  transition: background-color 300ms ease, box-shadow 300ms ease;
 }
 
 .contact-row-selected {
   background: rgba(198, 168, 103, 0.11);
   box-shadow: inset 0.18rem 0 0 rgba(198, 168, 103, 0.75);
+}
+
+.contact-row-return-highlight {
+  background: rgba(198, 168, 103, 0.2);
+  box-shadow: inset 0.2rem 0 0 var(--gold), 0 0.55rem 1.4rem rgba(19, 35, 59, 0.06);
 }
 
 .contact-row + .contact-row {
@@ -6120,8 +6147,17 @@ button:disabled {
 }
 
 .contact-follow-up-cell { color: var(--ink-soft); font-size: 0.7rem; }
-.contacts-load-more { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; color: var(--ink-soft); border-top: 1px solid var(--line); font-size: 0.7rem; }
-.contacts-load-more button { min-height: 2.75rem; padding: 0.6rem 0.8rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.contacts-pagination { display: flex; min-height: 4.5rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1.2rem; color: var(--ink-soft); border-top: 1px solid var(--line); }
+.contacts-pagination > p { margin: 0; font-size: 0.68rem; }
+.contacts-pagination > div,
+.contacts-pagination-pages { display: flex; align-items: center; gap: 0.35rem; }
+.contacts-pagination button { min-width: 2.45rem; min-height: 2.45rem; padding: 0.5rem 0.65rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; }
+.contacts-pagination button:hover:not(:disabled),
+.contacts-pagination button.is-current { background: var(--cream); border-color: rgba(198, 168, 103, 0.75); }
+.contacts-pagination button.is-current { color: #6e5830; box-shadow: inset 0 -2px 0 var(--gold); }
+.contacts-pagination button:disabled { cursor: not-allowed; opacity: 0.38; }
+.contacts-pagination-pages > span { min-width: 1.4rem; color: rgba(19, 35, 59, 0.42); text-align: center; }
+.contacts-pagination-mobile { display: none; min-width: 6rem; text-align: center; font-size: 0.64rem; font-weight: 750; }
 
 .follow-up-confirmation .next-follow-up-client {
   min-height: 2.75rem;
@@ -6202,8 +6238,11 @@ textarea:focus-visible,
   .account-menu-trigger strong { display: none; }
   .dashboard-header { align-items: flex-start; }
   .dashboard-broker-label { display: none; }
-  .contacts-load-more { align-items: stretch; flex-direction: column; text-align: center; }
-  .contacts-load-more button { width: 100%; }
+  .contacts-pagination { align-items: stretch; flex-direction: column; padding-inline: 0.75rem; text-align: center; }
+  .contacts-pagination > div { display: grid; grid-template-columns: 1fr auto 1fr; }
+  .contacts-pagination > div > button { width: 100%; }
+  .contacts-pagination-pages { display: none; }
+  .contacts-pagination-mobile { display: inline-flex; align-items: center; justify-content: center; }
   .follow-up-confirmation { right: 0.75rem; bottom: 0.75rem; left: 0.75rem; width: auto; flex-wrap: wrap; }
   .follow-up-confirmation .next-follow-up-client { width: 100%; }
   .transactions-page,
