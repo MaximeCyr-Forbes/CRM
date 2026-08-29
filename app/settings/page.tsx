@@ -19,10 +19,18 @@ const emptyConnections: CalendarConnectionStatus[] = (
   email: null,
   gmailSendEnabled: false,
   gmailSignatureEnabled: false,
+  centrisShowings: { scopeGranted: false, calendarDetected: false, status: "authorization_required" },
   birthdays: { synced: 0, pending: 0, error: 0 },
   mortgageRenewals: { synced: 0, pending: 0, error: 0 },
   watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },
 }));
+
+function centrisShowingsLabel(connection: CalendarConnectionStatus) {
+  if (connection.centrisShowings.status === "synchronized") return "Visites Centris — Synchronisées ✓";
+  if (connection.centrisShowings.status === "authorization_required") return "Visites Centris — Autorisation requise";
+  if (connection.centrisShowings.status === "not_detected") return "Visites Centris — Calendrier non détecté";
+  return "Visites Centris — Temporairement indisponibles";
+}
 
 export default function SettingsPage() {
   const { retry: reloadContacts } = useCRMData();
@@ -92,7 +100,7 @@ export default function SettingsPage() {
   }, []);
 
   function connectCalendar(broker: CalendarBroker) {
-    window.location.assign(`/api/google-calendar/connect?broker=${broker}`);
+    window.location.assign(`/api/google-calendar/connect?broker=${broker}&capability=calendar&returnTo=/settings`);
   }
 
   function activateGmail(broker: CalendarBroker) {
@@ -176,6 +184,11 @@ export default function SettingsPage() {
                         : "Synchronisation instantanée en attente"}
                     </small>
                   )}
+                  {connection.connected && (
+                    <small className={connection.centrisShowings.status === "synchronized" ? "gmail-status-enabled" : "gmail-status-disabled"}>
+                      {centrisShowingsLabel(connection)}
+                    </small>
+                  )}
                   <small className={connection.gmailSendEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
                     Gmail — Envoi {connection.gmailSendEnabled ? "activé ✓" : "non activé"}
                   </small>
@@ -189,6 +202,11 @@ export default function SettingsPage() {
 
               {connection.connected ? (
                 <div className="calendar-connection-actions">
+                  {!connection.centrisShowings.scopeGranted && (
+                    <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => connectCalendar(connection.broker)} type="button">
+                      AUTORISER LES VISITES CENTRIS
+                    </button>
+                  )}
                   {(!connection.gmailSendEnabled || !connection.gmailSignatureEnabled) && (
                     <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => activateGmail(connection.broker)} type="button">
                       {connection.gmailSendEnabled ? "ACTIVER LA SIGNATURE GMAIL" : "ACTIVER GMAIL"}

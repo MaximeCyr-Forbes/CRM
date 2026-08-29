@@ -93,4 +93,31 @@ describe("surveillance légère du calendrier", () => {
     expect(environment.windowListeners.size).toBe(0);
     expect(environment.documentListeners.size).toBe(0);
   });
+
+  it("actualise les événements au retour au premier plan, même sans notification push", async () => {
+    const environment = targets();
+    const refreshEvents = vi.fn(async () => undefined);
+    const monitor = startCalendarSyncMonitor({
+      checkState: vi.fn(async () => state(3)),
+      ensureWatch: vi.fn(async () => state(3)),
+      refreshEvents,
+      windowTarget: environment.windowTarget as never,
+      documentTarget: environment.documentTarget as never,
+    });
+    await Promise.resolve(); await Promise.resolve();
+    environment.windowListeners.get("focus")?.(new Event("focus"));
+    await Promise.resolve(); await Promise.resolve();
+    expect(refreshEvents).toHaveBeenCalledTimes(1);
+
+    environment.documentTarget.visibilityState = "hidden";
+    environment.documentListeners.get("visibilitychange")?.(new Event("visibilitychange"));
+    await Promise.resolve();
+    expect(refreshEvents).toHaveBeenCalledTimes(1);
+
+    environment.documentTarget.visibilityState = "visible";
+    environment.documentListeners.get("visibilitychange")?.(new Event("visibilitychange"));
+    await Promise.resolve(); await Promise.resolve();
+    expect(refreshEvents).toHaveBeenCalledTimes(2);
+    monitor.dispose();
+  });
 });

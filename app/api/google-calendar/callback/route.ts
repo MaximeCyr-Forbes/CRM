@@ -44,7 +44,9 @@ export async function GET(request: Request) {
     const connections = await listGoogleConnectionStatuses();
     const connection = connections.find((item) => item.broker === broker);
     const capabilityAlreadyConnected = connection?.connected && (
-      capability === "calendar" || (connection.gmailSendEnabled && connection.gmailSignatureEnabled)
+      capability === "calendar"
+        ? connection.centrisShowings.scopeGranted
+        : connection.gmailSendEnabled && connection.gmailSignatureEnabled
     );
     if (capabilityAlreadyConnected) {
       destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "already-connected");

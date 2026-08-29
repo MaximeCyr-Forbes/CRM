@@ -7,6 +7,7 @@ export const CRM_CALENDAR_EVENT_KINDS = [
   "birthday",
   "mortgage_renewal",
   "transaction_deadline",
+  "centris_showing",
 ] as const;
 
 export type CRMCalendarEventKind = (typeof CRM_CALENDAR_EVENT_KINDS)[number];
@@ -22,6 +23,8 @@ export type CRMCalendarEvent = {
   end: string;
   allDay: boolean;
   htmlLink: string | null;
+  sourceCalendarId: string;
+  sourceCalendarName: string | null;
   eventKind: CRMCalendarEventKind;
   crmEntityKind: CRMCalendarEntityKind | null;
   crmEntityId: string | null;
@@ -43,8 +46,10 @@ export type CRMCalendarEventInput = {
   crmEntityId?: string | null;
 };
 
-export function calendarEventKey(event: Pick<CRMCalendarEvent, "broker" | "id">) {
-  return `${event.broker}:${event.id}`;
+export function calendarEventKey(event: Pick<CRMCalendarEvent, "broker" | "id"> & { sourceCalendarId?: string }) {
+  return event.sourceCalendarId
+    ? `${event.broker}:${event.sourceCalendarId}:${event.id}`
+    : `${event.broker}:${event.id}`;
 }
 
 export const CALENDAR_EVENT_KIND_LABELS: Record<CRMCalendarEventKind, string> = {
@@ -54,4 +59,5 @@ export const CALENDAR_EVENT_KIND_LABELS: Record<CRMCalendarEventKind, string> = 
   birthday: "Anniversaire",
   mortgage_renewal: "Renouvellement",
   transaction_deadline: "Échéance",
+  centris_showing: "Visite Centris",
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addCalendarDays, calendarDateForMonth, calendarDateTimeISO, calendarMonthGrid, calendarRange, startOfCalendarWeek } from "./calendar-date";
+import { addCalendarDays, calendarDateForMonth, calendarDateTimeISO, calendarMonthGrid, calendarRange, eventCalendarMinutes, startOfCalendarWeek } from "./calendar-date";
 
 describe("dates du calendrier au Québec", () => {
   it("convertit 09:00 America/Toronto sans glissement de jour", () => {
@@ -23,5 +23,15 @@ describe("dates du calendrier au Québec", () => {
   it("construit le premier jour d’un mois sans conversion de fuseau horaire", () => {
     expect(calendarDateForMonth(2027, 3)).toBe("2027-03-01");
     expect(calendarDateForMonth(2026, 12)).toBe("2026-12-01");
+  });
+
+  it("conserve les minutes exactes d’une visite Centris dans America/Toronto", () => {
+    const event = {
+      allDay: false,
+      start: "2026-08-31T10:00:00-04:00",
+      end: "2026-08-31T14:25:00-04:00",
+    };
+    expect(eventCalendarMinutes(event as never, "start")).toBe(600);
+    expect(eventCalendarMinutes(event as never, "end")).toBe(865);
   });
 });

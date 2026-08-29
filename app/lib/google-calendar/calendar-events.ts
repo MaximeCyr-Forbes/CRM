@@ -23,6 +23,12 @@ export type GoogleCalendarEventResource = {
   transparency?: "opaque" | "transparent";
 };
 
+export type GoogleCalendarEventSource = {
+  id: string;
+  name: string | null;
+  eventKind?: CRMCalendarEventKind;
+};
+
 const systemKinds = new Set<CRMCalendarEventKind>([
   "birthday",
   "mortgage_renewal",
@@ -92,13 +98,14 @@ export function extractCRMCalendarLink(event: GoogleCalendarEventResource, kind:
 export function mapGoogleCalendarEvent(
   event: GoogleCalendarEventResource,
   broker: CalendarBroker,
+  source: GoogleCalendarEventSource = { id: "primary", name: null },
 ): CRMCalendarEvent {
   const id = event.id?.trim();
   const start = event.start?.date ?? event.start?.dateTime;
   const end = event.end?.date ?? event.end?.dateTime;
   if (!id || !start || !end) throw new Error("Événement Google incomplet.");
-  const eventKind = classifyGoogleCalendarEvent(event);
-  const entity = extractCRMCalendarEntity(event, eventKind);
+  const eventKind = source.eventKind ?? classifyGoogleCalendarEvent(event);
+  const entity = eventKind === "centris_showing" ? null : extractCRMCalendarEntity(event, eventKind);
   const recurring = Boolean(event.recurringEventId || event.recurrence?.length);
   return {
     id,
@@ -110,12 +117,14 @@ export function mapGoogleCalendarEvent(
     end,
     allDay: Boolean(event.start?.date),
     htmlLink: event.htmlLink ?? null,
+    sourceCalendarId: source.id,
+    sourceCalendarName: source.name,
     eventKind,
     crmEntityKind: entity?.kind ?? null,
     crmEntityId: entity?.id ?? null,
-    crmLink: extractCRMCalendarLink(event, eventKind),
+    crmLink: eventKind === "centris_showing" ? null : extractCRMCalendarLink(event, eventKind),
     blocksAvailability: !systemKinds.has(eventKind) && event.transparency !== "transparent",
-    readOnly: systemKinds.has(eventKind) || recurring,
+    readOnly: eventKind === "centris_showing" || systemKinds.has(eventKind) || recurring,
     recurring,
   };
 }

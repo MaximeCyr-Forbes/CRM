@@ -3,7 +3,7 @@ import { validateCalendarEventInput } from "../../../lib/google-calendar/calenda
 import {
   createGoogleCalendarEvent,
   GoogleCalendarNotConnectedError,
-  listGoogleCalendarEvents,
+  listGoogleCalendarEventsWithMeta,
 } from "../../../lib/google-calendar/service";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { requireApiAccess } from "../../../lib/crm-access";
@@ -28,7 +28,11 @@ export async function GET(request: Request) {
     return json({ error: "Plage de calendrier invalide." }, 400);
   }
   try {
-    return json({ data: await listGoogleCalendarEvents(broker, start, end) });
+    const result = await listGoogleCalendarEventsWithMeta(broker, start, end);
+    return json({
+      data: result.events,
+      meta: { centrisShowingsStatus: result.centrisShowingsStatus },
+    });
   } catch (error) {
     if (error instanceof GoogleCalendarNotConnectedError) return json({ error: "Google Agenda non connecté." }, 409);
     console.error("Chargement du calendrier Google impossible:", error instanceof Error ? error.message : "erreur inconnue");

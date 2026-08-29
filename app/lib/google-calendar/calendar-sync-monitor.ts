@@ -88,9 +88,13 @@ export function startCalendarSyncMonitor({
     () => void ensure(),
     CALENDAR_WATCH_ENSURE_INTERVAL_MS,
   );
-  const onFocus = () => void check();
+  const refreshAfterReturn = () => {
+    void check();
+    void refreshOnce();
+  };
+  const onFocus = refreshAfterReturn;
   const onVisibilityChange = () => {
-    if (documentTarget.visibilityState === "visible") void check();
+    if (documentTarget.visibilityState === "visible") refreshAfterReturn();
   };
   windowTarget.addEventListener("focus", onFocus);
   documentTarget.addEventListener("visibilitychange", onVisibilityChange);

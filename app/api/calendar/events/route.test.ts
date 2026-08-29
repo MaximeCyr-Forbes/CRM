@@ -12,12 +12,13 @@ const event: CRMCalendarEvent = {
   id: "event-1", broker: "maxime", title: "Inspection", description: "", location: "",
   start: "2026-08-21T13:00:00.000Z", end: "2026-08-21T14:00:00.000Z", allDay: false,
   htmlLink: null, eventKind: "google", crmEntityKind: null, crmEntityId: null,
+  sourceCalendarId: "primary", sourceCalendarName: null,
   crmLink: null, blocksAvailability: true, readOnly: false, recurring: false,
 };
 
 vi.mock("../../../lib/google-calendar/service", () => ({
   GoogleCalendarNotConnectedError: class GoogleCalendarNotConnectedError extends Error {},
-  listGoogleCalendarEvents: vi.fn(async () => [event]),
+  listGoogleCalendarEventsWithMeta: vi.fn(async () => ({ events: [event], centrisShowingsStatus: "synchronized" })),
   createGoogleCalendarEvent: vi.fn(async (input: CRMCalendarEventInput) => { state.created.push(input); return { ...event, ...input }; }),
 }));
 
@@ -34,7 +35,7 @@ describe("API liste et création du calendrier", () => {
   it("retourne les événements d’une plage valide", async () => {
     const response = await GET(new Request("http://localhost/api/calendar/events?broker=maxime&start=2026-08-01T04:00:00.000Z&end=2026-09-01T04:00:00.000Z"));
     expect(response.status).toBe(200);
-    expect((await response.json() as { data: CRMCalendarEvent[] }).data).toEqual([event]);
+    expect(await response.json()).toEqual({ data: [event], meta: { centrisShowingsStatus: "synchronized" } });
   });
 
   it("crée immédiatement un événement Google validé", async () => {

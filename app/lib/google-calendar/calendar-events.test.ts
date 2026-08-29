@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CRMCalendarEventInput } from "../../data/calendar-event-types";
+import { calendarEventKey, type CRMCalendarEventInput } from "../../data/calendar-event-types";
+import { GOOGLE_CALENDAR_LIST_READONLY_SCOPE } from "./scopes";
+import { eventCalendarTime } from "./calendar-date";
 
 const state = vi.hoisted(() => ({
   connection: {
-    broker: "maxime",
+    broker: "maxime" as const,
     google_account_email: "maxime@example.ca",
     calendar_id: "primary",
     encrypted_access_token: "encrypted",
@@ -40,7 +42,9 @@ import {
 import {
   createGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
+  listGoogleCalendars,
   listGoogleCalendarEvents,
+  listGoogleCalendarEventsWithMeta,
   ManagedGoogleCalendarEventError,
   updateGoogleCalendarEvent,
 } from "./service";
@@ -64,7 +68,11 @@ const input: CRMCalendarEventInput = {
 };
 
 describe("calendrier Google intégré", () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    state.connection.scopes = ["https://www.googleapis.com/auth/calendar.events"];
+  });
 
   it("classe les événements Google et CRM et applique la lecture seule métier", () => {
     const birthday = mapGoogleCalendarEvent({ id: "b", summary: "Anniversaire", start: { date: "2026-08-21" }, end: { date: "2026-08-22" }, extendedProperties: { private: { eventKind: "birthday", crmContactId: "contact-1" } } }, "france");
@@ -98,6 +106,104 @@ describe("calendrier Google intégré", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("singleEvents=true");
     expect(String(fetchMock.mock.calls[0][0])).toContain("orderBy=startTime");
     expect(String(fetchMock.mock.calls[1][0])).toContain("pageToken=page-2");
+  });
+
+  it("découvre le calendrier Centris exact par nom normalisé dans toutes les pages CalendarList", async () => {
+    state.connection.scopes = ["https://www.googleapis.com/auth/calendar.events", GOOGLE_CALENDAR_LIST_READONLY_SCOPE];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: "other", summary: "Centris" }], nextPageToken: "page-2" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: "centris-id", summary: "  CENTRIS   ZONE SHOWINGS  " }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const calendars = await listGoogleCalendars(state.connection);
+    expect(calendars.map((calendar) => calendar.id)).toEqual(["other", "centris-id"]);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("users/me/calendarList");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("pageToken=page-2");
+  });
+
+  it("fusionne les événements principal et Centris sans collision d’identifiants", async () => {
+    state.connection.scopes = ["https://www.googleapis.com/auth/calendar.events", GOOGLE_CALENDAR_LIST_READONLY_SCOPE];
+    const primaryItems = Array.from({ length: 5 }, (_, index) => ({ ...timed, id: index === 0 ? "shared" : `primary-${index}` }));
+    const centrisItems = Array.from({ length: 3 }, (_, index) => ({ ...timed, id: index === 0 ? "shared" : `centris-${index}`, summary: `Visite ${index}` }));
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: primaryItems }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [
+        { id: "wrong", summary: "Centris Zone" },
+        { id: "centris-calendar", summary: "Centris Zone Showings" },
+      ] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: centrisItems }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await listGoogleCalendarEventsWithMeta("maxime", "2026-08-01T04:00:00.000Z", "2026-09-01T04:00:00.000Z");
+    expect(result.centrisShowingsStatus).toBe("synchronized");
+    expect(result.events).toHaveLength(8);
+    expect(new Set(result.events.map(calendarEventKey)).size).toBe(8);
+    const centris = result.events.filter((event) => event.eventKind === "centris_showing");
+    expect(centris).toHaveLength(3);
+    expect(centris[0]).toMatchObject({
+      sourceCalendarId: "centris-calendar",
+      sourceCalendarName: "Centris Zone Showings",
+      readOnly: true,
+      blocksAvailability: true,
+      crmLink: null,
+    });
+    expect(String(fetchMock.mock.calls[2][0])).toContain("calendars/centris-calendar/events");
+  });
+
+  it("préserve les visites toute la journée, les heures exactes et la transparence Google", () => {
+    const source = { id: "centris-calendar", name: "Centris Zone Showings", eventKind: "centris_showing" as const };
+    const timedShowing = mapGoogleCalendarEvent({
+      ...timed,
+      start: { dateTime: "2026-08-21T10:00:00-04:00" },
+      end: { dateTime: "2026-08-21T14:25:00-04:00" },
+      transparency: "transparent",
+    }, "maxime", source);
+    const allDayShowing = mapGoogleCalendarEvent({ id: "all-day", start: { date: "2026-08-21" }, end: { date: "2026-08-22" } }, "maxime", source);
+    expect(timedShowing).toMatchObject({
+      start: "2026-08-21T10:00:00-04:00",
+      end: "2026-08-21T14:25:00-04:00",
+      allDay: false,
+      blocksAvailability: false,
+      readOnly: true,
+    });
+    expect([eventCalendarTime(timedShowing, "start"), eventCalendarTime(timedShowing, "end")]).toEqual(["10 h 00", "14 h 25"]);
+    expect(allDayShowing).toMatchObject({ start: "2026-08-21", end: "2026-08-22", allDay: true, readOnly: true });
+  });
+
+  it("retourne quand même le calendrier principal si CalendarList ou Centris échoue", async () => {
+    state.connection.scopes = ["https://www.googleapis.com/auth/calendar.events", GOOGLE_CALENDAR_LIST_READONLY_SCOPE];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [timed] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("indisponible", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const result = await listGoogleCalendarEventsWithMeta("maxime", "2026-08-01T04:00:00.000Z", "2026-09-01T04:00:00.000Z");
+    expect(result).toMatchObject({ centrisShowingsStatus: "unavailable" });
+    expect(result.events.map((event) => event.id)).toEqual(["timed-1"]);
+  });
+
+  it("retourne le calendrier principal sans erreur lorsque Centris est absent", async () => {
+    state.connection.scopes = ["https://www.googleapis.com/auth/calendar.events", GOOGLE_CALENDAR_LIST_READONLY_SCOPE];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [timed] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [
+        { id: "primary", summary: "Principal" },
+        { id: "holidays", summary: "Jours fériés" },
+        { id: "prospects", summary: "Prospects" },
+      ] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await listGoogleCalendarEventsWithMeta("maxime", "2026-08-01T04:00:00.000Z", "2026-09-01T04:00:00.000Z");
+    expect(result).toMatchObject({ centrisShowingsStatus: "not_detected" });
+    expect(result.events.map((event) => event.id)).toEqual(["timed-1"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("signale une réautorisation sans appeler CalendarList lorsque le scope manque", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ items: [timed] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await listGoogleCalendarEventsWithMeta("maxime", "2026-08-01T04:00:00.000Z", "2026-09-01T04:00:00.000Z");
+    expect(result.centrisShowingsStatus).toBe("authorization_required");
+    expect(result.events).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("crée, modifie et supprime les événements normaux avec Google immédiatement", async () => {

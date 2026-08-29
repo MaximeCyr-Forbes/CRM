@@ -9,7 +9,7 @@ import { CalendarEventEditorModal } from "../components/calendar-event-editor-mo
 import { CalendarPeriodPicker } from "../components/calendar-period-picker";
 import { CalendarDayView, CalendarMonthView, CalendarWeekView } from "../components/calendar-views";
 import { calendarEventKey, type CRMCalendarEvent, type CRMCalendarEventInput } from "../data/calendar-event-types";
-import type { CalendarBroker, CalendarConnectionStatus, CalendarWatchState } from "../data/calendar-types";
+import type { CalendarBroker, CalendarConnectionStatus, CalendarWatchState, CentrisShowingsStatus } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
 import { calendarDateTimeISO, calendarRange, moveCalendarDate, todayInCalendarTimeZone, type CalendarView } from "../lib/google-calendar/calendar-date";
 import { startCalendarTeamSyncMonitors } from "../lib/google-calendar/calendar-team-monitor";
@@ -49,6 +49,7 @@ export default function CalendarPage() {
   const [connections, setConnections] = useState<CalendarConnectionStatus[]>([]);
   const [visibleTeamBrokers, setVisibleTeamBrokers] = useState<CalendarBroker[]>([]);
   const [brokerErrors, setBrokerErrors] = useState<Partial<Record<CalendarBroker, string>>>({});
+  const [centrisStatuses, setCentrisStatuses] = useState<Partial<Record<CalendarBroker, CentrisShowingsStatus>>>({});
   const [isConnectionLoading, setIsConnectionLoading] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
@@ -90,9 +91,12 @@ export default function CalendarPage() {
         return;
       }
       if (!response.ok) throw new Error(await responseError(response, "Agenda temporairement indisponible."));
-      const payload = await response.json() as { data: CRMCalendarEvent[] };
+      const payload = await response.json() as { data: CRMCalendarEvent[]; meta?: { centrisShowingsStatus?: CentrisShowingsStatus } };
       if (generation !== generationRef.current) return;
       setEvents((current) => sortEvents([...current.filter((event) => event.broker !== requestedBroker), ...payload.data]));
+      if (payload.meta?.centrisShowingsStatus) {
+        setCentrisStatuses((current) => ({ ...current, [requestedBroker]: payload.meta!.centrisShowingsStatus }));
+      }
       setBrokerErrors((current) => { const next = { ...current }; delete next[requestedBroker]; return next; });
       setLastSyncedAt(new Date());
       setSyncState("idle");
@@ -129,7 +133,7 @@ export default function CalendarPage() {
     const generation = generationRef.current;
     controllersRef.current.forEach((controller) => controller.abort());
     controllersRef.current.clear(); requestsRef.current.clear();
-    setEvents([]); setBrokerErrors({}); setSelectedEvent(null); setSyncState("idle");
+    setEvents([]); setBrokerErrors({}); setCentrisStatuses({}); setSelectedEvent(null); setSyncState("idle");
     const targets = mode === "team" ? connectedBrokers : broker && personalConnected ? [broker] : [];
     void Promise.allSettled(targets.map((item) => fetchBrokerEvents(item, range, generation, true)));
   }, [broker, connectedKey, fetchBrokerEvents, isConnectionLoading, mode, personalConnected, range.endDate, range.startDate]);
@@ -200,6 +204,8 @@ export default function CalendarPage() {
 
   if (!isBrokerReady) return null;
   const teamErrors = connectedBrokers.filter((item) => brokerErrors[item]).length;
+  const centrisWarningBrokers = (mode === "team" ? visibleTeamBrokers : broker ? [broker] : [])
+    .filter((item) => centrisStatuses[item] === "authorization_required" || centrisStatuses[item] === "unavailable");
 
   return (
     <main className="calendar-page"><div className="calendar-shell">
@@ -209,6 +215,7 @@ export default function CalendarPage() {
         {mode === "team" && <section className="calendar-team-controls"><div><span>COURTIERS</span>{TEAM_BROKERS.map((item) => { const connection = connections.find((value) => value.broker === item); return <button aria-pressed={visibleTeamBrokers.includes(item)} className={`calendar-team-filter calendar-event-${item}`} disabled={!connection?.connected} key={item} onClick={() => toggleTeamBroker(item)} type="button"><span aria-hidden="true">{BROKER_LABELS[item].slice(0, 1)}</span>{BROKER_LABELS[item]}{!connection?.connected && <small>Agenda non connecté</small>}</button>; })}</div>{TEAM_BROKERS.filter((item) => brokerErrors[item]).map((item) => <p key={item}>Agenda {BROKER_LABELS[item]} temporairement indisponible.</p>)}</section>}
         <section className="calendar-toolbar" aria-label="Commandes du calendrier"><div className="calendar-toolbar-navigation"><button onClick={() => setDate(today)} type="button">Aujourd’hui</button><button aria-label="Période précédente" onClick={() => setDate((current) => moveCalendarDate(current, view, -1))} type="button">←</button><CalendarPeriodPicker currentDate={date} isOpen={isPeriodPickerOpen} label={periodLabel(view, date)} onClose={() => setIsPeriodPickerOpen(false)} onOpen={() => setIsPeriodPickerOpen(true)} onSelect={setDate} /><button aria-label="Période suivante" onClick={() => setDate((current) => moveCalendarDate(current, view, 1))} type="button">→</button></div><div className="calendar-toolbar-actions"><div className="calendar-view-switch" role="group" aria-label="Vue du calendrier">{(["month", "week", "day"] as const).map((option) => <button aria-pressed={view === option} key={option} onClick={() => setView(option)} type="button">{{ month: "Mois", week: "Semaine", day: "Jour" }[option]}</button>)}</div><button className="calendar-refresh" disabled={syncState === "syncing"} onClick={() => void refreshVisible()} type="button">↻ {syncState === "syncing" ? "Synchronisation…" : "Actualiser"}</button><button className="calendar-new-event" disabled={!defaultCreationBroker} onClick={() => setCreationPreset({ date })} type="button">+ Nouvel événement</button></div></section>
         <div className={`calendar-sync-status is-${syncState}`} role="status">{mode === "team" ? teamErrors ? `${connectedBrokers.length - teamErrors} agendas synchronisés · ${teamErrors} indisponible${teamErrors > 1 ? "s" : ""}` : `Google synchronisé · ${connectedBrokers.length} agenda${connectedBrokers.length > 1 ? "s" : ""}` : syncState === "error" ? "Impossible d’actualiser Google Agenda. Les événements déjà affichés sont conservés." : syncState === "syncing" ? "Synchronisation…" : lastSyncedAt ? "Synchronisé il y a quelques secondes" : "Prêt à synchroniser"}</div>
+        {centrisWarningBrokers.length > 0 && <div className="calendar-centris-warning" role="status">{centrisWarningBrokers.map((item) => <p key={item}>{BROKER_LABELS[item]} · {centrisStatuses[item] === "authorization_required" ? "Autorisation Google requise pour synchroniser les visites Centris." : "Visites Centris temporairement indisponibles."}</p>)}</div>}
         <div className="calendar-surface">{view === "month" && <CalendarMonthView date={date} events={visibleEvents} onOpenDay={(isoDate) => { setDate(isoDate); setView("day"); }} onOpenEvent={setSelectedEvent} today={today} />}{view === "week" && <CalendarWeekView date={date} events={visibleEvents} onOpenEvent={setSelectedEvent} onSelectDay={setDate} today={today} />}{view === "day" && <CalendarDayView date={date} events={visibleEvents} onOpenEvent={setSelectedEvent} today={today} />}</div>
         {mode === "team" && <section className="calendar-team-availability"><header><div><p className="section-kicker">DISPONIBILITÉS DE L’ÉQUIPE</p><h2>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))}</h2></div><small>08:00 – 18:00 · courtiers cochés</small></header><div>{availability.length ? availability.map((slot) => <button key={slot.start} onClick={() => setCreationPreset({ date: slot.date, startTime: slot.startTime, endTime: slot.endTime })} type="button">{slot.startTime} – {slot.endTime}</button>) : <p>{availabilityBrokers.length ? "Aucune disponibilité commune dans cette plage." : "Sélectionnez au moins un courtier connecté."}</p>}</div></section>}
       </>}

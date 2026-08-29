@@ -101,6 +101,18 @@ export function eventCalendarTime(event: CRMCalendarEvent, field: "start" | "end
   }).format(new Date(event[field]));
 }
 
+export function eventCalendarMinutes(event: CRMCalendarEvent, field: "start" | "end" = "start") {
+  if (event.allDay) return 0;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: CALENDAR_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(event[field]));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return Number(values.hour) * 60 + Number(values.minute);
+}
+
 export function moveCalendarDate(isoDate: string, view: CalendarView, direction: -1 | 1) {
   if (view === "day") return addCalendarDays(isoDate, direction);
   if (view === "week") return addCalendarDays(isoDate, 7 * direction);

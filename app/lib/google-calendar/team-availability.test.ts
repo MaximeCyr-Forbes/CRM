@@ -7,6 +7,7 @@ function event(broker: CalendarBroker, start: string, end: string, options: Part
   return {
     id: `${broker}-${start}`, broker, title: "Occupé", description: "", location: "",
     start, end, allDay: false, htmlLink: null, eventKind: "google",
+    sourceCalendarId: "primary", sourceCalendarName: null,
     crmEntityKind: null, crmEntityId: null, crmLink: null, blocksAvailability: true,
     readOnly: false, recurring: false, ...options,
   };
@@ -35,5 +36,15 @@ describe("disponibilités communes", () => {
     expect(calculateCommonAvailability([
       event("maxime", "2026-08-21", "2026-08-22", { allDay: true }),
     ], "2026-08-21", ["maxime"])).toEqual([]);
+  });
+
+  it("traite une visite Centris opaque comme occupée et respecte la transparence Google", () => {
+    const opaque = event("maxime", "2026-08-21T14:00:00.000Z", "2026-08-21T18:25:00.000Z", {
+      eventKind: "centris_showing", sourceCalendarId: "centris", sourceCalendarName: "Centris Zone Showings", readOnly: true,
+    });
+    const slots = calculateCommonAvailability([opaque], "2026-08-21", ["maxime"]);
+    expect(slots.some((slot) => slot.startTime < "14:25" && slot.endTime > "10:00")).toBe(false);
+    expect(calculateCommonAvailability([{ ...opaque, blocksAvailability: false }], "2026-08-21", ["maxime"]))
+      .toContainEqual(expect.objectContaining({ startTime: "08:00", endTime: "18:00" }));
   });
 });

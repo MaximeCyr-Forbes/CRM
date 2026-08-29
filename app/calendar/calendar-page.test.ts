@@ -43,6 +43,30 @@ describe("page Calendrier intégrée", () => {
     expect(source("app/lib/google-calendar/calendar-sync-monitor.ts")).toContain("120_000");
   });
 
+  it("affiche les visites Centris en lecture seule avec leur source et un repli discret", () => {
+    const page = source("app/calendar/page.tsx");
+    const modal = source("app/components/calendar-event-detail-modal.tsx");
+    const styles = source("app/globals.css");
+    expect(page).toContain("centrisShowingsStatus");
+    expect(page).toContain("Visites Centris temporairement indisponibles");
+    expect(modal).toContain("event.sourceCalendarName");
+    expect(modal).toContain("Centris Zone Showings et est affichée en lecture seule");
+    expect(modal).toContain("Ouvrir dans Google Agenda");
+    expect(styles).toContain(".calendar-kind-centris_showing");
+    expect(styles).toContain("#e87524");
+    expect(source("app/components/calendar-views.tsx")).toContain("timelineRowHeightRem={3.5}");
+    expect(source("app/components/calendar-views.tsx")).toContain("timelineRowHeightRem={3.8}");
+    expect(styles).toContain("--calendar-event-height");
+  });
+
+  it("présente les trois statuts Centris et l’action de réautorisation dans Paramètres", () => {
+    const settings = source("app/settings/page.tsx");
+    expect(settings).toContain("Visites Centris — Synchronisées ✓");
+    expect(settings).toContain("Visites Centris — Autorisation requise");
+    expect(settings).toContain("Visites Centris — Calendrier non détecté");
+    expect(settings).toContain("AUTORISER LES VISITES CENTRIS");
+  });
+
   it("offre le mode équipe, les filtres et les disponibilités sans FreeBusy", () => {
     const page = source("app/calendar/page.tsx");
     expect(page).toContain('type CalendarMode = "personal" | "team"');

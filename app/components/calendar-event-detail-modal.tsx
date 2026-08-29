@@ -43,16 +43,19 @@ export function CalendarEventDetailModal({ event, onClose, onDelete, onEdit, onO
             <div><dt>Date</dt><dd>{dateLabel(event)}</dd></div>
             <div><dt>Heures</dt><dd>{event.allDay ? "Toute la journée" : `${eventCalendarTime(event, "start")} – ${eventCalendarTime(event, "end")}`}</dd></div>
             <div><dt>Calendrier</dt><dd>{BROKER_LABELS[event.broker]}</dd></div>
+            {event.sourceCalendarName && <div><dt>Source</dt><dd>{event.sourceCalendarName}</dd></div>}
             {event.location && <div><dt>Lieu</dt><dd>{event.location}</dd></div>}
           </dl>
           {event.description && <div className="calendar-event-description"><span>Description</span><p>{event.description}</p></div>}
           {event.recurring && <p className="calendar-readonly-notice">Événement récurrent : modifiez la série directement dans Google Agenda.</p>}
-          {event.readOnly && !event.recurring && <p className="calendar-readonly-notice">Cet événement est géré automatiquement depuis sa fiche CRM.</p>}
+          {event.eventKind === "centris_showing"
+            ? <p className="calendar-readonly-notice">Cette visite provient du calendrier Centris Zone Showings et est affichée en lecture seule.</p>
+            : event.readOnly && !event.recurring && <p className="calendar-readonly-notice">Cet événement est géré automatiquement depuis sa fiche CRM.</p>}
         </div>
         <footer className="calendar-modal-actions calendar-detail-actions">
           <button onClick={onClose} type="button">Fermer</button>
           {event.crmLink && <button onClick={() => onOpenCRM(event.crmLink!)} type="button">{crmActionLabel(event)}</button>}
-          {event.htmlLink && <a href={event.htmlLink} rel="noopener noreferrer" target="_blank">Ouvrir dans Google</a>}
+          {event.htmlLink && <a href={event.htmlLink} rel="noopener noreferrer" target="_blank">Ouvrir dans Google Agenda</a>}
           {!event.readOnly && <button onClick={onEdit} type="button">Modifier</button>}
           {!event.readOnly && <button className="calendar-delete-action" onClick={onDelete} type="button">Supprimer</button>}
         </footer>

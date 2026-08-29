@@ -8,6 +8,10 @@ import { createOAuthState, sanitizeOAuthReturnTo, type GoogleOAuthCapability } f
 import { listGoogleConnectionStatuses } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
 import { GMAIL_SEND_SCOPE, GMAIL_SETTINGS_BASIC_SCOPE } from "../../../lib/google-gmail/scopes";
+import {
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+  GOOGLE_CALENDAR_LIST_READONLY_SCOPE,
+} from "../../../lib/google-calendar/scopes";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +36,9 @@ export async function GET(request: Request) {
     const connections = await listGoogleConnectionStatuses();
     const connection = connections.find((item) => item.broker === broker);
     const capabilityAlreadyConnected = connection?.connected && (
-      capability === "calendar" || (connection.gmailSendEnabled && connection.gmailSignatureEnabled)
+      capability === "calendar"
+        ? connection.centrisShowings.scopeGranted
+        : connection.gmailSendEnabled && connection.gmailSignatureEnabled
     );
     if (capabilityAlreadyConnected) {
       const destinationUrl = new URL(returnTo, getApplicationOrigin(request));
@@ -53,7 +59,8 @@ export async function GET(request: Request) {
       scope: [
         "openid",
         "email",
-        "https://www.googleapis.com/auth/calendar.events",
+        GOOGLE_CALENDAR_EVENTS_SCOPE,
+        GOOGLE_CALENDAR_LIST_READONLY_SCOPE,
         GMAIL_SEND_SCOPE,
         GMAIL_SETTINGS_BASIC_SCOPE,
       ].join(" "),

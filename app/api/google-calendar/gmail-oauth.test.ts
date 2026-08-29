@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("upgrade OAuth Gmail", () => {
-  it("demande calendar.events, gmail.send et gmail.settings.basic avec identité de base", () => {
+  it("demande les événements, CalendarList en lecture seule et les scopes Gmail avec identité de base", () => {
     const connect = readFileSync("app/api/google-calendar/connect/route.ts", "utf8");
-    expect(connect).toContain('"https://www.googleapis.com/auth/calendar.events"');
+    const calendarScopes = readFileSync("app/lib/google-calendar/scopes.ts", "utf8");
+    expect(calendarScopes).toContain('"https://www.googleapis.com/auth/calendar.events"');
+    expect(calendarScopes).toContain('"https://www.googleapis.com/auth/calendar.calendarlist.readonly"');
+    expect(connect).toContain("GOOGLE_CALENDAR_LIST_READONLY_SCOPE");
     expect(connect).toContain("GMAIL_SEND_SCOPE");
     expect(connect).toContain("GMAIL_SETTINGS_BASIC_SCOPE");
     const scopes = readFileSync("app/lib/google-gmail/scopes.ts", "utf8");

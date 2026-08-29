@@ -18,6 +18,7 @@ const event: CRMCalendarEvent = {
   id: "event-1", broker: "maxime", title: "Modifié", description: "", location: "",
   start: "2026-08-21T13:00:00.000Z", end: "2026-08-21T14:00:00.000Z", allDay: false,
   htmlLink: null, eventKind: "google", crmEntityKind: null, crmEntityId: null,
+  sourceCalendarId: "primary", sourceCalendarName: null,
   crmLink: null, blocksAvailability: true, readOnly: false, recurring: false,
 };
 

@@ -5081,6 +5081,9 @@ button:disabled {
 .calendar-toolbar button:disabled { cursor: wait; opacity: 0.55; }
 .calendar-sync-status { min-height: 2rem; padding: 0.45rem 0.8rem; color: var(--ink-soft); font-size: 0.72rem; text-align: right; }
 .calendar-sync-status.is-error { color: #9b3e3e; }
+.calendar-centris-warning { margin-bottom: 0.7rem; padding: 0.7rem 0.85rem; border-left: 0.2rem solid #e87524; color: #7d431c; background: #fff4e9; font-size: 0.7rem; }
+.calendar-centris-warning p { margin: 0; }
+.calendar-centris-warning p + p { margin-top: 0.3rem; }
 .calendar-surface { overflow: hidden; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 1.5rem 4rem rgba(19, 35, 59, 0.06); }
 
 .calendar-month-weekdays, .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -5109,6 +5112,10 @@ button:disabled {
 .calendar-kind-mortgage_renewal { background: #f1f6f3; }
 .calendar-kind-follow_up { background: #fdf0eb; }
 .calendar-kind-transaction_deadline { background: #f3f1f8; }
+.calendar-kind-centris_showing { border-left-color: #e87524; background: #fff1e5; }
+.calendar-kind-centris_showing .calendar-event-dot { background: #e87524; }
+.calendar-week-hour > div, .calendar-day-hour > div { position: relative; }
+.calendar-event.is-timeline-duration { position: absolute; z-index: 2; top: var(--calendar-event-offset); right: 0.2rem; left: 0.2rem; height: var(--calendar-event-height); min-height: 1.75rem; align-content: start; overflow: hidden; box-shadow: 0 0.25rem 0.7rem rgba(116, 62, 25, 0.12); }
 
 .calendar-week-header, .calendar-week-all-day, .calendar-week-hour { display: grid; grid-template-columns: 5.6rem repeat(7, minmax(0, 1fr)); }
 .calendar-week-mobile { display: none; }

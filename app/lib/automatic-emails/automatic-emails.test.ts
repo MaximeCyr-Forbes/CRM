@@ -23,6 +23,7 @@ function connection(broker: "france" | "maxime" | "sandrine", gmail = true, sign
   return {
     broker, connected: gmail, email: gmail ? `${broker}@example.com` : null,
     gmailSendEnabled: gmail, gmailSignatureEnabled: signature,
+    centrisShowings: { scopeGranted: true, calendarDetected: true, status: "synchronized" },
     birthdays: { synced: 0, pending: 0, error: 0 }, mortgageRenewals: { synced: 0, pending: 0, error: 0 },
     watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },
   };

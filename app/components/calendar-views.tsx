@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { calendarEventKey, type CRMCalendarEvent } from "../data/calendar-event-types";
 import { CALENDAR_EVENT_KIND_LABELS } from "../data/calendar-event-types";
 import { BROKER_LABELS } from "../data/contact-types";
@@ -7,6 +8,7 @@ import {
   addCalendarDays,
   calendarMonthGrid,
   eventCalendarDate,
+  eventCalendarMinutes,
   eventCalendarTime,
   startOfCalendarWeek,
 } from "../lib/google-calendar/calendar-date";
@@ -35,16 +37,23 @@ function eventHour(event: CRMCalendarEvent) {
   return Number(eventCalendarTime(event).slice(0, 2));
 }
 
-export function CalendarEventButton({ event, compact = false, onOpen }: {
+export function CalendarEventButton({ event, compact = false, onOpen, timelineRowHeightRem }: {
   event: CRMCalendarEvent;
   compact?: boolean;
   onOpen: (event: CRMCalendarEvent) => void;
+  timelineRowHeightRem?: number;
 }) {
+  const usesExactDuration = event.eventKind === "centris_showing" && timelineRowHeightRem && !event.allDay;
+  const timelineStyle = usesExactDuration ? {
+    "--calendar-event-offset": `${(eventCalendarMinutes(event) % 60) / 60 * timelineRowHeightRem}rem`,
+    "--calendar-event-height": `${Math.max(30, (new Date(event.end).getTime() - new Date(event.start).getTime()) / 60_000) / 60 * timelineRowHeightRem}rem`,
+  } as CSSProperties : undefined;
   return (
     <button
       aria-label={`Ouvrir ${event.title}, calendrier ${BROKER_LABELS[event.broker]}`}
-      className={`calendar-event calendar-event-${event.broker} calendar-kind-${event.eventKind} ${compact ? "is-compact" : ""}`}
+      className={`calendar-event calendar-event-${event.broker} calendar-kind-${event.eventKind} ${compact ? "is-compact" : ""} ${usesExactDuration ? "is-timeline-duration" : ""}`}
       onClick={() => onOpen(event)}
+      style={timelineStyle}
       title={event.title}
       type="button"
     >
@@ -110,7 +119,7 @@ export function CalendarWeekView({ date, events, today, onOpenEvent, onSelectDay
         {timelineHours.map((hour) => (
           <div className="calendar-week-hour" key={hour}>
             <time>{String(hour).padStart(2, "0")}:00</time>
-            {dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton compact event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div>)}
+            {dates.map((isoDate) => <div key={isoDate}>{eventsForDate(events, isoDate).filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton compact event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} timelineRowHeightRem={3.5} />)}</div>)}
           </div>
         ))}
       </div>
@@ -132,7 +141,7 @@ export function CalendarDayView({ date, events, today, onOpenEvent }: {
     <section className="calendar-day" aria-label="Vue quotidienne">
       <header className={date === today ? "is-today" : ""}><p>{dayLabel(date, "long")}</p><strong>{dayNumber(date)}</strong></header>
       <div className="calendar-day-all-day"><span>TOUTE LA JOURNÉE</span><div>{allDay.length ? allDay.map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />) : <small>Aucun événement.</small>}</div></div>
-      <div className="calendar-day-timeline">{hours.map((hour) => <div className="calendar-day-hour" key={hour}><time>{String(hour).padStart(2, "0")}:00</time><div>{dayEvents.filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} />)}</div></div>)}</div>
+      <div className="calendar-day-timeline">{hours.map((hour) => <div className="calendar-day-hour" key={hour}><time>{String(hour).padStart(2, "0")}:00</time><div>{dayEvents.filter((event) => !event.allDay && eventHour(event) === hour).map((event) => <CalendarEventButton event={event} key={calendarEventKey(event)} onOpen={onOpenEvent} timelineRowHeightRem={3.8} />)}</div></div>)}</div>
     </section>
   );
 }

@@ -8,4 +8,11 @@ describe("identité des événements d’équipe", () => {
     expect(new Set([france, maxime]).size).toBe(2);
     expect([france, maxime]).toEqual(["france:abc", "maxime:abc"]);
   });
+
+  it("conserve deux événements portant le même id dans deux calendriers du même courtier", () => {
+    const principal = calendarEventKey({ broker: "maxime", id: "abc", sourceCalendarId: "primary" });
+    const centris = calendarEventKey({ broker: "maxime", id: "abc", sourceCalendarId: "centris-calendar" });
+    expect(new Set([principal, centris]).size).toBe(2);
+    expect([principal, centris]).toEqual(["maxime:primary:abc", "maxime:centris-calendar:abc"]);
+  });
 });

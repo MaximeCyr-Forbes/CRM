@@ -9,12 +9,25 @@ export type CalendarWatchState = {
   expiresAt: string | null;
 };
 
+export type CentrisShowingsStatus =
+  | "synchronized"
+  | "authorization_required"
+  | "not_detected"
+  | "unavailable";
+
+export type CentrisShowingsConnectionStatus = {
+  scopeGranted: boolean;
+  calendarDetected: boolean;
+  status: CentrisShowingsStatus;
+};
+
 export type CalendarConnectionStatus = {
   broker: CalendarBroker;
   connected: boolean;
   email: string | null;
   gmailSendEnabled: boolean;
   gmailSignatureEnabled: boolean;
+  centrisShowings: CentrisShowingsConnectionStatus;
   birthdays: { synced: number; pending: number; error: number };
   mortgageRenewals: { synced: number; pending: number; error: number };
   watch: CalendarWatchState;

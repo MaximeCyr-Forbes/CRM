@@ -5,6 +5,7 @@ import type {
   CalendarSyncResult,
   BirthdaySyncSummary,
   MortgageRenewalSyncSummary,
+  CentrisShowingsStatus,
 } from "../../data/calendar-types";
 import type { Contact, ContactBroker, ContactSource } from "../../data/contact-types";
 import { BROKER_LABELS, CLIENT_TYPE_LABELS, CONTACT_BROKERS, PRIORITY_LABELS, getContactName } from "../../data/contact-types";
@@ -27,6 +28,10 @@ import {
   mapGoogleCalendarEvent,
   type GoogleCalendarEventResource,
 } from "./calendar-events";
+import {
+  GOOGLE_CALENDAR_LIST_READONLY_SCOPE,
+  hasGoogleCalendarListReadonlyScope,
+} from "./scopes";
 import {
   getGoogleConnection as getConnection,
   googleAuthenticatedRequest,
@@ -73,6 +78,22 @@ type GoogleCalendarEventsListResponse = {
   nextPageToken?: string;
 };
 
+export type GoogleCalendarListEntry = {
+  id?: string;
+  summary?: string;
+  deleted?: boolean;
+};
+
+type GoogleCalendarListResponse = {
+  items?: GoogleCalendarListEntry[];
+  nextPageToken?: string;
+};
+
+export type GoogleCalendarEventsResult = {
+  events: CRMCalendarEvent[];
+  centrisShowingsStatus: CentrisShowingsStatus;
+};
+
 type GoogleCalendarWatchRow = {
   broker: CalendarBroker;
   calendar_id: string;
@@ -97,6 +118,9 @@ const GOOGLE_WATCH_RENEWAL_WINDOW_MS = 24 * 60 * 60 * 1000;
 export class GoogleCalendarNotConnectedError extends Error {}
 export class GoogleCalendarEventNotFoundError extends Error {}
 export class ManagedGoogleCalendarEventError extends Error {}
+export class GoogleCalendarListAuthorizationError extends Error {}
+
+export const CENTRIS_SHOWINGS_CALENDAR_NAME = "Centris Zone Showings";
 
 type GoogleEventDate = { date: string; dateTime?: never; timeZone?: never };
 type GoogleEventDateTime = { date?: never; dateTime: string; timeZone: string };
@@ -323,6 +347,46 @@ async function googleCalendarRequest(
   );
 }
 
+function normalizeGoogleCalendarName(value: string | undefined) {
+  return value?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
+}
+
+export async function listGoogleCalendars(connection: GoogleConnectionRow) {
+  if (!hasGoogleCalendarListReadonlyScope(connection.scopes)) {
+    throw new GoogleCalendarListAuthorizationError(
+      `Le scope ${GOOGLE_CALENDAR_LIST_READONLY_SCOPE} est requis.`,
+    );
+  }
+  const calendars: GoogleCalendarListEntry[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 20; page += 1) {
+    const search = new URLSearchParams({ maxResults: "250" });
+    if (pageToken) search.set("pageToken", pageToken);
+    const response = await googleCalendarRequest(
+      connection,
+      `/users/me/calendarList?${search.toString()}`,
+      { method: "GET" },
+    );
+    if (response.status === 401 || response.status === 403) {
+      throw new GoogleCalendarListAuthorizationError("Autorisation CalendarList requise.");
+    }
+    if (!response.ok) throw new Error(`Chargement CalendarList refusé (${response.status}).`);
+    const payload = await response.json() as GoogleCalendarListResponse;
+    calendars.push(...(payload.items ?? []).filter((calendar) => !calendar.deleted));
+    pageToken = payload.nextPageToken;
+    if (!pageToken) return calendars;
+  }
+  throw new Error("Pagination CalendarList anormalement longue.");
+}
+
+export async function findCentrisShowingsCalendar(connection: GoogleConnectionRow) {
+  const expectedName = normalizeGoogleCalendarName(CENTRIS_SHOWINGS_CALENDAR_NAME);
+  return (await listGoogleCalendars(connection)).find((calendar) => (
+    Boolean(calendar.id?.trim())
+    && normalizeGoogleCalendarName(calendar.summary) === expectedName
+  )) ?? null;
+}
+
 async function requireGoogleCalendarConnection(broker: CalendarBroker) {
   const connection = await getConnection(broker);
   if (!connection) throw new GoogleCalendarNotConnectedError("Google Agenda non connecté.");
@@ -346,13 +410,14 @@ async function readGoogleCalendarEvent(
   return response.json() as Promise<GoogleCalendarEventResource>;
 }
 
-export async function listGoogleCalendarEvents(
+async function listGoogleEventsFromCalendar(
+  connection: GoogleConnectionRow,
   broker: CalendarBroker,
+  calendar: { id: string; name: string | null; eventKind?: CRMCalendarEvent["eventKind"] },
   start: string,
   end: string,
-): Promise<CRMCalendarEvent[]> {
-  const connection = await requireGoogleCalendarConnection(broker);
-  const calendarId = encodeURIComponent(connection.calendar_id);
+) {
+  const calendarId = encodeURIComponent(calendar.id);
   const events: CRMCalendarEvent[] = [];
   let pageToken: string | undefined;
   for (let page = 0; page < 20; page += 1) {
@@ -373,7 +438,7 @@ export async function listGoogleCalendarEvents(
     const payload = await response.json() as GoogleCalendarEventsListResponse;
     for (const item of payload.items ?? []) {
       try {
-        events.push(mapGoogleCalendarEvent(item, broker));
+        events.push(mapGoogleCalendarEvent(item, broker, calendar));
       } catch {
         // Un événement Google incomplet ne doit pas masquer le reste du calendrier.
       }
@@ -382,6 +447,63 @@ export async function listGoogleCalendarEvents(
     if (!pageToken) return events;
   }
   throw new Error("Pagination Google Agenda anormalement longue.");
+}
+
+export async function listGoogleCalendarEventsWithMeta(
+  broker: CalendarBroker,
+  start: string,
+  end: string,
+): Promise<GoogleCalendarEventsResult> {
+  const connection = await requireGoogleCalendarConnection(broker);
+  const primaryEvents = await listGoogleEventsFromCalendar(
+    connection,
+    broker,
+    { id: connection.calendar_id, name: null },
+    start,
+    end,
+  );
+  if (!hasGoogleCalendarListReadonlyScope(connection.scopes)) {
+    return { events: primaryEvents, centrisShowingsStatus: "authorization_required" };
+  }
+  try {
+    const centrisCalendar = await findCentrisShowingsCalendar(connection);
+    const centrisCalendarId = centrisCalendar?.id?.trim();
+    if (!centrisCalendarId) {
+      return { events: primaryEvents, centrisShowingsStatus: "not_detected" };
+    }
+    const centrisEvents = await listGoogleEventsFromCalendar(
+      connection,
+      broker,
+      {
+        id: centrisCalendarId,
+        name: centrisCalendar?.summary?.trim() || CENTRIS_SHOWINGS_CALENDAR_NAME,
+        eventKind: "centris_showing",
+      },
+      start,
+      end,
+    );
+    return {
+      events: [...primaryEvents, ...centrisEvents],
+      centrisShowingsStatus: "synchronized",
+    };
+  } catch (error) {
+    if (error instanceof GoogleCalendarListAuthorizationError) {
+      return { events: primaryEvents, centrisShowingsStatus: "authorization_required" };
+    }
+    console.warn(
+      `Visites Centris temporairement indisponibles pour ${broker}:`,
+      error instanceof Error ? error.message : "erreur inconnue",
+    );
+    return { events: primaryEvents, centrisShowingsStatus: "unavailable" };
+  }
+}
+
+export async function listGoogleCalendarEvents(
+  broker: CalendarBroker,
+  start: string,
+  end: string,
+): Promise<CRMCalendarEvent[]> {
+  return (await listGoogleCalendarEventsWithMeta(broker, start, end)).events;
 }
 
 export async function createGoogleCalendarEvent(
@@ -399,7 +521,11 @@ export async function createGoogleCalendarEvent(
     },
   );
   if (!response.ok) throw new Error(`Création Google refusée (${response.status}).`);
-  return mapGoogleCalendarEvent(await response.json() as GoogleCalendarEventResource, input.broker);
+  return mapGoogleCalendarEvent(
+    await response.json() as GoogleCalendarEventResource,
+    input.broker,
+    { id: connection.calendar_id, name: null },
+  );
 }
 
 export async function updateGoogleCalendarEvent(
@@ -425,7 +551,11 @@ export async function updateGoogleCalendarEvent(
     throw new GoogleCalendarEventNotFoundError("Cet événement n’existe plus dans Google Agenda.");
   }
   if (!response.ok) throw new Error(`Modification Google refusée (${response.status}).`);
-  return mapGoogleCalendarEvent(await response.json() as GoogleCalendarEventResource, input.broker);
+  return mapGoogleCalendarEvent(
+    await response.json() as GoogleCalendarEventResource,
+    input.broker,
+    { id: connection.calendar_id, name: null },
+  );
 }
 
 export async function deleteGoogleCalendarEvent(
@@ -1401,16 +1531,12 @@ export async function saveGoogleConnection(
 export async function listGoogleConnectionStatuses(): Promise<CalendarConnectionStatus[]> {
   const { data, error } = await getSupabaseAdmin()
     .from("google_calendar_connections")
-    .select("broker, google_account_email, scopes");
+    .select("*");
   if (error) {
     throw error;
   }
   const connections = new Map(
-    ((data ?? []) as Array<{
-      broker: CalendarBroker;
-      google_account_email: string;
-      scopes: string[];
-    }>).map((connection) => [connection.broker, connection]),
+    ((data ?? []) as GoogleConnectionRow[]).map((connection) => [connection.broker, connection]),
   );
   const { data: birthdayRows, error: birthdayError } = await getSupabaseAdmin()
     .from("contact_birthday_calendar_events")
@@ -1429,19 +1555,51 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
   const watches = new Map(
     ((watchRows ?? []) as GoogleCalendarWatchRow[]).map((row) => [row.broker, row]),
   );
-  return (["france", "maxime", "sandrine"] as const).map((broker) => ({
-    broker,
-    connected: connections.has(broker),
-    email: connections.get(broker)?.google_account_email ?? null,
-    gmailSendEnabled: connections.get(broker)?.scopes?.includes("https://www.googleapis.com/auth/gmail.send") ?? false,
-    gmailSignatureEnabled: connections.get(broker)?.scopes?.includes("https://www.googleapis.com/auth/gmail.settings.basic") ?? false,
-    birthdays: ((birthdayRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
-      .filter((row) => row.broker === broker)
-      .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
-    mortgageRenewals: ((mortgageRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
-      .filter((row) => row.broker === broker)
-      .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
-    watch: watchState(watches.get(broker) ?? null),
+  return Promise.all((["france", "maxime", "sandrine"] as const).map(async (broker) => {
+    const connection = connections.get(broker);
+    let centrisShowings: CalendarConnectionStatus["centrisShowings"] = {
+      scopeGranted: false,
+      calendarDetected: false,
+      status: "authorization_required",
+    };
+    if (connection && hasGoogleCalendarListReadonlyScope(connection.scopes)) {
+      try {
+        const calendar = await findCentrisShowingsCalendar(connection);
+        centrisShowings = {
+          scopeGranted: true,
+          calendarDetected: Boolean(calendar),
+          status: calendar ? "synchronized" : "not_detected",
+        };
+      } catch (caughtError) {
+        const authorizationRequired = caughtError instanceof GoogleCalendarListAuthorizationError;
+        centrisShowings = {
+          scopeGranted: !authorizationRequired,
+          calendarDetected: false,
+          status: authorizationRequired ? "authorization_required" : "unavailable",
+        };
+        if (!authorizationRequired) {
+          console.warn(
+            `Détection du calendrier Centris impossible pour ${broker}:`,
+            caughtError instanceof Error ? caughtError.message : "erreur inconnue",
+          );
+        }
+      }
+    }
+    return {
+      broker,
+      connected: Boolean(connection),
+      email: connection?.google_account_email ?? null,
+      gmailSendEnabled: connection?.scopes?.includes("https://www.googleapis.com/auth/gmail.send") ?? false,
+      gmailSignatureEnabled: connection?.scopes?.includes("https://www.googleapis.com/auth/gmail.settings.basic") ?? false,
+      centrisShowings,
+      birthdays: ((birthdayRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
+        .filter((row) => row.broker === broker)
+        .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
+      mortgageRenewals: ((mortgageRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
+        .filter((row) => row.broker === broker)
+        .reduce((counts, row) => ({ ...counts, [row.sync_status]: counts[row.sync_status] + 1 }), { synced: 0, pending: 0, error: 0 }),
+      watch: watchState(watches.get(broker) ?? null),
+    };
   }));
 }
 
