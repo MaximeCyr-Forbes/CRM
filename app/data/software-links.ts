@@ -9,6 +9,11 @@ export const softwareLinks = [
     description: "Analyse financière d'immeubles à revenus",
     href: "https://analyse-plex-quebec.vercel.app/",
   },
+  {
+    label: "Générateur ACM",
+    description: "Génération d’analyses comparatives de marché",
+    href: "https://acmgenerator.vercel.app/",
+  },
 ] as const;
 
 export const appNavigationOrder = [

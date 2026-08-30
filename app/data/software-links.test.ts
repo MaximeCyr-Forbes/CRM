@@ -17,7 +17,7 @@ describe("navigation des logiciels", () => {
     expect(appNavigationOrder.at(-1)).toBe("Paramètres");
   });
 
-  it("centralise les deux applications externes attendues", () => {
+  it("centralise les trois applications externes attendues", () => {
     expect(softwareLinks).toEqual([
       {
         label: "Générateur de courriel",
@@ -29,7 +29,17 @@ describe("navigation des logiciels", () => {
         description: "Analyse financière d'immeubles à revenus",
         href: "https://analyse-plex-quebec.vercel.app/",
       },
+      {
+        label: "Générateur ACM",
+        description: "Génération d’analyses comparatives de marché",
+        href: "https://acmgenerator.vercel.app/",
+      },
     ]);
+  });
+
+  it("pointe le Générateur ACM vers son URL exacte", () => {
+    expect(softwareLinks.find((software) => software.label === "Générateur ACM")?.href)
+      .toBe("https://acmgenerator.vercel.app/");
   });
 
   it("n'accepte que des liens HTTPS uniques", () => {
