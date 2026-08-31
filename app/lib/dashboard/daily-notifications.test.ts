@@ -127,6 +127,8 @@ function recommendation(values: Partial<CRMRecommendation> = {}): CRMRecommendat
     content: "Ajouter une vue simplifiée.",
     submittedBy: "sandrine",
     status: "unread",
+    isCompleted: false,
+    completedAt: null,
     createdAt: "2026-08-10T14:42:00.000Z",
     openedAt: null,
     openedBy: null,
@@ -172,6 +174,10 @@ describe("notifications quotidiennes du dashboard", () => {
 
   it("exclut les recommandations lues et celles consultées sous France ou Sandrine", () => {
     expect(notifications({ recommendations: [recommendation({ status: "read" })] })).toEqual([]);
+    expect(notifications({ recommendations: [recommendation({
+      isCompleted: true,
+      completedAt: "2026-08-20T15:00:00.000Z",
+    })] })).toEqual([]);
     expect(notifications({ recommendations: [recommendation()], broker: "france" })).toEqual([]);
     expect(notifications({ recommendations: [recommendation()], broker: "sandrine" })).toEqual([]);
   });

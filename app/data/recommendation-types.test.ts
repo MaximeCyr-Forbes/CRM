@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  acquireRecommendationCompletionLock,
   acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
   formatRecommendationDate,
   mapRecommendationRow,
   parseRecommendationDraft,
+  releaseRecommendationCompletionLock,
   releaseRecommendationDeletionLock,
   releaseRecommendationSubmissionLock,
   sortRecommendations,
@@ -18,6 +20,8 @@ const unread: CRMRecommendation = {
   content: "Une amélioration utile.",
   submittedBy: "france",
   status: "unread",
+  isCompleted: false,
+  completedAt: null,
   createdAt: "2026-08-20T18:00:00.000Z",
   openedAt: null,
   openedBy: null,
@@ -57,19 +61,29 @@ describe("types et validation des recommandations", () => {
       content: unread.content,
       submitted_by: "france",
       status: "unread",
+      is_completed: false,
+      completed_at: null,
       created_at: unread.createdAt,
       opened_at: null,
       opened_by: null,
     })).toEqual(unread);
   });
 
-  it("trie les non lues avant les lues puis les plus récentes en premier", () => {
+  it("trie les recommandations à traiter avant les faites, puis les non lues avant les lues", () => {
     const read = { ...unread, id: "read", status: "read" as const, createdAt: "2026-08-21T20:00:00.000Z" };
     const newerUnread = { ...unread, id: "newer", createdAt: "2026-08-21T19:00:00.000Z" };
-    expect(sortRecommendations([read, unread, newerUnread]).map((item) => item.id)).toEqual([
+    const completed = {
+      ...unread,
+      id: "completed",
+      isCompleted: true,
+      completedAt: "2026-08-22T12:00:00.000Z",
+      createdAt: "2026-08-22T11:00:00.000Z",
+    };
+    expect(sortRecommendations([completed, read, unread, newerUnread]).map((item) => item.id)).toEqual([
       "newer",
       unread.id,
       "read",
+      "completed",
     ]);
   });
 
@@ -93,5 +107,14 @@ describe("types et validation des recommandations", () => {
     expect(acquireRecommendationDeletionLock(lock, "recommendation-2")).toBe(false);
     releaseRecommendationDeletionLock(lock);
     expect(acquireRecommendationDeletionLock(lock, "recommendation-2")).toBe(true);
+  });
+
+  it("bloque un double traitement pendant la requête active", () => {
+    const lock = { current: null as string | null };
+    expect(acquireRecommendationCompletionLock(lock, "recommendation-1")).toBe(true);
+    expect(acquireRecommendationCompletionLock(lock, "recommendation-1")).toBe(false);
+    expect(acquireRecommendationCompletionLock(lock, "recommendation-2")).toBe(false);
+    releaseRecommendationCompletionLock(lock);
+    expect(acquireRecommendationCompletionLock(lock, "recommendation-2")).toBe(true);
   });
 });

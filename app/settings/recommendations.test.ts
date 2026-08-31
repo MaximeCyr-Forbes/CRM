@@ -111,6 +111,29 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain("La recommandation n’a pas pu être supprimée. Réessayez.");
   });
 
+  it("permet de marquer une recommandation faite depuis la liste et la modale sans double appel", () => {
+    const component = source("app/components/settings-recommendations.tsx");
+    const detail = source("app/components/recommendation-detail-modal.tsx");
+    expect(component).toContain('body: JSON.stringify({ action: "complete" })');
+    expect(component).toContain("acquireRecommendationCompletionLock");
+    expect(component).toContain("releaseRecommendationCompletionLock");
+    expect(component).toContain("recommendation-row-complete");
+    expect(component).toContain("recommendation-completed-badge");
+    expect(component).toContain("✓ Recommandation marquée comme faite.");
+    expect(detail).toContain("recommendation-detail-completed");
+    expect(detail).toContain("recommendation-detail-complete");
+    expect(detail).toContain("Cette recommandation est traitée.");
+  });
+
+  it("garde lecture et traitement séparés et place les recommandations faites après les autres", () => {
+    const types = source("app/data/recommendation-types.ts");
+    const notifications = source("app/lib/dashboard/daily-notifications.ts");
+    expect(types).toContain("isCompleted: boolean");
+    expect(types).toContain("completedAt: string | null");
+    expect(types).toContain("if (first.isCompleted !== second.isCompleted) return first.isCompleted ? 1 : -1;");
+    expect(notifications).toContain('recommendation.status === "unread" && !recommendation.isCompleted');
+  });
+
   it("ouvre automatiquement une recommandation ciblée par le lien du Dashboard", () => {
     const component = source("app/components/settings-recommendations.tsx");
     expect(component).toContain("useSearchParams()");
@@ -132,6 +155,21 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(persistence).toContain('.eq("id", recommendationId)');
     expect(persistence).toContain('.select("id")');
     expect(persistence).toContain(".maybeSingle()");
+  });
+
+  it("persiste le traitement de façon idempotente dans Supabase", () => {
+    const persistence = source("app/lib/recommendations/persistence.ts");
+    expect(persistence).toContain("export async function markRecommendationCompleted");
+    expect(persistence).toContain(".update({ is_completed: true, completed_at: completedAt })");
+    expect(persistence).toContain('.eq("is_completed", false)');
+  });
+
+  it("ajoute les colonnes de traitement par migration additive", () => {
+    const migration = source("supabase/migrations/20260831123000_add_recommendation_completion.sql");
+    expect(migration).toContain("add column if not exists is_completed boolean not null default false");
+    expect(migration).toContain("add column if not exists completed_at timestamptz");
+    expect(migration).toContain("crm_recommendations_completion_check");
+    expect(migration).not.toMatch(/delete\s+from|truncate\s+table|drop\s+table/i);
   });
 
   it("déclare une migration additive protégée par RLS sans toucher aux données existantes", () => {

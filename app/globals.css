@@ -1612,6 +1612,13 @@ button:disabled {
   border-left: 3px solid var(--gold);
 }
 
+.recommendation-row-completed {
+  background: rgba(239, 246, 240, 0.82);
+  border-color: rgba(67, 98, 73, 0.28);
+  border-left: 3px solid #587259;
+  box-shadow: none;
+}
+
 .recommendation-status {
   display: inline-flex;
   align-items: center;
@@ -1640,12 +1647,52 @@ button:disabled {
   min-width: 0;
 }
 
+.recommendation-row-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
 .recommendation-row h4 {
   margin: 0;
   overflow-wrap: anywhere;
   font-family: var(--font-serif);
   font-size: 1.12rem;
   font-weight: 400;
+}
+
+.recommendation-row-completed .recommendation-row-summary dl,
+.recommendation-row-completed .recommendation-row-summary h4 {
+  opacity: 0.68;
+}
+
+.recommendation-completed-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.38rem 0.58rem;
+  color: #31583a;
+  background: #e4efe7;
+  border: 1px solid rgba(67, 98, 73, 0.3);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.recommendation-completed-badge i {
+  display: grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  color: #fff;
+  background: #587259;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-style: normal;
+  line-height: 1;
 }
 
 .recommendation-row dl {
@@ -1693,6 +1740,23 @@ button:disabled {
   border-color: rgba(143, 49, 42, 0.28);
 }
 
+.recommendation-row-actions .recommendation-row-complete {
+  color: #31583a;
+  border-color: rgba(67, 98, 73, 0.42);
+}
+
+.recommendation-row-actions .recommendation-row-complete:hover:not(:disabled) {
+  color: #fff;
+  background: #587259;
+  border-color: #587259;
+}
+
+.recommendation-row-actions .recommendation-row-complete:disabled {
+  color: #436249;
+  background: rgba(88, 114, 89, 0.09);
+  border-color: rgba(67, 98, 73, 0.24);
+}
+
 .recommendation-row-actions .recommendation-row-delete:hover:not(:disabled) {
   color: #fff;
   background: #8f312a;
@@ -1723,13 +1787,53 @@ button:disabled {
   color: #934c45;
 }
 
-.recommendation-deletion-confirmation {
+.recommendation-deletion-confirmation,
+.recommendation-completion-confirmation {
   margin-bottom: 0.65rem;
   padding: 0.8rem 0.9rem;
   color: #436249;
   background: rgba(88, 114, 89, 0.09);
   border-left: 2px solid #587259;
   font-size: 0.72rem;
+}
+
+.recommendation-detail-completed {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1rem;
+  color: #31583a;
+  background: #e4efe7;
+  border: 1px solid rgba(67, 98, 73, 0.3);
+}
+
+.recommendation-detail-completed > span {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  background: #587259;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.recommendation-detail-completed > div {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.recommendation-detail-completed strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+}
+
+.recommendation-detail-completed small {
+  color: #587259;
+  font-size: 0.7rem;
 }
 
 .recommendation-detail-backdrop {
@@ -1832,6 +1936,19 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.recommendation-detail-actions .recommendation-detail-complete {
+  color: #fff;
+  background: #587259;
+  border-color: #587259;
+}
+
+.recommendation-detail-actions .recommendation-detail-complete:disabled {
+  color: #436249;
+  background: rgba(88, 114, 89, 0.09);
+  border-color: rgba(67, 98, 73, 0.24);
+  cursor: not-allowed;
+}
+
 .recommendation-delete-backdrop {
   z-index: 170;
 }
@@ -1867,6 +1984,10 @@ button:disabled {
 
   .recommendation-row-actions button {
     width: 100%;
+  }
+
+  .recommendation-row-title {
+    align-items: flex-start;
   }
 
   .recommendation-detail-backdrop {

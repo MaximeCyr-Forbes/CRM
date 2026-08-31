@@ -11,6 +11,8 @@ export type CRMRecommendation = {
   content: string;
   submittedBy: RecommendationAuthor;
   status: RecommendationStatus;
+  isCompleted: boolean;
+  completedAt: string | null;
   createdAt: string;
   openedAt: string | null;
   openedBy: RecommendationAuthor | null;
@@ -24,6 +26,8 @@ export type CRMRecommendationRow = {
   content: string;
   submitted_by: RecommendationAuthor;
   status: RecommendationStatus;
+  is_completed: boolean;
+  completed_at: string | null;
   created_at: string;
   opened_at: string | null;
   opened_by: RecommendationAuthor | null;
@@ -76,12 +80,21 @@ export function mapRecommendationRow(row: CRMRecommendationRow): CRMRecommendati
   if (row.opened_by !== null && !isRecommendationAuthor(row.opened_by)) {
     throw new Error("Auteur d’ouverture Supabase invalide.");
   }
+  if (
+    typeof row.is_completed !== "boolean"
+    || (row.completed_at !== null && typeof row.completed_at !== "string")
+    || row.is_completed !== (row.completed_at !== null)
+  ) {
+    throw new Error("Statut de traitement Supabase invalide.");
+  }
   return {
     id: row.id,
     title: row.title,
     content: row.content,
     submittedBy: row.submitted_by,
     status: row.status,
+    isCompleted: row.is_completed,
+    completedAt: row.completed_at,
     createdAt: row.created_at,
     openedAt: row.opened_at,
     openedBy: row.opened_by,
@@ -90,6 +103,7 @@ export function mapRecommendationRow(row: CRMRecommendationRow): CRMRecommendati
 
 export function sortRecommendations(recommendations: ReadonlyArray<CRMRecommendation>) {
   return [...recommendations].sort((first, second) => {
+    if (first.isCompleted !== second.isCompleted) return first.isCompleted ? 1 : -1;
     if (first.status !== second.status) return first.status === "unread" ? -1 : 1;
     return second.createdAt.localeCompare(first.createdAt);
   });
@@ -129,5 +143,18 @@ export function acquireRecommendationDeletionLock(
 }
 
 export function releaseRecommendationDeletionLock(lock: { current: string | null }) {
+  lock.current = null;
+}
+
+export function acquireRecommendationCompletionLock(
+  lock: { current: string | null },
+  recommendationId: string,
+) {
+  if (lock.current !== null) return false;
+  lock.current = recommendationId;
+  return true;
+}
+
+export function releaseRecommendationCompletionLock(lock: { current: string | null }) {
   lock.current = null;
 }

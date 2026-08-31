@@ -3,6 +3,7 @@ import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   deleteRecommendation,
+  markRecommendationCompleted,
   markRecommendationRead,
 } from "../../../lib/recommendations/persistence";
 
@@ -23,8 +24,27 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
     return Response.json({ error: "Recommandation invalide." }, { status: 400 });
   }
 
+  let action: "read" | "complete" = "read";
+  const requestBody = await request.text();
+  if (requestBody.trim()) {
+    try {
+      const parsed = JSON.parse(requestBody) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
+      const data = parsed as Record<string, unknown>;
+      if (
+        Object.keys(data).some((field) => field !== "action")
+        || (data.action !== "read" && data.action !== "complete")
+      ) throw new Error();
+      action = data.action;
+    } catch {
+      return Response.json({ error: "Action de recommandation invalide." }, { status: 400 });
+    }
+  }
+
   try {
-    const recommendation = await markRecommendationRead(recommendationId);
+    const recommendation = action === "complete"
+      ? await markRecommendationCompleted(recommendationId)
+      : await markRecommendationRead(recommendationId);
     if (!recommendation) {
       return Response.json({ error: "Recommandation introuvable." }, { status: 404 });
     }
@@ -34,11 +54,17 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
     );
   } catch (error) {
     console.error(
-      "Erreur ouverture recommandation CRM:",
+      action === "complete"
+        ? "Erreur traitement recommandation CRM:"
+        : "Erreur ouverture recommandation CRM:",
       error instanceof Error ? error.message : "Erreur technique inconnue",
     );
     return Response.json(
-      { error: "Ouverture de la recommandation impossible." },
+      {
+        error: action === "complete"
+          ? "Traitement de la recommandation impossible."
+          : "Ouverture de la recommandation impossible.",
+      },
       { status: 500, headers: { "Cache-Control": "private, no-store" } },
     );
   }

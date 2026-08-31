@@ -1083,6 +1083,8 @@ create table if not exists public.crm_recommendations (
   content text not null,
   submitted_by public.broker_assignment not null,
   status text not null default 'unread',
+  is_completed boolean not null default false,
+  completed_at timestamptz,
   created_at timestamptz not null default now(),
   opened_at timestamptz,
   opened_by public.broker_assignment,
@@ -1094,6 +1096,8 @@ create table if not exists public.crm_recommendations (
     check (submitted_by <> 'unassigned'),
   constraint crm_recommendations_status_check
     check (status = any (array['unread', 'read'])),
+  constraint crm_recommendations_completion_check
+    check (is_completed = (completed_at is not null)),
   constraint crm_recommendations_opened_by_check
     check (opened_by is null or opened_by <> 'unassigned')
 );
@@ -1252,6 +1256,8 @@ create index if not exists crm_recommendations_created_at_idx
   on public.crm_recommendations (created_at desc);
 create index if not exists crm_recommendations_status_created_idx
   on public.crm_recommendations (status, created_at desc);
+create index if not exists crm_recommendations_completion_created_idx
+  on public.crm_recommendations (is_completed, created_at desc);
 create index if not exists automatic_email_deliveries_scheduled_idx
   on public.automatic_email_deliveries (scheduled_for, status);
 create index if not exists automatic_email_deliveries_contact_idx

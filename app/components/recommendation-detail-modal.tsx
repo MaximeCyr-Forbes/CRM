@@ -10,13 +10,17 @@ import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
 export function RecommendationDetailModal({
   recommendation,
+  isCompleting,
   isDeleting,
   onClose,
+  onComplete,
   onDelete,
 }: {
   recommendation: CRMRecommendation;
+  isCompleting: boolean;
   isDeleting: boolean;
   onClose: () => void;
+  onComplete: () => void;
   onDelete: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -58,6 +62,16 @@ export function RecommendationDetailModal({
           </button>
         </header>
 
+        {recommendation.isCompleted && (
+          <div className="recommendation-detail-completed" role="status">
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>FAIT</strong>
+              <small>Cette recommandation est traitée.</small>
+            </div>
+          </div>
+        )}
+
         <dl className="recommendation-detail-meta">
           <div>
             <dt>Soumise par</dt>
@@ -76,11 +90,20 @@ export function RecommendationDetailModal({
         <footer className="recommendation-detail-actions">
           <button
             className="destructive-button"
-            disabled={isDeleting}
+            disabled={isDeleting || isCompleting}
             onClick={onDelete}
             type="button"
           >
             {isDeleting ? "Suppression…" : "Supprimer"}
+          </button>
+          <button
+            aria-busy={isCompleting}
+            className="recommendation-detail-complete"
+            disabled={recommendation.isCompleted || isCompleting || isDeleting}
+            onClick={onComplete}
+            type="button"
+          >
+            {isCompleting ? "Traitement…" : recommendation.isCompleted ? "✓ Fait" : "Fait"}
           </button>
           <button onClick={onClose} type="button">Fermer</button>
         </footer>

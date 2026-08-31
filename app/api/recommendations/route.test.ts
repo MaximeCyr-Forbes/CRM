@@ -29,6 +29,8 @@ vi.mock("../../lib/recommendations/persistence", () => ({
       id: "10000000-0000-4000-8000-000000000001",
       ...draft,
       status: "unread",
+      isCompleted: false,
+      completedAt: null,
       createdAt: "2026-08-21T18:25:00.000Z",
       openedAt: null,
       openedBy: null,
@@ -45,6 +47,19 @@ vi.mock("../../lib/recommendations/persistence", () => ({
       openedAt: "2026-08-21T18:30:00.000Z",
       openedBy: "maxime",
     };
+    state.recommendations = state.recommendations.map((item) => item.id === updated.id ? updated : item);
+    return updated;
+  }),
+  markRecommendationCompleted: vi.fn(async (recommendationId: string) => {
+    const recommendation = state.recommendations.find((item) => item.id === recommendationId);
+    if (!recommendation) return null;
+    const updated: CRMRecommendation = recommendation.isCompleted
+      ? recommendation
+      : {
+          ...recommendation,
+          isCompleted: true,
+          completedAt: "2026-08-21T18:35:00.000Z",
+        };
     state.recommendations = state.recommendations.map((item) => item.id === updated.id ? updated : item);
     return updated;
   }),
@@ -75,6 +90,17 @@ function remove(id: string) {
     new Request(`http://localhost/api/recommendations/${id}`, {
       method: "DELETE",
       headers: { Origin: "http://localhost" },
+    }),
+    { params: Promise.resolve({ recommendationId: id }) },
+  );
+}
+
+function patch(id: string, action?: "read" | "complete" | "invalid") {
+  return PATCH(
+    new Request(`http://localhost/api/recommendations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Origin: "http://localhost" },
+      body: action ? JSON.stringify({ action }) : undefined,
     }),
     { params: Promise.resolve({ recommendationId: id }) },
   );
@@ -119,12 +145,14 @@ describe("API recommandations", () => {
     state.accessDenied = true;
     expect((await GET()).status).toBe(401);
     expect((await post({ title: "Titre", content: "Texte", submittedBy: "maxime" })).status).toBe(401);
+    expect((await patch(recommendationId, "complete")).status).toBe(401);
     expect((await remove(recommendationId)).status).toBe(401);
   });
 
   it("refuse une écriture qui ne provient pas de la même origine", async () => {
     state.sameOrigin = false;
     expect((await post({ title: "Titre", content: "Texte", submittedBy: "sandrine" })).status).toBe(403);
+    expect((await patch(recommendationId, "complete")).status).toBe(403);
     expect((await remove(recommendationId)).status).toBe(403);
     expect(state.drafts).toHaveLength(0);
     expect(state.deletedRecommendationIds).toHaveLength(0);
@@ -141,17 +169,31 @@ describe("API recommandations", () => {
 
   it("marque une recommandation lue par Maxime à l’ouverture", async () => {
     await post({ title: "Titre", content: "Texte", submittedBy: "france" });
-    const response = await PATCH(
-      new Request(`http://localhost/api/recommendations/${recommendationId}`, {
-        method: "PATCH",
-        headers: { Origin: "http://localhost" },
-      }),
-      { params: Promise.resolve({ recommendationId }) },
-    );
+    const response = await patch(recommendationId);
     const payload = await response.json() as { data: CRMRecommendation };
     expect(response.status).toBe(200);
     expect(payload.data).toMatchObject({ status: "read", openedBy: "maxime" });
     expect(payload.data.openedAt).not.toBeNull();
+  });
+
+  it("marque une recommandation faite de façon idempotente", async () => {
+    await post({ title: "Titre", content: "Texte", submittedBy: "sandrine" });
+    const firstResponse = await patch(recommendationId, "complete");
+    const firstPayload = await firstResponse.json() as { data: CRMRecommendation };
+    const secondResponse = await patch(recommendationId, "complete");
+    const secondPayload = await secondResponse.json() as { data: CRMRecommendation };
+
+    expect(firstResponse.status).toBe(200);
+    expect(firstPayload.data).toMatchObject({ isCompleted: true });
+    expect(firstPayload.data.completedAt).not.toBeNull();
+    expect(secondResponse.status).toBe(200);
+    expect(secondPayload.data.completedAt).toBe(firstPayload.data.completedAt);
+  });
+
+  it("refuse une action PATCH inconnue", async () => {
+    await post({ title: "Titre", content: "Texte", submittedBy: "france" });
+    expect((await patch(recommendationId, "invalid")).status).toBe(400);
+    expect(state.recommendations[0].isCompleted).toBe(false);
   });
 
   it("supprime une recommandation puis ne la retourne plus au rechargement", async () => {

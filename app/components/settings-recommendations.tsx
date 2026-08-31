@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type Broker, useBroker } from "../broker-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
+  acquireRecommendationCompletionLock,
   acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
   formatRecommendationDate,
+  releaseRecommendationCompletionLock,
   releaseRecommendationDeletionLock,
   releaseRecommendationSubmissionLock,
   sortRecommendations,
@@ -41,9 +43,12 @@ export function SettingsRecommendations() {
   const [reloadAdminKey, setReloadAdminKey] = useState(0);
   const [openedRecommendation, setOpenedRecommendation] = useState<CRMRecommendation | null>(null);
   const [pendingDeletion, setPendingDeletion] = useState<CRMRecommendation | null>(null);
+  const [completingRecommendationId, setCompletingRecommendationId] = useState<string | null>(null);
+  const [completionConfirmation, setCompletionConfirmation] = useState(false);
   const [deletingRecommendationId, setDeletingRecommendationId] = useState<string | null>(null);
   const [deletionConfirmation, setDeletionConfirmation] = useState(false);
   const deletionLock = useRef<string | null>(null);
+  const completionLock = useRef<string | null>(null);
   const openedDeepLinkRef = useRef<string | null>(null);
 
   const submittedBy = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
@@ -58,6 +63,7 @@ export function SettingsRecommendations() {
       setIsLoadingAdmin(false);
       setOpenedRecommendation(null);
       setPendingDeletion(null);
+      setCompletionConfirmation(false);
       setDeletionConfirmation(false);
       return;
     }
@@ -139,6 +145,7 @@ export function SettingsRecommendations() {
   }
 
   async function openRecommendation(recommendation: CRMRecommendation) {
+    setCompletionConfirmation(false);
     setOpenedRecommendation(recommendation);
     if (recommendation.status === "read") return;
     setAdminError(null);
@@ -146,6 +153,7 @@ export function SettingsRecommendations() {
       const response = await fetch(`/api/recommendations/${recommendation.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "read" }),
       });
       const payload = await response.json().catch(() => null) as {
         data?: CRMRecommendation;
@@ -184,7 +192,43 @@ export function SettingsRecommendations() {
     setPendingDeletion(recommendation);
   }
 
+  async function completeRecommendation(recommendation: CRMRecommendation) {
+    if (
+      recommendation.isCompleted
+      || deletionLock.current !== null
+      || !acquireRecommendationCompletionLock(completionLock, recommendation.id)
+    ) return;
+
+    setCompletingRecommendationId(recommendation.id);
+    setCompletionConfirmation(false);
+    setAdminError(null);
+    try {
+      const response = await fetch(`/api/recommendations/${recommendation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete" }),
+      });
+      const payload = await response.json().catch(() => null) as {
+        data?: CRMRecommendation;
+      } | null;
+      if (!response.ok || !payload?.data?.isCompleted) throw new Error("Traitement impossible");
+
+      const updated = payload.data;
+      setRecommendations((current) => sortRecommendations(
+        current.map((item) => item.id === updated.id ? updated : item),
+      ));
+      setOpenedRecommendation((current) => current?.id === updated.id ? updated : current);
+      setCompletionConfirmation(true);
+    } catch {
+      setAdminError("La recommandation n’a pas pu être marquée comme faite. Réessayez.");
+    } finally {
+      releaseRecommendationCompletionLock(completionLock);
+      setCompletingRecommendationId(null);
+    }
+  }
+
   async function deleteRecommendation(recommendationId: string) {
+    if (completionLock.current !== null) return;
     if (!acquireRecommendationDeletionLock(deletionLock, recommendationId)) return;
     setDeletingRecommendationId(recommendationId);
     try {
@@ -212,7 +256,9 @@ export function SettingsRecommendations() {
     }
   }
 
-  const unreadCount = recommendations.filter((recommendation) => recommendation.status === "unread").length;
+  const unreadCount = recommendations.filter(
+    (recommendation) => recommendation.status === "unread" && !recommendation.isCompleted,
+  ).length;
 
   return (
     <section className="settings-recommendations" aria-labelledby="recommendations-title">
@@ -285,6 +331,12 @@ export function SettingsRecommendations() {
             </div>
           )}
 
+          {completionConfirmation && (
+            <div className="recommendation-completion-confirmation" role="status">
+              ✓ Recommandation marquée comme faite.
+            </div>
+          )}
+
           {adminError && (
             <div className="recommendation-admin-error" role="alert">
               <span>{adminError}</span>
@@ -298,13 +350,24 @@ export function SettingsRecommendations() {
 
           <div className="recommendation-list">
             {recommendations.map((recommendation) => (
-              <article className={`recommendation-row recommendation-row-${recommendation.status}`} key={recommendation.id}>
+              <article
+                className={`recommendation-row recommendation-row-${recommendation.status}${recommendation.isCompleted ? " recommendation-row-completed" : ""}`}
+                key={recommendation.id}
+              >
                 <span className={`recommendation-status recommendation-status-${recommendation.status}`}>
                   <i aria-hidden="true" />
                   {recommendation.status === "unread" ? "NOUVELLE" : "LUE"}
                 </span>
                 <div className="recommendation-row-summary">
-                  <h4>{recommendation.title}</h4>
+                  <div className="recommendation-row-title">
+                    <h4>{recommendation.title}</h4>
+                    {recommendation.isCompleted && (
+                      <span className="recommendation-completed-badge">
+                        <i aria-hidden="true">✓</i>
+                        FAIT
+                      </span>
+                    )}
+                  </div>
                   <dl>
                     <div><dt>Envoyé par</dt><dd>{BROKER_LABELS[recommendation.submittedBy]}</dd></div>
                     <div><dt>Date</dt><dd>{formatRecommendationDate(recommendation.createdAt)}</dd></div>
@@ -312,15 +375,36 @@ export function SettingsRecommendations() {
                 </div>
                 <div className="recommendation-row-actions">
                   <button
-                    disabled={deletingRecommendationId === recommendation.id}
+                    disabled={
+                      deletingRecommendationId === recommendation.id
+                      || completingRecommendationId === recommendation.id
+                    }
                     onClick={() => void openRecommendation(recommendation)}
                     type="button"
                   >
                     OUVRIR →
                   </button>
                   <button
+                    aria-busy={completingRecommendationId === recommendation.id}
+                    className="recommendation-row-complete"
+                    disabled={
+                      recommendation.isCompleted
+                      || deletingRecommendationId === recommendation.id
+                      || completingRecommendationId === recommendation.id
+                    }
+                    onClick={() => void completeRecommendation(recommendation)}
+                    type="button"
+                  >
+                    {completingRecommendationId === recommendation.id
+                      ? "TRAITEMENT…"
+                      : recommendation.isCompleted ? "✓ FAIT" : "FAIT"}
+                  </button>
+                  <button
                     className="recommendation-row-delete"
-                    disabled={deletingRecommendationId === recommendation.id}
+                    disabled={
+                      deletingRecommendationId === recommendation.id
+                      || completingRecommendationId === recommendation.id
+                    }
                     onClick={() => requestRecommendationDeletion(recommendation)}
                     type="button"
                   >
@@ -335,8 +419,10 @@ export function SettingsRecommendations() {
 
       {openedRecommendation && !pendingDeletion && (
         <RecommendationDetailModal
+          isCompleting={completingRecommendationId === openedRecommendation.id}
           isDeleting={deletingRecommendationId === openedRecommendation.id}
           onClose={closeRecommendationDetail}
+          onComplete={() => void completeRecommendation(openedRecommendation)}
           onDelete={() => requestRecommendationDeletion(openedRecommendation)}
           recommendation={openedRecommendation}
         />
