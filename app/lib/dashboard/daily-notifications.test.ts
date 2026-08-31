@@ -129,6 +129,7 @@ function recommendation(values: Partial<CRMRecommendation> = {}): CRMRecommendat
     status: "unread",
     isCompleted: false,
     completedAt: null,
+    completedBy: null,
     createdAt: "2026-08-10T14:42:00.000Z",
     openedAt: null,
     openedBy: null,
@@ -177,9 +178,19 @@ describe("notifications quotidiennes du dashboard", () => {
     expect(notifications({ recommendations: [recommendation({
       isCompleted: true,
       completedAt: "2026-08-20T15:00:00.000Z",
-    })] })).toEqual([]);
+      completedBy: "maxime",
+    })] })).toHaveLength(1);
     expect(notifications({ recommendations: [recommendation()], broker: "france" })).toEqual([]);
     expect(notifications({ recommendations: [recommendation()], broker: "sandrine" })).toEqual([]);
+  });
+
+  it("conserve une recommandation faite mais non lue dans les notifications", () => {
+    const results = notifications({ recommendations: [recommendation({
+      isCompleted: true,
+      completedAt: "2026-08-20T15:00:00.000Z",
+      completedBy: "maxime",
+    })] });
+    expect(results).toMatchObject([{ type: "recommendation" }]);
   });
 
   it("inclut chaque recommandation non lue dans le compteur de notifications", () => {

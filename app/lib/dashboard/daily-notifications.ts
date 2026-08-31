@@ -64,7 +64,7 @@ export function recommendationNotifications(
 ) {
   if (broker !== "maxime") return [];
   return recommendations
-    .filter((recommendation) => recommendation.status === "unread" && !recommendation.isCompleted)
+    .filter((recommendation) => recommendation.status === "unread")
     .map((recommendation): DailyNotification => ({
       id: `recommendation:${recommendation.id}`,
       type: "recommendation",

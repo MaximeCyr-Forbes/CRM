@@ -4,6 +4,7 @@ import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   deleteRecommendation,
   markRecommendationCompleted,
+  markRecommendationPending,
   markRecommendationRead,
 } from "../../../lib/recommendations/persistence";
 
@@ -24,7 +25,7 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
     return Response.json({ error: "Recommandation invalide." }, { status: 400 });
   }
 
-  let action: "read" | "complete" = "read";
+  let action: "read" | "complete" | "reopen" = "read";
   const requestBody = await request.text();
   if (requestBody.trim()) {
     try {
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
       const data = parsed as Record<string, unknown>;
       if (
         Object.keys(data).some((field) => field !== "action")
-        || (data.action !== "read" && data.action !== "complete")
+        || (data.action !== "read" && data.action !== "complete" && data.action !== "reopen")
       ) throw new Error();
       action = data.action;
     } catch {
@@ -44,7 +45,9 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
   try {
     const recommendation = action === "complete"
       ? await markRecommendationCompleted(recommendationId)
-      : await markRecommendationRead(recommendationId);
+      : action === "reopen"
+        ? await markRecommendationPending(recommendationId)
+        : await markRecommendationRead(recommendationId);
     if (!recommendation) {
       return Response.json({ error: "Recommandation introuvable." }, { status: 404 });
     }
@@ -54,14 +57,14 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
     );
   } catch (error) {
     console.error(
-      action === "complete"
+      action === "complete" || action === "reopen"
         ? "Erreur traitement recommandation CRM:"
         : "Erreur ouverture recommandation CRM:",
       error instanceof Error ? error.message : "Erreur technique inconnue",
     );
     return Response.json(
       {
-        error: action === "complete"
+        error: action === "complete" || action === "reopen"
           ? "Traitement de la recommandation impossible."
           : "Ouverture de la recommandation impossible.",
       },

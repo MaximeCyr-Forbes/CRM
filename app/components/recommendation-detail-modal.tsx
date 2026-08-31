@@ -13,14 +13,14 @@ export function RecommendationDetailModal({
   isCompleting,
   isDeleting,
   onClose,
-  onComplete,
+  onCompletionChange,
   onDelete,
 }: {
   recommendation: CRMRecommendation;
   isCompleting: boolean;
   isDeleting: boolean;
   onClose: () => void;
-  onComplete: () => void;
+  onCompletionChange: (isCompleted: boolean) => void;
   onDelete: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +67,11 @@ export function RecommendationDetailModal({
             <span aria-hidden="true">✓</span>
             <div>
               <strong>FAIT</strong>
-              <small>Cette recommandation est traitée.</small>
+              <small>
+                {recommendation.completedAt && recommendation.completedBy
+                  ? `Terminée le ${formatRecommendationDate(recommendation.completedAt)} par ${BROKER_LABELS[recommendation.completedBy]}.`
+                  : "Cette recommandation est traitée."}
+              </small>
             </div>
           </div>
         )}
@@ -97,13 +101,18 @@ export function RecommendationDetailModal({
             {isDeleting ? "Suppression…" : "Supprimer"}
           </button>
           <button
+            aria-label={recommendation.isCompleted
+              ? "Remettre cette recommandation à faire"
+              : "Marquer cette recommandation comme faite"}
             aria-busy={isCompleting}
-            className="recommendation-detail-complete"
-            disabled={recommendation.isCompleted || isCompleting || isDeleting}
-            onClick={onComplete}
+            className={recommendation.isCompleted
+              ? "recommendation-detail-reopen"
+              : "recommendation-detail-complete"}
+            disabled={isCompleting || isDeleting}
+            onClick={() => onCompletionChange(!recommendation.isCompleted)}
             type="button"
           >
-            {isCompleting ? "Traitement…" : recommendation.isCompleted ? "✓ Fait" : "Fait"}
+            {isCompleting ? "Traitement…" : recommendation.isCompleted ? "Remettre à faire" : "Fait"}
           </button>
           <button onClick={onClose} type="button">Fermer</button>
         </footer>

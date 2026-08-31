@@ -7,7 +7,7 @@ import {
 } from "../../data/recommendation-types";
 import { getSupabaseAdmin } from "../supabase/server";
 
-const recommendationColumns = "id, title, content, submitted_by, status, is_completed, completed_at, created_at, opened_at, opened_by";
+const recommendationColumns = "id, title, content, submitted_by, status, is_completed, completed_at, completed_by, created_at, opened_at, opened_by";
 
 export async function listRecommendations(): Promise<CRMRecommendation[]> {
   const { data, error } = await getSupabaseAdmin()
@@ -59,9 +59,30 @@ export async function markRecommendationCompleted(recommendationId: string): Pro
   const completedAt = new Date().toISOString();
   const { data, error } = await admin
     .from("crm_recommendations")
-    .update({ is_completed: true, completed_at: completedAt })
+    .update({ is_completed: true, completed_at: completedAt, completed_by: "maxime" })
     .eq("id", recommendationId)
     .eq("is_completed", false)
+    .select(recommendationColumns)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return mapRecommendationRow(data as CRMRecommendationRow);
+
+  const { data: existing, error: existingError } = await admin
+    .from("crm_recommendations")
+    .select(recommendationColumns)
+    .eq("id", recommendationId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  return existing ? mapRecommendationRow(existing as CRMRecommendationRow) : null;
+}
+
+export async function markRecommendationPending(recommendationId: string): Promise<CRMRecommendation | null> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("crm_recommendations")
+    .update({ is_completed: false, completed_at: null, completed_by: null })
+    .eq("id", recommendationId)
+    .eq("is_completed", true)
     .select(recommendationColumns)
     .maybeSingle();
   if (error) throw error;

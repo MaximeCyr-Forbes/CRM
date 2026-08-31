@@ -8,7 +8,9 @@ import {
   acquireRecommendationCompletionLock,
   acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
+  filterRecommendations,
   formatRecommendationDate,
+  getRecommendationCounts,
   releaseRecommendationCompletionLock,
   releaseRecommendationDeletionLock,
   releaseRecommendationSubmissionLock,
@@ -16,6 +18,7 @@ import {
   validateRecommendationText,
   type CRMRecommendation,
   type RecommendationAuthor,
+  type RecommendationFilter,
 } from "../data/recommendation-types";
 import { RecommendationDeleteConfirmationModal } from "./recommendation-delete-confirmation-modal";
 import { RecommendationDetailModal } from "./recommendation-detail-modal";
@@ -38,13 +41,14 @@ export function SettingsRecommendations() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionLock = useRef(false);
   const [recommendations, setRecommendations] = useState<CRMRecommendation[]>([]);
+  const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>("pending");
   const [isLoadingAdmin, setIsLoadingAdmin] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [reloadAdminKey, setReloadAdminKey] = useState(0);
   const [openedRecommendation, setOpenedRecommendation] = useState<CRMRecommendation | null>(null);
   const [pendingDeletion, setPendingDeletion] = useState<CRMRecommendation | null>(null);
   const [completingRecommendationId, setCompletingRecommendationId] = useState<string | null>(null);
-  const [completionConfirmation, setCompletionConfirmation] = useState(false);
+  const [completionConfirmation, setCompletionConfirmation] = useState<string | null>(null);
   const [deletingRecommendationId, setDeletingRecommendationId] = useState<string | null>(null);
   const [deletionConfirmation, setDeletionConfirmation] = useState(false);
   const deletionLock = useRef<string | null>(null);
@@ -63,7 +67,7 @@ export function SettingsRecommendations() {
       setIsLoadingAdmin(false);
       setOpenedRecommendation(null);
       setPendingDeletion(null);
-      setCompletionConfirmation(false);
+      setCompletionConfirmation(null);
       setDeletionConfirmation(false);
       return;
     }
@@ -145,7 +149,7 @@ export function SettingsRecommendations() {
   }
 
   async function openRecommendation(recommendation: CRMRecommendation) {
-    setCompletionConfirmation(false);
+    setCompletionConfirmation(null);
     setOpenedRecommendation(recommendation);
     if (recommendation.status === "read") return;
     setAdminError(null);
@@ -192,35 +196,44 @@ export function SettingsRecommendations() {
     setPendingDeletion(recommendation);
   }
 
-  async function completeRecommendation(recommendation: CRMRecommendation) {
+  async function setRecommendationCompletion(
+    recommendation: CRMRecommendation,
+    shouldBeCompleted: boolean,
+  ) {
     if (
-      recommendation.isCompleted
+      recommendation.isCompleted === shouldBeCompleted
       || deletionLock.current !== null
       || !acquireRecommendationCompletionLock(completionLock, recommendation.id)
     ) return;
 
     setCompletingRecommendationId(recommendation.id);
-    setCompletionConfirmation(false);
+    setCompletionConfirmation(null);
     setAdminError(null);
     try {
       const response = await fetch(`/api/recommendations/${recommendation.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete" }),
+        body: JSON.stringify({ action: shouldBeCompleted ? "complete" : "reopen" }),
       });
       const payload = await response.json().catch(() => null) as {
         data?: CRMRecommendation;
       } | null;
-      if (!response.ok || !payload?.data?.isCompleted) throw new Error("Traitement impossible");
+      if (!response.ok || !payload?.data || payload.data.isCompleted !== shouldBeCompleted) {
+        throw new Error("Traitement impossible");
+      }
 
       const updated = payload.data;
       setRecommendations((current) => sortRecommendations(
         current.map((item) => item.id === updated.id ? updated : item),
       ));
       setOpenedRecommendation((current) => current?.id === updated.id ? updated : current);
-      setCompletionConfirmation(true);
+      setCompletionConfirmation(shouldBeCompleted
+        ? "✓ Recommandation marquée comme faite."
+        : "Recommandation remise à faire.");
     } catch {
-      setAdminError("La recommandation n’a pas pu être marquée comme faite. Réessayez.");
+      setAdminError(shouldBeCompleted
+        ? "La recommandation n’a pas pu être marquée comme faite. Réessayez."
+        : "La recommandation n’a pas pu être remise à faire. Réessayez.");
     } finally {
       releaseRecommendationCompletionLock(completionLock);
       setCompletingRecommendationId(null);
@@ -256,9 +269,8 @@ export function SettingsRecommendations() {
     }
   }
 
-  const unreadCount = recommendations.filter(
-    (recommendation) => recommendation.status === "unread" && !recommendation.isCompleted,
-  ).length;
+  const recommendationCounts = getRecommendationCounts(recommendations);
+  const visibleRecommendations = filterRecommendations(recommendations, recommendationFilter);
 
   return (
     <section className="settings-recommendations" aria-labelledby="recommendations-title">
@@ -322,8 +334,31 @@ export function SettingsRecommendations() {
               <p className="section-kicker">Administration</p>
               <h3 id="recommendation-admin-title">RECOMMANDATIONS REÇUES</h3>
             </div>
-            <strong>{unreadCount === 0 ? "AUCUNE NON LUE" : `${unreadCount} NON LUE${unreadCount > 1 ? "S" : ""}`}</strong>
+            <strong className={recommendationCounts.pending === 0 ? "is-complete" : undefined}>
+              {recommendationCounts.pending === 0
+                ? "✓ TOUT EST TRAITÉ"
+                : `${recommendationCounts.pending} À TRAITER`}
+            </strong>
           </header>
+
+          <nav className="recommendation-filters" aria-label="Filtrer les recommandations reçues">
+            {([
+              ["pending", "À FAIRE", recommendationCounts.pending],
+              ["completed", "FAITES", recommendationCounts.completed],
+              ["all", "TOUTES", recommendationCounts.all],
+            ] as const).map(([filter, label, count]) => (
+              <button
+                aria-pressed={recommendationFilter === filter}
+                className={recommendationFilter === filter ? "is-active" : undefined}
+                key={filter}
+                onClick={() => setRecommendationFilter(filter)}
+                type="button"
+              >
+                <span>{label}</span>
+                <strong>{count}</strong>
+              </button>
+            ))}
+          </nav>
 
           {deletionConfirmation && (
             <div className="recommendation-deletion-confirmation" role="status">
@@ -333,7 +368,7 @@ export function SettingsRecommendations() {
 
           {completionConfirmation && (
             <div className="recommendation-completion-confirmation" role="status">
-              ✓ Recommandation marquée comme faite.
+              {completionConfirmation}
             </div>
           )}
 
@@ -344,12 +379,20 @@ export function SettingsRecommendations() {
             </div>
           )}
           {isLoadingAdmin && <p className="recommendation-admin-state">Chargement des recommandations...</p>}
-          {!isLoadingAdmin && recommendations.length === 0 && !adminError && (
-            <p className="recommendation-admin-state">Aucune recommandation reçue pour le moment.</p>
+          {!isLoadingAdmin && visibleRecommendations.length === 0 && !adminError && (
+            <p className="recommendation-admin-state">
+              {recommendations.length === 0
+                ? "Aucune recommandation reçue pour le moment."
+                : recommendationFilter === "pending"
+                  ? "✓ Tout est traité."
+                  : recommendationFilter === "completed"
+                    ? "Aucune recommandation faite pour le moment."
+                    : "Aucune recommandation reçue pour le moment."}
+            </p>
           )}
 
           <div className="recommendation-list">
-            {recommendations.map((recommendation) => (
+            {visibleRecommendations.map((recommendation) => (
               <article
                 className={`recommendation-row recommendation-row-${recommendation.status}${recommendation.isCompleted ? " recommendation-row-completed" : ""}`}
                 key={recommendation.id}
@@ -371,6 +414,14 @@ export function SettingsRecommendations() {
                   <dl>
                     <div><dt>Envoyé par</dt><dd>{BROKER_LABELS[recommendation.submittedBy]}</dd></div>
                     <div><dt>Date</dt><dd>{formatRecommendationDate(recommendation.createdAt)}</dd></div>
+                    {recommendation.isCompleted && recommendation.completedAt && recommendation.completedBy && (
+                      <div>
+                        <dt>Terminée</dt>
+                        <dd>
+                          {formatRecommendationDate(recommendation.completedAt)} · par {BROKER_LABELS[recommendation.completedBy]}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 </div>
                 <div className="recommendation-row-actions">
@@ -385,19 +436,23 @@ export function SettingsRecommendations() {
                     OUVRIR →
                   </button>
                   <button
+                    aria-label={recommendation.isCompleted
+                      ? "Remettre cette recommandation à faire"
+                      : "Marquer cette recommandation comme faite"}
                     aria-busy={completingRecommendationId === recommendation.id}
-                    className="recommendation-row-complete"
+                    className={recommendation.isCompleted
+                      ? "recommendation-row-reopen"
+                      : "recommendation-row-complete"}
                     disabled={
-                      recommendation.isCompleted
-                      || deletingRecommendationId === recommendation.id
+                      deletingRecommendationId === recommendation.id
                       || completingRecommendationId === recommendation.id
                     }
-                    onClick={() => void completeRecommendation(recommendation)}
+                    onClick={() => void setRecommendationCompletion(recommendation, !recommendation.isCompleted)}
                     type="button"
                   >
                     {completingRecommendationId === recommendation.id
                       ? "TRAITEMENT…"
-                      : recommendation.isCompleted ? "✓ FAIT" : "FAIT"}
+                      : recommendation.isCompleted ? "REMETTRE À FAIRE" : "FAIT"}
                   </button>
                   <button
                     className="recommendation-row-delete"
@@ -422,7 +477,7 @@ export function SettingsRecommendations() {
           isCompleting={completingRecommendationId === openedRecommendation.id}
           isDeleting={deletingRecommendationId === openedRecommendation.id}
           onClose={closeRecommendationDetail}
-          onComplete={() => void completeRecommendation(openedRecommendation)}
+          onCompletionChange={(isCompleted) => void setRecommendationCompletion(openedRecommendation, isCompleted)}
           onDelete={() => requestRecommendationDeletion(openedRecommendation)}
           recommendation={openedRecommendation}
         />

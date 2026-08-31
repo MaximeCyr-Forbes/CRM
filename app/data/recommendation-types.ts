@@ -1,9 +1,11 @@
 import { CONTACT_BROKERS, type ContactBroker } from "./contact-types";
 
 export const RECOMMENDATION_STATUSES = ["unread", "read"] as const;
+export const RECOMMENDATION_FILTERS = ["pending", "completed", "all"] as const;
 
 export type RecommendationAuthor = Exclude<ContactBroker, "unassigned">;
 export type RecommendationStatus = (typeof RECOMMENDATION_STATUSES)[number];
+export type RecommendationFilter = (typeof RECOMMENDATION_FILTERS)[number];
 
 export type CRMRecommendation = {
   id: string;
@@ -13,6 +15,7 @@ export type CRMRecommendation = {
   status: RecommendationStatus;
   isCompleted: boolean;
   completedAt: string | null;
+  completedBy: RecommendationAuthor | null;
   createdAt: string;
   openedAt: string | null;
   openedBy: RecommendationAuthor | null;
@@ -28,6 +31,7 @@ export type CRMRecommendationRow = {
   status: RecommendationStatus;
   is_completed: boolean;
   completed_at: string | null;
+  completed_by: RecommendationAuthor | null;
   created_at: string;
   opened_at: string | null;
   opened_by: RecommendationAuthor | null;
@@ -80,10 +84,14 @@ export function mapRecommendationRow(row: CRMRecommendationRow): CRMRecommendati
   if (row.opened_by !== null && !isRecommendationAuthor(row.opened_by)) {
     throw new Error("Auteur d’ouverture Supabase invalide.");
   }
+  if (row.completed_by !== null && !isRecommendationAuthor(row.completed_by)) {
+    throw new Error("Auteur de traitement Supabase invalide.");
+  }
   if (
     typeof row.is_completed !== "boolean"
     || (row.completed_at !== null && typeof row.completed_at !== "string")
-    || row.is_completed !== (row.completed_at !== null)
+    || row.is_completed !== (row.completed_at !== null && row.completed_by !== null)
+    || (!row.is_completed && (row.completed_at !== null || row.completed_by !== null))
   ) {
     throw new Error("Statut de traitement Supabase invalide.");
   }
@@ -95,6 +103,7 @@ export function mapRecommendationRow(row: CRMRecommendationRow): CRMRecommendati
     status: row.status,
     isCompleted: row.is_completed,
     completedAt: row.completed_at,
+    completedBy: row.completed_by,
     createdAt: row.created_at,
     openedAt: row.opened_at,
     openedBy: row.opened_by,
@@ -104,9 +113,32 @@ export function mapRecommendationRow(row: CRMRecommendationRow): CRMRecommendati
 export function sortRecommendations(recommendations: ReadonlyArray<CRMRecommendation>) {
   return [...recommendations].sort((first, second) => {
     if (first.isCompleted !== second.isCompleted) return first.isCompleted ? 1 : -1;
-    if (first.status !== second.status) return first.status === "unread" ? -1 : 1;
+    if (first.isCompleted && second.isCompleted) {
+      return (second.completedAt ?? second.createdAt).localeCompare(
+        first.completedAt ?? first.createdAt,
+      );
+    }
     return second.createdAt.localeCompare(first.createdAt);
   });
+}
+
+export function getRecommendationCounts(recommendations: ReadonlyArray<CRMRecommendation>) {
+  const completed = recommendations.filter((recommendation) => recommendation.isCompleted).length;
+  return {
+    pending: recommendations.length - completed,
+    completed,
+    all: recommendations.length,
+  };
+}
+
+export function filterRecommendations(
+  recommendations: ReadonlyArray<CRMRecommendation>,
+  filter: RecommendationFilter,
+) {
+  const sorted = sortRecommendations(recommendations);
+  if (filter === "pending") return sorted.filter((recommendation) => !recommendation.isCompleted);
+  if (filter === "completed") return sorted.filter((recommendation) => recommendation.isCompleted);
+  return sorted;
 }
 
 export function formatRecommendationDate(value: string) {

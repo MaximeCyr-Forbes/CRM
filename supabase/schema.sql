@@ -1085,6 +1085,7 @@ create table if not exists public.crm_recommendations (
   status text not null default 'unread',
   is_completed boolean not null default false,
   completed_at timestamptz,
+  completed_by public.broker_assignment,
   created_at timestamptz not null default now(),
   opened_at timestamptz,
   opened_by public.broker_assignment,
@@ -1097,7 +1098,10 @@ create table if not exists public.crm_recommendations (
   constraint crm_recommendations_status_check
     check (status = any (array['unread', 'read'])),
   constraint crm_recommendations_completion_check
-    check (is_completed = (completed_at is not null)),
+    check (
+      (is_completed and completed_at is not null and completed_by is not null and completed_by <> 'unassigned')
+      or (not is_completed and completed_at is null and completed_by is null)
+    ),
   constraint crm_recommendations_opened_by_check
     check (opened_by is null or opened_by <> 'unassigned')
 );

@@ -31,7 +31,8 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain('selectedBroker === "Maxime"');
     expect(component).toContain("TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur");
     expect(component).toContain("RECOMMANDATIONS REÇUES");
-    expect(component).toContain("AUCUNE NON LUE");
+    expect(component).toContain("À TRAITER");
+    expect(component).toContain("✓ TOUT EST TRAITÉ");
     expect(component).toContain("NOUVELLE");
     expect(component).toContain("LUE");
   });
@@ -106,6 +107,11 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain("deletingRecommendationId");
     expect(component).toContain("SUPPRESSION…");
     expect(component).toContain('recommendation.status === "unread"');
+    expect(component).toContain("getRecommendationCounts(recommendations)");
+    expect(component).toContain("filterRecommendations(recommendations, recommendationFilter)");
+    expect(component).toContain('["pending", "À FAIRE", recommendationCounts.pending]');
+    expect(component).toContain('["completed", "FAITES", recommendationCounts.completed]');
+    expect(component).toContain('["all", "TOUTES", recommendationCounts.all]');
     expect(component).toContain('selectedBroker === "Maxime"');
     expect(component).toContain("✓ Recommandation supprimée.");
     expect(component).toContain("La recommandation n’a pas pu être supprimée. Réessayez.");
@@ -114,15 +120,18 @@ describe("interface des recommandations dans Paramètres", () => {
   it("permet de marquer une recommandation faite depuis la liste et la modale sans double appel", () => {
     const component = source("app/components/settings-recommendations.tsx");
     const detail = source("app/components/recommendation-detail-modal.tsx");
-    expect(component).toContain('body: JSON.stringify({ action: "complete" })');
+    expect(component).toContain('body: JSON.stringify({ action: shouldBeCompleted ? "complete" : "reopen" })');
     expect(component).toContain("acquireRecommendationCompletionLock");
     expect(component).toContain("releaseRecommendationCompletionLock");
     expect(component).toContain("recommendation-row-complete");
     expect(component).toContain("recommendation-completed-badge");
     expect(component).toContain("✓ Recommandation marquée comme faite.");
+    expect(component).toContain("REMETTRE À FAIRE");
+    expect(component).toContain("Remettre cette recommandation à faire");
+    expect(component).toContain("Marquer cette recommandation comme faite");
     expect(detail).toContain("recommendation-detail-completed");
     expect(detail).toContain("recommendation-detail-complete");
-    expect(detail).toContain("Cette recommandation est traitée.");
+    expect(detail).toContain("completedBy");
   });
 
   it("garde lecture et traitement séparés et place les recommandations faites après les autres", () => {
@@ -130,8 +139,10 @@ describe("interface des recommandations dans Paramètres", () => {
     const notifications = source("app/lib/dashboard/daily-notifications.ts");
     expect(types).toContain("isCompleted: boolean");
     expect(types).toContain("completedAt: string | null");
+    expect(types).toContain("completedBy: RecommendationAuthor | null");
     expect(types).toContain("if (first.isCompleted !== second.isCompleted) return first.isCompleted ? 1 : -1;");
-    expect(notifications).toContain('recommendation.status === "unread" && !recommendation.isCompleted');
+    expect(notifications).toContain('recommendation.status === "unread"');
+    expect(notifications).not.toContain("!recommendation.isCompleted");
   });
 
   it("ouvre automatiquement une recommandation ciblée par le lien du Dashboard", () => {
@@ -160,14 +171,17 @@ describe("interface des recommandations dans Paramètres", () => {
   it("persiste le traitement de façon idempotente dans Supabase", () => {
     const persistence = source("app/lib/recommendations/persistence.ts");
     expect(persistence).toContain("export async function markRecommendationCompleted");
-    expect(persistence).toContain(".update({ is_completed: true, completed_at: completedAt })");
+    expect(persistence).toContain('.update({ is_completed: true, completed_at: completedAt, completed_by: "maxime" })');
     expect(persistence).toContain('.eq("is_completed", false)');
+    expect(persistence).toContain("export async function markRecommendationPending");
+    expect(persistence).toContain(".update({ is_completed: false, completed_at: null, completed_by: null })");
   });
 
-  it("ajoute les colonnes de traitement par migration additive", () => {
-    const migration = source("supabase/migrations/20260831123000_add_recommendation_completion.sql");
+  it("ajoute les colonnes de traitement et l’auteur par migration additive", () => {
+    const migration = source("supabase/migrations/20260831143000_add_recommendation_completed_by.sql");
     expect(migration).toContain("add column if not exists is_completed boolean not null default false");
     expect(migration).toContain("add column if not exists completed_at timestamptz");
+    expect(migration).toContain("add column if not exists completed_by public.broker_assignment");
     expect(migration).toContain("crm_recommendations_completion_check");
     expect(migration).not.toMatch(/delete\s+from|truncate\s+table|drop\s+table/i);
   });

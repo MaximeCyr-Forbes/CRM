@@ -4,6 +4,8 @@ import {
   acquireRecommendationDeletionLock,
   acquireRecommendationSubmissionLock,
   formatRecommendationDate,
+  filterRecommendations,
+  getRecommendationCounts,
   mapRecommendationRow,
   parseRecommendationDraft,
   releaseRecommendationCompletionLock,
@@ -22,6 +24,7 @@ const unread: CRMRecommendation = {
   status: "unread",
   isCompleted: false,
   completedAt: null,
+  completedBy: null,
   createdAt: "2026-08-20T18:00:00.000Z",
   openedAt: null,
   openedBy: null,
@@ -63,13 +66,14 @@ describe("types et validation des recommandations", () => {
       status: "unread",
       is_completed: false,
       completed_at: null,
+      completed_by: null,
       created_at: unread.createdAt,
       opened_at: null,
       opened_by: null,
     })).toEqual(unread);
   });
 
-  it("trie les recommandations à traiter avant les faites, puis les non lues avant les lues", () => {
+  it("trie les recommandations à traiter par création puis les faites par date de traitement", () => {
     const read = { ...unread, id: "read", status: "read" as const, createdAt: "2026-08-21T20:00:00.000Z" };
     const newerUnread = { ...unread, id: "newer", createdAt: "2026-08-21T19:00:00.000Z" };
     const completed = {
@@ -77,14 +81,31 @@ describe("types et validation des recommandations", () => {
       id: "completed",
       isCompleted: true,
       completedAt: "2026-08-22T12:00:00.000Z",
+      completedBy: "maxime" as const,
       createdAt: "2026-08-22T11:00:00.000Z",
     };
     expect(sortRecommendations([completed, read, unread, newerUnread]).map((item) => item.id)).toEqual([
+      "read",
       "newer",
       unread.id,
-      "read",
       "completed",
     ]);
+  });
+
+  it("compte et filtre 4 recommandations à faire et 3 faites", () => {
+    const recommendations = Array.from({ length: 7 }, (_, index): CRMRecommendation => ({
+      ...unread,
+      id: `recommendation-${index}`,
+      isCompleted: index >= 4,
+      completedAt: index >= 4 ? `2026-08-2${index}T12:00:00.000Z` : null,
+      completedBy: index >= 4 ? "maxime" : null,
+      createdAt: `2026-08-1${index}T12:00:00.000Z`,
+    }));
+
+    expect(getRecommendationCounts(recommendations)).toEqual({ pending: 4, completed: 3, all: 7 });
+    expect(filterRecommendations(recommendations, "pending")).toHaveLength(4);
+    expect(filterRecommendations(recommendations, "completed")).toHaveLength(3);
+    expect(filterRecommendations(recommendations, "all")).toHaveLength(7);
   });
 
   it("formate les dates en français et à l’heure de Montréal", () => {

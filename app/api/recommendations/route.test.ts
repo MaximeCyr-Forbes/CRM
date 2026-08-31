@@ -31,6 +31,7 @@ vi.mock("../../lib/recommendations/persistence", () => ({
       status: "unread",
       isCompleted: false,
       completedAt: null,
+      completedBy: null,
       createdAt: "2026-08-21T18:25:00.000Z",
       openedAt: null,
       openedBy: null,
@@ -59,6 +60,21 @@ vi.mock("../../lib/recommendations/persistence", () => ({
           ...recommendation,
           isCompleted: true,
           completedAt: "2026-08-21T18:35:00.000Z",
+          completedBy: "maxime",
+        };
+    state.recommendations = state.recommendations.map((item) => item.id === updated.id ? updated : item);
+    return updated;
+  }),
+  markRecommendationPending: vi.fn(async (recommendationId: string) => {
+    const recommendation = state.recommendations.find((item) => item.id === recommendationId);
+    if (!recommendation) return null;
+    const updated: CRMRecommendation = !recommendation.isCompleted
+      ? recommendation
+      : {
+          ...recommendation,
+          isCompleted: false,
+          completedAt: null,
+          completedBy: null,
         };
     state.recommendations = state.recommendations.map((item) => item.id === updated.id ? updated : item);
     return updated;
@@ -95,7 +111,7 @@ function remove(id: string) {
   );
 }
 
-function patch(id: string, action?: "read" | "complete" | "invalid") {
+function patch(id: string, action?: "read" | "complete" | "reopen" | "invalid") {
   return PATCH(
     new Request(`http://localhost/api/recommendations/${id}`, {
       method: "PATCH",
@@ -184,10 +200,43 @@ describe("API recommandations", () => {
     const secondPayload = await secondResponse.json() as { data: CRMRecommendation };
 
     expect(firstResponse.status).toBe(200);
-    expect(firstPayload.data).toMatchObject({ isCompleted: true });
+    expect(firstPayload.data).toMatchObject({
+      status: "unread",
+      isCompleted: true,
+      completedBy: "maxime",
+    });
     expect(firstPayload.data.completedAt).not.toBeNull();
     expect(secondResponse.status).toBe(200);
     expect(secondPayload.data.completedAt).toBe(firstPayload.data.completedAt);
+  });
+
+  it("marque ensuite comme lue une recommandation déjà faite sans retirer son traitement", async () => {
+    await post({ title: "Titre", content: "Texte", submittedBy: "france" });
+    await patch(recommendationId, "complete");
+    const response = await patch(recommendationId, "read");
+    const payload = await response.json() as { data: CRMRecommendation };
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      status: "read",
+      isCompleted: true,
+      completedBy: "maxime",
+    });
+  });
+
+  it("remet une recommandation à faire sans modifier son statut de lecture", async () => {
+    await post({ title: "Titre", content: "Texte", submittedBy: "sandrine" });
+    await patch(recommendationId, "complete");
+    const response = await patch(recommendationId, "reopen");
+    const payload = await response.json() as { data: CRMRecommendation };
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      status: "unread",
+      isCompleted: false,
+      completedAt: null,
+      completedBy: null,
+    });
   });
 
   it("refuse une action PATCH inconnue", async () => {

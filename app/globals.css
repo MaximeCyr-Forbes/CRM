@@ -1591,6 +1591,58 @@ button:disabled {
   white-space: nowrap;
 }
 
+.recommendation-admin-header > strong.is-complete {
+  color: #436249;
+}
+
+.recommendation-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.recommendation-filters button {
+  display: inline-flex;
+  min-height: 2.65rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.62rem 0.85rem;
+  color: var(--ink-soft);
+  background: rgba(255, 253, 248, 0.72);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.075em;
+}
+
+.recommendation-filters button strong {
+  display: grid;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  padding: 0 0.35rem;
+  color: inherit;
+  background: rgba(19, 35, 59, 0.07);
+  border-radius: 999px;
+  font-size: 0.62rem;
+}
+
+.recommendation-filters button:hover,
+.recommendation-filters button:focus-visible,
+.recommendation-filters button.is-active {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.recommendation-filters button.is-active strong {
+  background: rgba(255, 255, 255, 0.17);
+}
+
 .recommendation-list {
   display: grid;
   gap: 0.65rem;
@@ -1755,6 +1807,17 @@ button:disabled {
   color: #436249;
   background: rgba(88, 114, 89, 0.09);
   border-color: rgba(67, 98, 73, 0.24);
+}
+
+.recommendation-row-actions .recommendation-row-reopen {
+  color: var(--ink-soft);
+  border-color: rgba(19, 35, 59, 0.25);
+}
+
+.recommendation-row-actions .recommendation-row-reopen:hover:not(:disabled) {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .recommendation-row-actions .recommendation-row-delete:hover:not(:disabled) {
@@ -1949,6 +2012,18 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.recommendation-detail-actions .recommendation-detail-reopen {
+  color: var(--ink);
+  background: transparent;
+  border-color: rgba(19, 35, 59, 0.28);
+}
+
+.recommendation-detail-actions .recommendation-detail-reopen:hover:not(:disabled) {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
 .recommendation-delete-backdrop {
   z-index: 170;
 }
@@ -1979,7 +2054,7 @@ button:disabled {
 
   .recommendation-row-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .recommendation-row-actions button {
