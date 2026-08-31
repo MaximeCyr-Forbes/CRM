@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 :root {
+  /*
+   * TYPOGRAPHIE DE MARQUE FORBES CRM
+   * Inter est bundlée avec l’application afin de garantir un rendu identique
+   * sur Windows, Mac, Chrome, Safari et PWA.
+   * Ne pas remplacer par system-ui.
+   */
+  --font-sans: "Inter Variable", "Inter", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
   --ink: #13233b;
   --ink-soft: #536072;
   --cream: #f6f3eb;
@@ -47,7 +55,7 @@
 
 .listing-tracking-panel h3 {
   margin: 0.25rem 0 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
   letter-spacing: -0.035em;
@@ -55,7 +63,7 @@
 
 .listing-tracking-panel > header > strong {
   color: #8c7343;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.25rem;
   font-weight: 400;
 }
@@ -196,7 +204,7 @@
 
 .listing-documents-toggle > strong {
   color: #8c7343;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.95rem;
   font-weight: 400;
   white-space: nowrap;
@@ -332,7 +340,7 @@
   color: var(--ink);
   background: var(--paper);
   border-left: 1px solid var(--gold);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.84rem;
   line-height: 1.55;
 }
@@ -340,12 +348,12 @@
 .listing-offer-summary { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0.8rem 0; border: 1px solid var(--line); }
 .listing-offer-summary article { display: grid; gap: 0.18rem; padding: 0.7rem; text-align: center; }
 .listing-offer-summary article + article { border-left: 1px solid var(--line); }
-.listing-offer-summary strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
+.listing-offer-summary strong { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 400; }
 .listing-offer-summary span { color: var(--ink-soft); font-size: 0.52rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .purchase-agreement-import { display: grid; gap: 0.8rem; margin: 0.9rem 0; padding: 0.9rem; background: rgba(198, 168, 103, 0.07); border: 1px solid rgba(198, 168, 103, 0.3); }
 .purchase-agreement-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
 .purchase-agreement-heading > div { display: grid; gap: 0.18rem; }
-.purchase-agreement-heading h4 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; }
+.purchase-agreement-heading h4 { margin: 0; font-family: var(--font-serif); font-size: 1rem; font-weight: 400; }
 .purchase-agreement-heading p { max-width: 28rem; margin: 0; color: var(--ink-soft); font-size: 0.68rem; line-height: 1.45; }
 .purchase-agreement-preview { display: grid; gap: 0.75rem; padding: 0.9rem; background: #fff; border: 1px solid var(--line); }
 .purchase-agreement-preview > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
@@ -358,7 +366,7 @@
 .purchase-agreement-summary > div:nth-child(even) { border-left: 1px solid var(--line); }
 .purchase-agreement-summary > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
 .purchase-agreement-summary dt { color: var(--ink-soft); font-size: 0.54rem; font-weight: 850; letter-spacing: 0.07em; }
-.purchase-agreement-summary dd { display: grid; gap: 0.15rem; margin: 0; overflow-wrap: anywhere; font-family: Georgia, "Times New Roman", serif; font-size: 0.88rem; line-height: 1.4; }
+.purchase-agreement-summary dd { display: grid; gap: 0.15rem; margin: 0; overflow-wrap: anywhere; font-family: var(--font-serif); font-size: 0.88rem; line-height: 1.4; }
 .purchase-agreement-match { margin: 0; padding: 0.65rem 0.75rem; color: #3f6145; background: #e8f0ed; border: 1px solid #c5d9d2; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.06em; }
 .purchase-agreement-warning { margin: 0; padding: 0.75rem; color: #705c2f; background: #f3ead3; border: 1px solid #dfcea2; font-size: 0.68rem; line-height: 1.5; }
 .purchase-agreement-warning.is-blocking { color: #653c35; background: #fbefec; border-color: #d8b9b2; }
@@ -385,19 +393,19 @@
 .listing-offer-list > article > header > div { display: flex; align-items: center; gap: 0.4rem; }
 .listing-offer-list > article > header > div:last-child button { display: grid; width: 2rem; height: 2rem; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); cursor: pointer; }
 .listing-offer-list > article > header > div:last-child .listing-task-delete { color: #934c45; }
-.listing-offer-list > article > header strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.08rem; font-weight: 400; }
+.listing-offer-list > article > header strong { font-family: var(--font-serif); font-size: 1.08rem; font-weight: 400; }
 .listing-offer-status { padding: 0.25rem 0.4rem; border-radius: 999px; font-size: 0.5rem !important; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; }
 .listing-offer-status-accepted { color: #3f5b55 !important; background: #e0ebe7; }
 .listing-offer-status-rejected, .listing-offer-status-withdrawn, .listing-offer-status-expired { color: #934c45 !important; background: #f4dcd8; }
 .listing-offer-status-negotiating, .listing-offer-status-countered { color: #705c2f !important; background: #f3ead3; }
 .listing-offer-list p { margin: 0.65rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
 .listing-offer-list p span { display: block; margin-bottom: 0.18rem; color: rgba(19, 35, 59, 0.45); font-size: 0.51rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
-.listing-offer-list blockquote { margin: 0.7rem 0 0; padding: 0.7rem; background: var(--paper); border-left: 1px solid var(--gold); font-family: Georgia, "Times New Roman", serif; font-size: 0.82rem; line-height: 1.5; }
+.listing-offer-list blockquote { margin: 0.7rem 0 0; padding: 0.7rem; background: var(--paper); border-left: 1px solid var(--gold); font-family: var(--font-serif); font-size: 0.82rem; line-height: 1.5; }
 .listing-create-transaction { width: 100%; min-height: 2.8rem; margin-top: 0.8rem; color: var(--paper); background: var(--ink); border: 0; cursor: pointer; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.06em; }
 .listing-rental-accepted, .listing-offer-linked { display: inline-flex; margin-top: 0.75rem; color: #3f5b55; font-size: 0.55rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .listing-linked-transaction { display: grid; gap: 0.35rem; margin-bottom: 0.8rem; padding: 0.85rem; color: #3f5b55; background: #e8f0ed; border: 1px solid #c5d9d2; }
 .listing-linked-transaction > span { font-size: 0.55rem; font-weight: 850; letter-spacing: 0.07em; }
-.listing-linked-transaction > strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; font-weight: 400; }
+.listing-linked-transaction > strong { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 400; }
 .listing-linked-transaction > small { color: #536b65; }
 .listing-linked-transaction > button { justify-self: start; margin-top: 0.3rem; padding: 0; color: #3f5b55; background: transparent; border: 0; cursor: pointer; font-size: 0.58rem; font-weight: 850; text-transform: uppercase; }
 
@@ -434,7 +442,7 @@
 }
 
 .listing-price-history strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   font-weight: 400;
 }
@@ -656,13 +664,13 @@
 /* Tableau de bord et rapport Listings */
 .listing-overview { margin-bottom: 1rem; padding: 1.1rem; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); }
 .listing-overview-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
-.listing-overview-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.55rem, 3vw, 2.2rem); font-weight: 400; }
+.listing-overview-heading h2 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.55rem, 3vw, 2.2rem); font-weight: 400; }
 .listing-overview-heading > span { color: #8c7343; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
 .listing-overview-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); }
 .listing-overview-stats article { display: grid; min-height: 6.6rem; align-content: center; gap: 0.5rem; padding: 0.85rem; }
 .listing-overview-stats article + article { border-left: 1px solid var(--line); }
 .listing-overview-stats span { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
-.listing-overview-stats strong { overflow-wrap: anywhere; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1rem, 1.6vw, 1.3rem); font-weight: 400; }
+.listing-overview-stats strong { overflow-wrap: anywhere; font-family: var(--font-serif); font-size: clamp(1rem, 1.6vw, 1.3rem); font-weight: 400; }
 .listing-overview-stat-accent { background: rgba(198, 168, 103, 0.1); }
 .listing-overview-stat-muted { opacity: 0.42; }
 .listing-overview-error { display: flex; min-height: 5rem; align-items: center; justify-content: space-between; gap: 1rem; color: #934c45; }
@@ -671,11 +679,11 @@
 .listing-overview-panels > section { min-width: 0; padding: 0.9rem; background: rgba(246, 243, 235, 0.42); border: 1px solid var(--line); }
 .listing-overview-panels > section > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--line); }
 .listing-overview-panels > section > header span { color: var(--ink-soft); font-size: 0.5rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
-.listing-overview-panels h3 { margin: 0.2rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
-.listing-overview-panels > section > header > strong { color: #8c7343; font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; font-weight: 400; }
+.listing-overview-panels h3 { margin: 0.2rem 0 0; font-family: var(--font-serif); font-size: 1.15rem; font-weight: 400; }
+.listing-overview-panels > section > header > strong { color: #8c7343; font-family: var(--font-serif); font-size: 1.1rem; font-weight: 400; }
 .listing-attention-list, .listing-renewal-list { display: grid; max-height: 23rem; overflow-y: auto; }
 .listing-attention-list > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.35rem 0.65rem; padding: 0.75rem 0; color: var(--ink); text-align: left; background: transparent; border: 0; border-bottom: 1px solid rgba(19, 35, 59, 0.08); cursor: pointer; }
-.listing-attention-list > button strong, .listing-renewal-list article strong { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 0.86rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.listing-attention-list > button strong, .listing-renewal-list article strong { overflow: hidden; font-family: var(--font-serif); font-size: 0.86rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .listing-attention-list > button small { grid-column: 2; color: var(--ink-soft); font-size: 0.58rem; }
 .listing-attention-list > button b { grid-column: 3; grid-row: 1 / 3; color: #8c7343; font-size: 0.52rem; text-transform: uppercase; }
 .listing-attention-level { display: inline-flex; align-items: center; justify-content: center; padding: 0.25rem 0.4rem; border-radius: 999px; font-size: 0.46rem !important; font-weight: 850; letter-spacing: 0.05em; white-space: nowrap; }
@@ -696,13 +704,13 @@
 
 .listing-market-snapshot { margin-top: 1rem; padding: 1rem; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); }
 .listing-market-snapshot > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--line); }
-.listing-market-snapshot h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.5rem; font-weight: 400; }
+.listing-market-snapshot h2 { margin: 0; font-family: var(--font-serif); font-size: 1.5rem; font-weight: 400; }
 .listing-market-snapshot > header button, .listing-market-snapshot-error button { color: #8c7343; background: transparent; border: 0; cursor: pointer; font-size: 0.56rem; font-weight: 850; letter-spacing: 0.05em; }
 .listing-market-snapshot > div { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .listing-market-snapshot article { display: grid; min-height: 5.7rem; align-content: center; gap: 0.4rem; padding: 0.75rem; }
 .listing-market-snapshot article + article { border-left: 1px solid var(--line); }
 .listing-market-snapshot article span { color: var(--ink-soft); font-size: 0.5rem; font-weight: 850; text-transform: uppercase; }
-.listing-market-snapshot article strong { font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; font-weight: 400; }
+.listing-market-snapshot article strong { font-family: var(--font-serif); font-size: 0.95rem; font-weight: 400; }
 .listing-market-snapshot-loading, .listing-market-snapshot-error { display: flex; min-height: 5rem; align-items: center; justify-content: space-between; color: var(--ink-soft); font-size: 0.7rem; }
 .listing-detail-actions .listing-report-button { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 
@@ -718,37 +726,37 @@
 .listing-report-header img { width: 100%; height: auto; }
 .listing-report-header > div { display: grid; gap: 0.45rem; }
 .listing-report-header p { margin: 0; color: #8c7343; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.14em; }
-.listing-report-header h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 400; letter-spacing: -0.05em; }
-.listing-report-header strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 400; }
+.listing-report-header h1 { margin: 0; font-family: var(--font-serif); font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 400; letter-spacing: -0.05em; }
+.listing-report-header strong { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 400; }
 .listing-report-header span { color: var(--ink-soft); font-size: 0.65rem; }
 .listing-report-section { padding: 2rem 0; border-bottom: 1px solid var(--line); }
 .listing-report-section-title { display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 1.2rem; }
-.listing-report-section-title span { color: var(--gold); font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; }
-.listing-report-section-title h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; letter-spacing: -0.025em; }
+.listing-report-section-title span { color: var(--gold); font-family: var(--font-serif); font-size: 0.95rem; }
+.listing-report-section-title h2 { margin: 0; font-family: var(--font-serif); font-size: 1.45rem; font-weight: 400; letter-spacing: -0.025em; }
 .listing-report-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; border: 1px solid var(--line); }
 .listing-report-facts div { display: grid; gap: 0.3rem; padding: 0.85rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .listing-report-facts dt { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
-.listing-report-facts dd { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 0.88rem; }
+.listing-report-facts dd { margin: 0; font-family: var(--font-serif); font-size: 0.88rem; }
 .listing-report-owners { display: grid; gap: 0.3rem; margin-top: 0.8rem; padding: 0.8rem; background: rgba(198, 168, 103, 0.08); }
 .listing-report-owners span { color: #8c7343; font-size: 0.52rem; font-weight: 850; text-transform: uppercase; }
-.listing-report-owners strong { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; }
+.listing-report-owners strong { font-family: var(--font-serif); font-size: 1rem; font-weight: 400; }
 .listing-report-performance { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
 .listing-report-performance article { display: grid; gap: 0.35rem; padding: 1rem; text-align: center; }
 .listing-report-performance article + article { border-left: 1px solid var(--line); }
-.listing-report-performance strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.55rem; font-weight: 400; }
+.listing-report-performance strong { font-family: var(--font-serif); font-size: 1.55rem; font-weight: 400; }
 .listing-report-performance span { color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; text-transform: uppercase; }
 .listing-report-interest-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.8rem; color: var(--ink-soft); font-size: 0.65rem; }
 .listing-report-interest-summary strong { color: var(--ink); }
 .listing-report-list, .listing-report-offers, .listing-report-price-history { display: grid; gap: 0.55rem; }
 .listing-report-list article { padding: 0.9rem; background: #faf9f6; border-left: 2px solid var(--gold); break-inside: avoid; }
 .listing-report-list time, .listing-report-offers time, .listing-report-price-history time { color: var(--ink-soft); font-size: 0.58rem; }
-.listing-report-list p { margin: 0.55rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 0.9rem; line-height: 1.55; }
+.listing-report-list p { margin: 0.55rem 0 0; font-family: var(--font-serif); font-size: 0.9rem; line-height: 1.55; }
 .listing-report-interest { display: inline-flex; margin-left: 0.6rem; padding: 0.25rem 0.4rem; border-radius: 999px; font-size: 0.5rem; letter-spacing: 0.05em; }
 .listing-report-interest-high { color: #6f302b; background: #f4dcd8; }
 .listing-report-interest-medium { color: #705c2f; background: #f3ead3; }
 .listing-report-interest-low { color: #3f5b55; background: #e0ebe7; }
 .listing-report-offers article, .listing-report-price-history article { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 0.8rem; padding: 0.75rem; background: #faf9f6; break-inside: avoid; }
-.listing-report-offers article strong, .listing-report-price-history article strong { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; }
+.listing-report-offers article strong, .listing-report-price-history article strong { font-family: var(--font-serif); font-size: 1rem; font-weight: 400; }
 .listing-report-offers article span { color: #8c7343; font-size: 0.56rem; font-weight: 850; text-transform: uppercase; }
 .listing-report-price-difference { margin: 0.8rem 0 0; color: #8c7343; font-size: 0.68rem; font-weight: 800; }
 .listing-report-actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -803,11 +811,17 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--cream);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
 }
 
 button {
   font: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .data-status {
@@ -910,7 +924,7 @@ button:disabled {
 
 .brand-lockup h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 0.92;
@@ -931,7 +945,7 @@ button:disabled {
 .brand-lockup h1 strong {
   margin-top: 0.55rem;
   color: var(--gold);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: clamp(0.95rem, 2vw, 1.25rem);
   font-weight: 700;
   letter-spacing: 0.52em;
@@ -1012,7 +1026,7 @@ button:disabled {
 }
 
 .card-name {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.55rem, 3vw, 2.2rem);
   letter-spacing: -0.035em;
 }
@@ -1108,7 +1122,7 @@ button:disabled {
 
 .dashboard-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2rem, 4vw, 3.35rem);
   font-weight: 400;
   letter-spacing: -0.045em;
@@ -1241,7 +1255,7 @@ button:disabled {
 
 .settings-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.7rem, 7vw, 5.25rem);
   font-weight: 400;
   letter-spacing: -0.055em;
@@ -1353,7 +1367,7 @@ button:disabled {
 }
 
 .calendar-connection-card h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
 }
@@ -1417,7 +1431,7 @@ button:disabled {
 
 .settings-recommendations-heading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.25rem, 6vw, 4.5rem);
   font-weight: 400;
   letter-spacing: -0.05em;
@@ -1564,7 +1578,7 @@ button:disabled {
 
 .recommendation-admin-header h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.7rem, 4vw, 2.8rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -1629,7 +1643,7 @@ button:disabled {
 .recommendation-row h4 {
   margin: 0;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.12rem;
   font-weight: 400;
 }
@@ -1749,7 +1763,7 @@ button:disabled {
 .recommendation-detail-header h2 {
   margin: 0;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.65rem, 5vw, 2.75rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -1914,7 +1928,7 @@ button:disabled {
 .section-heading h2,
 .follow-ups-heading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.65rem, 3vw, 2.4rem);
   font-weight: 400;
   letter-spacing: -0.035em;
@@ -1988,7 +2002,7 @@ button:disabled {
 
 .metric-value {
   margin: auto 0 0.75rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.8rem, 5vw, 4rem);
   letter-spacing: -0.07em;
   line-height: 0.8;
@@ -2020,7 +2034,7 @@ button:disabled {
 }
 
 .follow-ups-heading h2 {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: clamp(1.25rem, 2.5vw, 1.7rem);
   font-weight: 750;
   letter-spacing: 0.04em;
@@ -2118,7 +2132,7 @@ button:disabled {
   background: var(--ink);
   border: 1px solid var(--ink);
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
 }
 
@@ -2169,7 +2183,7 @@ button:disabled {
 
 .daily-notification-main strong {
   overflow: hidden;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -2216,7 +2230,7 @@ button:disabled {
   border-radius: 50%;
 }
 
-.daily-notifications-empty strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 500; }
+.daily-notifications-empty strong { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 500; }
 .daily-notifications-empty p { margin: 0.4rem 0 0; color: var(--ink-soft); font-size: 0.7rem; }
 
 .daily-notifications-data-warning {
@@ -2256,7 +2270,7 @@ button:disabled {
   background: rgba(198, 168, 103, 0.13);
   border: 1px solid rgba(198, 168, 103, 0.25);
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.76rem;
 }
 
@@ -2266,7 +2280,7 @@ button:disabled {
 
 .client-name-block h3 {
   margin: 0 0 0.25rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.08rem;
   font-weight: 400;
 }
@@ -2423,7 +2437,7 @@ button:disabled {
 
 .follow-ups-empty p {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
 }
 
@@ -2531,7 +2545,7 @@ button:disabled {
   border: 1px solid rgba(198, 168, 103, 0.42);
   border-radius: 50%;
   box-shadow: 0 1.4rem 3rem rgba(19, 35, 59, 0.06);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.1rem, 2vw, 1.5rem);
 }
 
@@ -2541,7 +2555,7 @@ button:disabled {
 
 .profile-title h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.45rem, 6vw, 5.25rem);
   font-weight: 400;
   letter-spacing: -0.055em;
@@ -2733,7 +2747,7 @@ button:disabled {
 }
 
 .profile-address-group address strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.05rem;
   font-weight: 400;
 }
@@ -2758,7 +2772,7 @@ button:disabled {
 
 .info-group strong {
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.05rem, 2vw, 1.28rem);
   font-weight: 400;
   line-height: 1.35;
@@ -2875,7 +2889,7 @@ button:disabled {
   max-width: 52rem;
   margin: 0;
   color: var(--ink-soft);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1rem, 2vw, 1.15rem);
   line-height: 1.55;
 }
@@ -2915,7 +2929,7 @@ button:disabled {
 
 .follow-up-modal-header h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.65rem, 4vw, 2.5rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -2932,7 +2946,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 50%;
   cursor: pointer;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   transition: color 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
@@ -3124,7 +3138,7 @@ button:disabled {
   color: var(--gold);
   border: 1px solid rgba(198, 168, 103, 0.5);
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.72rem;
 }
 
@@ -3177,7 +3191,7 @@ button:disabled {
 
 .contacts-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(3.2rem, 8vw, 6.6rem);
   font-weight: 400;
   letter-spacing: -0.06em;
@@ -3247,7 +3261,7 @@ button:disabled {
   color: var(--paper);
   background: #a8544c;
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.25rem;
 }
 
@@ -3512,7 +3526,7 @@ button:disabled {
   padding: 0.7rem 0.8rem;
   background: var(--cream);
   border: 1px solid var(--line);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
 }
 
 .contact-bulk-delete-more,
@@ -3554,14 +3568,14 @@ button:disabled {
   background: rgba(198, 168, 103, 0.12);
   border: 1px solid rgba(198, 168, 103, 0.25);
   border-radius: 50%;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.73rem;
 }
 
 .contact-main-cell h2 {
   margin: 0 0 0.25rem;
   overflow: hidden;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.05rem;
   font-weight: 400;
   text-overflow: ellipsis;
@@ -3681,7 +3695,7 @@ button:disabled {
 .contacts-empty h2 {
   margin: 0 0 0.45rem;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.4rem;
   font-weight: 400;
 }
@@ -3734,7 +3748,7 @@ button:disabled {
 
 .contact-modal-header h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.55rem, 4vw, 2.35rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -3751,7 +3765,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 50%;
   cursor: pointer;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
 }
 
@@ -3820,7 +3834,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 0.2rem;
   cursor: pointer;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.25rem;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
@@ -3835,7 +3849,7 @@ button:disabled {
 .broker-choice-grid button span:last-child {
   align-self: flex-end;
   color: var(--gold);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .import-drop-zone {
@@ -3869,7 +3883,7 @@ button:disabled {
 
 .import-drop-zone h3 {
   margin: 0 0 0.5rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
 }
@@ -3938,7 +3952,7 @@ button:disabled {
 
 .import-review-header h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.5rem, 6vw, 4.8rem);
   font-weight: 400;
   letter-spacing: -0.055em;
@@ -4084,7 +4098,7 @@ button:disabled {
 .imported-contact-identity h3 {
   margin: 0;
   overflow: hidden;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   font-weight: 400;
   text-overflow: ellipsis;
@@ -4192,7 +4206,7 @@ button:disabled {
 
 .contact-detail-grid strong {
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.05rem;
   font-weight: 400;
 }
@@ -4341,7 +4355,7 @@ button:disabled {
 
 .notes-empty-state p {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.05rem;
 }
 
@@ -4373,7 +4387,7 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 0.2rem;
   outline: 0;
-  font: 1.05rem/1.6 Georgia, "Times New Roman", serif;
+  font: 1.05rem/1.6 var(--font-serif);
 }
 
 .note-editor-form textarea:focus {
@@ -4421,7 +4435,7 @@ button:disabled {
 .contact-email-form { display: grid; gap: 0.9rem; }
 .contact-email-sender { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; align-items: center; padding: 0.9rem 1rem; border: 1px solid rgba(198, 168, 103, 0.4); border-radius: 0.2rem; background: rgba(198, 168, 103, 0.09); }
 .contact-email-sender span { grid-row: 1 / 3; color: #8c7343; font-size: 0.56rem; font-weight: 850; letter-spacing: 0.1em; }
-.contact-email-sender strong { font: 400 1.05rem Georgia, "Times New Roman", serif; }
+.contact-email-sender strong { font: 400 1.05rem var(--font-serif); }
 .contact-email-sender small { color: var(--ink-soft); font-size: 0.68rem; overflow-wrap: anywhere; }
 .contact-email-form label { display: grid; gap: 0.4rem; }
 .contact-email-form label > span { color: var(--ink-soft); font-size: 0.58rem; font-weight: 850; letter-spacing: 0.1em; }
@@ -4436,7 +4450,7 @@ button:disabled {
 .contact-email-actions button:disabled { cursor: not-allowed; opacity: 0.42; }
 .contact-email-unavailable { display: grid; justify-items: start; gap: 0.75rem; padding: 1.25rem; color: var(--ink); background: var(--cream); border: 1px solid var(--line); }
 .contact-email-unavailable h3, .contact-email-unavailable p { margin: 0; }
-.contact-email-unavailable h3 { font: 400 1.35rem Georgia, "Times New Roman", serif; }
+.contact-email-unavailable h3 { font: 400 1.35rem var(--font-serif); }
 .contact-email-unavailable p { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.55; }
 
 .contact-profile-reassign {
@@ -5018,19 +5032,19 @@ button:disabled {
 
 .calendar-shell { width: min(100%, 96rem); margin: 0 auto; }
 .calendar-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; margin-bottom: 1.5rem; }
-.calendar-page-header h1 { margin: 0.2rem 0 0.35rem; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.2rem, 5vw, 4.7rem); font-weight: 400; letter-spacing: -0.055em; }
+.calendar-page-header h1 { margin: 0.2rem 0 0.35rem; font-family: var(--font-serif); font-size: clamp(2.2rem, 5vw, 4.7rem); font-weight: 400; letter-spacing: -0.055em; }
 .calendar-page-header > div:first-child > p:not(.section-kicker) { margin: 0; color: var(--ink-soft); }
 .calendar-account { display: grid; min-width: 15rem; padding: 0.9rem 1rem; border-left: 0.2rem solid var(--gold); background: rgba(255, 253, 248, 0.76); }
 .calendar-account span, .calendar-account small { color: var(--ink-soft); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.calendar-account strong { margin: 0.15rem 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
+.calendar-account strong { margin: 0.15rem 0; font-family: var(--font-serif); font-size: 1.15rem; font-weight: 400; }
 .calendar-mode-switch { display: inline-flex; gap: 0.2rem; margin-top: 1rem; padding: 0.2rem; background: rgba(19, 35, 59, 0.06); }
 .calendar-mode-switch button { min-height: 2.35rem; padding: 0.55rem 0.8rem; border: 1px solid transparent; border-radius: 0.1rem; color: var(--ink); background: transparent; cursor: pointer; font-size: 0.6rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
 .calendar-mode-switch button:hover, .calendar-mode-switch button:focus-visible { border-color: var(--gold); }
 .calendar-mode-switch button[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
 
 .calendar-empty-state { display: grid; min-height: 26rem; place-items: center; align-content: center; gap: 0.75rem; padding: 3rem 1rem; text-align: center; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 1.5rem 4rem rgba(19, 35, 59, 0.06); }
-.calendar-empty-state > span { display: grid; width: 3.7rem; height: 3.7rem; place-items: center; border: 1px solid var(--gold); border-radius: 50%; color: #8c7343; font: 1.2rem Georgia, serif; }
-.calendar-empty-state h2 { margin: 0.6rem 0 0; font: 400 clamp(1.6rem, 4vw, 2.4rem) Georgia, serif; letter-spacing: -0.03em; }
+.calendar-empty-state > span { display: grid; width: 3.7rem; height: 3.7rem; place-items: center; border: 1px solid var(--gold); border-radius: 50%; color: #8c7343; font: 1.2rem var(--font-serif); }
+.calendar-empty-state h2 { margin: 0.6rem 0 0; font: 400 clamp(1.6rem, 4vw, 2.4rem) var(--font-serif); letter-spacing: -0.03em; }
 .calendar-empty-state p { max-width: 34rem; margin: 0; color: var(--ink-soft); }
 .calendar-empty-state button, .calendar-primary-action, .calendar-new-event { min-height: 2.8rem; padding: 0.7rem 1rem; border: 1px solid var(--ink); border-radius: 0.2rem; color: var(--paper); background: var(--ink); cursor: pointer; font-size: 0.66rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
 
@@ -5049,22 +5063,22 @@ button:disabled {
 .calendar-toolbar button { min-height: 2.65rem; padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-radius: 0.15rem; color: var(--ink); background: transparent; cursor: pointer; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.055em; text-transform: uppercase; }
 .calendar-toolbar button:hover:not(:disabled), .calendar-toolbar button:focus-visible { border-color: var(--gold); background: rgba(198, 168, 103, 0.1); }
 .calendar-period-picker-anchor { position: relative; width: 13rem; }
-.calendar-toolbar .calendar-period-picker-trigger { display: flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 0.45rem; padding-inline: 0.4rem; border-color: transparent; font: 400 1.25rem Georgia, serif; letter-spacing: 0; text-transform: capitalize; }
+.calendar-toolbar .calendar-period-picker-trigger { display: flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 0.45rem; padding-inline: 0.4rem; border-color: transparent; font: 400 1.25rem var(--font-serif); letter-spacing: 0; text-transform: capitalize; }
 .calendar-period-picker-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.calendar-period-picker-chevron { color: #8c7343; font: 0.9rem Arial, sans-serif; transition: transform 160ms ease; }
+.calendar-period-picker-chevron { color: #8c7343; font: 0.9rem var(--font-sans); transition: transform 160ms ease; }
 .calendar-period-picker-trigger[aria-expanded="true"] .calendar-period-picker-chevron { transform: rotate(180deg); }
 .calendar-period-picker { position: absolute; z-index: 90; top: calc(100% + 0.65rem); left: 50%; width: min(22rem, calc(100vw - 2rem)); overflow: hidden; border: 1px solid rgba(198, 168, 103, 0.55); border-radius: 0.45rem; color: var(--ink); background: var(--paper); box-shadow: 0 1.4rem 3.8rem rgba(8, 20, 34, 0.2); transform: translateX(-50%); }
 .calendar-period-picker-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; color: var(--paper); background: var(--ink); text-align: left; }
 .calendar-period-picker-heading span { color: rgba(255, 253, 248, 0.62); font-size: 0.55rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
-.calendar-period-picker-heading h2 { margin: 0.16rem 0 0; font: 400 1.28rem Georgia, serif; letter-spacing: -0.02em; text-transform: none; }
+.calendar-period-picker-heading h2 { margin: 0.16rem 0 0; font: 400 1.28rem var(--font-serif); letter-spacing: -0.02em; text-transform: none; }
 .calendar-toolbar .calendar-period-picker-heading > button { display: grid; width: 2rem; min-height: 2rem; place-items: center; padding: 0; border-color: rgba(255, 255, 255, 0.25); color: white; background: transparent; font-size: 1.15rem; }
 .calendar-period-picker-content { display: grid; gap: 0.75rem; padding: 1rem 1.1rem 1.1rem; }
 .calendar-period-picker-label { color: var(--ink-soft); font-size: 0.56rem; font-weight: 850; letter-spacing: 0.09em; text-transform: uppercase; }
 .calendar-period-year-control { display: grid; grid-template-columns: 2.65rem minmax(0, 1fr) 2.65rem; gap: 0.45rem; }
 .calendar-toolbar .calendar-period-picker button { min-height: 2.5rem; padding: 0.48rem; border-radius: 0.2rem; font-size: 0.62rem; letter-spacing: 0.04em; }
 .calendar-toolbar .calendar-period-picker button:disabled { cursor: not-allowed; opacity: 0.32; }
-.calendar-toolbar .calendar-period-year-trigger { display: flex; align-items: center; justify-content: center; gap: 0.45rem; border-color: rgba(198, 168, 103, 0.6); font: 400 1.05rem Georgia, serif; letter-spacing: 0; }
-.calendar-period-year-trigger span { color: #8c7343; font: 0.75rem Arial, sans-serif; }
+.calendar-toolbar .calendar-period-year-trigger { display: flex; align-items: center; justify-content: center; gap: 0.45rem; border-color: rgba(198, 168, 103, 0.6); font: 400 1.05rem var(--font-serif); letter-spacing: 0; }
+.calendar-period-year-trigger span { color: #8c7343; font: 0.75rem var(--font-sans); }
 .calendar-period-year-panel { display: grid; gap: 0.55rem; padding: 0.65rem; border: 1px solid var(--line); background: rgba(198, 168, 103, 0.06); }
 .calendar-period-year-window-control { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) 2.2rem; align-items: center; gap: 0.35rem; }
 .calendar-period-year-window-control span { color: var(--ink-soft); font-size: 0.58rem; font-weight: 750; text-align: center; }
@@ -5092,7 +5106,7 @@ button:disabled {
 .calendar-month-day:nth-child(7n) { border-right: 0; }
 .calendar-month-day.is-outside { background: rgba(19, 35, 59, 0.025); }
 .calendar-month-day.is-outside > * { opacity: 0.48; }
-.calendar-day-number { display: grid; width: 1.8rem; height: 1.8rem; margin: 0 0 0.35rem auto; place-items: center; border: 0; border-radius: 50%; color: var(--ink); background: transparent; cursor: pointer; font: 0.8rem Georgia, serif; }
+.calendar-day-number { display: grid; width: 1.8rem; height: 1.8rem; margin: 0 0 0.35rem auto; place-items: center; border: 0; border-radius: 50%; color: var(--ink); background: transparent; cursor: pointer; font: 0.8rem var(--font-serif); }
 .calendar-month-day.is-today .calendar-day-number { color: white; background: var(--ink); box-shadow: 0 0 0 0.18rem rgba(198, 168, 103, 0.45); }
 .calendar-day-events { display: grid; gap: 0.25rem; }
 .calendar-more-events { padding: 0.25rem; border: 0; color: #7c6639; background: transparent; cursor: pointer; font-size: 0.62rem; font-weight: 800; text-align: left; }
@@ -5123,7 +5137,7 @@ button:disabled {
 .calendar-week-header > button { display: grid; min-height: 4rem; place-items: center; align-content: center; border: 0; border-left: 1px solid var(--line); color: var(--ink); background: transparent; cursor: pointer; font-weight: 400; }
 .calendar-week-header > button:hover, .calendar-week-header > button:focus-visible { background: rgba(198, 168, 103, 0.1); }
 .calendar-week-header > button small { color: var(--ink-soft); font-size: 0.58rem; letter-spacing: 0.07em; text-transform: uppercase; }
-.calendar-week-header > button span { font: 1.15rem Georgia, serif; }
+.calendar-week-header > button span { font: 1.15rem var(--font-serif); }
 .calendar-week-header > button.is-today span { display: grid; width: 1.9rem; height: 1.9rem; place-items: center; border-radius: 50%; color: white; background: var(--ink); }
 .calendar-week-all-day { min-height: 4rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .calendar-week-all-day > span { padding: 0.7rem 0.4rem; color: var(--ink-soft); font-size: 0.52rem; font-weight: 850; text-align: right; }
@@ -5136,8 +5150,8 @@ button:disabled {
 
 .calendar-day { width: min(100%, 56rem); margin: 0 auto; }
 .calendar-day > header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem; border-bottom: 1px solid var(--line); }
-.calendar-day > header p { margin: 0; font: 1.2rem Georgia, serif; text-transform: capitalize; }
-.calendar-day > header strong { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 50%; font: 1.2rem Georgia, serif; }
+.calendar-day > header p { margin: 0; font: 1.2rem var(--font-serif); text-transform: capitalize; }
+.calendar-day > header strong { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 50%; font: 1.2rem var(--font-serif); }
 .calendar-day > header.is-today strong { color: white; background: var(--ink); }
 .calendar-day-all-day, .calendar-day-hour { display: grid; grid-template-columns: 7rem minmax(0, 1fr); }
 .calendar-day-all-day { min-height: 4.5rem; border-bottom: 1px solid var(--line); }
@@ -5151,7 +5165,7 @@ button:disabled {
 .calendar-modal { width: min(100%, 42rem); max-height: calc(100vh - 2rem); overflow-y: auto; border: 1px solid rgba(198, 168, 103, 0.45); background: var(--paper); box-shadow: 0 2rem 6rem rgba(6, 17, 29, 0.3); }
 .calendar-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.2rem 1.4rem; color: var(--paper); background: var(--ink); }
 .calendar-modal-heading .section-kicker { color: rgba(255, 253, 248, 0.62); }
-.calendar-modal-heading h2 { margin: 0.2rem 0 0; font: 400 clamp(1.35rem, 4vw, 2rem) Georgia, serif; }
+.calendar-modal-heading h2 { margin: 0.2rem 0 0; font: 400 clamp(1.35rem, 4vw, 2rem) var(--font-serif); }
 .calendar-modal-heading > button { width: 2rem; height: 2rem; border: 1px solid rgba(255,255,255,.25); color: white; background: transparent; cursor: pointer; font-size: 1.2rem; }
 .calendar-editor-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1.4rem; }
 .calendar-editor-form label { display: grid; gap: 0.4rem; }
@@ -5177,7 +5191,7 @@ button:disabled {
 .calendar-modal-actions button, .calendar-modal-actions a { display: inline-grid; min-height: 2.75rem; place-items: center; padding: 0.65rem 0.85rem; border: 1px solid var(--line); border-radius: 0.15rem; color: var(--ink); background: transparent; cursor: pointer; font-size: 0.61rem; font-weight: 850; letter-spacing: 0.055em; text-decoration: none; text-transform: uppercase; }
 .calendar-modal-actions .calendar-primary-action { color: white; background: var(--ink); }
 .calendar-detail-content { padding: 1.4rem; }
-.calendar-detail-content h3 { margin: 0 0 1.2rem; font: 400 clamp(1.5rem, 5vw, 2.35rem) Georgia, serif; }
+.calendar-detail-content h3 { margin: 0 0 1.2rem; font: 400 clamp(1.5rem, 5vw, 2.35rem) var(--font-serif); }
 .calendar-detail-content dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin: 0; }
 .calendar-detail-content dl div { padding: 0.8rem; border: 1px solid var(--line); }
 .calendar-detail-content dt, .calendar-event-description > span { color: var(--ink-soft); font-size: 0.58rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -5188,12 +5202,12 @@ button:disabled {
 .calendar-detail-actions { padding: 0 1.4rem 1.4rem; flex-wrap: wrap; }
 .calendar-modal-actions .calendar-delete-action { border-color: rgba(143, 43, 43, 0.35); color: #8f2b2b; background: rgba(143, 43, 43, 0.05); }
 .calendar-delete-content { display: grid; gap: 0.7rem; padding: 1.4rem; }
-.calendar-delete-content strong { font: 1.25rem Georgia, serif; }
+.calendar-delete-content strong { font: 1.25rem var(--font-serif); }
 .calendar-delete-content p { margin: 0; }
 .calendar-delete-modal .calendar-modal-actions { padding: 0 1.4rem 1.4rem; }
 .calendar-team-availability { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 1rem 3rem rgba(19, 35, 59, 0.045); }
 .calendar-team-availability > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 0.85rem; }
-.calendar-team-availability h2 { margin: 0.15rem 0 0; font: 400 1.35rem Georgia, serif; text-transform: capitalize; }
+.calendar-team-availability h2 { margin: 0.15rem 0 0; font: 400 1.35rem var(--font-serif); text-transform: capitalize; }
 .calendar-team-availability > header > small { color: var(--ink-soft); font-size: 0.62rem; }
 .calendar-team-availability > div { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .calendar-team-availability > div button { min-height: 2.55rem; padding: 0.55rem 0.7rem; border: 1px solid rgba(88, 114, 89, 0.35); border-radius: 999px; color: #355044; background: rgba(88, 114, 89, 0.09); cursor: pointer; font-size: 0.66rem; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -5239,8 +5253,8 @@ button:disabled {
   .calendar-week-mobile article { padding: 0.75rem; border-bottom: 1px solid var(--line); }
   .calendar-week-mobile article > header { margin-bottom: 0.55rem; }
   .calendar-week-mobile article > header button { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0; border: 0; color: var(--ink); background: transparent; cursor: pointer; }
-  .calendar-week-mobile article > header strong { font: 1rem Georgia, serif; text-transform: capitalize; }
-  .calendar-week-mobile article > header span { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 50%; font: 0.85rem Georgia, serif; }
+  .calendar-week-mobile article > header strong { font: 1rem var(--font-serif); text-transform: capitalize; }
+  .calendar-week-mobile article > header span { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 50%; font: 0.85rem var(--font-serif); }
   .calendar-week-mobile article.is-today > header span { color: white; background: var(--ink); }
   .calendar-week-mobile article > div { display: grid; gap: 0.35rem; }
   .calendar-day-all-day, .calendar-day-hour { grid-template-columns: 4.5rem minmax(0, 1fr); }
@@ -5316,7 +5330,7 @@ button:disabled {
 .transactions-header h1,
 .transaction-detail-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.8rem, 7vw, 5.4rem);
   font-weight: 400;
   letter-spacing: -0.06em;
@@ -5499,7 +5513,7 @@ button:disabled {
 
 .transaction-card h2 {
   margin: 1.4rem 0 1.6rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.5rem, 3vw, 2.15rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -5521,7 +5535,7 @@ button:disabled {
   background: rgba(255, 253, 248, 0.68);
   border: 1px dashed var(--line);
 }
-.transactions-empty h2 { margin: 0.75rem 0 0.35rem; color: var(--ink); font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+.transactions-empty h2 { margin: 0.75rem 0 0.35rem; color: var(--ink); font-family: var(--font-serif); font-weight: 400; }
 .transactions-empty p { margin: 0; }
 
 .transaction-modal-backdrop {
@@ -5547,7 +5561,7 @@ button:disabled {
 }
 .transaction-create-modal { width: min(100%, 58rem); }
 .transaction-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line); }
-.transaction-modal-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.5rem, 4vw, 2.3rem); font-weight: 400; }
+.transaction-modal-heading h2 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.5rem, 4vw, 2.3rem); font-weight: 400; }
 .transaction-modal-heading > button { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1.7rem; line-height: 1; }
 
 .transaction-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding-top: 1.4rem; }
@@ -5575,7 +5589,7 @@ button:disabled {
 .transaction-contact-count { margin: 0.45rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
 .transaction-new-contact { margin-top: 0.75rem; padding: 1rem; background: rgba(255, 253, 248, 0.75); border: 1px solid var(--line); }
 .transaction-new-contact-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.transaction-new-contact-heading h3 { margin: 0.15rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem; font-weight: 400; }
+.transaction-new-contact-heading h3 { margin: 0.15rem 0 0; font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; }
 .transaction-new-contact-heading > button { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1.4rem; }
 .transaction-new-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-top: 0.9rem; }
 .transaction-new-contact-fields label { display: grid; grid-template-columns: 1fr; align-items: initial; gap: 0.35rem; min-height: 0; padding: 0; border: 0; cursor: default; }
@@ -5589,18 +5603,18 @@ button:disabled {
 .transaction-new-contact-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 .transaction-contact-duplicate { margin-top: 0.85rem; padding: 0.85rem; color: #653c35; background: #fbefec; border: 1px solid #d8b9b2; }
 .transaction-contact-duplicate > strong { font-size: 0.68rem; letter-spacing: 0.06em; }
-.transaction-contact-duplicate p { margin: 0.45rem 0 0.15rem; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; }
+.transaction-contact-duplicate p { margin: 0.45rem 0 0.15rem; font-family: var(--font-serif); font-size: 1.05rem; }
 .transaction-form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; padding-top: 0.5rem; }
 .transaction-form-actions button { min-height: 3rem; padding: 0.7rem 1rem; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 0.2rem; cursor: pointer; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; }
 .transaction-form-actions .transaction-submit { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 .transaction-form-error { grid-column: 1 / -1; margin: 0; color: #934c45; font-size: 0.75rem; }
 .transaction-existing-backdrop { position: fixed; z-index: 140; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(12, 25, 42, 0.64); backdrop-filter: blur(7px); }
 .transaction-existing-dialog { width: min(100%, 38rem); padding: clamp(1.25rem, 4vw, 2rem); background: var(--paper); border: 1px solid var(--line); border-radius: 0.4rem; box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.28); }
-.transaction-existing-dialog h3 { margin: 0.25rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.45rem, 4vw, 2rem); font-weight: 400; }
+.transaction-existing-dialog h3 { margin: 0.25rem 0 0; font-family: var(--font-serif); font-size: clamp(1.45rem, 4vw, 2rem); font-weight: 400; }
 .transaction-existing-dialog > p:not(.section-kicker) { margin: 0.9rem 0 0; color: var(--ink-soft); line-height: 1.55; }
 .transaction-existing-dialog article { margin-top: 1.25rem; padding: 1rem; background: rgba(198, 168, 103, 0.08); border: 1px solid rgba(198, 168, 103, 0.35); }
 .transaction-existing-dialog article > strong { color: #8c7343; font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; }
-.transaction-existing-dialog h4 { margin: 0.45rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.25rem; font-weight: 400; }
+.transaction-existing-dialog h4 { margin: 0.45rem 0 0; font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; }
 .transaction-existing-dialog dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin: 1rem 0 0; }
 .transaction-existing-dialog dl div { display: grid; gap: 0.2rem; }
 .transaction-existing-dialog dt { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -5638,7 +5652,7 @@ button:disabled {
 .transaction-centris-dropzone:focus-visible,
 .transaction-centris-dropzone.is-dragging { background: rgba(198, 168, 103, 0.12); border-color: var(--gold); box-shadow: 0 0 0 3px rgba(198, 168, 103, 0.1); outline: 0; }
 .transaction-centris-dropzone > div { display: grid; justify-items: center; gap: 0.45rem; }
-.transaction-centris-dropzone strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem; font-weight: 400; }
+.transaction-centris-dropzone strong { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 400; }
 .transaction-centris-dropzone span { color: var(--ink-soft); font-size: 0.72rem; }
 .transaction-centris-file-button {
   display: inline-flex;
@@ -5673,7 +5687,7 @@ button:disabled {
 .transaction-centris-summary > div { display: grid; align-content: center; gap: 0.28rem; min-width: 0; min-height: 7rem; padding: 0.85rem; }
 .transaction-centris-summary > div + div { border-left: 1px solid var(--line); }
 .transaction-centris-summary span { color: var(--ink-soft); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.transaction-centris-summary strong { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; font-weight: 400; line-height: 1.35; }
+.transaction-centris-summary strong { font-family: var(--font-serif); font-size: 1rem; font-weight: 400; line-height: 1.35; }
 .transaction-centris-summary b { color: #8c7343; font-size: 0.72rem; }
 .transaction-centris-summary small { color: var(--ink-soft); font-size: 0.64rem; }
 .transaction-centris-highlight { margin: 0; padding: 0.75rem; color: #6e5830; background: rgba(198, 168, 103, 0.12); border-left: 3px solid var(--gold); font-size: 0.72rem; }
@@ -5725,24 +5739,24 @@ button:disabled {
 .transaction-overview article { display: grid; min-height: 7.5rem; align-content: center; gap: 0.5rem; padding: 1.2rem; }
 .transaction-overview article + article { border-left: 1px solid var(--line); }
 .transaction-overview span { color: var(--ink-soft); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
-.transaction-overview strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 400; }
+.transaction-overview strong { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 400; }
 .transaction-purchase-result { grid-template-columns: repeat(4, 1fr); }
 .transaction-delete-content { padding-top: 1.5rem; }
-.transaction-delete-content > strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.45rem; font-weight: 400; }
+.transaction-delete-content > strong { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 400; }
 .transaction-delete-content > p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.65; }
 .transaction-delete-content .transaction-form-actions { margin-top: 1.4rem; }
 
 .transaction-detail-section { padding-top: clamp(2.5rem, 6vw, 4.5rem); }
 .transaction-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-.transaction-section-heading h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; }
+.transaction-section-heading h2 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; }
 .transaction-source-listing > button { display: flex; width: 100%; min-height: 6.5rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.15rem 1.25rem; color: var(--ink); text-align: left; background: rgba(198, 168, 103, 0.09); border: 1px solid rgba(198, 168, 103, 0.3); cursor: pointer; }
 .transaction-source-listing > button span { display: grid; gap: 0.35rem; }
-.transaction-source-listing > button strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; font-weight: 400; }
+.transaction-source-listing > button strong { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 400; }
 .transaction-source-listing > button small { color: var(--ink-soft); }
 .transaction-source-listing > button b { color: #8c7343; font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .transaction-linked-clients { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
 .transaction-linked-clients button { display: grid; gap: 0.35rem; min-height: 7.5rem; padding: 1rem; color: var(--ink); text-align: left; background: rgba(255, 253, 248, 0.82); border: 1px solid var(--line); border-radius: 0.25rem; cursor: pointer; }
-.transaction-linked-clients button span { font-family: Georgia, "Times New Roman", serif; font-size: 1.12rem; }
+.transaction-linked-clients button span { font-family: var(--font-serif); font-size: 1.12rem; }
 .transaction-linked-clients button small { color: var(--ink-soft); }
 .transaction-linked-clients button strong { align-self: end; color: #8c7343; font-size: 0.62rem; text-transform: uppercase; }
 
@@ -5752,7 +5766,7 @@ button:disabled {
 .transaction-deadlines article > label input { position: absolute; opacity: 0; pointer-events: none; }
 .transaction-deadlines article > label span { display: block; width: 1.35rem; height: 1.35rem; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
 .transaction-deadlines article > label input:checked + span { background: #587259; border: 4px solid var(--paper); box-shadow: 0 0 0 1px #587259; }
-.transaction-deadlines h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.12rem; font-weight: 400; }
+.transaction-deadlines h3 { margin: 0; font-family: var(--font-serif); font-size: 1.12rem; font-weight: 400; }
 .transaction-deadlines p { margin: 0.3rem 0; color: var(--ink-soft); font-size: 0.74rem; }
 .deadline-title-line strong { padding: 0.25rem 0.45rem; color: #934c45; background: rgba(189, 102, 93, 0.1); border-radius: 999px; font-size: 0.55rem; letter-spacing: 0.06em; }
 .deadline-completed { opacity: 0.56; }
@@ -5786,12 +5800,12 @@ button:disabled {
 
 .contact-property-history { display: grid; gap: 1.2rem; padding-top: clamp(2.5rem, 6vw, 4.5rem); }
 .contact-property-history > header { display: grid; gap: 0.25rem; }
-.contact-property-history > header h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.85rem, 4vw, 2.8rem); font-weight: 400; letter-spacing: -0.02em; }
+.contact-property-history > header h2 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.85rem, 4vw, 2.8rem); font-weight: 400; letter-spacing: -0.02em; }
 .contact-property-history > header > p:last-child { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.78rem; }
 .contact-property-history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; background: rgba(255, 253, 248, 0.78); border: 1px solid var(--line); }
 .contact-property-history-summary article { display: grid; min-height: 6.3rem; align-content: center; gap: 0.42rem; padding: 1rem 1.2rem; }
 .contact-property-history-summary article + article { border-left: 1px solid var(--line); }
-.contact-property-history-summary strong { font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.15rem, 2.4vw, 1.55rem); font-weight: 400; }
+.contact-property-history-summary strong { font-family: var(--font-serif); font-size: clamp(1.15rem, 2.4vw, 1.55rem); font-weight: 400; }
 .contact-property-history-summary span { color: var(--ink-soft); font-size: 0.57rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .contact-property-history-grid { display: grid; gap: 0.8rem; }
 .contact-property-history-card { display: grid; grid-template-columns: minmax(12rem, 1.05fr) minmax(20rem, 1.7fr) auto; gap: 1.15rem 1.5rem; align-items: center; padding: 1.25rem 1.35rem; background: rgba(255, 253, 248, 0.86); border: 1px solid var(--line); border-left: 3px solid rgba(198, 168, 103, 0.72); box-shadow: 0 0.8rem 2.4rem rgba(19, 35, 59, 0.035); }
@@ -5804,7 +5818,7 @@ button:disabled {
 .contact-property-history-badges strong { margin-left: auto; color: var(--ink-soft); background: rgba(19, 35, 59, 0.07); }
 .contact-property-history-badges strong.is-completed { color: #436346; background: rgba(76, 116, 79, 0.11); }
 .contact-property-history-badges strong.is-cancelled { color: #7e615d; background: rgba(147, 76, 69, 0.1); }
-.contact-property-history-address h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.08rem, 2.4vw, 1.35rem); font-weight: 400; line-height: 1.25; }
+.contact-property-history-address h3 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.08rem, 2.4vw, 1.35rem); font-weight: 400; line-height: 1.25; }
 .contact-property-history-address p { margin: 0.45rem 0 0; color: var(--ink-soft); font-size: 0.62rem; letter-spacing: 0.04em; }
 .contact-property-history-details { display: grid; grid-template-columns: repeat(4, minmax(6.5rem, 1fr)); gap: 0.85rem 1rem; margin: 0; }
 .contact-property-history-details div { min-width: 0; }
@@ -6019,7 +6033,7 @@ button:disabled {
 }
 
 .app-software-menu strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 0.9rem;
   font-weight: 400;
 }
@@ -6084,7 +6098,7 @@ button:disabled {
 }
 
 .global-search-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.global-search-panel h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 400; }
+.global-search-panel h2 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 400; }
 .global-search-panel > header > button { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1.6rem; }
 .global-search-input { display: flex; min-height: 3.5rem; align-items: center; gap: 0.65rem; margin-top: 1.25rem; padding: 0 1rem; background: #fff; border: 1px solid var(--line); }
 .global-search-input input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
@@ -6292,7 +6306,7 @@ textarea:focus-visible,
 
 .listings-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(3rem, 8vw, 5.8rem);
   font-weight: 400;
   letter-spacing: -0.065em;
@@ -6339,7 +6353,7 @@ textarea:focus-visible,
 
 .listings-summary strong {
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 2.1rem;
   font-weight: 400;
   line-height: 0.85;
@@ -6556,7 +6570,7 @@ textarea:focus-visible,
 .listing-card-address h2 {
   margin: 0;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.3rem, 2.4vw, 1.75rem);
   font-weight: 400;
   letter-spacing: -0.035em;
@@ -6595,7 +6609,7 @@ textarea:focus-visible,
   display: block;
   margin-top: 1.25rem;
   color: #8c7343;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
 }
@@ -6783,7 +6797,7 @@ textarea:focus-visible,
 .listings-empty h2 {
   margin: 0.8rem 0 0.4rem;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.5rem, 4vw, 2.2rem);
   font-weight: 400;
 }
@@ -6830,7 +6844,7 @@ textarea:focus-visible,
 
 .listing-editor-heading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.75rem, 4vw, 2.65rem);
   font-weight: 400;
   letter-spacing: -0.045em;
@@ -6864,7 +6878,7 @@ textarea:focus-visible,
 }
 
 .listing-duplicate-warning > strong { font-size: 0.66rem; letter-spacing: 0.08em; }
-.listing-duplicate-warning > p { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; }
+.listing-duplicate-warning > p { margin: 0; font-family: var(--font-serif); font-size: 1.1rem; }
 .listing-duplicate-warning dl { display: grid; grid-template-columns: 1.5fr 0.75fr 0.75fr; margin: 0; border: 1px solid rgba(101, 60, 53, 0.18); }
 .listing-duplicate-warning dl div { min-width: 0; padding: 0.7rem; }
 .listing-duplicate-warning dl div + div { border-left: 1px solid rgba(101, 60, 53, 0.18); }
@@ -6886,14 +6900,14 @@ textarea:focus-visible,
 .listing-editor-section > legend {
   padding: 0 0.45rem;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.12rem;
 }
 
 .listing-editor-section > legend span {
   margin-right: 0.45rem;
   color: #8c7343;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 0.58rem;
   font-weight: 850;
   letter-spacing: 0.08em;
@@ -7132,7 +7146,7 @@ textarea:focus-visible,
 
 .listing-new-contact-heading h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.3rem;
   font-weight: 400;
 }
@@ -7161,7 +7175,7 @@ textarea:focus-visible,
 
 .listing-contact-duplicate p {
   margin: 0.45rem 0 0.15rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.05rem;
 }
 
@@ -7221,7 +7235,7 @@ textarea:focus-visible,
   max-width: 17ch;
   margin: 0;
   overflow-wrap: anywhere;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.3rem, 6vw, 4.7rem);
   font-weight: 400;
   letter-spacing: -0.055em;
@@ -7442,7 +7456,7 @@ textarea:focus-visible,
 .listing-detail-price-panel strong {
   margin-top: 0.6rem;
   color: var(--paper);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2rem, 4vw, 3.4rem);
   font-weight: 400;
   letter-spacing: -0.045em;
@@ -7474,7 +7488,7 @@ textarea:focus-visible,
 
 .listing-detail-section-heading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.6rem, 4vw, 2.3rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -7560,7 +7574,7 @@ textarea:focus-visible,
 
 .listing-sold-heading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.55rem, 5vw, 2.15rem);
   font-weight: 400;
   letter-spacing: -0.04em;
@@ -7744,7 +7758,7 @@ textarea:focus-visible,
   background: transparent;
   border: 0;
   cursor: pointer;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.2rem;
   text-align: left;
 }
@@ -7855,7 +7869,7 @@ textarea:focus-visible,
 }
 
 .listing-delete-content > strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
 }
@@ -8747,7 +8761,7 @@ textarea:focus-visible,
 
 .import-existing-contact h3 {
   margin: 0 0 0.85rem;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 400;
 }

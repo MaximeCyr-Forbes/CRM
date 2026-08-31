@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import "@fontsource-variable/inter";
 import { AuthProvider } from "./auth-context";
 import { BrokerProvider } from "./broker-context";
 import { CRMDataProvider } from "./crm-data-context";
