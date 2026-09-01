@@ -5,19 +5,20 @@ const source = (path: string) => readFileSync(path, "utf8");
 
 describe("interface Google Drive dans Paramètres", () => {
   it("ouvre Google Picker uniquement pour des dossiers, y compris les Shared Drives", () => {
-    const component = source("app/components/settings-google-drive.tsx");
-    expect(component).toContain("setSelectFolderEnabled(true)");
-    expect(component).toContain("setIncludeFolders(true)");
-    expect(component).toContain("setEnableDrives(true)");
-    expect(component).toContain("GOOGLE_DRIVE_FOLDER_MIME_TYPE");
-    expect(component).not.toContain("UploadView");
+    const picker = source("app/lib/google-drive/picker-client.ts");
+    expect(picker).toContain("setSelectFolderEnabled(true)");
+    expect(picker).toContain("setIncludeFolders(true)");
+    expect(picker).toContain("setEnableDrives(true)");
+    expect(picker).toContain("GOOGLE_DRIVE_FOLDER_MIME_TYPE");
+    expect(picker).not.toContain("UploadView");
   });
 
   it("utilise la connexion du courtier consulté et une clé Picker publique", () => {
     const component = source("app/components/settings-google-drive.tsx");
+    const picker = source("app/lib/google-drive/picker-client.ts");
     expect(component).toContain("BROKER_KEYS[selectedBroker]");
-    expect(component).toContain("NEXT_PUBLIC_GOOGLE_PICKER_API_KEY");
-    expect(component).toContain("NEXT_PUBLIC_GOOGLE_CLOUD_PROJECT_NUMBER");
+    expect(picker).toContain("NEXT_PUBLIC_GOOGLE_PICKER_API_KEY");
+    expect(picker).toContain("NEXT_PUBLIC_GOOGLE_CLOUD_PROJECT_NUMBER");
     expect(component).toContain("capability=drive");
   });
 

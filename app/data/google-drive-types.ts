@@ -2,6 +2,34 @@ import type { CalendarBroker } from "./calendar-types";
 
 export const GOOGLE_DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
+export type GoogleDriveItem = {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime: string | null;
+  size: string | null;
+  webViewLink: string | null;
+  iconLink: string | null;
+  thumbnailLink: string | null;
+  driveId: string | null;
+  isFolder: boolean;
+};
+
+export type GoogleDriveBreadcrumb = Pick<GoogleDriveItem, "id" | "name">;
+
+export type GoogleDriveFolderListing = {
+  root: GoogleDriveRoot;
+  folder: GoogleDriveItem;
+  breadcrumbs: GoogleDriveBreadcrumb[];
+  items: GoogleDriveItem[];
+};
+
+export type GoogleDriveSearchResult = GoogleDriveItem & {
+  rootId: string;
+  rootName: string;
+  breadcrumbs: GoogleDriveBreadcrumb[];
+};
+
 export type GoogleDriveRoot = {
   id: string;
   broker: CalendarBroker;

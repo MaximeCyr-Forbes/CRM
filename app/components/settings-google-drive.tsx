@@ -4,86 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { type Broker, useBroker } from "../broker-context";
 import type { CalendarBroker, CalendarConnectionStatus } from "../data/calendar-types";
 import {
-  GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   type GoogleDriveRoot,
 } from "../data/google-drive-types";
 import { BROKER_LABELS } from "../data/contact-types";
+import { pickGoogleDriveFolder } from "../lib/google-drive/picker-client";
 
 const BROKER_KEYS: Record<Broker, CalendarBroker> = {
   France: "france",
   Maxime: "maxime",
   Sandrine: "sandrine",
 };
-
-type PickerDocument = { id?: string };
-type PickerResponse = { action?: string; docs?: PickerDocument[] };
-type PickerDocsView = {
-  setEnableDrives(enabled: boolean): PickerDocsView;
-  setIncludeFolders(enabled: boolean): PickerDocsView;
-  setMimeTypes(mimeTypes: string): PickerDocsView;
-  setSelectFolderEnabled(enabled: boolean): PickerDocsView;
-};
-type PickerBuilder = {
-  addView(view: PickerDocsView): PickerBuilder;
-  setAppId(appId: string): PickerBuilder;
-  setCallback(callback: (data: PickerResponse) => void): PickerBuilder;
-  setDeveloperKey(apiKey: string): PickerBuilder;
-  setOAuthToken(accessToken: string): PickerBuilder;
-  setOrigin(origin: string): PickerBuilder;
-  setTitle(title: string): PickerBuilder;
-  build(): { setVisible(visible: boolean): void };
-};
-type GooglePickerApi = {
-  Action: { CANCEL: string; PICKED: string };
-  DocsView: new (viewId: string) => PickerDocsView;
-  PickerBuilder: new () => PickerBuilder;
-  ViewId: { FOLDERS: string };
-};
-
-declare global {
-  interface Window {
-    gapi?: { load(name: string, options: { callback(): void; onerror(): void }): void };
-    google?: { picker: GooglePickerApi };
-  }
-}
-
-let pickerApiPromise: Promise<GooglePickerApi> | null = null;
-
-function loadGooglePickerApi() {
-  if (window.google?.picker) return Promise.resolve(window.google.picker);
-  if (pickerApiPromise) return pickerApiPromise;
-  pickerApiPromise = new Promise<GooglePickerApi>((resolve, reject) => {
-    const loadPicker = () => {
-      if (!window.gapi) {
-        reject(new Error("Google Picker indisponible."));
-        return;
-      }
-      window.gapi.load("picker", {
-        callback: () => window.google?.picker
-          ? resolve(window.google.picker)
-          : reject(new Error("Google Picker indisponible.")),
-        onerror: () => reject(new Error("Google Picker indisponible.")),
-      });
-    };
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-google-picker="true"]');
-    if (existingScript) {
-      if (window.gapi) loadPicker();
-      else existingScript.addEventListener("load", loadPicker, { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.async = true;
-    script.dataset.googlePicker = "true";
-    script.src = "https://apis.google.com/js/api.js";
-    script.addEventListener("load", loadPicker, { once: true });
-    script.addEventListener("error", () => reject(new Error("Google Picker indisponible.")), { once: true });
-    document.head.append(script);
-  }).catch((error) => {
-    pickerApiPromise = null;
-    throw error;
-  });
-  return pickerApiPromise;
-}
 
 export function SettingsGoogleDrive({ connections }: { connections: CalendarConnectionStatus[] }) {
   const { selectedBroker } = useBroker();
@@ -153,53 +83,20 @@ export function SettingsGoogleDrive({ connections }: { connections: CalendarConn
 
   async function openPicker() {
     if (!broker || pickerLock.current) return;
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY?.trim();
-    const projectNumber = process.env.NEXT_PUBLIC_GOOGLE_CLOUD_PROJECT_NUMBER?.trim();
-    if (!apiKey || !projectNumber) {
-      setError("Google Picker n’est pas configuré.");
-      return;
-    }
     pickerLock.current = true;
     setIsOpeningPicker(true);
     setError(null);
     setMessage(null);
     try {
-      const [picker, tokenResponse] = await Promise.all([
-        loadGooglePickerApi(),
-        fetch(`/api/google-drive/picker-token?broker=${broker}`, { cache: "no-store" }),
-      ]);
-      const tokenPayload = await tokenResponse.json().catch(() => null) as { accessToken?: string; error?: string } | null;
-      if (!tokenResponse.ok || !tokenPayload?.accessToken) throw new Error(tokenPayload?.error);
-      const view = new picker.DocsView(picker.ViewId.FOLDERS)
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true)
-        .setEnableDrives(true)
-        .setMimeTypes(GOOGLE_DRIVE_FOLDER_MIME_TYPE);
-      new picker.PickerBuilder()
-        .setAppId(projectNumber)
-        .setDeveloperKey(apiKey)
-        .setOAuthToken(tokenPayload.accessToken)
-        .setOrigin(window.location.origin)
-        .setTitle("Choisir un dossier partagé avec Forbes CRM")
-        .addView(view)
-        .setCallback((data) => {
-          if (data.action === picker.Action.PICKED) {
-            const folderId = data.docs?.[0]?.id;
-            if (folderId) void saveSelectedFolder(folderId);
-          }
-          if (data.action === picker.Action.PICKED || data.action === picker.Action.CANCEL) {
-            pickerLock.current = false;
-            setIsOpeningPicker(false);
-          }
-        })
-        .build()
-        .setVisible(true);
+      const folderId = await pickGoogleDriveFolder(broker);
+      if (folderId) await saveSelectedFolder(folderId);
     } catch (caughtError) {
-      pickerLock.current = false;
-      setIsOpeningPicker(false);
       setError(caughtError instanceof Error && caughtError.message
         ? caughtError.message
         : "Google Picker est temporairement indisponible.");
+    } finally {
+      pickerLock.current = false;
+      setIsOpeningPicker(false);
     }
   }
 

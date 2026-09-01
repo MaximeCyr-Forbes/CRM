@@ -9,6 +9,7 @@ describe("navigation des logiciels", () => {
       "Listings",
       "Transactions",
       "Calendrier",
+      "Drive",
       "Statistiques",
       "Courriels Auto",
       "Logiciels",

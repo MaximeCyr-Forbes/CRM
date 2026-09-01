@@ -9,7 +9,7 @@ const source = (path: string) => readFileSync(resolve(root, path), "utf8");
 describe("module Courriels Auto verrouillé", () => {
   it("est privé et correctement placé dans la navigation", () => {
     expect(appNavigationOrder).toEqual([
-      "Accueil", "Contacts", "Listings", "Transactions", "Calendrier", "Statistiques", "Courriels Auto", "Logiciels", "Paramètres",
+      "Accueil", "Contacts", "Listings", "Transactions", "Calendrier", "Drive", "Statistiques", "Courriels Auto", "Logiciels", "Paramètres",
     ]);
     expect(source("app/components/app-header.tsx")).toContain('{ label: "Courriels Auto", href: "/automatic-emails", match: "/automatic-emails" }');
     expect(source("app/automatic-emails/layout.tsx")).toContain("PrivateRouteLayout");

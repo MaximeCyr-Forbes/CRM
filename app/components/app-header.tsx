@@ -13,6 +13,7 @@ const links = [
   { label: "Listings", href: "/listings", match: "/listings" },
   { label: "Transactions", href: "/transactions", match: "/transactions" },
   { label: "Calendrier", href: "/calendar", match: "/calendar" },
+  { label: "Drive", href: "/drive", match: "/drive" },
   { label: "Statistiques", href: "/statistics", match: "/statistics" },
   { label: "Courriels Auto", href: "/automatic-emails", match: "/automatic-emails" },
   { label: "Paramètres", href: "/settings", match: "/settings" },

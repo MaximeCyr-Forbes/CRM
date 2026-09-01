@@ -10070,3 +10070,229 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
   .custom-campaign-contact-list em { grid-column: 2; }
   .custom-preview-controls select { min-width: 0; width: 100%; }
 }
+
+/* Google Drive — consultation strictement en lecture seule */
+.drive-page {
+  min-height: 100svh;
+  padding: clamp(1rem, 3vw, 2.25rem);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(198, 168, 103, 0.14), transparent 36rem),
+    var(--cream);
+}
+
+.drive-shell {
+  width: min(100%, 86rem);
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+
+.drive-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: clamp(2.4rem, 6vw, 5rem) 0 2rem;
+}
+
+.drive-heading h1,
+.drive-section-title h2,
+.drive-remove-modal h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+.drive-heading h1 { font-size: clamp(3rem, 7vw, 5.4rem); line-height: 0.92; }
+.drive-heading > div:first-child > p:last-child { max-width: 43rem; margin: 1rem 0 0; color: var(--ink-soft); line-height: 1.6; }
+
+.drive-heading-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(9rem, auto));
+  gap: 0.7rem;
+  align-items: stretch;
+}
+
+.drive-heading-actions > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 253, 248, 0.72);
+  border: 1px solid var(--line);
+}
+
+.drive-heading-actions span,
+.drive-item-copy > span,
+.drive-root-card small {
+  color: rgba(19, 35, 59, 0.52);
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.drive-heading-actions strong { font-size: 0.76rem; }
+.drive-heading-actions > button { grid-column: 1 / -1; }
+
+.drive-heading-actions > button,
+.drive-search button,
+.drive-root-card button,
+.drive-item-card button,
+.drive-section-title > button,
+.drive-folder-heading a,
+.drive-remove-modal button {
+  min-height: 2.9rem;
+  padding: 0.7rem 1rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.61rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.drive-heading-actions button:disabled,
+.drive-search button:disabled,
+.drive-root-card button:disabled,
+.drive-item-card button:disabled,
+.drive-remove-modal button:disabled { cursor: wait; opacity: 0.55; }
+
+.drive-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.4rem;
+  padding: 0.55rem 0.55rem 0.55rem 1rem;
+  background: rgba(255, 253, 248, 0.84);
+  border: 1px solid var(--line);
+}
+
+.drive-search > span { color: #8c7343; font-size: 1.25rem; }
+.drive-search input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 0.78rem; font-weight: 750; letter-spacing: 0.04em; }
+
+.drive-notice,
+.drive-state {
+  margin: 0 0 1.2rem;
+  padding: 1rem 1.1rem;
+  color: var(--ink-soft);
+  background: rgba(255, 253, 248, 0.72);
+  border: 1px solid var(--line);
+}
+
+.drive-notice { color: #48635c; border-color: rgba(72, 99, 92, 0.24); }
+.drive-notice-error { color: #934c45; border-color: rgba(147, 76, 69, 0.35); }
+
+.drive-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 0 1rem;
+}
+
+.drive-section-title h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); }
+.drive-root-grid,
+.drive-item-grid { display: grid; gap: 0.8rem; }
+.drive-root-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.drive-root-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.15rem;
+  background: rgba(255, 253, 248, 0.84);
+  border: 1px solid var(--line);
+  box-shadow: 0 1rem 2.5rem rgba(19, 35, 59, 0.045);
+}
+
+.drive-root-card > span { color: #8c7343; font-size: 2.2rem; }
+.drive-root-card h3,
+.drive-item-card h3 { margin: 0.2rem 0 0; overflow-wrap: anywhere; font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; }
+.drive-root-card p,
+.drive-item-card p { margin: 0.35rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
+.drive-root-card > div:last-child { display: grid; gap: 0.45rem; }
+.drive-root-card .drive-remove-root { min-height: auto; padding: 0.45rem 0.6rem; color: #934c45; background: transparent; border-color: rgba(147, 76, 69, 0.28); }
+.drive-root-card-error { border-color: rgba(147, 76, 69, 0.35); }
+
+.drive-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem 0 0.3rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.drive-breadcrumbs::-webkit-scrollbar { display: none; }
+.drive-breadcrumbs span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0.35rem; }
+.drive-breadcrumbs i { color: rgba(19, 35, 59, 0.38); font-style: normal; }
+.drive-breadcrumbs button { flex: 0 0 auto; padding: 0.4rem; color: var(--ink-soft); background: transparent; border: 0; cursor: pointer; font: inherit; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.drive-breadcrumbs button[aria-current="page"] { color: var(--ink); cursor: default; }
+
+.drive-folder-heading { padding-top: 0.7rem; }
+.drive-folder-heading > button { color: var(--ink); background: transparent; }
+
+.drive-item-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  background: rgba(255, 253, 248, 0.82);
+  border: 1px solid var(--line);
+}
+
+.drive-item-icon { display: grid; width: 2.6rem; height: 2.6rem; place-items: center; color: var(--ink-soft); background: rgba(19, 35, 59, 0.06); font-size: 1.25rem; }
+.drive-item-icon-folder { color: #8c7343; background: rgba(198, 168, 103, 0.12); }
+.drive-item-copy { min-width: 0; }
+.drive-item-card > a { max-width: 13rem; color: var(--ink); font-size: 0.59rem; font-weight: 850; letter-spacing: 0.05em; text-align: right; text-decoration: underline; text-decoration-color: rgba(198, 168, 103, 0.7); text-transform: uppercase; }
+.drive-item-unavailable { color: var(--ink-soft); font-size: 0.64rem; }
+.drive-search-result > p { margin: 0 0 0.35rem; color: var(--ink-soft); font-size: 0.62rem; }
+
+.drive-modal-backdrop {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(12, 25, 42, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.drive-remove-modal { width: min(100%, 31rem); padding: clamp(1.4rem, 5vw, 2rem); background: var(--paper); box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.25); }
+.drive-remove-modal h2 { font-size: clamp(1.8rem, 6vw, 2.6rem); }
+.drive-remove-modal p { color: var(--ink-soft); line-height: 1.55; }
+.drive-remove-modal > div { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.4rem; }
+.drive-remove-modal > div button:first-child { color: var(--ink); background: transparent; }
+.drive-remove-modal > div button:last-child { background: #934c45; border-color: #934c45; }
+
+@media (max-width: 900px) {
+  .drive-heading { align-items: stretch; flex-direction: column; }
+  .drive-heading-actions { grid-template-columns: 1fr 1fr; }
+  .drive-root-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 849px) {
+  .drive-page { padding: 0.85rem; }
+  .drive-heading { padding-top: 2rem; }
+  .drive-heading-actions { grid-template-columns: 1fr; }
+  .drive-heading-actions > button { grid-column: auto; }
+  .drive-search { grid-template-columns: auto minmax(0, 1fr); }
+  .drive-search button { grid-column: 1 / -1; }
+  .drive-root-card,
+  .drive-item-card { grid-template-columns: auto minmax(0, 1fr); }
+  .drive-root-card > div:last-child,
+  .drive-item-card > button,
+  .drive-item-card > a,
+  .drive-item-unavailable { grid-column: 1 / -1; width: 100%; max-width: none; text-align: center; }
+  .drive-remove-modal > div { align-items: stretch; flex-direction: column; }
+}
