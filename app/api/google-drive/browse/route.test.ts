@@ -65,6 +65,13 @@ describe("route de navigation Google Drive", () => {
     expect((await browse("outside_folder")).status).toBe(403);
   });
 
+  it("refuse des identifiants root et folder non fiables avant le service", async () => {
+    const invalidRoot = await GET(new Request("https://crm.example.com/api/google-drive/browse?broker=maxime&rootId=invalide"));
+    expect(invalidRoot.status).toBe(400);
+    const invalidFolder = await GET(new Request(`https://crm.example.com/api/google-drive/browse?broker=maxime&rootId=${rootId}&folderId=!!!`));
+    expect(invalidFolder.status).toBe(400);
+  });
+
   it("distingue le dossier inaccessible et l’autorisation expirée", async () => {
     state.failure = "missing";
     expect((await browse("missing_folder")).status).toBe(404);

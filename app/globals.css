@@ -10230,6 +10230,32 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
   scrollbar-width: none;
 }
 
+.drive-folder-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.drive-folder-navigation .drive-breadcrumbs { min-width: 0; }
+.drive-back-button,
+.drive-location-error button {
+  flex: 0 0 auto;
+  padding: 0.4rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.drive-back-button { border-right: 1px solid var(--line); padding-right: 0.85rem; }
+.drive-location-error { margin-bottom: 1.2rem; }
+.drive-location-error button { border-bottom: 1px solid rgba(19, 35, 59, 0.24); }
+
 .drive-breadcrumbs::-webkit-scrollbar { display: none; }
 .drive-breadcrumbs span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0.35rem; }
 .drive-breadcrumbs i { color: rgba(19, 35, 59, 0.38); font-style: normal; }

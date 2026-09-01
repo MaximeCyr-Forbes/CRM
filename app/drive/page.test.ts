@@ -28,8 +28,31 @@ describe("onglet Google Drive", () => {
     expect(page).toContain("Fil d’Ariane Google Drive");
     expect(page).toContain("OUVRIR DANS GOOGLE DRIVE");
     expect(page).toContain("EFFACER LA RECHERCHE");
+    expect(page).toContain("← RETOUR");
+    expect(page).toContain("RETOUR AUX DOSSIERS RACINES");
     expect(page).toContain("AbortController");
     expect(page).toContain("Le dossier et ses fichiers resteront intacts dans Google Drive.");
+  });
+
+  it("pilote dossiers, recherche, breadcrumbs et historique depuis l’URL", () => {
+    const page = source("app/drive/page.tsx");
+    expect(page).toContain("useRouter()");
+    expect(page).toContain("useSearchParams()");
+    expect(page).toContain("readGoogleDriveLocation(searchParams)");
+    expect(page).toContain("googleDriveRootHref(root.id)");
+    expect(page).toContain("googleDriveFolderHref(root.id, folderId)");
+    expect(page).toContain("googleDriveSearchHref(normalizedQuery)");
+    expect(page).toContain("router.back()");
+    expect(page).toContain('navigateDrive("/drive")');
+    expect(page).toContain("DRIVE_HISTORY_DEPTH_KEY");
+    expect(page).toContain("window.history.replaceState");
+  });
+
+  it("annule les chargements de dossiers devenus obsolètes", () => {
+    const page = source("app/drive/page.tsx");
+    expect(page).toContain("browseAbortRef.current?.abort()");
+    expect(page).toContain("browseRequestIdRef.current !== requestId");
+    expect(page).toContain("signal: controller.signal");
   });
 
   it("utilise une recherche Google native bornée plutôt qu’un balayage BFS", () => {

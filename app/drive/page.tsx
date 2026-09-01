@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { type Broker, useBroker } from "../broker-context";
 import type { CalendarBroker, CalendarConnectionStatus } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
@@ -12,6 +13,12 @@ import type {
   GoogleDriveSearchResult,
 } from "../data/google-drive-types";
 import { pickGoogleDriveFolder } from "../lib/google-drive/picker-client";
+import {
+  googleDriveFolderHref,
+  googleDriveRootHref,
+  googleDriveSearchHref,
+  readGoogleDriveLocation,
+} from "../lib/google-drive/navigation";
 import { isAbortError, requestGoogleDriveSearch } from "../lib/google-drive/search-client";
 
 const BROKER_KEYS: Record<Broker, CalendarBroker> = {
@@ -27,6 +34,9 @@ const dateFormatter = new Intl.DateTimeFormat("fr-CA", {
 const sizeFormatter = new Intl.NumberFormat("fr-CA", {
   maximumFractionDigits: 1,
 });
+const DRIVE_CONTENT_HEADER_GAP = 12;
+const DRIVE_HISTORY_ENTRY_KEY = "__forbesDriveEntry";
+const DRIVE_HISTORY_DEPTH_KEY = "__forbesDriveDepth";
 
 type RootState = {
   listing?: GoogleDriveFolderListing;
@@ -61,6 +71,16 @@ function fileKind(item: GoogleDriveItem) {
   return "Fichier";
 }
 
+function scrollDriveContentIntoView(target: HTMLElement) {
+  const header = document.querySelector<HTMLElement>(".app-header");
+  const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+  const targetTop = target.getBoundingClientRect().top;
+  window.scrollTo({
+    top: Math.max(0, window.scrollY + targetTop - headerBottom - DRIVE_CONTENT_HEADER_GAP),
+    behavior: "auto",
+  });
+}
+
 function DriveItemCard({ item, links = [], onOpenFolder }: {
   item: GoogleDriveItem;
   links?: GoogleDriveEntityLink[];
@@ -90,16 +110,20 @@ function DriveItemCard({ item, links = [], onOpenFolder }: {
 }
 
 export default function DrivePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { selectedBroker } = useBroker();
   const broker = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
+  const locationKey = searchParams.toString();
+  const driveLocation = useMemo(() => readGoogleDriveLocation(searchParams), [locationKey, searchParams]);
   const [connection, setConnection] = useState<CalendarConnectionStatus | null>(null);
   const [roots, setRoots] = useState<GoogleDriveRoot[]>([]);
+  const [rootsLoadedBroker, setRootsLoadedBroker] = useState<CalendarBroker | null>(null);
   const [rootStates, setRootStates] = useState<Record<string, RootState>>({});
   const [entityLinks, setEntityLinks] = useState<GoogleDriveEntityLink[]>([]);
   const [activeListing, setActiveListing] = useState<GoogleDriveFolderListing | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GoogleDriveSearchResult[] | null>(null);
-  const [lastSearchQuery, setLastSearchQuery] = useState("");
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -109,74 +133,228 @@ export default function DrivePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pickerLock = useRef(false);
+  const driveContentRef = useRef<HTMLElement>(null);
+  const rootsAbortRef = useRef<AbortController | null>(null);
+  const rootsRequestIdRef = useRef(0);
+  const browseAbortRef = useRef<AbortController | null>(null);
+  const browseRequestIdRef = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRequestIdRef = useRef(0);
+  const pendingHistoryDepthRef = useRef<number | null>(null);
+  const previousBrokerRef = useRef<CalendarBroker | null>(broker);
 
-  const browse = useCallback(async (root: GoogleDriveRoot, folderId?: string): Promise<GoogleDriveFolderListing> => {
+  const browse = useCallback(async (
+    root: GoogleDriveRoot,
+    folderId?: string,
+    signal?: AbortSignal,
+  ): Promise<GoogleDriveFolderListing> => {
     if (!broker) throw new Error("Sélectionnez d’abord le courtier à consulter.");
     const search = new URLSearchParams({ broker, rootId: root.id });
     if (folderId) search.set("folderId", folderId);
-    const response = await fetch(`/api/google-drive/browse?${search.toString()}`, { cache: "no-store" });
+    const response = await fetch(`/api/google-drive/browse?${search.toString()}`, { cache: "no-store", signal });
     const payload = await response.json().catch(() => null) as { data?: GoogleDriveFolderListing; error?: string } | null;
+    if (response.status === 403) throw new Error("Ce dossier ne fait pas partie des dossiers Drive autorisés.");
     if (!response.ok || !payload?.data) throw new Error(payload?.error ?? "Lecture Google Drive impossible.");
     return payload.data;
   }, [broker]);
 
   const loadRoots = useCallback(async () => {
+    rootsAbortRef.current?.abort();
+    const controller = new AbortController();
+    const requestId = rootsRequestIdRef.current + 1;
+    rootsRequestIdRef.current = requestId;
+    rootsAbortRef.current = controller;
     if (!broker) {
       setRoots([]);
       setEntityLinks([]);
       setConnection(null);
+      setRootsLoadedBroker(null);
       return;
     }
     setIsLoading(true);
+    setRootsLoadedBroker(null);
     setError(null);
     try {
       const [rootsResponse, connectionsResponse, linksResponse] = await Promise.all([
-        fetch(`/api/google-drive/roots?broker=${broker}`, { cache: "no-store" }),
-        fetch("/api/google-calendar/connections", { cache: "no-store" }),
-        fetch(`/api/google-drive/entity-links?broker=${broker}`, { cache: "no-store" }),
+        fetch(`/api/google-drive/roots?broker=${broker}`, { cache: "no-store", signal: controller.signal }),
+        fetch("/api/google-calendar/connections", { cache: "no-store", signal: controller.signal }),
+        fetch(`/api/google-drive/entity-links?broker=${broker}`, { cache: "no-store", signal: controller.signal }),
       ]);
       const rootsPayload = await rootsResponse.json().catch(() => null) as { roots?: GoogleDriveRoot[]; error?: string } | null;
       const connectionsPayload = await connectionsResponse.json().catch(() => null) as { connections?: CalendarConnectionStatus[]; error?: string } | null;
       const linksPayload = await linksResponse.json().catch(() => null) as { links?: GoogleDriveEntityLink[] } | null;
       if (!rootsResponse.ok || !rootsPayload?.roots) throw new Error(rootsPayload?.error ?? "Chargement des dossiers impossible.");
       if (!connectionsResponse.ok || !connectionsPayload?.connections) throw new Error(connectionsPayload?.error ?? "Connexion Google indisponible.");
+      if (rootsRequestIdRef.current !== requestId) return;
       setRoots(rootsPayload.roots);
       setEntityLinks(linksResponse.ok && linksPayload?.links ? linksPayload.links : []);
       setConnection(connectionsPayload.connections.find((item) => item.broker === broker) ?? null);
       const states = await Promise.all(rootsPayload.roots.map(async (root): Promise<[string, RootState]> => {
         try {
-          return [root.id, { listing: await browse(root) }];
+          return [root.id, { listing: await browse(root, undefined, controller.signal) }];
         } catch (caughtError) {
+          if (isAbortError(caughtError)) throw caughtError;
           return [root.id, { error: caughtError instanceof Error ? caughtError.message : "Dossier inaccessible." }];
         }
       }));
+      if (rootsRequestIdRef.current !== requestId) return;
       setRootStates(Object.fromEntries(states));
+      setRootsLoadedBroker(broker);
     } catch (caughtError) {
+      if (rootsRequestIdRef.current !== requestId || isAbortError(caughtError)) return;
       setError(caughtError instanceof Error ? caughtError.message : "Google Drive est temporairement indisponible.");
     } finally {
-      setIsLoading(false);
+      if (rootsRequestIdRef.current === requestId) {
+        rootsAbortRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, [broker, browse]);
 
   useEffect(() => {
+    browseRequestIdRef.current += 1;
+    browseAbortRef.current?.abort();
+    browseAbortRef.current = null;
     searchRequestIdRef.current += 1;
     searchAbortRef.current?.abort();
     searchAbortRef.current = null;
     setIsSearching(false);
     setActiveListing(null);
     setSearchResults(null);
-    setLastSearchQuery("");
-    setQuery("");
     setRootStates({});
     void loadRoots();
   }, [loadRoots]);
 
-  useEffect(() => () => {
+  useEffect(() => {
+    const previousBroker = previousBrokerRef.current;
+    previousBrokerRef.current = broker;
+    if (previousBroker !== broker && driveLocation.mode !== "roots") {
+      router.replace("/drive", { scroll: false });
+    }
+  }, [broker, driveLocation.mode, router]);
+
+  useEffect(() => {
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state as Record<string, unknown>
+      : {};
+    const existingDepth = currentState[DRIVE_HISTORY_ENTRY_KEY] === true
+      && typeof currentState[DRIVE_HISTORY_DEPTH_KEY] === "number"
+      ? currentState[DRIVE_HISTORY_DEPTH_KEY] as number
+      : 0;
+    const depth = pendingHistoryDepthRef.current ?? existingDepth;
+    pendingHistoryDepthRef.current = null;
+    window.history.replaceState({
+      ...currentState,
+      [DRIVE_HISTORY_ENTRY_KEY]: true,
+      [DRIVE_HISTORY_DEPTH_KEY]: depth,
+    }, "", window.location.href);
+  }, [locationKey]);
+
+  useEffect(() => {
+    browseRequestIdRef.current += 1;
+    browseAbortRef.current?.abort();
+    browseAbortRef.current = null;
     searchRequestIdRef.current += 1;
     searchAbortRef.current?.abort();
     searchAbortRef.current = null;
+    setIsSearching(false);
+    setActiveListing(null);
+    setSearchResults(null);
+    setSearchTruncated(false);
+    setError(null);
+
+    if (!broker || rootsLoadedBroker !== broker || !connection?.driveEnabled) return;
+
+    if (driveLocation.mode === "roots") {
+      setQuery("");
+      setIsLoading(false);
+      return;
+    }
+
+    if (driveLocation.mode === "search") {
+      const controller = new AbortController();
+      const requestId = searchRequestIdRef.current + 1;
+      searchRequestIdRef.current = requestId;
+      searchAbortRef.current = controller;
+      setQuery(driveLocation.query);
+      setIsLoading(false);
+      setIsSearching(true);
+      void requestGoogleDriveSearch(broker, driveLocation.query, { signal: controller.signal })
+        .then((data) => {
+          if (searchRequestIdRef.current !== requestId) return;
+          setSearchResults(data.results);
+          setSearchTruncated(data.truncated);
+        })
+        .catch((caughtError) => {
+          if (searchRequestIdRef.current !== requestId || isAbortError(caughtError)) return;
+          setError(caughtError instanceof Error ? caughtError.message : "Recherche Google Drive impossible.");
+        })
+        .finally(() => {
+          if (searchRequestIdRef.current === requestId) {
+            searchAbortRef.current = null;
+            setIsSearching(false);
+          }
+        });
+      return () => controller.abort();
+    }
+
+    setQuery("");
+    const root = roots.find((candidate) => candidate.id === driveLocation.rootId);
+    if (!root) {
+      setIsLoading(false);
+      setError("Le dossier partagé est introuvable pour ce courtier.");
+      return;
+    }
+    const controller = new AbortController();
+    const requestId = browseRequestIdRef.current + 1;
+    browseRequestIdRef.current = requestId;
+    browseAbortRef.current = controller;
+    setIsLoading(true);
+    void browse(root, driveLocation.folderId ?? undefined, controller.signal)
+      .then((listing) => {
+        if (browseRequestIdRef.current !== requestId) return;
+        setActiveListing(listing);
+      })
+      .catch((caughtError) => {
+        if (browseRequestIdRef.current !== requestId || isAbortError(caughtError)) return;
+        setError(caughtError instanceof Error ? caughtError.message : "Ce dossier est inaccessible.");
+      })
+      .finally(() => {
+        if (browseRequestIdRef.current === requestId) {
+          browseAbortRef.current = null;
+          setIsLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [
+    broker,
+    browse,
+    connection?.driveEnabled,
+    driveLocation.mode,
+    driveLocation.mode === "folder" ? driveLocation.folderId : null,
+    driveLocation.mode === "folder" ? driveLocation.rootId : null,
+    driveLocation.mode === "search" ? driveLocation.query : null,
+    roots,
+    rootsLoadedBroker,
+  ]);
+
+  useEffect(() => {
+    const shouldScroll = (driveLocation.mode === "folder" && activeListing)
+      || (driveLocation.mode === "search" && searchResults);
+    if (!shouldScroll || !driveContentRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (driveContentRef.current) scrollDriveContentIntoView(driveContentRef.current);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeListing, driveLocation.mode, searchResults]);
+
+  useEffect(() => () => {
+    rootsRequestIdRef.current += 1;
+    rootsAbortRef.current?.abort();
+    browseRequestIdRef.current += 1;
+    browseAbortRef.current?.abort();
+    searchRequestIdRef.current += 1;
+    searchAbortRef.current?.abort();
   }, []);
 
   function authorizeDrive() {
@@ -213,66 +391,45 @@ export default function DrivePage() {
     }
   }
 
-  async function openFolder(root: GoogleDriveRoot, folderId?: string) {
-    setIsLoading(true);
-    setError(null);
-    setSearchResults(null);
-    try {
-      setActiveListing(await browse(root, folderId));
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Ce dossier est inaccessible.");
-    } finally {
-      setIsLoading(false);
-    }
+  function navigateDrive(href: string) {
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state as Record<string, unknown>
+      : {};
+    const currentDepth = currentState[DRIVE_HISTORY_ENTRY_KEY] === true
+      && typeof currentState[DRIVE_HISTORY_DEPTH_KEY] === "number"
+      ? currentState[DRIVE_HISTORY_DEPTH_KEY] as number
+      : 0;
+    pendingHistoryDepthRef.current = currentDepth + 1;
+    router.push(href, { scroll: false });
   }
 
-  async function searchDrive(event: FormEvent) {
+  function openFolder(root: GoogleDriveRoot, folderId?: string) {
+    navigateDrive(folderId ? googleDriveFolderHref(root.id, folderId) : googleDriveRootHref(root.id));
+  }
+
+  function searchDrive(event: FormEvent) {
     event.preventDefault();
     const normalizedQuery = query.trim();
     if (!broker || !normalizedQuery) {
-      searchRequestIdRef.current += 1;
-      searchAbortRef.current?.abort();
-      searchAbortRef.current = null;
-      setIsSearching(false);
-      setSearchResults(null);
-      setLastSearchQuery("");
+      navigateDrive("/drive");
       return;
     }
-    searchAbortRef.current?.abort();
-    const controller = new AbortController();
-    const requestId = searchRequestIdRef.current + 1;
-    searchRequestIdRef.current = requestId;
-    searchAbortRef.current = controller;
-    setIsSearching(true);
-    setError(null);
-    setActiveListing(null);
-    try {
-      const data = await requestGoogleDriveSearch(broker, normalizedQuery, { signal: controller.signal });
-      if (searchRequestIdRef.current !== requestId) return;
-      setSearchResults(data.results);
-      setSearchTruncated(data.truncated);
-      setLastSearchQuery(normalizedQuery);
-    } catch (caughtError) {
-      if (searchRequestIdRef.current !== requestId || isAbortError(caughtError)) return;
-      setError(caughtError instanceof Error ? caughtError.message : "Recherche Google Drive impossible.");
-    } finally {
-      if (searchRequestIdRef.current === requestId) {
-        searchAbortRef.current = null;
-        setIsSearching(false);
-      }
-    }
+    navigateDrive(googleDriveSearchHref(normalizedQuery));
   }
 
   function clearSearch() {
-    searchRequestIdRef.current += 1;
-    searchAbortRef.current?.abort();
-    searchAbortRef.current = null;
-    setIsSearching(false);
-    setSearchResults(null);
-    setSearchTruncated(false);
-    setLastSearchQuery("");
-    setQuery("");
-    setError(null);
+    navigateDrive("/drive");
+  }
+
+  function goBackWithinDrive() {
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state as Record<string, unknown>
+      : {};
+    const hasPreviousDriveEntry = currentState[DRIVE_HISTORY_ENTRY_KEY] === true
+      && typeof currentState[DRIVE_HISTORY_DEPTH_KEY] === "number"
+      && currentState[DRIVE_HISTORY_DEPTH_KEY] > 0;
+    if (hasPreviousDriveEntry) router.back();
+    else navigateDrive("/drive");
   }
 
   async function removeRoot() {
@@ -283,7 +440,9 @@ export default function DrivePage() {
       const response = await fetch(`/api/google-drive/roots/${pendingRemoval.id}?broker=${broker}`, { method: "DELETE" });
       const payload = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(payload?.error ?? "Le dossier n’a pas pu être retiré.");
-      if (activeListing?.root.id === pendingRemoval.id) setActiveListing(null);
+      if (driveLocation.mode === "folder" && driveLocation.rootId === pendingRemoval.id) {
+        router.replace("/drive", { scroll: false });
+      }
       setMessage("L’accès en lecture du CRM a été révoqué. Le dossier et ses fichiers restent intacts dans Google Drive.");
       setPendingRemoval(null);
       await loadRoots();
@@ -326,7 +485,7 @@ export default function DrivePage() {
               maxLength={120}
               onChange={(event) => {
                 setQuery(event.target.value);
-                if (!event.target.value) clearSearch();
+                if (!event.target.value && driveLocation.mode === "search") clearSearch();
               }}
               placeholder="RECHERCHER DANS DRIVE"
               value={query}
@@ -343,7 +502,7 @@ export default function DrivePage() {
           <p className="drive-state">Google Drive doit être autorisé pour {BROKER_LABELS[broker]} avant d’afficher ses dossiers.</p>
         )}
 
-        {broker && connection?.driveEnabled && !isLoading && searchResults === null && !activeListing && (
+        {broker && connection?.driveEnabled && !isLoading && driveLocation.mode === "roots" && (
           <section aria-labelledby="drive-roots-title">
             <div className="drive-section-title">
               <p className="section-kicker">Accès autorisés</p>
@@ -365,7 +524,7 @@ export default function DrivePage() {
                         {entityLinks.some((link) => link.folderId === root.folderId) && <div className="drive-entity-links">{entityLinks.filter((link) => link.folderId === root.folderId).map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
                       </div>
                       <div>
-                        <button disabled={Boolean(state?.error)} onClick={() => void openFolder(root)} type="button">OUVRIR</button>
+                        <button disabled={Boolean(state?.error)} onClick={() => openFolder(root)} type="button">OUVRIR</button>
                         <button className="drive-remove-root" onClick={() => setPendingRemoval(root)} type="button">RETIRER DU CRM</button>
                       </div>
                     </article>
@@ -376,24 +535,35 @@ export default function DrivePage() {
           </section>
         )}
 
-        {activeListing && activeRoot && searchResults === null && (
-          <section aria-labelledby="drive-folder-title">
-            <nav aria-label="Fil d’Ariane Google Drive" className="drive-breadcrumbs">
-              <button onClick={() => setActiveListing(null)} type="button">DRIVE</button>
+        {driveLocation.mode === "folder" && !isLoading && !activeListing && error && (
+          <section className="drive-location-error" ref={driveContentRef}>
+            <button onClick={() => navigateDrive("/drive")} type="button">RETOUR AUX DOSSIERS RACINES</button>
+          </section>
+        )}
+
+        {driveLocation.mode === "folder" && activeListing && activeRoot && (
+          <section aria-labelledby="drive-folder-title" ref={driveContentRef}>
+            <div className="drive-folder-navigation">
+              <button className="drive-back-button" onClick={goBackWithinDrive} type="button">← RETOUR</button>
+              <nav aria-label="Fil d’Ariane Google Drive" className="drive-breadcrumbs">
+              <button onClick={() => navigateDrive("/drive")} type="button">DRIVE</button>
               {activeListing.breadcrumbs.map((crumb, index) => (
                 <span key={crumb.id}>
                   <i aria-hidden="true">›</i>
                   <button
                     aria-current={index === activeListing.breadcrumbs.length - 1 ? "page" : undefined}
                     disabled={index === activeListing.breadcrumbs.length - 1}
-                    onClick={() => void openFolder(activeRoot, crumb.id)}
+                    onClick={() => navigateDrive(index === 0
+                      ? googleDriveRootHref(activeRoot.id)
+                      : googleDriveFolderHref(activeRoot.id, crumb.id))}
                     type="button"
                   >
                     {crumb.name}
                   </button>
                 </span>
               ))}
-            </nav>
+              </nav>
+            </div>
             <div className="drive-section-title drive-folder-heading">
               <div><p className="section-kicker">Dossier autorisé</p><h2 id="drive-folder-title">{activeListing.folder.name}</h2></div>
               {activeListing.folder.webViewLink && <a href={activeListing.folder.webViewLink} rel="noopener noreferrer" target="_blank">OUVRIR DANS GOOGLE DRIVE ↗</a>}
@@ -403,19 +573,19 @@ export default function DrivePage() {
             ) : (
               <div className="drive-item-grid">
                 {activeListing.items.map((item) => (
-                  <DriveItemCard item={item} key={item.id} links={entityLinks.filter((link) => link.folderId === item.id)} onOpenFolder={() => void openFolder(activeRoot, item.id)} />
+                  <DriveItemCard item={item} key={item.id} links={entityLinks.filter((link) => link.folderId === item.id)} onOpenFolder={() => openFolder(activeRoot, item.id)} />
                 ))}
               </div>
             )}
           </section>
         )}
 
-        {searchResults !== null && (
-          <section aria-labelledby="drive-search-results-title">
+        {driveLocation.mode === "search" && searchResults !== null && (
+          <section aria-labelledby="drive-search-results-title" ref={driveContentRef}>
             <div className="drive-section-title drive-folder-heading">
               <div>
                 <p className="section-kicker">Dans les racines autorisées seulement</p>
-                <h2 id="drive-search-results-title">RÉSULTATS POUR « {lastSearchQuery} »</h2>
+                <h2 id="drive-search-results-title">RÉSULTATS POUR « {driveLocation.query} »</h2>
                 <p>{searchResults.length} RÉSULTAT{searchResults.length === 1 ? "" : "S"}</p>
               </div>
               <button onClick={clearSearch} type="button">EFFACER LA RECHERCHE</button>
@@ -426,14 +596,13 @@ export default function DrivePage() {
             ) : (
               <div className="drive-item-grid">
                 {searchResults.map((item) => {
-                  const root = roots.find((candidate) => candidate.id === item.rootId);
                   return (
                     <div className="drive-search-result" key={`${item.rootId}-${item.id}`}>
                       <p>{[item.rootName, ...item.breadcrumbs.slice(1).map((crumb) => crumb.name)].join(" › ")}</p>
                       <DriveItemCard
                         item={item}
                         links={entityLinks.filter((link) => link.folderId === item.id)}
-                        onOpenFolder={() => { if (root) void openFolder(root, item.id); }}
+                        onOpenFolder={() => navigateDrive(googleDriveFolderHref(item.rootId, item.id))}
                       />
                     </div>
                   );
