@@ -6,6 +6,7 @@ import { useClientNotes } from "../../client-notes-context";
 import { PencilIcon } from "../../components/action-icons";
 import { ClientHistory } from "../../components/client-history";
 import { ContactEditorModal, type ContactEditorMode } from "../../components/contact-editor-modal";
+import { DriveDocumentsSection } from "../../components/drive-documents-section";
 import { ContactAddressManager } from "../../components/contact-address-manager";
 import { ContactEmailModal } from "../../components/contact-email-modal";
 import { ContactPropertyHistory } from "../../components/contact-property-history";
@@ -562,6 +563,12 @@ export default function ContactProfilePage() {
         </section>
 
         <ContactPropertyHistory listingsById={listingsById} transactions={linkedTransactions} />
+
+        <DriveDocumentsSection
+          broker={contact.broker === "unassigned" ? null : contact.broker}
+          entityId={contact.id}
+          entityType="contact"
+        />
 
         <ClientHistory notes={notes} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
 

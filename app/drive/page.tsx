@@ -6,6 +6,7 @@ import type { CalendarBroker, CalendarConnectionStatus } from "../data/calendar-
 import { BROKER_LABELS } from "../data/contact-types";
 import type {
   GoogleDriveFolderListing,
+  GoogleDriveEntityLink,
   GoogleDriveItem,
   GoogleDriveRoot,
   GoogleDriveSearchResult,
@@ -59,8 +60,9 @@ function fileKind(item: GoogleDriveItem) {
   return "Fichier";
 }
 
-function DriveItemCard({ item, onOpenFolder }: {
+function DriveItemCard({ item, links = [], onOpenFolder }: {
   item: GoogleDriveItem;
+  links?: GoogleDriveEntityLink[];
   onOpenFolder(): void;
 }) {
   const size = formatSize(item.size);
@@ -73,6 +75,7 @@ function DriveItemCard({ item, onOpenFolder }: {
         <span>{fileKind(item)}</span>
         <h3>{item.name}</h3>
         <p>{formatModified(item.modifiedTime)}{size ? ` · ${size}` : ""}</p>
+        {links.length > 0 && <div className="drive-entity-links">{links.map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
       </div>
       {item.isFolder ? (
         <button onClick={onOpenFolder} type="button">OUVRIR</button>
@@ -91,6 +94,7 @@ export default function DrivePage() {
   const [connection, setConnection] = useState<CalendarConnectionStatus | null>(null);
   const [roots, setRoots] = useState<GoogleDriveRoot[]>([]);
   const [rootStates, setRootStates] = useState<Record<string, RootState>>({});
+  const [entityLinks, setEntityLinks] = useState<GoogleDriveEntityLink[]>([]);
   const [activeListing, setActiveListing] = useState<GoogleDriveFolderListing | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GoogleDriveSearchResult[] | null>(null);
@@ -117,21 +121,25 @@ export default function DrivePage() {
   const loadRoots = useCallback(async () => {
     if (!broker) {
       setRoots([]);
+      setEntityLinks([]);
       setConnection(null);
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
-      const [rootsResponse, connectionsResponse] = await Promise.all([
+      const [rootsResponse, connectionsResponse, linksResponse] = await Promise.all([
         fetch(`/api/google-drive/roots?broker=${broker}`, { cache: "no-store" }),
         fetch("/api/google-calendar/connections", { cache: "no-store" }),
+        fetch(`/api/google-drive/entity-links?broker=${broker}`, { cache: "no-store" }),
       ]);
       const rootsPayload = await rootsResponse.json().catch(() => null) as { roots?: GoogleDriveRoot[]; error?: string } | null;
       const connectionsPayload = await connectionsResponse.json().catch(() => null) as { connections?: CalendarConnectionStatus[]; error?: string } | null;
+      const linksPayload = await linksResponse.json().catch(() => null) as { links?: GoogleDriveEntityLink[] } | null;
       if (!rootsResponse.ok || !rootsPayload?.roots) throw new Error(rootsPayload?.error ?? "Chargement des dossiers impossible.");
       if (!connectionsResponse.ok || !connectionsPayload?.connections) throw new Error(connectionsPayload?.error ?? "Connexion Google indisponible.");
       setRoots(rootsPayload.roots);
+      setEntityLinks(linksResponse.ok && linksPayload?.links ? linksPayload.links : []);
       setConnection(connectionsPayload.connections.find((item) => item.broker === broker) ?? null);
       const states = await Promise.all(rootsPayload.roots.map(async (root): Promise<[string, RootState]> => {
         try {
@@ -316,6 +324,7 @@ export default function DrivePage() {
                         <small>{root.driveId ? "DRIVE PARTAGÉ" : "DOSSIER GOOGLE DRIVE"}</small>
                         <h3>{state?.listing?.folder.name ?? root.folderName}</h3>
                         <p>{state?.error ?? formatModified(state?.listing?.folder.modifiedTime ?? root.updatedAt)}</p>
+                        {entityLinks.some((link) => link.folderId === root.folderId) && <div className="drive-entity-links">{entityLinks.filter((link) => link.folderId === root.folderId).map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
                       </div>
                       <div>
                         <button disabled={Boolean(state?.error)} onClick={() => void openFolder(root)} type="button">OUVRIR</button>
@@ -356,7 +365,7 @@ export default function DrivePage() {
             ) : (
               <div className="drive-item-grid">
                 {activeListing.items.map((item) => (
-                  <DriveItemCard item={item} key={item.id} onOpenFolder={() => void openFolder(activeRoot, item.id)} />
+                  <DriveItemCard item={item} key={item.id} links={entityLinks.filter((link) => link.folderId === item.id)} onOpenFolder={() => void openFolder(activeRoot, item.id)} />
                 ))}
               </div>
             )}
@@ -381,6 +390,7 @@ export default function DrivePage() {
                       <p>{[item.rootName, ...item.breadcrumbs.slice(1).map((crumb) => crumb.name)].join(" › ")}</p>
                       <DriveItemCard
                         item={item}
+                        links={entityLinks.filter((link) => link.folderId === item.id)}
                         onOpenFolder={() => { if (root) void openFolder(root, item.id); }}
                       />
                     </div>

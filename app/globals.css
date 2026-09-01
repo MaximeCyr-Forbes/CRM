@@ -10296,3 +10296,74 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
   .drive-item-unavailable { grid-column: 1 / -1; width: 100%; max-width: none; text-align: center; }
   .drive-remove-modal > div { align-items: stretch; flex-direction: column; }
 }
+
+/* Liens manuels entre les dossiers Drive autorisés et les dossiers CRM. */
+.drive-documents-section { margin-top: 1.5rem; padding: clamp(1.25rem, 3vw, 1.75rem); border: 1px solid rgba(19, 35, 59, 0.14); border-radius: 1.5rem; background: var(--paper); box-shadow: 0 1rem 2.6rem rgba(19, 35, 59, 0.07); }
+.drive-documents-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
+.drive-documents-heading h2,
+.drive-link-modal h2 { margin: 0.2rem 0 0; color: var(--ink); font-family: Georgia, "Times New Roman", serif; }
+.drive-documents-heading > button,
+.drive-link-current-folder > button { flex: 0 0 auto; min-height: 2.65rem; padding: 0 1.1rem; border: 1px solid var(--ink); border-radius: 999px; color: white; background: var(--ink); font: inherit; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; cursor: pointer; }
+.drive-documents-heading > button:disabled,
+.drive-link-current-folder > button:disabled { cursor: not-allowed; opacity: 0.48; }
+.drive-documents-broker { margin: 0.85rem 0 0; color: var(--ink-soft); font-size: 0.82rem; }
+.drive-documents-list { display: grid; gap: 0.65rem; margin-top: 1.1rem; }
+.drive-documents-list > article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.85rem; padding: 0.95rem 1.05rem; border: 1px solid rgba(19, 35, 59, 0.12); border-radius: 0.95rem; background: #fbfaf6; }
+.drive-documents-list > article > span { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 0.75rem; color: var(--ink); background: #ddc570; font-size: 1.4rem; }
+.drive-documents-list article > div:nth-child(2) { display: grid; min-width: 0; gap: 0.2rem; }
+.drive-documents-list article strong { overflow: hidden; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; }
+.drive-documents-list article small,
+.drive-documents-state { color: var(--ink-soft); }
+.drive-documents-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; }
+.drive-documents-actions > a,
+.drive-documents-actions > button,
+.drive-documents-remove-confirm button { border: 0; color: var(--ink); background: transparent; font: inherit; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em; text-decoration: none; cursor: pointer; }
+.drive-documents-actions > a:hover,
+.drive-documents-actions > a:focus-visible { text-decoration: underline; }
+.drive-documents-actions > .drive-documents-remove,
+.drive-documents-remove-confirm button:first-of-type { color: #9d342d; }
+.drive-documents-remove-confirm { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.65rem; border-radius: 0.65rem; background: #f4e8e5; }
+.drive-documents-message,
+.drive-documents-error { margin: 0.85rem 0 0; padding: 0.7rem 0.8rem; border-radius: 0.7rem; color: #27623c; background: #e8f2eb; }
+.drive-documents-error { color: #8e302a; background: #f5e7e4; }
+
+.drive-link-modal-backdrop { position: fixed; z-index: 190; inset: 0; display: grid; padding: 1.5rem; place-items: center; background: rgba(8, 17, 29, 0.64); }
+.drive-link-modal { width: min(47.5rem, 100%); max-height: min(48.75rem, calc(100vh - 3rem)); overflow: auto; padding: 1.6rem; border-radius: 1.5rem; background: var(--paper); box-shadow: 0 1.75rem 5rem rgba(0, 0, 0, 0.28); }
+.drive-link-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; }
+.drive-link-modal > header > button { display: grid; width: 2.4rem; height: 2.4rem; border: 1px solid rgba(19, 35, 59, 0.14); border-radius: 50%; place-items: center; color: var(--ink); background: transparent; font-size: 1.4rem; cursor: pointer; }
+.drive-link-root-list,
+.drive-link-folder-list { display: grid; gap: 0.55rem; margin-top: 1.4rem; }
+.drive-link-root-list > button,
+.drive-link-folder-list > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.8rem; width: 100%; padding: 0.95rem; border: 1px solid rgba(19, 35, 59, 0.12); border-radius: 0.9rem; color: var(--ink); background: #fbfaf6; text-align: left; cursor: pointer; }
+.drive-link-root-list > button > span:first-child,
+.drive-link-folder-list > button > span:first-child { color: #b49426; font-size: 1.5rem; }
+.drive-link-root-list > button > span:nth-child(2) { display: grid; min-width: 0; gap: 0.2rem; }
+.drive-link-root-list small { color: var(--ink-soft); font-size: 0.63rem; letter-spacing: 0.08em; }
+.drive-link-breadcrumbs { display: flex; align-items: center; gap: 0.45rem; margin-top: 1.25rem; overflow-x: auto; }
+.drive-link-breadcrumbs span { display: flex; align-items: center; gap: 0.45rem; }
+.drive-link-breadcrumbs button { border: 0; color: var(--ink); background: transparent; font: inherit; font-size: 0.74rem; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.drive-link-breadcrumbs button:disabled { cursor: default; opacity: 0.58; }
+.drive-link-current-folder { display: flex; align-items: center; justify-content: space-between; gap: 1.1rem; margin-top: 1.1rem; padding: 1rem; border-radius: 0.95rem; background: var(--cream); }
+.drive-link-current-folder > div { display: flex; align-items: center; min-width: 0; gap: 0.75rem; }
+.drive-link-current-folder > div > span { color: #b49426; font-size: 1.7rem; }
+.drive-link-current-folder > div > div { display: grid; min-width: 0; }
+.drive-link-current-folder small { color: var(--ink-soft); }
+.drive-link-current-folder strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drive-link-state,
+.drive-link-error { margin: 1rem 0 0; color: var(--ink-soft); }
+.drive-link-error { padding: 0.7rem 0.8rem; border-radius: 0.65rem; color: #8e302a; background: #f5e7e4; }
+.drive-link-modal > footer { display: flex; justify-content: flex-end; margin-top: 1.4rem; }
+.drive-link-modal > footer button { padding: 0.65rem 1rem; border: 1px solid rgba(19, 35, 59, 0.18); border-radius: 999px; color: var(--ink); background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
+.drive-entity-links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.drive-entity-links span { padding: 0.25rem 0.5rem; border-radius: 999px; color: var(--ink); background: rgba(221, 197, 112, 0.22); font-size: 0.65rem; font-weight: 700; }
+
+@media (max-width: 720px) {
+  .drive-documents-section,
+  .drive-link-modal { padding: 1.25rem; border-radius: 1.1rem; }
+  .drive-documents-heading,
+  .drive-link-current-folder { align-items: stretch; flex-direction: column; }
+  .drive-documents-list > article { grid-template-columns: auto minmax(0, 1fr); }
+  .drive-documents-actions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  .drive-documents-remove-confirm { align-items: flex-start; flex-wrap: wrap; }
+  .drive-link-modal-backdrop { padding: 0.75rem; }
+}

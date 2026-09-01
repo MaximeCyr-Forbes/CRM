@@ -1,8 +1,11 @@
-import type { CalendarBroker } from "../../data/calendar-types";
+import { isCalendarBroker, type CalendarBroker } from "../../data/calendar-types";
 import {
   GOOGLE_DRIVE_FOLDER_MIME_TYPE,
   mapGoogleDriveRootRow,
   type GoogleDriveBreadcrumb,
+  type GoogleDriveEntityLink,
+  type GoogleDriveEntityLinkRow,
+  type GoogleDriveEntityType,
   type GoogleDriveFolderListing,
   type GoogleDriveItem,
   type GoogleDriveRoot,
@@ -10,10 +13,12 @@ import {
   type GoogleDriveSearchResult,
 } from "../../data/google-drive-types";
 import { getGoogleAccessToken, getGoogleConnection, googleAuthenticatedRequest } from "../google/connection";
+import { listAllSupabaseRows, mapWithConcurrency, type SupabaseOrderedRangeQuery } from "../supabase/pagination";
 import { getSupabaseAdmin } from "../supabase/server";
 import { hasGoogleDriveFileScope } from "./scopes";
 
 const rootColumns = "id, broker, folder_id, folder_name, drive_id, web_view_link, created_at, updated_at";
+const entityLinkColumns = "id, broker, root_id, folder_id, folder_name, web_view_link, contact_id, listing_id, transaction_id, created_at";
 
 type GoogleDriveFileMetadata = {
   id?: unknown;
@@ -71,6 +76,20 @@ export class GoogleDriveItemUnavailableError extends Error {
   constructor() {
     super("Ce dossier Google Drive est inaccessible ou n’existe plus.");
     this.name = "GoogleDriveItemUnavailableError";
+  }
+}
+
+export class GoogleDriveEntityNotFoundError extends Error {
+  constructor() {
+    super("Le dossier CRM est introuvable.");
+    this.name = "GoogleDriveEntityNotFoundError";
+  }
+}
+
+export class GoogleDriveEntityUnassignedError extends Error {
+  constructor() {
+    super("Un courtier doit être attribué avant de lier un dossier Drive.");
+    this.name = "GoogleDriveEntityUnassignedError";
   }
 }
 
@@ -304,6 +323,19 @@ export async function listAuthorizedGoogleDriveFolder(
   };
 }
 
+export async function getAuthorizedGoogleDriveFolder(
+  broker: CalendarBroker,
+  rootId: string,
+  folderId: string,
+) {
+  const [connection, root] = await Promise.all([
+    requireDriveConnection(broker),
+    getGoogleDriveRoot(broker, rootId),
+  ]);
+  const resolved = await resolveAuthorizedFolder(connection, root, folderId);
+  return { root, folder: resolved.folder, breadcrumbs: resolved.breadcrumbs };
+}
+
 export async function searchAuthorizedGoogleDrive(
   broker: CalendarBroker,
   query: string,
@@ -367,4 +399,177 @@ export async function searchAuthorizedGoogleDrive(
     }
   }
   return { results, truncated, unavailableRootIds };
+}
+
+const entityColumn: Record<GoogleDriveEntityType, "contact_id" | "listing_id" | "transaction_id"> = {
+  contact: "contact_id",
+  listing: "listing_id",
+  transaction: "transaction_id",
+};
+
+function entityIdentity(row: GoogleDriveEntityLinkRow) {
+  if (row.contact_id) return { entityType: "contact" as const, entityId: row.contact_id };
+  if (row.listing_id) return { entityType: "listing" as const, entityId: row.listing_id };
+  if (row.transaction_id) return { entityType: "transaction" as const, entityId: row.transaction_id };
+  throw new Error("Lien Google Drive sans dossier CRM.");
+}
+
+function mapEntityLink(row: GoogleDriveEntityLinkRow, entityLabel?: string): GoogleDriveEntityLink {
+  const entity = entityIdentity(row);
+  return {
+    id: row.id,
+    broker: row.broker,
+    rootId: row.root_id,
+    folderId: row.folder_id,
+    folderName: row.folder_name,
+    webViewLink: row.web_view_link,
+    ...entity,
+    entityLabel: entityLabel || ({ contact: "Contact", listing: "Listing", transaction: "Transaction" }[entity.entityType]),
+    createdAt: row.created_at,
+  };
+}
+
+function entityKey(entityType: GoogleDriveEntityType, entityId: string) {
+  return `${entityType}:${entityId}`;
+}
+
+function chunks<T>(values: T[], size = 100) {
+  const result: T[][] = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
+
+async function loadEntityLabels(rows: GoogleDriveEntityLinkRow[]) {
+  const labels = new Map<string, string>();
+  const ids = {
+    contact: [...new Set(rows.flatMap((row) => row.contact_id ? [row.contact_id] : []))],
+    listing: [...new Set(rows.flatMap((row) => row.listing_id ? [row.listing_id] : []))],
+    transaction: [...new Set(rows.flatMap((row) => row.transaction_id ? [row.transaction_id] : []))],
+  };
+  const admin = getSupabaseAdmin();
+  await Promise.all([
+    mapWithConcurrency(chunks(ids.contact), 3, async (batch) => {
+      const { data, error } = await admin.from("contacts").select("id, first_name, last_name").in("id", batch);
+      if (error) throw error;
+      for (const row of data ?? []) {
+        const label = [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "Contact";
+        labels.set(entityKey("contact", row.id), label);
+      }
+    }),
+    mapWithConcurrency(chunks(ids.listing), 3, async (batch) => {
+      const { data, error } = await admin.from("listings").select("id, civic_number, address, apartment, city").in("id", batch);
+      if (error) throw error;
+      for (const row of data ?? []) {
+        const street = [row.civic_number, row.address].filter(Boolean).join(" ").trim();
+        const label = [street, row.apartment ? `app. ${row.apartment}` : "", row.city].filter(Boolean).join(", ") || "Listing";
+        labels.set(entityKey("listing", row.id), label);
+      }
+    }),
+    mapWithConcurrency(chunks(ids.transaction), 3, async (batch) => {
+      const { data, error } = await admin.from("transactions").select("id, address").in("id", batch);
+      if (error) throw error;
+      for (const row of data ?? []) labels.set(entityKey("transaction", row.id), row.address?.trim() || "Transaction");
+    }),
+  ]);
+  return labels;
+}
+
+async function getDriveEntity(entityType: GoogleDriveEntityType, entityId: string) {
+  const admin = getSupabaseAdmin();
+  if (entityType === "contact") {
+    const { data, error } = await admin.from("contacts").select("id, broker, first_name, last_name").eq("id", entityId).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new GoogleDriveEntityNotFoundError();
+    if (!isCalendarBroker(data.broker)) throw new GoogleDriveEntityUnassignedError();
+    return { broker: data.broker, label: [data.first_name, data.last_name].filter(Boolean).join(" ").trim() || "Contact" };
+  }
+  if (entityType === "listing") {
+    const { data, error } = await admin.from("listings").select("id, broker, civic_number, address, apartment, city").eq("id", entityId).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new GoogleDriveEntityNotFoundError();
+    if (!isCalendarBroker(data.broker)) throw new GoogleDriveEntityUnassignedError();
+    const street = [data.civic_number, data.address].filter(Boolean).join(" ").trim();
+    return { broker: data.broker, label: [street, data.apartment ? `app. ${data.apartment}` : "", data.city].filter(Boolean).join(", ") || "Listing" };
+  }
+  const { data, error } = await admin.from("transactions").select("id, broker, address").eq("id", entityId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new GoogleDriveEntityNotFoundError();
+  if (!isCalendarBroker(data.broker)) throw new GoogleDriveEntityUnassignedError();
+  return { broker: data.broker, label: data.address?.trim() || "Transaction" };
+}
+
+export async function listGoogleDriveEntityLinks(filters: {
+  broker?: CalendarBroker;
+  entityType?: GoogleDriveEntityType;
+  entityId?: string;
+}) {
+  const rows = await listAllSupabaseRows<GoogleDriveEntityLinkRow>({
+    buildQuery: () => {
+      let query = getSupabaseAdmin().from("google_drive_entity_links").select(entityLinkColumns);
+      if (filters.broker) query = query.eq("broker", filters.broker);
+      if (filters.entityType && filters.entityId) query = query.eq(entityColumn[filters.entityType], filters.entityId);
+      return query as unknown as SupabaseOrderedRangeQuery<GoogleDriveEntityLinkRow>;
+    },
+    orders: [{ column: "created_at", ascending: true }, { column: "id", ascending: true }],
+  });
+  const labels = await loadEntityLabels(rows);
+  return rows.map((row) => {
+    const entity = entityIdentity(row);
+    return mapEntityLink(row, labels.get(entityKey(entity.entityType, entity.entityId)));
+  });
+}
+
+export async function addGoogleDriveEntityLink(input: {
+  entityType: GoogleDriveEntityType;
+  entityId: string;
+  rootId: string;
+  folderId: string;
+}) {
+  const entity = await getDriveEntity(input.entityType, input.entityId);
+  const authorized = await getAuthorizedGoogleDriveFolder(entity.broker, input.rootId, input.folderId);
+  const column = entityColumn[input.entityType];
+  const admin = getSupabaseAdmin();
+  const findExisting = () => admin.from("google_drive_entity_links")
+    .select(entityLinkColumns)
+    .eq("root_id", input.rootId)
+    .eq("folder_id", input.folderId)
+    .eq(column, input.entityId)
+    .maybeSingle();
+  const existing = await findExisting();
+  if (existing.error) throw existing.error;
+  if (existing.data) return mapEntityLink(existing.data as GoogleDriveEntityLinkRow, entity.label);
+
+  const values = {
+    broker: entity.broker,
+    root_id: authorized.root.id,
+    folder_id: authorized.folder.id,
+    folder_name: authorized.folder.name,
+    web_view_link: authorized.folder.webViewLink,
+    contact_id: null,
+    listing_id: null,
+    transaction_id: null,
+    [column]: input.entityId,
+  };
+  const { data, error } = await admin.from("google_drive_entity_links").insert(values).select(entityLinkColumns).single();
+  if (error) {
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+    if (code === "23505") {
+      const retry = await findExisting();
+      if (retry.error) throw retry.error;
+      if (retry.data) return mapEntityLink(retry.data as GoogleDriveEntityLinkRow, entity.label);
+    }
+    throw error;
+  }
+  return mapEntityLink(data as GoogleDriveEntityLinkRow, entity.label);
+}
+
+export async function removeGoogleDriveEntityLink(linkId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("google_drive_entity_links")
+    .delete()
+    .eq("id", linkId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
 }

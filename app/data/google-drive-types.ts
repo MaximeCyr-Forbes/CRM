@@ -30,6 +30,35 @@ export type GoogleDriveSearchResult = GoogleDriveItem & {
   breadcrumbs: GoogleDriveBreadcrumb[];
 };
 
+export const GOOGLE_DRIVE_ENTITY_TYPES = ["contact", "listing", "transaction"] as const;
+export type GoogleDriveEntityType = (typeof GOOGLE_DRIVE_ENTITY_TYPES)[number];
+
+export type GoogleDriveEntityLink = {
+  id: string;
+  broker: CalendarBroker;
+  rootId: string;
+  folderId: string;
+  folderName: string;
+  webViewLink: string | null;
+  entityType: GoogleDriveEntityType;
+  entityId: string;
+  entityLabel: string;
+  createdAt: string;
+};
+
+export type GoogleDriveEntityLinkRow = {
+  id: string;
+  broker: CalendarBroker;
+  root_id: string;
+  folder_id: string;
+  folder_name: string;
+  web_view_link: string | null;
+  contact_id: string | null;
+  listing_id: string | null;
+  transaction_id: string | null;
+  created_at: string;
+};
+
 export type GoogleDriveRoot = {
   id: string;
   broker: CalendarBroker;
@@ -75,4 +104,12 @@ export function isGoogleDriveFolderId(value: unknown): value is string {
     && value.length >= 5
     && value.length <= 200
     && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+export function isGoogleDriveEntityType(value: unknown): value is GoogleDriveEntityType {
+  return typeof value === "string" && GOOGLE_DRIVE_ENTITY_TYPES.includes(value as GoogleDriveEntityType);
+}
+
+export function isGoogleDriveEntityId(value: unknown): value is string {
+  return isGoogleDriveRootId(value);
 }

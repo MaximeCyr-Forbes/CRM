@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ListingDeleteConfirmationModal } from "../../components/listing-delete-confirmation-modal";
+import { DriveDocumentsSection } from "../../components/drive-documents-section";
 import { ListingEditorModal } from "../../components/listing-editor-modal";
 import { ListingMedia } from "../../components/listing-media";
 import { ListingMarketSnapshot } from "../../components/listing-market-snapshot";
@@ -192,6 +193,8 @@ export default function ListingDetailPage() {
             </div>
           )}
         </section>
+
+        <DriveDocumentsSection broker={listing.broker} entityId={listing.id} entityType="listing" />
 
         <section className="listing-detail-section" aria-labelledby="listing-notes-title">
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Suivi interne</p><h2 id="listing-notes-title">NOTES INTERNES</h2></div></div>
