@@ -46,6 +46,7 @@ describe("onglet Google Drive", () => {
     expect(page).toContain('navigateDrive("/drive")');
     expect(page).toContain("DRIVE_HISTORY_DEPTH_KEY");
     expect(page).toContain("window.history.replaceState");
+    expect(page).toContain("previousBroker && broker && previousBroker !== broker");
   });
 
   it("annule les chargements de dossiers devenus obsolètes", () => {

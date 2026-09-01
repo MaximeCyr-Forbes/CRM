@@ -228,7 +228,7 @@ export default function DrivePage() {
   useEffect(() => {
     const previousBroker = previousBrokerRef.current;
     previousBrokerRef.current = broker;
-    if (previousBroker !== broker && driveLocation.mode !== "roots") {
+    if (previousBroker && broker && previousBroker !== broker && driveLocation.mode !== "roots") {
       router.replace("/drive", { scroll: false });
     }
   }, [broker, driveLocation.mode, router]);
