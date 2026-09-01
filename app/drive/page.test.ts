@@ -51,14 +51,16 @@ describe("onglet Google Drive", () => {
 
   it("rend les noms de dossiers et les actions OUVRIR accessibles avec le même href", () => {
     const page = source("app/drive/page.tsx");
-    expect(page).toContain('import Link from "next/link"');
+    expect(page).not.toContain('import Link from "next/link"');
     expect(page).toContain('className="drive-folder-name-link" href={folderHref}');
     expect(page).toContain('className="drive-open-folder-link" href={folderHref}');
     expect(page).toContain("const folderHref = googleDriveRootHref(root.id)");
     expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(activeRoot.id, item.id) : undefined");
     expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(item.rootId, item.id) : undefined");
     expect(page).toContain("event.metaKey || event.ctrlKey || event.shiftKey || event.altKey");
-    expect(page).toContain("OUVRIR</Link>");
+    expect(page).toContain("event.preventDefault()");
+    expect(page).toContain("navigateDrive(href)");
+    expect(page).toContain("OUVRIR</a>");
     expect(page).toContain(") : item.name}");
     expect(page).toContain("OUVRIR DANS GOOGLE DRIVE ↗");
   });

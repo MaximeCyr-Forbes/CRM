@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { type Broker, useBroker } from "../broker-context";
@@ -86,7 +85,7 @@ function DriveItemCard({ item, links = [], folderHref, onFolderLinkClick }: {
   item: GoogleDriveItem;
   links?: GoogleDriveEntityLink[];
   folderHref?: string;
-  onFolderLinkClick(event: MouseEvent<HTMLAnchorElement>): void;
+  onFolderLinkClick(event: MouseEvent<HTMLAnchorElement>, href: string): void;
 }) {
   const size = formatSize(item.size);
   return (
@@ -98,14 +97,14 @@ function DriveItemCard({ item, links = [], folderHref, onFolderLinkClick }: {
         <span>{fileKind(item)}</span>
         <h3>
           {item.isFolder && folderHref ? (
-            <Link className="drive-folder-name-link" href={folderHref} onClick={onFolderLinkClick}>{item.name}</Link>
+            <a className="drive-folder-name-link" href={folderHref} onClick={(event) => onFolderLinkClick(event, folderHref)}>{item.name}</a>
           ) : item.name}
         </h3>
         <p>{formatModified(item.modifiedTime)}{size ? ` · ${size}` : ""}</p>
         {links.length > 0 && <div className="drive-entity-links">{links.map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
       </div>
       {item.isFolder && folderHref ? (
-        <Link className="drive-open-folder-link" href={folderHref} onClick={onFolderLinkClick}>OUVRIR</Link>
+        <a className="drive-open-folder-link" href={folderHref} onClick={(event) => onFolderLinkClick(event, folderHref)}>OUVRIR</a>
       ) : item.webViewLink ? (
         <a href={item.webViewLink} rel="noopener noreferrer" target="_blank">OUVRIR DANS GOOGLE DRIVE ↗</a>
       ) : (
@@ -413,9 +412,10 @@ export default function DrivePage() {
     pendingHistoryDepthRef.current = currentDepth + 1;
   }
 
-  function prepareDriveLinkNavigation(event: MouseEvent<HTMLAnchorElement>) {
+  function openDriveLink(event: MouseEvent<HTMLAnchorElement>, href: string) {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    prepareDriveNavigation();
+    event.preventDefault();
+    navigateDrive(href);
   }
 
   function searchDrive(event: FormEvent) {
@@ -534,7 +534,7 @@ export default function DrivePage() {
                         <small>{root.driveId ? "DRIVE PARTAGÉ" : "DOSSIER GOOGLE DRIVE"}</small>
                         <h3>
                           {state?.error ? folderName : (
-                            <Link className="drive-folder-name-link" href={folderHref} onClick={prepareDriveLinkNavigation}>{folderName}</Link>
+                            <a className="drive-folder-name-link" href={folderHref} onClick={(event) => openDriveLink(event, folderHref)}>{folderName}</a>
                           )}
                         </h3>
                         <p>{state?.error ?? formatModified(state?.listing?.folder.modifiedTime ?? root.updatedAt)}</p>
@@ -544,7 +544,7 @@ export default function DrivePage() {
                         {state?.error ? (
                           <button disabled type="button">OUVRIR</button>
                         ) : (
-                          <Link className="drive-open-folder-link" href={folderHref} onClick={prepareDriveLinkNavigation}>OUVRIR</Link>
+                          <a className="drive-open-folder-link" href={folderHref} onClick={(event) => openDriveLink(event, folderHref)}>OUVRIR</a>
                         )}
                         <button className="drive-remove-root" onClick={() => setPendingRemoval(root)} type="button">RETIRER DU CRM</button>
                       </div>
@@ -601,7 +601,7 @@ export default function DrivePage() {
                       item={item}
                       key={item.id}
                       links={entityLinks.filter((link) => link.folderId === item.id)}
-                      onFolderLinkClick={prepareDriveLinkNavigation}
+                      onFolderLinkClick={openDriveLink}
                     />
                   );
                 })}
@@ -634,7 +634,7 @@ export default function DrivePage() {
                         folderHref={folderHref}
                         item={item}
                         links={entityLinks.filter((link) => link.folderId === item.id)}
-                        onFolderLinkClick={prepareDriveLinkNavigation}
+                        onFolderLinkClick={openDriveLink}
                       />
                     </div>
                   );
