@@ -40,13 +40,27 @@ describe("onglet Google Drive", () => {
     expect(page).toContain("useSearchParams()");
     expect(page).toContain("readGoogleDriveLocation(searchParams)");
     expect(page).toContain("googleDriveRootHref(root.id)");
-    expect(page).toContain("googleDriveFolderHref(root.id, folderId)");
+    expect(page).toContain("googleDriveFolderHref(activeRoot.id, item.id)");
     expect(page).toContain("googleDriveSearchHref(normalizedQuery)");
     expect(page).toContain("router.back()");
     expect(page).toContain('navigateDrive("/drive")');
     expect(page).toContain("DRIVE_HISTORY_DEPTH_KEY");
     expect(page).toContain("window.history.replaceState");
     expect(page).toContain("previousBroker && broker && previousBroker !== broker");
+  });
+
+  it("rend les noms de dossiers et les actions OUVRIR accessibles avec le même href", () => {
+    const page = source("app/drive/page.tsx");
+    expect(page).toContain('import Link from "next/link"');
+    expect(page).toContain('className="drive-folder-name-link" href={folderHref}');
+    expect(page).toContain('className="drive-open-folder-link" href={folderHref}');
+    expect(page).toContain("const folderHref = googleDriveRootHref(root.id)");
+    expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(activeRoot.id, item.id) : undefined");
+    expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(item.rootId, item.id) : undefined");
+    expect(page).toContain("event.metaKey || event.ctrlKey || event.shiftKey || event.altKey");
+    expect(page).toContain("OUVRIR</Link>");
+    expect(page).toContain(") : item.name}");
+    expect(page).toContain("OUVRIR DANS GOOGLE DRIVE ↗");
   });
 
   it("annule les chargements de dossiers devenus obsolètes", () => {

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { type Broker, useBroker } from "../broker-context";
 import type { CalendarBroker, CalendarConnectionStatus } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
@@ -81,10 +82,11 @@ function scrollDriveContentIntoView(target: HTMLElement) {
   });
 }
 
-function DriveItemCard({ item, links = [], onOpenFolder }: {
+function DriveItemCard({ item, links = [], folderHref, onFolderLinkClick }: {
   item: GoogleDriveItem;
   links?: GoogleDriveEntityLink[];
-  onOpenFolder(): void;
+  folderHref?: string;
+  onFolderLinkClick(event: MouseEvent<HTMLAnchorElement>): void;
 }) {
   const size = formatSize(item.size);
   return (
@@ -94,12 +96,16 @@ function DriveItemCard({ item, links = [], onOpenFolder }: {
       </div>
       <div className="drive-item-copy">
         <span>{fileKind(item)}</span>
-        <h3>{item.name}</h3>
+        <h3>
+          {item.isFolder && folderHref ? (
+            <Link className="drive-folder-name-link" href={folderHref} onClick={onFolderLinkClick}>{item.name}</Link>
+          ) : item.name}
+        </h3>
         <p>{formatModified(item.modifiedTime)}{size ? ` · ${size}` : ""}</p>
         {links.length > 0 && <div className="drive-entity-links">{links.map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
       </div>
-      {item.isFolder ? (
-        <button onClick={onOpenFolder} type="button">OUVRIR</button>
+      {item.isFolder && folderHref ? (
+        <Link className="drive-open-folder-link" href={folderHref} onClick={onFolderLinkClick}>OUVRIR</Link>
       ) : item.webViewLink ? (
         <a href={item.webViewLink} rel="noopener noreferrer" target="_blank">OUVRIR DANS GOOGLE DRIVE ↗</a>
       ) : (
@@ -392,6 +398,11 @@ export default function DrivePage() {
   }
 
   function navigateDrive(href: string) {
+    prepareDriveNavigation();
+    router.push(href, { scroll: false });
+  }
+
+  function prepareDriveNavigation() {
     const currentState = window.history.state && typeof window.history.state === "object"
       ? window.history.state as Record<string, unknown>
       : {};
@@ -400,11 +411,11 @@ export default function DrivePage() {
       ? currentState[DRIVE_HISTORY_DEPTH_KEY] as number
       : 0;
     pendingHistoryDepthRef.current = currentDepth + 1;
-    router.push(href, { scroll: false });
   }
 
-  function openFolder(root: GoogleDriveRoot, folderId?: string) {
-    navigateDrive(folderId ? googleDriveFolderHref(root.id, folderId) : googleDriveRootHref(root.id));
+  function prepareDriveLinkNavigation(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    prepareDriveNavigation();
   }
 
   function searchDrive(event: FormEvent) {
@@ -514,17 +525,27 @@ export default function DrivePage() {
               <div className="drive-root-grid">
                 {roots.map((root) => {
                   const state = rootStates[root.id];
+                  const folderName = state?.listing?.folder.name ?? root.folderName;
+                  const folderHref = googleDriveRootHref(root.id);
                   return (
                     <article className={state?.error ? "drive-root-card drive-root-card-error" : "drive-root-card"} key={root.id}>
                       <span aria-hidden="true">▱</span>
                       <div>
                         <small>{root.driveId ? "DRIVE PARTAGÉ" : "DOSSIER GOOGLE DRIVE"}</small>
-                        <h3>{state?.listing?.folder.name ?? root.folderName}</h3>
+                        <h3>
+                          {state?.error ? folderName : (
+                            <Link className="drive-folder-name-link" href={folderHref} onClick={prepareDriveLinkNavigation}>{folderName}</Link>
+                          )}
+                        </h3>
                         <p>{state?.error ?? formatModified(state?.listing?.folder.modifiedTime ?? root.updatedAt)}</p>
                         {entityLinks.some((link) => link.folderId === root.folderId) && <div className="drive-entity-links">{entityLinks.filter((link) => link.folderId === root.folderId).map((link) => <span key={link.id}>Lié à : {link.entityType === "contact" ? "Contact" : link.entityType === "listing" ? "Listing" : "Transaction"} · {link.entityLabel}</span>)}</div>}
                       </div>
                       <div>
-                        <button disabled={Boolean(state?.error)} onClick={() => openFolder(root)} type="button">OUVRIR</button>
+                        {state?.error ? (
+                          <button disabled type="button">OUVRIR</button>
+                        ) : (
+                          <Link className="drive-open-folder-link" href={folderHref} onClick={prepareDriveLinkNavigation}>OUVRIR</Link>
+                        )}
                         <button className="drive-remove-root" onClick={() => setPendingRemoval(root)} type="button">RETIRER DU CRM</button>
                       </div>
                     </article>
@@ -572,9 +593,18 @@ export default function DrivePage() {
               <p className="drive-state">Ce dossier est vide.</p>
             ) : (
               <div className="drive-item-grid">
-                {activeListing.items.map((item) => (
-                  <DriveItemCard item={item} key={item.id} links={entityLinks.filter((link) => link.folderId === item.id)} onOpenFolder={() => openFolder(activeRoot, item.id)} />
-                ))}
+                {activeListing.items.map((item) => {
+                  const folderHref = item.isFolder ? googleDriveFolderHref(activeRoot.id, item.id) : undefined;
+                  return (
+                    <DriveItemCard
+                      folderHref={folderHref}
+                      item={item}
+                      key={item.id}
+                      links={entityLinks.filter((link) => link.folderId === item.id)}
+                      onFolderLinkClick={prepareDriveLinkNavigation}
+                    />
+                  );
+                })}
               </div>
             )}
           </section>
@@ -596,13 +626,15 @@ export default function DrivePage() {
             ) : (
               <div className="drive-item-grid">
                 {searchResults.map((item) => {
+                  const folderHref = item.isFolder ? googleDriveFolderHref(item.rootId, item.id) : undefined;
                   return (
                     <div className="drive-search-result" key={`${item.rootId}-${item.id}`}>
                       <p>{[item.rootName, ...item.breadcrumbs.slice(1).map((crumb) => crumb.name)].join(" › ")}</p>
                       <DriveItemCard
+                        folderHref={folderHref}
                         item={item}
                         links={entityLinks.filter((link) => link.folderId === item.id)}
-                        onOpenFolder={() => navigateDrive(googleDriveFolderHref(item.rootId, item.id))}
+                        onFolderLinkClick={prepareDriveLinkNavigation}
                       />
                     </div>
                   );

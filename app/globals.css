@@ -10137,7 +10137,9 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .drive-heading-actions > button,
 .drive-search button,
 .drive-root-card button,
+.drive-root-card .drive-open-folder-link,
 .drive-item-card button,
+.drive-item-card .drive-open-folder-link,
 .drive-section-title > button,
 .drive-folder-heading a,
 .drive-remove-modal button {
@@ -10215,6 +10217,21 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .drive-root-card > span { color: #8c7343; font-size: 2.2rem; }
 .drive-root-card h3,
 .drive-item-card h3 { margin: 0.2rem 0 0; overflow-wrap: anywhere; font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; }
+.drive-folder-name-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  max-width: 100%;
+  padding: 0.15rem 0;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 140ms ease, text-decoration-color 140ms ease;
+}
+.drive-folder-name-link:hover { color: #6f5a31; text-decoration-color: rgba(111, 90, 49, 0.58); }
+.drive-folder-name-link:focus-visible { outline: 2px solid #8c7343; outline-offset: 3px; }
 .drive-root-card p,
 .drive-item-card p { margin: 0.35rem 0 0; color: var(--ink-soft); font-size: 0.68rem; }
 .drive-root-card > div:last-child { display: grid; gap: 0.45rem; }
@@ -10279,7 +10296,7 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .drive-item-icon { display: grid; width: 2.6rem; height: 2.6rem; place-items: center; color: var(--ink-soft); background: rgba(19, 35, 59, 0.06); font-size: 1.25rem; }
 .drive-item-icon-folder { color: #8c7343; background: rgba(198, 168, 103, 0.12); }
 .drive-item-copy { min-width: 0; }
-.drive-item-card > a { max-width: 13rem; color: var(--ink); font-size: 0.59rem; font-weight: 850; letter-spacing: 0.05em; text-align: right; text-decoration: underline; text-decoration-color: rgba(198, 168, 103, 0.7); text-transform: uppercase; }
+.drive-item-card > a:not(.drive-open-folder-link) { max-width: 13rem; color: var(--ink); font-size: 0.59rem; font-weight: 850; letter-spacing: 0.05em; text-align: right; text-decoration: underline; text-decoration-color: rgba(198, 168, 103, 0.7); text-transform: uppercase; }
 .drive-item-unavailable { color: var(--ink-soft); font-size: 0.64rem; }
 .drive-search-result > p { margin: 0 0 0.35rem; color: var(--ink-soft); font-size: 0.62rem; }
 
