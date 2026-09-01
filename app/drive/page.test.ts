@@ -58,6 +58,8 @@ describe("onglet Google Drive", () => {
     expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(activeRoot.id, item.id) : undefined");
     expect(page).toContain("const folderHref = item.isFolder ? googleDriveFolderHref(item.rootId, item.id) : undefined");
     expect(page).toContain("event.metaKey || event.ctrlKey || event.shiftKey || event.altKey");
+    expect(page).toContain('event.key !== "Enter"');
+    expect(page).toContain("onFolderLinkKeyDown={openDriveLinkFromKeyboard}");
     expect(page).toContain("event.preventDefault()");
     expect(page).toContain("navigateDrive(href)");
     expect(page).toContain("OUVRIR</a>");
