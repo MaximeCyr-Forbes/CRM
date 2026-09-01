@@ -174,32 +174,150 @@ describe("navigation Google Drive autorisée", () => {
     expect(state.requests.every((request) => request.method === "GET")).toBe(true);
   });
 
-  it("recherche seulement en descendant des racines autorisées", async () => {
+  it("utilise la recherche native Google sans parcourir tous les enfants", async () => {
     state.handler = (url) => {
       if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
       const query = url.searchParams.get("q") ?? "";
-      if (query.includes("'root_folder' in parents")) {
-        return Response.json({ files: [folder("year_2026", "2026", ["root_folder"]), file("pa_1", "PA Archambault.pdf", "root_folder")] });
-      }
-      if (query.includes("'year_2026' in parents")) {
-        return Response.json({ files: [file("pa_2", "PA Beaubien.pdf", "year_2026")] });
+      if (query === "name contains 'PA' and trashed = false") {
+        return Response.json({ files: [file("pa_1", "PA Archambault.pdf", "root_folder")] });
       }
       throw new Error(`Requête inattendue: ${url}`);
     };
 
     const search = await searchAuthorizedGoogleDrive("maxime", "PA");
-    expect(search.results.map((result) => result.name)).toEqual(["PA Archambault.pdf", "PA Beaubien.pdf"]);
-    expect(search.results[1].breadcrumbs).toEqual([
-      { id: "root_folder", name: "Transactions" },
-      { id: "year_2026", name: "2026" },
-    ]);
+    expect(search.results.map((result) => result.name)).toEqual(["PA Archambault.pdf"]);
     const parentQueries = state.requests
       .map((request) => request.url.searchParams.get("q"))
       .filter(Boolean);
-    expect(parentQueries).toEqual([
-      "'root_folder' in parents and trashed = false",
-      "'year_2026' in parents and trashed = false",
-    ]);
+    expect(parentQueries).toEqual(["name contains 'PA' and trashed = false"]);
+    expect(parentQueries.some((query) => query?.includes("in parents"))).toBe(false);
+  });
+
+  it("pagine les candidats natifs sans lancer de balayage récursif", async () => {
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.searchParams.get("q")?.startsWith("name contains")) {
+        return url.searchParams.get("pageToken") === "page-2"
+          ? Response.json({ files: [file("normandie_2", "Normandie 2.pdf", "root_folder")] })
+          : Response.json({
+            files: [file("normandie_1", "Normandie 1.pdf", "root_folder")],
+            nextPageToken: "page-2",
+          });
+      }
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    const search = await searchAuthorizedGoogleDrive("maxime", "normandie");
+
+    expect(search.results.map((result) => result.id)).toEqual(["normandie_1", "normandie_2"]);
+    const nativeSearches = state.requests.filter((request) => request.url.searchParams.get("q")?.startsWith("name contains"));
+    expect(nativeSearches).toHaveLength(2);
+    expect(nativeSearches[1].url.searchParams.get("pageToken")).toBe("page-2");
+    expect(state.requests.some((request) => request.url.searchParams.get("q")?.includes("in parents"))).toBe(false);
+  });
+
+  it.each([
+    ["normandie", "name contains 'normandie' and trashed = false"],
+    ["l'été", "name contains 'l\\'été' and trashed = false"],
+    ["O'Connor", "name contains 'O\\'Connor' and trashed = false"],
+    ["dossier\\test", "name contains 'dossier\\\\test' and trashed = false"],
+  ])("échappe correctement la query Drive %s", async (term, expectedQuery) => {
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.pathname.endsWith("/files")) return Response.json({ files: [] });
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    await searchAuthorizedGoogleDrive("maxime", term);
+
+    const nativeSearch = state.requests.find((request) => request.url.searchParams.get("q")?.startsWith("name contains"));
+    expect(nativeSearch?.url.searchParams.get("q")).toBe(expectedQuery);
+  });
+
+  it("valide un fichier profondément imbriqué et reconstruit son breadcrumb", async () => {
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.pathname.endsWith("/folder_a")) return Response.json(folder("folder_a", "A", ["root_folder"]));
+      if (url.pathname.endsWith("/folder_b")) return Response.json(folder("folder_b", "B", ["folder_a"]));
+      if (url.pathname.endsWith("/folder_c")) return Response.json(folder("folder_c", "C", ["folder_b"]));
+      if (url.searchParams.get("q")?.startsWith("name contains")) {
+        return Response.json({ files: [file("normandie_pdf", "Normandie.pdf", "folder_c")] });
+      }
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    const search = await searchAuthorizedGoogleDrive("maxime", "normandie");
+
+    expect(search.results).toHaveLength(1);
+    expect(search.results[0].breadcrumbs.map((crumb) => crumb.name)).toEqual(["Transactions", "A", "B", "C"]);
+  });
+
+  it("isole les résultats du courtier et rejette les fichiers hors racines", async () => {
+    const franceRootId = "22222222-2222-4222-8222-222222222222";
+    state.roots = [
+      { ...rootRow },
+      { ...rootRow, id: franceRootId, broker: "france", folder_id: "france_root", folder_name: "France" },
+    ];
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.pathname.endsWith("/maxime_parent")) return Response.json(folder("maxime_parent", "Maxime", ["root_folder"]));
+      if (url.pathname.endsWith("/france_parent")) return Response.json(folder("france_parent", "France", ["france_root"]));
+      if (url.pathname.endsWith("/france_root")) return Response.json(folder("france_root", "France"));
+      if (url.pathname.endsWith("/outside_parent")) return Response.json(folder("outside_parent", "Comptabilité"));
+      if (url.searchParams.get("q")?.startsWith("name contains")) {
+        return Response.json({ files: [
+          file("maxime_file", "Normandie Maxime.pdf", "maxime_parent"),
+          file("france_file", "Normandie France.pdf", "france_parent"),
+          file("outside_file", "Normandie Comptabilité.pdf", "outside_parent"),
+        ] });
+      }
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    const search = await searchAuthorizedGoogleDrive("maxime", "normandie");
+
+    expect(search.results.map((result) => result.id)).toEqual(["maxime_file"]);
+    expect(state.requests.some((request) => request.url.pathname.endsWith("/france_root"))).toBe(true);
+  });
+
+  it("met en cache l’ascendance commune de plusieurs résultats", async () => {
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.pathname.endsWith("/shared_parent")) return Response.json(folder("shared_parent", "2026", ["root_folder"]));
+      if (url.searchParams.get("q")?.startsWith("name contains")) {
+        return Response.json({ files: [
+          file("normandie_1", "Normandie 1.pdf", "shared_parent"),
+          file("normandie_2", "Normandie 2.pdf", "shared_parent"),
+        ] });
+      }
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    const search = await searchAuthorizedGoogleDrive("maxime", "normandie");
+
+    expect(search.results).toHaveLength(2);
+    expect(state.requests.filter((request) => request.url.pathname.endsWith("/shared_parent"))).toHaveLength(1);
+  });
+
+  it("continue avec les racines disponibles et signale les racines indisponibles", async () => {
+    const unavailableId = "33333333-3333-4333-8333-333333333333";
+    state.roots = [
+      { ...rootRow },
+      { ...rootRow, id: unavailableId, folder_id: "missing_root", folder_name: "Indisponible" },
+    ];
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      if (url.pathname.endsWith("/missing_root")) return new Response(null, { status: 404 });
+      if (url.searchParams.get("q")?.startsWith("name contains")) {
+        return Response.json({ files: [file("normandie_pdf", "Normandie.pdf", "root_folder")] });
+      }
+      throw new Error(`Requête inattendue: ${url}`);
+    };
+
+    const search = await searchAuthorizedGoogleDrive("maxime", "normandie");
+
+    expect(search.results.map((result) => result.id)).toEqual(["normandie_pdf"]);
+    expect(search.unavailableRootIds).toEqual([unavailableId]);
   });
 
   it("voit un nouvel enfant sans réautoriser la racine", async () => {

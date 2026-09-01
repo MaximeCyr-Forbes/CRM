@@ -40,13 +40,18 @@ type GoogleDriveFileMetadata = {
 type GoogleDriveFilesResponse = {
   files?: unknown;
   nextPageToken?: unknown;
+  incompleteSearch?: unknown;
 };
 
 type DriveFileWithParents = GoogleDriveItem & { parents: string[] };
 
 const driveItemFields = "id,name,mimeType,modifiedTime,size,webViewLink,iconLink,thumbnailLink,driveId,parents";
-const searchScanLimit = 5_000;
 const searchResultLimit = 250;
+const searchCandidateLimit = 1_000;
+const searchPageSize = 100;
+const searchTimeoutMs = 4_500;
+const searchValidationConcurrency = 8;
+const searchAncestryDepthLimit = 100;
 
 export class GoogleDriveAuthorizationRequiredError extends Error {
   constructor() {
@@ -154,10 +159,11 @@ function mapDriveFile(metadata: GoogleDriveFileMetadata): DriveFileWithParents {
 
 async function fetchDriveItem(
   itemId: string,
+  signal?: AbortSignal,
 ) {
   const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(itemId)}`);
   url.search = new URLSearchParams({ fields: driveItemFields, supportsAllDrives: "true" }).toString();
-  const response = await serviceAccountGoogleDriveRequest(url.toString(), { method: "GET" });
+  const response = await serviceAccountGoogleDriveRequest(url.toString(), { method: "GET", signal });
   if (response.status === 403 || response.status === 404) throw new GoogleDriveItemUnavailableError();
   if (!response.ok) throw new Error(`Lecture Google Drive refusée (${response.status}).`);
   return mapDriveFile((await response.json()) as GoogleDriveFileMetadata);
@@ -548,62 +554,187 @@ export async function searchAuthorizedGoogleDrive(
   broker: CalendarBroker,
   query: string,
 ): Promise<{ results: GoogleDriveSearchResult[]; truncated: boolean; unavailableRootIds: string[] }> {
-  const normalizedQuery = query.trim().toLocaleLowerCase("fr-CA");
+  const normalizedQuery = query.trim();
   if (!normalizedQuery) return { results: [], truncated: false, unavailableRootIds: [] };
   const roots = await listGoogleDriveRoots(broker);
+  if (roots.length === 0) return { results: [], truncated: false, unavailableRootIds: [] };
+
   const results: GoogleDriveSearchResult[] = [];
   const unavailableRootIds: string[] = [];
-  let scanned = 0;
   let truncated = false;
+  let candidateCount = 0;
+  let pageToken: string | null = null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), searchTimeoutMs);
+  const rootsByFolderId = new Map<string, GoogleDriveRoot>();
+  const itemCache = new Map<string, Promise<DriveFileWithParents | null>>();
+  const ancestryCache = new Map<string, Promise<{
+    root: GoogleDriveRoot;
+    breadcrumbs: GoogleDriveBreadcrumb[];
+  } | null>>();
 
-  for (const root of roots) {
-    if (scanned >= searchScanLimit || results.length >= searchResultLimit) {
-      truncated = true;
-      break;
+  const isAbortError = (error: unknown) => error instanceof Error && error.name === "AbortError";
+  const loadItem = (itemId: string) => {
+    const cached = itemCache.get(itemId);
+    if (cached) return cached;
+    const pending = fetchDriveItem(itemId, controller.signal).catch((error) => {
+      if (error instanceof GoogleDriveItemUnavailableError) return null;
+      throw error;
+    });
+    itemCache.set(itemId, pending);
+    return pending;
+  };
+  const resolveItemRoot = (
+    item: DriveFileWithParents,
+    depth = 0,
+  ): Promise<{ root: GoogleDriveRoot; breadcrumbs: GoogleDriveBreadcrumb[] } | null> => {
+    const directRoot = rootsByFolderId.get(item.id);
+    if (directRoot) {
+      return Promise.resolve({
+        root: directRoot,
+        breadcrumbs: [{ id: item.id, name: item.name }],
+      });
     }
-    try {
-      const rootFolder = await fetchDriveItem(root.folderId);
-      if (!rootFolder.isFolder) throw new GoogleDriveFolderRequiredError();
-      const queue: Array<{ folder: GoogleDriveItem; breadcrumbs: GoogleDriveBreadcrumb[] }> = [{
-        folder: rootFolder,
-        breadcrumbs: [{ id: rootFolder.id, name: rootFolder.name }],
-      }];
-      const visited = new Set<string>();
-      while (queue.length > 0 && scanned < searchScanLimit && results.length < searchResultLimit) {
-        const current = queue.shift()!;
-        if (visited.has(current.folder.id)) continue;
-        visited.add(current.folder.id);
-        const children = await listDriveChildren(current.folder);
-        for (const child of children) {
-          scanned += 1;
-          const childBreadcrumbs = child.isFolder
-            ? [...current.breadcrumbs, { id: child.id, name: child.name }]
-            : current.breadcrumbs;
-          if (child.name.toLocaleLowerCase("fr-CA").includes(normalizedQuery)) {
-            results.push({
-              ...child,
-              rootId: root.id,
-              rootName: root.folderName,
-              breadcrumbs: childBreadcrumbs,
-            });
-          }
-          if (child.isFolder) queue.push({ folder: child, breadcrumbs: childBreadcrumbs });
-          if (scanned >= searchScanLimit || results.length >= searchResultLimit) break;
+    const cached = ancestryCache.get(item.id);
+    if (cached) return cached;
+    const pending = (async () => {
+      if (depth >= searchAncestryDepthLimit) return null;
+      for (const parentId of item.parents) {
+        const root = rootsByFolderId.get(parentId);
+        if (root) {
+          return {
+            root,
+            breadcrumbs: [
+              { id: root.folderId, name: root.folderName },
+              { id: item.id, name: item.name },
+            ],
+          };
+        }
+        const parent = await loadItem(parentId);
+        if (!parent) continue;
+        const parentResolution = await resolveItemRoot(parent, depth + 1);
+        if (parentResolution) {
+          return {
+            root: parentResolution.root,
+            breadcrumbs: [
+              ...parentResolution.breadcrumbs,
+              { id: item.id, name: item.name },
+            ],
+          };
         }
       }
-      if (queue.length > 0) truncated = true;
-    } catch (error) {
-      if (
-        error instanceof GoogleDriveItemUnavailableError
-        || error instanceof GoogleDriveFolderRequiredError
-      ) {
-        unavailableRootIds.push(root.id);
-        continue;
+      return null;
+    })();
+    ancestryCache.set(item.id, pending);
+    return pending;
+  };
+
+  try {
+    const rootStates = await mapWithConcurrency(roots, 5, async (root) => {
+      try {
+        const folder = await fetchDriveItem(root.folderId, controller.signal);
+        if (!folder.isFolder) throw new GoogleDriveFolderRequiredError();
+        return { root, folder };
+      } catch (error) {
+        if (
+          error instanceof GoogleDriveItemUnavailableError
+          || error instanceof GoogleDriveFolderRequiredError
+        ) {
+          unavailableRootIds.push(root.id);
+          return null;
+        }
+        if (isAbortError(error)) {
+          truncated = true;
+          return null;
+        }
+        throw error;
       }
-      throw error;
+    });
+    for (const state of rootStates) {
+      if (!state) continue;
+      rootsByFolderId.set(state.root.folderId, state.root);
+      itemCache.set(state.folder.id, Promise.resolve(state.folder));
     }
+    if (rootsByFolderId.size === 0 || controller.signal.aborted) {
+      return { results, truncated, unavailableRootIds };
+    }
+
+    const escapedQuery = normalizedQuery.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    do {
+      if (controller.signal.aborted || candidateCount >= searchCandidateLimit) {
+        truncated = true;
+        break;
+      }
+      const search = new URLSearchParams({
+        q: `name contains '${escapedQuery}' and trashed = false`,
+        fields: `nextPageToken,incompleteSearch,files(${driveItemFields})`,
+        pageSize: String(searchPageSize),
+        spaces: "drive",
+        corpora: "user",
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+      });
+      if (pageToken) search.set("pageToken", pageToken);
+      const response = await serviceAccountGoogleDriveRequest(
+        `https://www.googleapis.com/drive/v3/files?${search.toString()}`,
+        { method: "GET", signal: controller.signal },
+      );
+      if (!response.ok) throw new Error(`Recherche Google Drive refusée (${response.status}).`);
+      const payload = (await response.json()) as GoogleDriveFilesResponse;
+      if (!Array.isArray(payload.files)) throw new Error("Réponse de recherche Google Drive invalide.");
+      const candidates = payload.files
+        .slice(0, Math.max(0, searchCandidateLimit - candidateCount))
+        .map((item) => mapDriveFile(item as GoogleDriveFileMetadata));
+      candidateCount += candidates.length;
+      for (const candidate of candidates) itemCache.set(candidate.id, Promise.resolve(candidate));
+
+      const validated = await mapWithConcurrency(candidates, searchValidationConcurrency, async (candidate) => {
+        try {
+          const resolution = await resolveItemRoot(candidate);
+          if (!resolution) return null;
+          return {
+            ...candidate,
+            rootId: resolution.root.id,
+            rootName: resolution.root.folderName,
+            breadcrumbs: candidate.isFolder
+              ? resolution.breadcrumbs
+              : resolution.breadcrumbs.slice(0, -1),
+          } satisfies GoogleDriveSearchResult;
+        } catch (error) {
+          if (isAbortError(error) || error instanceof GoogleDriveItemUnavailableError) {
+            truncated = truncated || isAbortError(error);
+            return null;
+          }
+          throw error;
+        }
+      });
+      for (const result of validated) {
+        if (!result) continue;
+        results.push(result);
+        if (results.length >= searchResultLimit) {
+          truncated = true;
+          break;
+        }
+      }
+      if (payload.incompleteSearch === true) truncated = true;
+      pageToken = typeof payload.nextPageToken === "string" && payload.nextPageToken
+        ? payload.nextPageToken
+        : null;
+    } while (pageToken && results.length < searchResultLimit);
+  } catch (error) {
+    if (isAbortError(error)) truncated = true;
+    else throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return { results, truncated, unavailableRootIds };
+
+  return {
+    results: results
+      .slice(0, searchResultLimit)
+      .sort((left, right) => left.name.localeCompare(right.name, "fr-CA", { sensitivity: "base" })),
+    truncated,
+    unavailableRootIds,
+  };
 }
 
 const entityColumn: Record<GoogleDriveEntityType, "contact_id" | "listing_id" | "transaction_id"> = {

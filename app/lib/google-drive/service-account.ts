@@ -58,7 +58,7 @@ export function getGoogleDriveServiceAccountEmail() {
   return requireServiceAccountConfiguration().email;
 }
 
-async function requestServiceAccountToken() {
+async function requestServiceAccountToken(signal?: AbortSignal | null) {
   const { email, privateKey } = requireServiceAccountConfiguration();
   const assertion = createServiceAccountAssertion(email, privateKey, Math.floor(Date.now() / 1_000));
   const response = await fetch(googleTokenEndpoint, {
@@ -69,6 +69,7 @@ async function requestServiceAccountToken() {
       assertion,
     }),
     cache: "no-store",
+    signal,
   });
   if (!response.ok) throw new GoogleDriveServiceAccountAuthenticationError();
   const payload = await response.json() as { access_token?: unknown; expires_in?: unknown };
@@ -85,11 +86,11 @@ async function requestServiceAccountToken() {
   return cachedToken.accessToken;
 }
 
-async function getServiceAccountAccessToken(forceRefresh = false) {
+async function getServiceAccountAccessToken(forceRefresh = false, signal?: AbortSignal | null) {
   if (!forceRefresh && cachedToken && cachedToken.expiresAt - tokenSafetyWindowMs > Date.now()) {
     return cachedToken.accessToken;
   }
-  return requestServiceAccountToken();
+  return requestServiceAccountToken(signal);
 }
 
 export async function serviceAccountGoogleDriveRequest(
@@ -106,7 +107,7 @@ export async function serviceAccountGoogleDriveRequest(
     method,
     headers: {
       ...Object.fromEntries(new Headers(init.headers).entries()),
-      Authorization: `Bearer ${await getServiceAccountAccessToken(forceRefresh)}`,
+      Authorization: `Bearer ${await getServiceAccountAccessToken(forceRefresh, init.signal)}`,
     },
     cache: "no-store",
   });

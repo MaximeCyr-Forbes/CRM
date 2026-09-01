@@ -27,7 +27,16 @@ describe("onglet Google Drive", () => {
     expect(page).toContain("RECHERCHER DANS DRIVE");
     expect(page).toContain("Fil d’Ariane Google Drive");
     expect(page).toContain("OUVRIR DANS GOOGLE DRIVE");
+    expect(page).toContain("EFFACER LA RECHERCHE");
+    expect(page).toContain("AbortController");
     expect(page).toContain("Le dossier et ses fichiers resteront intacts dans Google Drive.");
+  });
+
+  it("utilise une recherche Google native bornée plutôt qu’un balayage BFS", () => {
+    const service = source("app/lib/google-drive/service.ts");
+    expect(service).toContain("name contains");
+    expect(service).toContain("searchTimeoutMs");
+    expect(service).not.toContain("searchScanLimit");
   });
 
   it("ne contient aucune opération Google Drive destructive", () => {

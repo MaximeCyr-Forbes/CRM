@@ -12,6 +12,7 @@ import type {
   GoogleDriveSearchResult,
 } from "../data/google-drive-types";
 import { pickGoogleDriveFolder } from "../lib/google-drive/picker-client";
+import { isAbortError, requestGoogleDriveSearch } from "../lib/google-drive/search-client";
 
 const BROKER_KEYS: Record<Broker, CalendarBroker> = {
   France: "france",
@@ -98,6 +99,7 @@ export default function DrivePage() {
   const [activeListing, setActiveListing] = useState<GoogleDriveFolderListing | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GoogleDriveSearchResult[] | null>(null);
+  const [lastSearchQuery, setLastSearchQuery] = useState("");
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -107,6 +109,8 @@ export default function DrivePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pickerLock = useRef(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const browse = useCallback(async (root: GoogleDriveRoot, folderId?: string): Promise<GoogleDriveFolderListing> => {
     if (!broker) throw new Error("Sélectionnez d’abord le courtier à consulter.");
@@ -157,12 +161,23 @@ export default function DrivePage() {
   }, [broker, browse]);
 
   useEffect(() => {
+    searchRequestIdRef.current += 1;
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+    setIsSearching(false);
     setActiveListing(null);
     setSearchResults(null);
+    setLastSearchQuery("");
     setQuery("");
     setRootStates({});
     void loadRoots();
   }, [loadRoots]);
+
+  useEffect(() => () => {
+    searchRequestIdRef.current += 1;
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+  }, []);
 
   function authorizeDrive() {
     if (broker) window.location.assign(`/api/google-calendar/connect?broker=${broker}&capability=drive&returnTo=/drive`);
@@ -213,28 +228,51 @@ export default function DrivePage() {
 
   async function searchDrive(event: FormEvent) {
     event.preventDefault();
-    if (!broker || !query.trim()) {
+    const normalizedQuery = query.trim();
+    if (!broker || !normalizedQuery) {
+      searchRequestIdRef.current += 1;
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
+      setIsSearching(false);
       setSearchResults(null);
+      setLastSearchQuery("");
       return;
     }
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+    searchAbortRef.current = controller;
     setIsSearching(true);
     setError(null);
     setActiveListing(null);
     try {
-      const search = new URLSearchParams({ broker, q: query.trim() });
-      const response = await fetch(`/api/google-drive/search?${search.toString()}`, { cache: "no-store" });
-      const payload = await response.json().catch(() => null) as {
-        data?: { results: GoogleDriveSearchResult[]; truncated: boolean };
-        error?: string;
-      } | null;
-      if (!response.ok || !payload?.data) throw new Error(payload?.error ?? "Recherche Google Drive impossible.");
-      setSearchResults(payload.data.results);
-      setSearchTruncated(payload.data.truncated);
+      const data = await requestGoogleDriveSearch(broker, normalizedQuery, { signal: controller.signal });
+      if (searchRequestIdRef.current !== requestId) return;
+      setSearchResults(data.results);
+      setSearchTruncated(data.truncated);
+      setLastSearchQuery(normalizedQuery);
     } catch (caughtError) {
+      if (searchRequestIdRef.current !== requestId || isAbortError(caughtError)) return;
       setError(caughtError instanceof Error ? caughtError.message : "Recherche Google Drive impossible.");
     } finally {
-      setIsSearching(false);
+      if (searchRequestIdRef.current === requestId) {
+        searchAbortRef.current = null;
+        setIsSearching(false);
+      }
     }
+  }
+
+  function clearSearch() {
+    searchRequestIdRef.current += 1;
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+    setIsSearching(false);
+    setSearchResults(null);
+    setSearchTruncated(false);
+    setLastSearchQuery("");
+    setQuery("");
+    setError(null);
   }
 
   async function removeRoot() {
@@ -288,7 +326,7 @@ export default function DrivePage() {
               maxLength={120}
               onChange={(event) => {
                 setQuery(event.target.value);
-                if (!event.target.value) setSearchResults(null);
+                if (!event.target.value) clearSearch();
               }}
               placeholder="RECHERCHER DANS DRIVE"
               value={query}
@@ -375,8 +413,12 @@ export default function DrivePage() {
         {searchResults !== null && (
           <section aria-labelledby="drive-search-results-title">
             <div className="drive-section-title drive-folder-heading">
-              <div><p className="section-kicker">Dans les racines autorisées seulement</p><h2 id="drive-search-results-title">RÉSULTATS DE RECHERCHE</h2></div>
-              <button onClick={() => { setSearchResults(null); setQuery(""); }} type="button">EFFACER</button>
+              <div>
+                <p className="section-kicker">Dans les racines autorisées seulement</p>
+                <h2 id="drive-search-results-title">RÉSULTATS POUR « {lastSearchQuery} »</h2>
+                <p>{searchResults.length} RÉSULTAT{searchResults.length === 1 ? "" : "S"}</p>
+              </div>
+              <button onClick={clearSearch} type="button">EFFACER LA RECHERCHE</button>
             </div>
             {searchTruncated && <p className="drive-notice">Les premiers résultats sont affichés. Précisez la recherche pour réduire la liste.</p>}
             {searchResults.length === 0 ? (
