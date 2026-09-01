@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("upgrade OAuth Gmail", () => {
-  it("demande les événements, CalendarList en lecture seule et les scopes Gmail avec identité de base", () => {
+  it("déclare séparément les scopes Agenda, Gmail et Drive sans accès Drive global", () => {
     const connect = readFileSync("app/api/google-calendar/connect/route.ts", "utf8");
     const calendarScopes = readFileSync("app/lib/google-calendar/scopes.ts", "utf8");
     expect(calendarScopes).toContain('"https://www.googleapis.com/auth/calendar.events"');
@@ -10,10 +10,13 @@ describe("upgrade OAuth Gmail", () => {
     expect(connect).toContain("GOOGLE_CALENDAR_LIST_READONLY_SCOPE");
     expect(connect).toContain("GMAIL_SEND_SCOPE");
     expect(connect).toContain("GMAIL_SETTINGS_BASIC_SCOPE");
+    expect(connect).toContain("GOOGLE_DRIVE_FILE_SCOPE");
     const scopes = readFileSync("app/lib/google-gmail/scopes.ts", "utf8");
     expect(scopes).toContain('"https://www.googleapis.com/auth/gmail.send"');
     expect(scopes).toContain('"https://www.googleapis.com/auth/gmail.settings.basic"');
     expect(connect).not.toMatch(/gmail\.(readonly|modify|compose|labels|metadata)/);
+    expect(connect).not.toContain('"https://www.googleapis.com/auth/drive"');
+    expect(connect).not.toContain('"https://www.googleapis.com/auth/drive.readonly"');
     expect(connect).toContain("connection.gmailSendEnabled");
     expect(connect).toContain("connection.gmailSignatureEnabled");
   });

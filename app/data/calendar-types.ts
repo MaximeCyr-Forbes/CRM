@@ -27,6 +27,7 @@ export type CalendarConnectionStatus = {
   email: string | null;
   gmailSendEnabled: boolean;
   gmailSignatureEnabled: boolean;
+  driveEnabled: boolean;
   centrisShowings: CentrisShowingsConnectionStatus;
   birthdays: { synced: number; pending: number; error: number };
   mortgageRenewals: { synced: number; pending: number; error: number };

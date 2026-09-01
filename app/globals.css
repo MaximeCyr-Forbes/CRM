@@ -1419,6 +1419,73 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
+.settings-drive {
+  display: grid;
+  gap: 1rem;
+  margin-top: clamp(2.75rem, 6vw, 4.75rem);
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+
+.settings-drive-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.settings-drive-header h2 {
+  margin: 0;
+  font: 400 clamp(1.7rem, 4vw, 2.8rem) var(--font-serif);
+  letter-spacing: -0.04em;
+}
+
+.settings-drive-header p:last-child {
+  max-width: 42rem;
+  margin: 0.65rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+}
+
+.settings-drive-header > button,
+.settings-drive-root-actions button,
+.settings-drive-root-actions a {
+  min-height: 2.65rem;
+  padding: 0.7rem 0.9rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.settings-drive-header > button:disabled,
+.settings-drive-root-actions button:disabled { cursor: not-allowed; opacity: 0.55; }
+.settings-drive-broker { margin: 0; color: var(--ink-soft); font-size: 0.7rem; }
+.settings-drive-broker strong { color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; }
+.settings-drive-state,
+.settings-drive-message,
+.settings-drive-error { margin: 0; padding: 0.9rem; border: 1px solid var(--line); font-size: 0.72rem; }
+.settings-drive-state { color: var(--ink-soft); background: rgba(255, 253, 248, 0.7); }
+.settings-drive-message { color: #436249; background: rgba(88, 114, 89, 0.09); border-left: 2px solid #587259; }
+.settings-drive-error { color: #934c45; background: rgba(147, 76, 69, 0.07); border-left: 2px solid #934c45; }
+.settings-drive-roots { display: grid; gap: 0.65rem; }
+.settings-drive-roots > article { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--line); background: rgba(255, 253, 248, 0.78); }
+.settings-drive-roots > article > div:first-child { display: flex; min-width: 0; align-items: center; gap: 0.8rem; }
+.settings-drive-roots > article > div:first-child > span { display: grid; width: 2.35rem; height: 2.35rem; flex: 0 0 auto; place-items: center; color: #8c7343; background: rgba(198, 168, 103, 0.13); border-radius: 50%; font-size: 1.2rem; }
+.settings-drive-roots h3 { margin: 0; overflow-wrap: anywhere; font: 400 1.05rem var(--font-serif); }
+.settings-drive-roots p { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.65rem; }
+.settings-drive-root-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.45rem; }
+.settings-drive-root-actions a { display: inline-flex; align-items: center; color: var(--ink); background: transparent; }
+.settings-drive-root-actions .settings-drive-remove { color: #8f312a; background: transparent; border-color: rgba(143, 49, 42, 0.28); }
+.settings-drive-remove-confirmation { display: flex; align-items: center; gap: 0.4rem; }
+.settings-drive-remove-confirmation small { color: var(--ink-soft); font-size: 0.62rem; }
+.settings-drive-remove-confirmation button:last-child { color: var(--ink); background: transparent; border-color: var(--line); }
+
 .settings-recommendations {
   display: grid;
   gap: 1rem;
@@ -2033,6 +2100,16 @@ button:disabled {
 }
 
 @media (max-width: 700px) {
+  .settings-drive-header,
+  .settings-drive-roots > article { align-items: stretch; flex-direction: column; }
+  .settings-drive-header > button,
+  .settings-drive-root-actions,
+  .settings-drive-root-actions > button,
+  .settings-drive-root-actions > a { width: 100%; }
+  .settings-drive-root-actions,
+  .settings-drive-remove-confirmation { align-items: stretch; flex-direction: column; }
+  .settings-drive-root-actions a { justify-content: center; }
+
   .settings-recommendations {
     padding-top: 3.5rem;
   }

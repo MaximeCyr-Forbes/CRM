@@ -1591,6 +1591,7 @@ export async function listGoogleConnectionStatuses(): Promise<CalendarConnection
       email: connection?.google_account_email ?? null,
       gmailSendEnabled: connection?.scopes?.includes("https://www.googleapis.com/auth/gmail.send") ?? false,
       gmailSignatureEnabled: connection?.scopes?.includes("https://www.googleapis.com/auth/gmail.settings.basic") ?? false,
+      driveEnabled: connection?.scopes?.includes("https://www.googleapis.com/auth/drive.file") ?? false,
       centrisShowings,
       birthdays: ((birthdayRows ?? []) as Array<{ broker: CalendarBroker; sync_status: Contact["googleCalendarSyncStatus"] }>)
         .filter((row) => row.broker === broker)

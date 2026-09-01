@@ -22,7 +22,7 @@ afterEach(() => {
 function connection(broker: "france" | "maxime" | "sandrine", gmail = true, signature = true): CalendarConnectionStatus {
   return {
     broker, connected: gmail, email: gmail ? `${broker}@example.com` : null,
-    gmailSendEnabled: gmail, gmailSignatureEnabled: signature,
+    gmailSendEnabled: gmail, gmailSignatureEnabled: signature, driveEnabled: false,
     centrisShowings: { scopeGranted: true, calendarDetected: true, status: "synchronized" },
     birthdays: { synced: 0, pending: 0, error: 0 }, mortgageRenewals: { synced: 0, pending: 0, error: 0 },
     watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null },

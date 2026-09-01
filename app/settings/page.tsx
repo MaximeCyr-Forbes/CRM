@@ -8,6 +8,7 @@ import type {
 } from "../data/calendar-types";
 import { BROKER_LABELS } from "../data/contact-types";
 import { SettingsRecommendations } from "../components/settings-recommendations";
+import { SettingsGoogleDrive } from "../components/settings-google-drive";
 import { BROKER_PHOTOS } from "../lib/listings/broker-photos";
 import { getGoogleOAuthFeedback } from "../lib/google/oauth-feedback";
 
@@ -19,6 +20,7 @@ const emptyConnections: CalendarConnectionStatus[] = (
   email: null,
   gmailSendEnabled: false,
   gmailSignatureEnabled: false,
+  driveEnabled: false,
   centrisShowings: { scopeGranted: false, calendarDetected: false, status: "authorization_required" },
   birthdays: { synced: 0, pending: 0, error: 0 },
   mortgageRenewals: { synced: 0, pending: 0, error: 0 },
@@ -87,7 +89,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     let preserveOAuthError = false;
-    for (const [capability, parameter] of [["calendar", "google"], ["gmail", "gmail"]] as const) {
+    for (const [capability, parameter] of [["calendar", "google"], ["gmail", "gmail"], ["drive", "drive"]] as const) {
       const feedback = getGoogleOAuthFeedback(capability, search.get(parameter));
       if (feedback?.type === "message") setMessage(feedback.text);
       if (feedback?.type === "error") {
@@ -195,6 +197,9 @@ export default function SettingsPage() {
                   <small className={connection.gmailSignatureEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
                     Signature Gmail — {connection.gmailSignatureEnabled ? "Synchronisée ✓" : "Autorisation requise"}
                   </small>
+                  <small className={connection.driveEnabled ? "gmail-status-enabled" : "gmail-status-disabled"}>
+                    Google Drive — {connection.driveEnabled ? "Autorisé ✓" : "Autorisation requise"}
+                  </small>
                   {connection.email && <small>{connection.email}</small>}
                   <small>{connection.birthdays.synced} anniversaires synchronisés · {connection.birthdays.pending} en attente · {connection.birthdays.error} erreur{connection.birthdays.error > 1 ? "s" : ""}</small>
                 </div>
@@ -234,6 +239,8 @@ export default function SettingsPage() {
             </article>
           ))}
         </div>
+
+        <SettingsGoogleDrive connections={connections} />
 
         <SettingsRecommendations />
       </section>

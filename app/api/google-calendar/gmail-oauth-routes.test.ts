@@ -6,13 +6,14 @@ const state = vi.hoisted(() => ({
     connected: boolean;
     gmailSendEnabled: boolean;
     gmailSignatureEnabled: boolean;
+    driveEnabled?: boolean;
     centrisShowings: { scopeGranted: boolean; calendarDetected: boolean; status: "synchronized" | "authorization_required" | "not_detected" | "unavailable" };
   }>,
   exchange: vi.fn(),
   save: vi.fn(),
   verified: {
     broker: "maxime" as const,
-    capability: "gmail" as "calendar" | "gmail",
+    capability: "gmail" as "calendar" | "gmail" | "drive",
     returnTo: "/contacts/11111111-1111-4111-8111-111111111111",
   },
 }));
@@ -50,7 +51,8 @@ describe("routes OAuth Gmail", () => {
     const response = await connect(new Request("https://crm.example.com/api/google-calendar/connect?broker=maxime&capability=gmail&returnTo=/contacts/11111111-1111-4111-8111-111111111111"));
     const location = new URL(response.headers.get("location")!);
     expect(location.origin).toBe("https://accounts.google.com");
-    expect(location.searchParams.get("scope")?.split(" ")).toEqual(expect.arrayContaining(["openid", "email", "https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.calendarlist.readonly", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/gmail.settings.basic"]));
+    expect(location.searchParams.get("scope")?.split(" ")).toEqual(["openid", "email", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/gmail.settings.basic"]);
+    expect(location.searchParams.get("include_granted_scopes")).toBe("true");
   });
 
   it("relance OAuth si gmail.send est actif mais la signature n’est pas autorisée", async () => {
@@ -83,6 +85,20 @@ describe("routes OAuth Gmail", () => {
     const location = new URL(response.headers.get("location")!);
     expect(location.origin).toBe("https://crm.example.com");
     expect(location.searchParams.get("google")).toBe("already-connected");
+  });
+
+  it("demande uniquement drive.file avec l’identité de base pour Google Drive", async () => {
+    state.connections = [{ broker: "maxime", connected: true, gmailSendEnabled: true, gmailSignatureEnabled: true, driveEnabled: false, centrisShowings: { scopeGranted: true, calendarDetected: true, status: "synchronized" } }];
+    const response = await connect(new Request("https://crm.example.com/api/google-calendar/connect?broker=maxime&capability=drive&returnTo=/settings"));
+    const location = new URL(response.headers.get("location")!);
+    expect(location.searchParams.get("scope")?.split(" ")).toEqual([
+      "openid",
+      "email",
+      "https://www.googleapis.com/auth/drive.file",
+    ]);
+    expect(location.searchParams.get("scope")).not.toContain("calendar");
+    expect(location.searchParams.get("scope")).not.toContain("gmail");
+    expect(location.searchParams.get("include_granted_scopes")).toBe("true");
   });
 
   it.each([

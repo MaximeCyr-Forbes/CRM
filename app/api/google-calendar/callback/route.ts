@@ -1,5 +1,5 @@
 import { getApplicationOrigin, getGoogleRedirectUri } from "../../../lib/google-calendar/config";
-import { verifyOAuthState } from "../../../lib/google-calendar/oauth-state";
+import { verifyOAuthState, type GoogleOAuthCapability } from "../../../lib/google-calendar/oauth-state";
 import {
   exchangeGoogleAuthorizationCode,
   listGoogleConnectionStatuses,
@@ -10,6 +10,12 @@ import { GoogleAccountRefreshTokenMismatchError } from "../../../lib/google/goog
 import { GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS } from "../../../lib/google/oauth-feedback";
 
 export const dynamic = "force-dynamic";
+
+function capabilityFeedbackParameter(capability: GoogleOAuthCapability) {
+  if (capability === "gmail") return "gmail";
+  if (capability === "drive") return "drive";
+  return "google";
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -32,13 +38,13 @@ export async function GET(request: Request) {
   }
 
   let destinationUrl = settingsUrl;
-  let destinationCapability: "calendar" | "gmail" = "calendar";
+  let destinationCapability: GoogleOAuthCapability = "calendar";
   try {
     const { broker, capability, returnTo } = await verifyOAuthState(state);
     destinationCapability = capability;
     destinationUrl = new URL(returnTo, applicationOrigin);
     if (oauthError || !code) {
-      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "cancelled");
+      destinationUrl.searchParams.set(capabilityFeedbackParameter(capability), "cancelled");
       return Response.redirect(destinationUrl.toString(), 302);
     }
     const connections = await listGoogleConnectionStatuses();
@@ -46,10 +52,12 @@ export async function GET(request: Request) {
     const capabilityAlreadyConnected = connection?.connected && (
       capability === "calendar"
         ? connection.centrisShowings.scopeGranted
-        : connection.gmailSendEnabled && connection.gmailSignatureEnabled
+        : capability === "gmail"
+          ? connection.gmailSendEnabled && connection.gmailSignatureEnabled
+          : connection.driveEnabled
     );
     if (capabilityAlreadyConnected) {
-      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "already-connected");
+      destinationUrl.searchParams.set(capabilityFeedbackParameter(capability), "already-connected");
       destinationUrl.searchParams.set("broker", broker);
       return Response.redirect(destinationUrl.toString(), 302);
     }
@@ -58,7 +66,7 @@ export async function GET(request: Request) {
       getGoogleRedirectUri(request),
     );
     await saveGoogleConnection(broker, tokens);
-    destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "connected");
+    destinationUrl.searchParams.set(capabilityFeedbackParameter(capability), "connected");
     destinationUrl.searchParams.set("broker", broker);
   } catch (caughtError) {
     console.error(
@@ -66,7 +74,7 @@ export async function GET(request: Request) {
       caughtError instanceof Error ? caughtError.message : "Erreur inconnue",
     );
     destinationUrl.searchParams.set(
-      destinationCapability === "gmail" ? "gmail" : "google",
+      capabilityFeedbackParameter(destinationCapability),
       caughtError instanceof GoogleAccountRefreshTokenMismatchError
         ? GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS
         : "error",

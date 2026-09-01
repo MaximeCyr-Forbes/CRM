@@ -26,7 +26,7 @@ const IDS = {
 };
 
 function connection(broker: "france" | "maxime" | "sandrine", gmail = true, signature = true): CalendarConnectionStatus {
-  return { broker, connected: gmail, email: `${broker}@example.com`, gmailSendEnabled: gmail, gmailSignatureEnabled: signature, centrisShowings: { scopeGranted: true, calendarDetected: true, status: "synchronized" }, birthdays: { synced: 0, pending: 0, error: 0 }, mortgageRenewals: { synced: 0, pending: 0, error: 0 }, watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null } };
+  return { broker, connected: gmail, email: `${broker}@example.com`, gmailSendEnabled: gmail, gmailSignatureEnabled: signature, driveEnabled: false, centrisShowings: { scopeGranted: true, calendarDetected: true, status: "synchronized" }, birthdays: { synced: 0, pending: 0, error: 0 }, mortgageRenewals: { synced: 0, pending: 0, error: 0 }, watch: { changeVersion: 0, lastNotificationAt: null, watchActive: false, expiresAt: null } };
 }
 
 function campaign(values: Partial<CustomEmailCampaign> = {}): CustomEmailCampaign {

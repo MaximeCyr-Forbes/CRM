@@ -8,12 +8,25 @@ import { createOAuthState, sanitizeOAuthReturnTo, type GoogleOAuthCapability } f
 import { listGoogleConnectionStatuses } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
 import { GMAIL_SEND_SCOPE, GMAIL_SETTINGS_BASIC_SCOPE } from "../../../lib/google-gmail/scopes";
+import { GOOGLE_DRIVE_FILE_SCOPE } from "../../../lib/google-drive/scopes";
 import {
   GOOGLE_CALENDAR_EVENTS_SCOPE,
   GOOGLE_CALENDAR_LIST_READONLY_SCOPE,
 } from "../../../lib/google-calendar/scopes";
 
 export const dynamic = "force-dynamic";
+
+function capabilityScopes(capability: GoogleOAuthCapability) {
+  if (capability === "gmail") return ["openid", "email", GMAIL_SEND_SCOPE, GMAIL_SETTINGS_BASIC_SCOPE];
+  if (capability === "drive") return ["openid", "email", GOOGLE_DRIVE_FILE_SCOPE];
+  return ["openid", "email", GOOGLE_CALENDAR_EVENTS_SCOPE, GOOGLE_CALENDAR_LIST_READONLY_SCOPE];
+}
+
+function capabilityFeedbackParameter(capability: GoogleOAuthCapability) {
+  if (capability === "gmail") return "gmail";
+  if (capability === "drive") return "drive";
+  return "google";
+}
 
 export async function GET(request: Request) {
   const access = await requireApiAccess();
@@ -23,7 +36,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const broker = requestUrl.searchParams.get("broker");
   const capabilityParam = requestUrl.searchParams.get("capability") ?? "calendar";
-  if (capabilityParam !== "calendar" && capabilityParam !== "gmail") {
+  if (capabilityParam !== "calendar" && capabilityParam !== "gmail" && capabilityParam !== "drive") {
     return Response.json({ error: "Capacité Google invalide." }, { status: 400 });
   }
   const capability = capabilityParam as GoogleOAuthCapability;
@@ -38,11 +51,13 @@ export async function GET(request: Request) {
     const capabilityAlreadyConnected = connection?.connected && (
       capability === "calendar"
         ? connection.centrisShowings.scopeGranted
-        : connection.gmailSendEnabled && connection.gmailSignatureEnabled
+        : capability === "gmail"
+          ? connection.gmailSendEnabled && connection.gmailSignatureEnabled
+          : connection.driveEnabled
     );
     if (capabilityAlreadyConnected) {
       const destinationUrl = new URL(returnTo, getApplicationOrigin(request));
-      destinationUrl.searchParams.set(capability === "gmail" ? "gmail" : "google", "already-connected");
+      destinationUrl.searchParams.set(capabilityFeedbackParameter(capability), "already-connected");
       destinationUrl.searchParams.set("broker", broker);
       return Response.redirect(destinationUrl.toString(), 302);
     }
@@ -56,14 +71,7 @@ export async function GET(request: Request) {
       prompt: "consent",
       redirect_uri: getGoogleRedirectUri(request),
       response_type: "code",
-      scope: [
-        "openid",
-        "email",
-        GOOGLE_CALENDAR_EVENTS_SCOPE,
-        GOOGLE_CALENDAR_LIST_READONLY_SCOPE,
-        GMAIL_SEND_SCOPE,
-        GMAIL_SETTINGS_BASIC_SCOPE,
-      ].join(" "),
+      scope: capabilityScopes(capability).join(" "),
       state: await createOAuthState(broker, capability, returnTo),
     }).toString();
 

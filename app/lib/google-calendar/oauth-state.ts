@@ -10,7 +10,7 @@ type OAuthStatePayload = {
   nonce: string;
 };
 
-export type GoogleOAuthCapability = "calendar" | "gmail";
+export type GoogleOAuthCapability = "calendar" | "gmail" | "drive";
 
 export function sanitizeOAuthReturnTo(value: unknown, fallback = "/settings") {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /[\u0000-\u001f]/.test(value)) {
@@ -89,7 +89,7 @@ export async function verifyOAuthState(state: string): Promise<OAuthStatePayload
   ) as OAuthStatePayload;
   if (
     !CONTACT_BROKERS.includes(payload.broker) ||
-    !["calendar", "gmail"].includes(payload.capability) ||
+    !["calendar", "gmail", "drive"].includes(payload.capability) ||
     payload.returnTo !== sanitizeOAuthReturnTo(payload.returnTo) ||
     !Number.isFinite(payload.expiresAt) ||
     payload.expiresAt < Date.now()

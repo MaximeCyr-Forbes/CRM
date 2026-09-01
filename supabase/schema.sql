@@ -1059,6 +1059,21 @@ create table if not exists public.google_calendar_connections (
   constraint google_calendar_connections_assigned_broker_check check (broker <> 'unassigned')
 );
 
+create table if not exists public.google_drive_roots (
+  id uuid primary key default gen_random_uuid(),
+  broker public.broker_assignment not null,
+  folder_id text not null,
+  folder_name text not null,
+  drive_id text,
+  web_view_link text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint google_drive_roots_assigned_broker_check check (broker <> 'unassigned'),
+  constraint google_drive_roots_folder_id_check check (length(trim(folder_id)) between 5 and 200),
+  constraint google_drive_roots_folder_name_check check (length(trim(folder_name)) between 1 and 500),
+  constraint google_drive_roots_broker_folder_unique unique (broker, folder_id)
+);
+
 create table if not exists public.google_calendar_watch_channels (
   broker public.broker_assignment primary key,
   calendar_id text not null default 'primary',
@@ -2207,6 +2222,11 @@ create trigger google_calendar_connections_set_updated_at
 before update on public.google_calendar_connections
 for each row execute function public.set_updated_at();
 
+drop trigger if exists google_drive_roots_set_updated_at on public.google_drive_roots;
+create trigger google_drive_roots_set_updated_at
+before update on public.google_drive_roots
+for each row execute function public.set_updated_at();
+
 drop trigger if exists google_calendar_watch_channels_set_updated_at on public.google_calendar_watch_channels;
 create trigger google_calendar_watch_channels_set_updated_at
 before update on public.google_calendar_watch_channels
@@ -3158,6 +3178,7 @@ create index if not exists transaction_notes_transaction_created_idx
 alter table public.contacts enable row level security;
 alter table public.client_notes enable row level security;
 alter table public.google_calendar_connections enable row level security;
+alter table public.google_drive_roots enable row level security;
 alter table public.google_calendar_watch_channels enable row level security;
 alter table public.contact_birthday_calendar_events enable row level security;
 alter table public.contact_mortgage_renewal_calendar_events enable row level security;
@@ -3242,6 +3263,7 @@ revoke execute on function public.merge_contacts(
 
 -- Les connexions Google restent exclusivement accessibles au serveur avec la clé service_role.
 revoke all on public.google_calendar_connections from anon, authenticated;
+revoke all on public.google_drive_roots from public, anon, authenticated;
 revoke all on public.google_calendar_watch_channels from public, anon, authenticated;
 revoke all on public.contact_birthday_calendar_events from public, anon, authenticated;
 revoke all on public.contact_mortgage_renewal_calendar_events from public, anon, authenticated;
@@ -3266,6 +3288,7 @@ from public,anon,authenticated;
 revoke execute on function public.assign_contacts(uuid[], public.broker_assignment)
 from authenticated;
 grant select, insert, update, delete on public.google_calendar_connections to service_role;
+grant select, insert, update, delete on public.google_drive_roots to service_role;
 grant select, insert, update, delete on public.google_calendar_watch_channels to service_role;
 revoke execute on function public.notify_google_calendar_change(text, text, text) from public, anon, authenticated;
 grant execute on function public.notify_google_calendar_change(text, text, text) to service_role;

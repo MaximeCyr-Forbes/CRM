@@ -9,7 +9,7 @@ export type GoogleOAuthFeedback = {
 };
 
 export function getGoogleOAuthFeedback(
-  capability: "calendar" | "gmail",
+  capability: "calendar" | "gmail" | "drive",
   status: string | null,
 ): GoogleOAuthFeedback | null {
   if (status === GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS) {
@@ -20,6 +20,13 @@ export function getGoogleOAuthFeedback(
     if (status === "already-connected") return { type: "message", text: "Ce courtier possède déjà un Google Agenda connecté." };
     if (status === "cancelled") return { type: "message", text: "Connexion Google Agenda annulée." };
     if (status === "error") return { type: "error", text: "La connexion Google Agenda n’a pas pu être terminée." };
+    return null;
+  }
+  if (capability === "drive") {
+    if (status === "connected") return { type: "message", text: "Google Drive activé avec succès." };
+    if (status === "already-connected") return { type: "message", text: "Google Drive est déjà activé pour ce courtier." };
+    if (status === "cancelled") return { type: "message", text: "Activation Google Drive annulée." };
+    if (status === "error") return { type: "error", text: "L’activation Google Drive n’a pas pu être terminée." };
     return null;
   }
   if (status === "connected") return { type: "message", text: "Gmail activé avec succès." };
