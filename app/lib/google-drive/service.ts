@@ -178,7 +178,7 @@ async function getGoogleDriveRoot(broker: CalendarBroker, rootId: string) {
 async function listDriveChildren(
   folder: Pick<GoogleDriveItem, "id" | "driveId">,
 ) {
-  const items: GoogleDriveItem[] = [];
+  const items: DriveFileWithParents[] = [];
   let pageToken: string | null = null;
   do {
     const search = new URLSearchParams({
@@ -237,9 +237,38 @@ async function resolveAuthorizedFolder(
       };
     }
     const parentId = current.parents[0];
-    if (!parentId) throw new GoogleDriveAccessDeniedError();
+    if (!parentId) break;
     current = await fetchDriveItem(parentId);
   }
+
+  // Google Drive can omit `parents` from inherited shared-folder metadata even
+  // though the service account can list the folder through the authorized root.
+  // In that case, rebuild the ancestry from the root downward. This also keeps
+  // the CRM boundary explicit: only descendants discovered under this root can
+  // be opened.
+  const rootFolder = await fetchDriveItem(root.folderId);
+  const pending: Array<{ folder: DriveFileWithParents; breadcrumbs: GoogleDriveBreadcrumb[] }> = [{
+    folder: rootFolder,
+    breadcrumbs: [{ id: rootFolder.id, name: rootFolder.name }],
+  }];
+  const traversed = new Set<string>();
+
+  while (pending.length > 0 && traversed.size < 20_000) {
+    const entry = pending.shift();
+    if (!entry || traversed.has(entry.folder.id)) continue;
+    traversed.add(entry.folder.id);
+
+    const children = await listDriveChildren(entry.folder);
+    for (const child of children) {
+      if (!child.isFolder || traversed.has(child.id)) continue;
+      const breadcrumbs = [...entry.breadcrumbs, { id: child.id, name: child.name }];
+      if (child.id === requestedFolderId) {
+        return { folder: child, breadcrumbs };
+      }
+      pending.push({ folder: child, breadcrumbs });
+    }
+  }
+
   throw new GoogleDriveAccessDeniedError();
 }
 

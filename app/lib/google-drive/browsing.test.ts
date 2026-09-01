@@ -139,12 +139,39 @@ describe("navigation Google Drive autorisée", () => {
     state.handler = (url) => {
       if (url.pathname.endsWith("/outside_child")) return Response.json(folder("outside_child", "Privé", ["outside_parent"]));
       if (url.pathname.endsWith("/outside_parent")) return Response.json(folder("outside_parent", "Hors CRM"));
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
       return Response.json({ files: [] });
     };
 
     await expect(listAuthorizedGoogleDriveFolder("maxime", rootId, "outside_child"))
       .rejects.toBeInstanceOf(GoogleDriveAccessDeniedError);
-    expect(state.requests.some((request) => request.url.searchParams.has("q"))).toBe(false);
+    expect(state.requests
+      .map((request) => request.url.searchParams.get("q"))
+      .filter(Boolean))
+      .toEqual(["'root_folder' in parents and trashed = false"]);
+  });
+
+  it("retrouve les descendants lorsque Google omet leurs parents hérités", async () => {
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/child_folder")) return Response.json(folder("child_folder", "2026"));
+      if (url.pathname.endsWith("/nested_folder")) return Response.json(folder("nested_folder", "Septembre"));
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      const query = url.searchParams.get("q") ?? "";
+      if (query.includes("'root_folder' in parents")) {
+        return Response.json({ files: [folder("child_folder", "2026")] });
+      }
+      if (query.includes("'child_folder' in parents")) {
+        return Response.json({ files: [folder("nested_folder", "Septembre")] });
+      }
+      return Response.json({ files: [] });
+    };
+
+    const directChild = await listAuthorizedGoogleDriveFolder("maxime", rootId, "child_folder");
+    expect(directChild.breadcrumbs.map((crumb) => crumb.name)).toEqual(["Transactions", "2026"]);
+
+    const nestedChild = await listAuthorizedGoogleDriveFolder("maxime", rootId, "nested_folder");
+    expect(nestedChild.breadcrumbs.map((crumb) => crumb.name)).toEqual(["Transactions", "2026", "Septembre"]);
+    expect(state.requests.every((request) => request.method === "GET")).toBe(true);
   });
 
   it("recherche seulement en descendant des racines autorisées", async () => {
