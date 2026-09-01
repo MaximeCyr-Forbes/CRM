@@ -113,7 +113,7 @@ export function SettingsGoogleDrive({ connections }: { connections: CalendarConn
       }
       setRoots((current) => current.filter((root) => root.id !== rootId));
       setPendingRemovalId(null);
-      setMessage("Le dossier a été retiré du CRM. Son contenu Google Drive est inchangé.");
+      setMessage("L’accès en lecture du CRM a été révoqué. Le contenu Google Drive est inchangé.");
     } catch (caughtError) {
       setError(caughtError instanceof Error && caughtError.message
         ? caughtError.message
@@ -169,7 +169,7 @@ export function SettingsGoogleDrive({ connections }: { connections: CalendarConn
               )}
               {pendingRemovalId === root.id ? (
                 <span className="settings-drive-remove-confirmation">
-                  <small>Retirer du CRM seulement?</small>
+                  <small>Révoquer l’accès du CRM? Le contenu restera intact.</small>
                   <button disabled={removingId === root.id} onClick={() => void removeRoot(root.id)} type="button">
                     {removingId === root.id ? "RETRAIT…" : "CONFIRMER"}
                   </button>

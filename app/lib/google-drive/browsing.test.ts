@@ -9,6 +9,7 @@ const rootRow: GoogleDriveRootRow = {
   folder_name: "Transactions",
   drive_id: "shared_drive",
   web_view_link: "https://drive.google.com/drive/folders/root_folder",
+  google_permission_id: "permission_reader_1",
   created_at: "2026-09-01T12:00:00.000Z",
   updated_at: "2026-09-01T12:00:00.000Z",
 };
@@ -31,6 +32,15 @@ vi.mock("../google/connection", () => ({
   })),
   getGoogleAccessToken: vi.fn(async () => "token"),
   googleAuthenticatedRequest: vi.fn(async (_connection: unknown, rawUrl: string, init: RequestInit) => {
+    const url = new URL(rawUrl);
+    state.requests.push({ url, method: init.method ?? "GET" });
+    return state.handler(url);
+  }),
+}));
+
+vi.mock("./service-account", () => ({
+  getGoogleDriveServiceAccountEmail: vi.fn(() => "drive-reader@example.iam.gserviceaccount.com"),
+  serviceAccountGoogleDriveRequest: vi.fn(async (rawUrl: string, init: RequestInit) => {
     const url = new URL(rawUrl);
     state.requests.push({ url, method: init.method ?? "GET" });
     return state.handler(url);
@@ -66,6 +76,7 @@ vi.mock("../supabase/server", () => ({
 
 import {
   GoogleDriveAccessDeniedError,
+  GoogleDriveRootNotFoundError,
   listAuthorizedGoogleDriveFolder,
   searchAuthorizedGoogleDrive,
 } from "./service";
@@ -162,5 +173,28 @@ describe("navigation Google Drive autorisée", () => {
       "'root_folder' in parents and trashed = false",
       "'year_2026' in parents and trashed = false",
     ]);
+  });
+
+  it("voit un nouvel enfant sans réautoriser la racine", async () => {
+    let includeNewDocument = false;
+    state.handler = (url) => {
+      if (url.pathname.endsWith("/root_folder")) return Response.json(folder("root_folder", "Transactions"));
+      return Response.json({
+        files: includeNewDocument ? [file("new_pdf", "Nouveau document.pdf", "root_folder")] : [],
+      });
+    };
+
+    await expect(listAuthorizedGoogleDriveFolder("maxime", rootId))
+      .resolves.toMatchObject({ items: [] });
+    includeNewDocument = true;
+    const refreshed = await listAuthorizedGoogleDriveFolder("maxime", rootId);
+    expect(refreshed.items.map((item) => item.name)).toEqual(["Nouveau document.pdf"]);
+  });
+
+  it("refuse une racine enregistrée pour un autre courtier avant tout appel Google", async () => {
+    state.roots = [{ ...rootRow, broker: "france" }];
+    await expect(listAuthorizedGoogleDriveFolder("maxime", rootId))
+      .rejects.toBeInstanceOf(GoogleDriveRootNotFoundError);
+    expect(state.requests).toHaveLength(0);
   });
 });

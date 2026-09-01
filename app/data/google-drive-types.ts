@@ -66,6 +66,7 @@ export type GoogleDriveRoot = {
   folderName: string;
   driveId: string | null;
   webViewLink: string | null;
+  googlePermissionId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -77,6 +78,7 @@ export type GoogleDriveRootRow = {
   folder_name: string;
   drive_id: string | null;
   web_view_link: string | null;
+  google_permission_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -89,6 +91,7 @@ export function mapGoogleDriveRootRow(row: GoogleDriveRootRow): GoogleDriveRoot 
     folderName: row.folder_name,
     driveId: row.drive_id,
     webViewLink: row.web_view_link,
+    googlePermissionId: row.google_permission_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -246,7 +246,7 @@ export default function DrivePage() {
       const payload = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(payload?.error ?? "Le dossier n’a pas pu être retiré.");
       if (activeListing?.root.id === pendingRemoval.id) setActiveListing(null);
-      setMessage("Le dossier a été retiré du CRM. Le dossier et ses fichiers restent intacts dans Google Drive.");
+      setMessage("L’accès en lecture du CRM a été révoqué. Le dossier et ses fichiers restent intacts dans Google Drive.");
       setPendingRemoval(null);
       await loadRoots();
     } catch (caughtError) {
@@ -405,10 +405,10 @@ export default function DrivePage() {
       {pendingRemoval && (
         <div className="drive-modal-backdrop" role="presentation">
           <section aria-labelledby="drive-remove-title" aria-modal="true" className="drive-remove-modal" role="dialog">
-            <p className="section-kicker">Accès CRM seulement</p>
+            <p className="section-kicker">Révocation de l’accès CRM</p>
             <h2 id="drive-remove-title">Retirer ce dossier du CRM ?</h2>
             <p><strong>{pendingRemoval.folderName}</strong></p>
-            <p>Le dossier et ses fichiers resteront intacts dans Google Drive.</p>
+            <p>La permission de lecture du CRM sera révoquée. Le dossier et ses fichiers resteront intacts dans Google Drive.</p>
             <div>
               <button disabled={isRemoving} onClick={() => setPendingRemoval(null)} type="button">ANNULER</button>
               <button disabled={isRemoving} onClick={() => void removeRoot()} type="button">{isRemoving ? "RETRAIT…" : "RETIRER DU CRM"}</button>

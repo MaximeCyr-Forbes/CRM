@@ -26,13 +26,23 @@ describe("interface Google Drive dans Paramètres", () => {
     expect(component).toContain("capability=drive");
   });
 
-  it("retire seulement la liaison CRM et ne contient aucune opération Drive destructive", () => {
+  it("révoque uniquement la permission CRM et ne contient aucune opération fichier destructive", () => {
     const component = source("app/components/settings-google-drive.tsx");
     const service = source("app/lib/google-drive/service.ts");
-    expect(component).toContain("Son contenu Google Drive est inchangé.");
-    expect(service).not.toMatch(/drive\/v3\/files\/.*(delete|trash)/i);
-    expect(service).not.toContain('method: "POST"');
+    expect(component).toContain("Le contenu restera intact.");
+    expect(service).toContain("/permissions");
+    expect(service).toContain('role: "reader"');
+    expect(service).toContain('method: "DELETE"');
+    expect(service).not.toMatch(/files\.(create|update|delete|copy)/i);
     expect(service).not.toContain('method: "PATCH"');
+  });
+
+  it("utilise un service account drive.readonly sans délégation de domaine", () => {
+    const serviceAccount = source("app/lib/google-drive/service-account.ts");
+    expect(serviceAccount).toContain("https://www.googleapis.com/auth/drive.readonly");
+    expect(serviceAccount).toContain("GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL");
+    expect(serviceAccount).toContain("GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY");
+    expect(serviceAccount).not.toMatch(/domain.?wide|delegation|\bsub\s*:/i);
   });
 
   it("déclare une migration additive service_role seulement", () => {
@@ -42,6 +52,12 @@ describe("interface Google Drive dans Paramètres", () => {
     expect(migration).toContain("enable row level security");
     expect(migration).toContain("revoke all on public.google_drive_roots from public, anon, authenticated");
     expect(migration).toContain("grant select, insert, update, delete on public.google_drive_roots to service_role");
+    expect(migration).not.toMatch(/delete\s+from|truncate\s+table|drop\s+table/i);
+  });
+
+  it("ajoute uniquement l’identifiant de permission Google à la racine", () => {
+    const migration = source("supabase/migrations/20260901173000_add_google_drive_root_permission.sql");
+    expect(migration).toContain("add column if not exists google_permission_id text");
     expect(migration).not.toMatch(/delete\s+from|truncate\s+table|drop\s+table/i);
   });
 });

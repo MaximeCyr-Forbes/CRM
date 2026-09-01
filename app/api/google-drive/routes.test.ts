@@ -31,9 +31,15 @@ vi.mock("../../lib/google-drive/service", () => {
   class GoogleDriveFolderRequiredError extends Error {
     constructor() { super("L’élément sélectionné doit être un dossier Google Drive."); }
   }
+  class GoogleDrivePermissionCreationError extends Error {}
+  class GoogleDriveServiceAccountSharingBlockedError extends Error {}
+  class GoogleDrivePermissionRevocationError extends Error {}
   return {
     GoogleDriveAuthorizationRequiredError,
     GoogleDriveFolderRequiredError,
+    GoogleDrivePermissionCreationError,
+    GoogleDriveServiceAccountSharingBlockedError,
+    GoogleDrivePermissionRevocationError,
     getGoogleDrivePickerAccessToken: vi.fn(async () => state.token),
     listGoogleDriveRoots: vi.fn(async () => state.roots),
     addGoogleDriveRoot: vi.fn(async (broker: GoogleDriveRoot["broker"], folderId: string) => {
@@ -48,6 +54,7 @@ vi.mock("../../lib/google-drive/service", () => {
         folderName: "Dossiers clients",
         driveId: "shared-drive-1",
         webViewLink: "https://drive.google.com/drive/folders/folder_12345",
+        googlePermissionId: "permission_reader_1",
         createdAt: "2026-09-01T12:00:00.000Z",
         updatedAt: "2026-09-01T12:00:00.000Z",
       };
@@ -60,6 +67,10 @@ vi.mock("../../lib/google-drive/service", () => {
     }),
   };
 });
+
+vi.mock("../../lib/google-drive/service-account", () => ({
+  GoogleDriveServiceAccountConfigurationError: class GoogleDriveServiceAccountConfigurationError extends Error {},
+}));
 
 import { GET as pickerToken } from "./picker-token/route";
 import { GET as listRoots, POST as addRoot } from "./roots/route";
@@ -119,7 +130,7 @@ describe("routes Google Drive", () => {
     expect(await response.json()).toEqual({ error: "L’élément sélectionné doit être un dossier Google Drive." });
   });
 
-  it("retire uniquement la liaison CRM du courtier", async () => {
+  it("révoque l’accès Google avant de retirer la racine CRM du courtier", async () => {
     const response = await removeRoot(
       new Request(`https://crm.example.com/api/google-drive/roots/${rootId}?broker=maxime`, {
         method: "DELETE",

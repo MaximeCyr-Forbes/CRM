@@ -16,8 +16,12 @@ import { getGoogleAccessToken, getGoogleConnection, googleAuthenticatedRequest }
 import { listAllSupabaseRows, mapWithConcurrency, type SupabaseOrderedRangeQuery } from "../supabase/pagination";
 import { getSupabaseAdmin } from "../supabase/server";
 import { hasGoogleDriveFileScope } from "./scopes";
+import {
+  getGoogleDriveServiceAccountEmail,
+  serviceAccountGoogleDriveRequest,
+} from "./service-account";
 
-const rootColumns = "id, broker, folder_id, folder_name, drive_id, web_view_link, created_at, updated_at";
+const rootColumns = "id, broker, folder_id, folder_name, drive_id, web_view_link, google_permission_id, created_at, updated_at";
 const entityLinkColumns = "id, broker, root_id, folder_id, folder_name, web_view_link, contact_id, listing_id, transaction_id, created_at";
 
 type GoogleDriveFileMetadata = {
@@ -79,6 +83,27 @@ export class GoogleDriveItemUnavailableError extends Error {
   }
 }
 
+export class GoogleDriveServiceAccountSharingBlockedError extends Error {
+  constructor() {
+    super("SERVICE ACCOUNT SHARING BLOCKED BY WORKSPACE POLICY");
+    this.name = "GoogleDriveServiceAccountSharingBlockedError";
+  }
+}
+
+export class GoogleDrivePermissionCreationError extends Error {
+  constructor() {
+    super("La permission de lecture Google Drive n’a pas pu être accordée au CRM.");
+    this.name = "GoogleDrivePermissionCreationError";
+  }
+}
+
+export class GoogleDrivePermissionRevocationError extends Error {
+  constructor() {
+    super("La permission Google Drive n’a pas pu être révoquée; le dossier reste autorisé dans le CRM.");
+    this.name = "GoogleDrivePermissionRevocationError";
+  }
+}
+
 export class GoogleDriveEntityNotFoundError extends Error {
   constructor() {
     super("Le dossier CRM est introuvable.");
@@ -128,13 +153,11 @@ function mapDriveFile(metadata: GoogleDriveFileMetadata): DriveFileWithParents {
 }
 
 async function fetchDriveItem(
-  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
   itemId: string,
 ) {
   const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(itemId)}`);
   url.search = new URLSearchParams({ fields: driveItemFields, supportsAllDrives: "true" }).toString();
-  const response = await googleAuthenticatedRequest(connection, url.toString(), { method: "GET" });
-  if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
+  const response = await serviceAccountGoogleDriveRequest(url.toString(), { method: "GET" });
   if (response.status === 403 || response.status === 404) throw new GoogleDriveItemUnavailableError();
   if (!response.ok) throw new Error(`Lecture Google Drive refusée (${response.status}).`);
   return mapDriveFile((await response.json()) as GoogleDriveFileMetadata);
@@ -153,7 +176,6 @@ async function getGoogleDriveRoot(broker: CalendarBroker, rootId: string) {
 }
 
 async function listDriveChildren(
-  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
   folder: Pick<GoogleDriveItem, "id" | "driveId">,
 ) {
   const items: GoogleDriveItem[] = [];
@@ -172,12 +194,10 @@ async function listDriveChildren(
       search.set("driveId", folder.driveId);
     }
     if (pageToken) search.set("pageToken", pageToken);
-    const response = await googleAuthenticatedRequest(
-      connection,
+    const response = await serviceAccountGoogleDriveRequest(
       `https://www.googleapis.com/drive/v3/files?${search.toString()}`,
       { method: "GET" },
     );
-    if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
     if (response.status === 403 || response.status === 404) throw new GoogleDriveItemUnavailableError();
     if (!response.ok) throw new Error(`Liste Google Drive refusée (${response.status}).`);
     const payload = (await response.json()) as GoogleDriveFilesResponse;
@@ -195,13 +215,12 @@ async function listDriveChildren(
 }
 
 async function resolveAuthorizedFolder(
-  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
   root: GoogleDriveRoot,
   requestedFolderId: string,
 ) {
   const chain: DriveFileWithParents[] = [];
   const visited = new Set<string>();
-  let current = await fetchDriveItem(connection, requestedFolderId);
+  let current = await fetchDriveItem(requestedFolderId);
   if (!current.isFolder) throw new GoogleDriveFolderRequiredError();
 
   for (let depth = 0; depth < 100; depth += 1) {
@@ -219,7 +238,7 @@ async function resolveAuthorizedFolder(
     }
     const parentId = current.parents[0];
     if (!parentId) throw new GoogleDriveAccessDeniedError();
-    current = await fetchDriveItem(connection, parentId);
+    current = await fetchDriveItem(parentId);
   }
   throw new GoogleDriveAccessDeniedError();
 }
@@ -270,11 +289,103 @@ export async function listGoogleDriveRoots(broker: CalendarBroker): Promise<Goog
   return ((data ?? []) as GoogleDriveRootRow[]).map(mapGoogleDriveRootRow);
 }
 
+async function findGoogleDriveRootByFolder(
+  broker: CalendarBroker,
+  folderId: string,
+) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("google_drive_roots")
+    .select(rootColumns)
+    .eq("broker", broker)
+    .eq("folder_id", folderId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapGoogleDriveRootRow(data as GoogleDriveRootRow) : null;
+}
+
+function isWorkspaceSharingPolicyError(details: string) {
+  return /domainPolicy|adminPolicy|sharing[^\n]*(disabled|blocked)|outside[^\n]*domain|workspace[^\n]*policy/i.test(details);
+}
+
+async function createServiceAccountReaderPermission(
+  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
+  folderId: string,
+) {
+  const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}/permissions`);
+  url.search = new URLSearchParams({
+    supportsAllDrives: "true",
+    sendNotificationEmail: "false",
+    fields: "id",
+  }).toString();
+  const response = await googleAuthenticatedRequest(connection, url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "user",
+      role: "reader",
+      emailAddress: getGoogleDriveServiceAccountEmail(),
+    }),
+  });
+  if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    if (response.status === 403 && isWorkspaceSharingPolicyError(details)) {
+      throw new GoogleDriveServiceAccountSharingBlockedError();
+    }
+    throw new GoogleDrivePermissionCreationError();
+  }
+  const payload = await response.json() as { id?: unknown };
+  if (typeof payload.id !== "string" || !payload.id) throw new GoogleDrivePermissionCreationError();
+  return payload.id;
+}
+
+async function revokeServiceAccountReaderPermission(
+  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
+  folderId: string,
+  permissionId: string,
+) {
+  const url = new URL(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}/permissions/${encodeURIComponent(permissionId)}`,
+  );
+  url.search = new URLSearchParams({ supportsAllDrives: "true" }).toString();
+  const response = await googleAuthenticatedRequest(connection, url.toString(), { method: "DELETE" });
+  if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
+  if (response.status === 404) return;
+  if (!response.ok) throw new GoogleDrivePermissionRevocationError();
+}
+
+async function verifyServiceAccountCanReadFolder(folderId: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const folder = await fetchDriveItem(folderId);
+      if (!folder.isFolder) throw new GoogleDriveFolderRequiredError();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof GoogleDriveItemUnavailableError) || attempt === 3) break;
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 export async function addGoogleDriveRoot(
   broker: CalendarBroker,
   folderId: string,
 ): Promise<GoogleDriveRoot> {
+  const connection = await requireDriveConnection(broker);
   const metadata = await getGoogleDriveFolderMetadata(broker, folderId);
+  const existing = await findGoogleDriveRootByFolder(broker, metadata.id);
+  if (existing?.googlePermissionId) return existing;
+
+  const permissionId = await createServiceAccountReaderPermission(connection, metadata.id);
+  try {
+    await verifyServiceAccountCanReadFolder(metadata.id);
+  } catch (error) {
+    await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    throw error;
+  }
   const { data, error } = await getSupabaseAdmin()
     .from("google_drive_roots")
     .upsert({
@@ -283,10 +394,14 @@ export async function addGoogleDriveRoot(
       folder_name: metadata.name,
       drive_id: metadata.driveId,
       web_view_link: metadata.webViewLink,
+      google_permission_id: permissionId,
     }, { onConflict: "broker,folder_id" })
     .select(rootColumns)
     .single();
-  if (error) throw error;
+  if (error) {
+    await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    throw error;
+  }
   return mapGoogleDriveRootRow(data as GoogleDriveRootRow);
 }
 
@@ -294,6 +409,21 @@ export async function removeGoogleDriveRoot(
   broker: CalendarBroker,
   rootId: string,
 ) {
+  let root: GoogleDriveRoot;
+  try {
+    root = await getGoogleDriveRoot(broker, rootId);
+  } catch (error) {
+    if (error instanceof GoogleDriveRootNotFoundError) return false;
+    throw error;
+  }
+  if (root.googlePermissionId) {
+    const connection = await requireDriveConnection(broker);
+    await revokeServiceAccountReaderPermission(
+      connection,
+      root.folderId,
+      root.googlePermissionId,
+    );
+  }
   const { data, error } = await getSupabaseAdmin()
     .from("google_drive_roots")
     .delete()
@@ -310,16 +440,13 @@ export async function listAuthorizedGoogleDriveFolder(
   rootId: string,
   folderId?: string,
 ): Promise<GoogleDriveFolderListing> {
-  const [connection, root] = await Promise.all([
-    requireDriveConnection(broker),
-    getGoogleDriveRoot(broker, rootId),
-  ]);
-  const resolved = await resolveAuthorizedFolder(connection, root, folderId ?? root.folderId);
+  const root = await getGoogleDriveRoot(broker, rootId);
+  const resolved = await resolveAuthorizedFolder(root, folderId ?? root.folderId);
   return {
     root,
     folder: resolved.folder,
     breadcrumbs: resolved.breadcrumbs,
-    items: await listDriveChildren(connection, resolved.folder),
+    items: await listDriveChildren(resolved.folder),
   };
 }
 
@@ -328,11 +455,8 @@ export async function getAuthorizedGoogleDriveFolder(
   rootId: string,
   folderId: string,
 ) {
-  const [connection, root] = await Promise.all([
-    requireDriveConnection(broker),
-    getGoogleDriveRoot(broker, rootId),
-  ]);
-  const resolved = await resolveAuthorizedFolder(connection, root, folderId);
+  const root = await getGoogleDriveRoot(broker, rootId);
+  const resolved = await resolveAuthorizedFolder(root, folderId);
   return { root, folder: resolved.folder, breadcrumbs: resolved.breadcrumbs };
 }
 
@@ -342,10 +466,7 @@ export async function searchAuthorizedGoogleDrive(
 ): Promise<{ results: GoogleDriveSearchResult[]; truncated: boolean; unavailableRootIds: string[] }> {
   const normalizedQuery = query.trim().toLocaleLowerCase("fr-CA");
   if (!normalizedQuery) return { results: [], truncated: false, unavailableRootIds: [] };
-  const [connection, roots] = await Promise.all([
-    requireDriveConnection(broker),
-    listGoogleDriveRoots(broker),
-  ]);
+  const roots = await listGoogleDriveRoots(broker);
   const results: GoogleDriveSearchResult[] = [];
   const unavailableRootIds: string[] = [];
   let scanned = 0;
@@ -357,7 +478,7 @@ export async function searchAuthorizedGoogleDrive(
       break;
     }
     try {
-      const rootFolder = await fetchDriveItem(connection, root.folderId);
+      const rootFolder = await fetchDriveItem(root.folderId);
       if (!rootFolder.isFolder) throw new GoogleDriveFolderRequiredError();
       const queue: Array<{ folder: GoogleDriveItem; breadcrumbs: GoogleDriveBreadcrumb[] }> = [{
         folder: rootFolder,
@@ -368,7 +489,7 @@ export async function searchAuthorizedGoogleDrive(
         const current = queue.shift()!;
         if (visited.has(current.folder.id)) continue;
         visited.add(current.folder.id);
-        const children = await listDriveChildren(connection, current.folder);
+        const children = await listDriveChildren(current.folder);
         for (const child of children) {
           scanned += 1;
           const childBreadcrumbs = child.isFolder

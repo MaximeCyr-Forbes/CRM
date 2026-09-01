@@ -1066,11 +1066,16 @@ create table if not exists public.google_drive_roots (
   folder_name text not null,
   drive_id text,
   web_view_link text,
+  google_permission_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint google_drive_roots_assigned_broker_check check (broker <> 'unassigned'),
   constraint google_drive_roots_folder_id_check check (length(trim(folder_id)) between 5 and 200),
   constraint google_drive_roots_folder_name_check check (length(trim(folder_name)) between 1 and 500),
+  constraint google_drive_roots_google_permission_id_check check (
+    google_permission_id is null
+    or length(trim(google_permission_id)) between 1 and 200
+  ),
   constraint google_drive_roots_broker_folder_unique unique (broker, folder_id),
   constraint google_drive_roots_id_broker_unique unique (id, broker)
 );
