@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   userRequests: [] as Array<{ url: URL; init: RequestInit }>,
   serviceRequests: [] as Array<{ url: URL; init: RequestInit }>,
   permissionDeleteStatus: 204,
+  existingPermissionId: null as string | null,
 }));
 
 vi.mock("../google/connection", () => ({
@@ -27,6 +28,16 @@ vi.mock("../google/connection", () => ({
     state.userRequests.push({ url, init });
     if ((init.method ?? "GET") === "POST") return Response.json({ id: "permission_reader_1" });
     if ((init.method ?? "GET") === "DELETE") return new Response(null, { status: state.permissionDeleteStatus });
+    if (url.pathname.endsWith("/permissions")) {
+      return Response.json({
+        permissions: state.existingPermissionId ? [{
+          id: state.existingPermissionId,
+          type: "user",
+          role: "reader",
+          emailAddress: "drive-reader@example.iam.gserviceaccount.com",
+        }] : [],
+      });
+    }
     return Response.json({
       id: "folder_12345",
       name: "Dossiers clients",
@@ -125,6 +136,7 @@ describe("autorisations Google Drive par racine", () => {
     state.userRequests = [];
     state.serviceRequests = [];
     state.permissionDeleteStatus = 204;
+    state.existingPermissionId = null;
   });
 
   it("lit les métadonnées du dossier choisi avec le jeton drive.file", async () => {
@@ -148,6 +160,27 @@ describe("autorisations Google Drive par racine", () => {
     });
     expect(state.serviceRequests).toHaveLength(1);
     expect(state.serviceRequests[0].init.method).toBe("GET");
+  });
+
+  it("récupère l’id d’une permission reader existante pour une racine historique", async () => {
+    state.roots = [{
+      id: rootId,
+      broker: "maxime",
+      folder_id: "folder_12345",
+      folder_name: "Dossiers clients",
+      drive_id: "shared-drive-1",
+      web_view_link: "https://drive.google.com/drive/folders/folder_12345",
+      google_permission_id: null,
+      created_at: "2026-09-01T12:00:00.000Z",
+      updated_at: "2026-09-01T12:00:00.000Z",
+    }];
+    state.existingPermissionId = "legacy_permission_reader";
+
+    const root = await addGoogleDriveRoot("maxime", "folder_12345");
+
+    expect(root.googlePermissionId).toBe("legacy_permission_reader");
+    expect(state.userRequests.some((request) => request.init.method === "POST")).toBe(false);
+    expect(state.userRequests.some((request) => request.url.pathname.endsWith("/permissions"))).toBe(true);
   });
 
   it("révoque la permission Google avant de supprimer la racine Supabase", async () => {

@@ -368,6 +368,47 @@ async function createServiceAccountReaderPermission(
   return payload.id;
 }
 
+async function findServiceAccountReaderPermission(
+  connection: Awaited<ReturnType<typeof requireDriveConnection>>,
+  folderId: string,
+) {
+  let pageToken: string | null = null;
+  const serviceAccountEmail = getGoogleDriveServiceAccountEmail().toLowerCase();
+  do {
+    const search = new URLSearchParams({
+      supportsAllDrives: "true",
+      fields: "nextPageToken,permissions(id,type,role,emailAddress,deleted)",
+      pageSize: "100",
+    });
+    if (pageToken) search.set("pageToken", pageToken);
+    const response = await googleAuthenticatedRequest(
+      connection,
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}/permissions?${search.toString()}`,
+      { method: "GET" },
+    );
+    if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
+    if (!response.ok) throw new GoogleDrivePermissionCreationError();
+    const payload = await response.json() as {
+      nextPageToken?: unknown;
+      permissions?: Array<Record<string, unknown>>;
+    };
+    const permission = (payload.permissions ?? []).find((candidate) => (
+      candidate.type === "user"
+      && candidate.role === "reader"
+      && candidate.deleted !== true
+      && typeof candidate.emailAddress === "string"
+      && candidate.emailAddress.toLowerCase() === serviceAccountEmail
+      && typeof candidate.id === "string"
+      && candidate.id.length > 0
+    ));
+    if (permission && typeof permission.id === "string") return permission.id;
+    pageToken = typeof payload.nextPageToken === "string" && payload.nextPageToken
+      ? payload.nextPageToken
+      : null;
+  } while (pageToken);
+  return null;
+}
+
 async function revokeServiceAccountReaderPermission(
   connection: Awaited<ReturnType<typeof requireDriveConnection>>,
   folderId: string,
@@ -408,11 +449,16 @@ export async function addGoogleDriveRoot(
   const existing = await findGoogleDriveRootByFolder(broker, metadata.id);
   if (existing?.googlePermissionId) return existing;
 
-  const permissionId = await createServiceAccountReaderPermission(connection, metadata.id);
+  const existingPermissionId = await findServiceAccountReaderPermission(connection, metadata.id);
+  const permissionId = existingPermissionId
+    ?? await createServiceAccountReaderPermission(connection, metadata.id);
+  const permissionWasCreated = existingPermissionId === null;
   try {
     await verifyServiceAccountCanReadFolder(metadata.id);
   } catch (error) {
-    await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    if (permissionWasCreated) {
+      await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    }
     throw error;
   }
   const { data, error } = await getSupabaseAdmin()
@@ -428,7 +474,9 @@ export async function addGoogleDriveRoot(
     .select(rootColumns)
     .single();
   if (error) {
-    await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    if (permissionWasCreated) {
+      await revokeServiceAccountReaderPermission(connection, metadata.id, permissionId).catch(() => undefined);
+    }
     throw error;
   }
   return mapGoogleDriveRootRow(data as GoogleDriveRootRow);
