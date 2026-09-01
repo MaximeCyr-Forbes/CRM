@@ -6,6 +6,10 @@ const source = (path: string) => readFileSync(path, "utf8");
 describe("interface Google Drive dans Paramètres", () => {
   it("ouvre Google Picker uniquement pour des dossiers, y compris les Shared Drives", () => {
     const picker = source("app/lib/google-drive/picker-client.ts");
+    expect(picker).toContain("myDriveView");
+    expect(picker).toContain("sharedDrivesView");
+    expect(picker).toContain(".addView(myDriveView)");
+    expect(picker).toContain(".addView(sharedDrivesView)");
     expect(picker).toContain("setSelectFolderEnabled(true)");
     expect(picker).toContain("setIncludeFolders(true)");
     expect(picker).toContain("setEnableDrives(true)");

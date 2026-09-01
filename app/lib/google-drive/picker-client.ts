@@ -92,7 +92,11 @@ export async function pickGoogleDriveFolder(
   const accessToken = tokenPayload.accessToken;
 
   return new Promise<string | null>((resolve) => {
-    const view = new picker.DocsView(picker.ViewId.FOLDERS)
+    const myDriveView = new picker.DocsView(picker.ViewId.FOLDERS)
+      .setIncludeFolders(true)
+      .setSelectFolderEnabled(true)
+      .setMimeTypes(GOOGLE_DRIVE_FOLDER_MIME_TYPE);
+    const sharedDrivesView = new picker.DocsView(picker.ViewId.FOLDERS)
       .setIncludeFolders(true)
       .setSelectFolderEnabled(true)
       .setEnableDrives(true)
@@ -103,7 +107,8 @@ export async function pickGoogleDriveFolder(
       .setOAuthToken(accessToken)
       .setOrigin(window.location.origin)
       .setTitle(title)
-      .addView(view)
+      .addView(myDriveView)
+      .addView(sharedDrivesView)
       .setCallback((data) => {
         if (data.action === picker.Action.PICKED) resolve(data.docs?.[0]?.id ?? null);
         if (data.action === picker.Action.CANCEL) resolve(null);
