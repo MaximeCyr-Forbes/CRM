@@ -421,7 +421,14 @@ async function revokeServiceAccountReaderPermission(
   const response = await googleAuthenticatedRequest(connection, url.toString(), { method: "DELETE" });
   if (response.status === 401) throw new GoogleDriveAuthorizationRequiredError();
   if (response.status === 404) return;
-  if (!response.ok) throw new GoogleDrivePermissionRevocationError();
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    console.error("Révocation de la permission Google Drive impossible", {
+      status: response.status,
+      details,
+    });
+    throw new GoogleDrivePermissionRevocationError();
+  }
 }
 
 async function verifyServiceAccountCanReadFolder(folderId: string) {
