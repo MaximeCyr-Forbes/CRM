@@ -8,7 +8,8 @@ describe("OACIQ → review → agenda", () => {
   it("contraint le dépôt PDF à sa colonne sur mobile", () => {
     const css = readFileSync("app/globals.css", "utf8");
     expect(css).toMatch(/\.oaciq-dropzone\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*min-width:\s*0/);
-    expect(css).toMatch(/\.oaciq-dropzone input\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
+    expect(css).toMatch(/\.oaciq-dropzone\s*\{[^}]*min-width:\s*0[^}]*width:\s*100%/);
+    expect(readFileSync("app/components/oaciq-transaction-import.tsx", "utf8")).toContain('className="sr-only" tabIndex={-1}');
   });
   it("conserve les dates et sources du moteur pour tous les golden dossiers", () => {
     for (const scenario of scenarios) {

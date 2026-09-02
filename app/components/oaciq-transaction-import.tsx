@@ -14,6 +14,8 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
   const [analysis, setAnalysis] = useState<OaciqTransactionPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
   function setDocuments(next: File[]) {
@@ -51,10 +53,25 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
   }
   return <section className="oaciq-import transaction-field-wide" aria-labelledby="oaciq-import-title" aria-busy={busy}>
     <header><p className="section-kicker">Documents du dossier · Facultatif</p><h3 id="oaciq-import-title">GLISSER LES DOCUMENTS OACIQ</h3><p>Une PA et ses annexes, analysées ensemble. Révisez les dates avant de créer la transaction.</p></header>
-    <div className="oaciq-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(Array.from(e.dataTransfer.files)); }}>
-      <input aria-label="Documents OACIQ PDF" type="file" multiple accept="application/pdf,.pdf" disabled={disabled || busy} onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-      <p>Déposez vos PDF ici ou choisissez des fichiers · 20 PDF, 4 Mo au total.</p>
-    </div>
+    <input ref={inputRef} className="sr-only" tabIndex={-1} aria-label="Documents OACIQ PDF" type="file" multiple accept="application/pdf,.pdf" disabled={disabled || busy} onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+    <button
+      type="button"
+      className={`transaction-centris-dropzone oaciq-dropzone${isDragging && !disabled && !busy ? " is-dragging" : ""}`}
+      aria-label="Choisir des PDF"
+      disabled={disabled || busy}
+      onClick={() => inputRef.current?.click()}
+      onDragEnter={(e) => { e.preventDefault(); if (!disabled && !busy) setIsDragging(true); }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDragging(false); }}
+      onDrop={(e) => { e.preventDefault(); setIsDragging(false); addFiles(Array.from(e.dataTransfer.files)); }}
+    >
+      <span className="oaciq-dropzone-content">
+        <strong>Déposez vos documents OACIQ ici</strong>
+        <span>Glissez-déposez vos PDF ou sélectionnez plusieurs fichiers</span>
+        <span className="transaction-centris-file-button">CHOISIR DES PDF</span>
+        <span>Maximum 20 PDF · 4 Mo au total</span>
+      </span>
+    </button>
     {files.length > 0 && <ul className="oaciq-files">{files.map((file, i) => <li key={`${file.name}-${i}`}><span>{file.name}</span><button type="button" disabled={disabled || busy} aria-label={`Retirer ${file.name}`} onClick={() => setDocuments(files.filter((_, index) => index !== i))}>Retirer</button></li>)}</ul>}
     <button className="transaction-add-deadline" type="button" disabled={!files.length || disabled || busy} onClick={() => void analyze()}>{busy ? "ANALYSE DES DOCUMENTS…" : "ANALYSER LES DOCUMENTS"}</button>
     {error && <p className="transaction-form-error" role="alert">{error}</p>}

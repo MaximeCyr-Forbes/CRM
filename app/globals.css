@@ -10415,8 +10415,9 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .oaciq-import h3, .oaciq-import h4, .oaciq-import p { margin: 0; }
 .oaciq-import header { display: grid; gap: 8px; }
 .oaciq-import header > p:last-child, .oaciq-notice, .oaciq-source { font-size: 12px; line-height: 1.6; }
-.oaciq-dropzone { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; border: 1px dashed #a7a39a; border-radius: 10px; padding: 18px; }
-.oaciq-dropzone input { min-width: 0; width: 100%; max-width: 100%; }
+.oaciq-dropzone { grid-template-columns: minmax(0, 1fr); min-width: 0; width: 100%; font: inherit; }
+.oaciq-dropzone > .oaciq-dropzone-content { display: grid; justify-items: center; gap: 0.45rem; color: inherit; }
+.oaciq-dropzone:disabled { cursor: not-allowed; opacity: 0.6; background: rgba(255, 255, 255, 0.78); border-color: rgba(19, 35, 59, 0.42); box-shadow: none; }
 .oaciq-files { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .oaciq-files li, .oaciq-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .oaciq-review-heading { flex-wrap: wrap; }
