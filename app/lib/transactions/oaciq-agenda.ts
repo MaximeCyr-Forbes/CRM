@@ -1,6 +1,6 @@
 import type { TransactionDeadlineDraft, TransactionDeadlineSource } from "../../data/transaction-types";
 import type { OaciqAnalysis, OaciqDeadline } from "../oaciq-reader/types";
-import type { PurchaseAgreementParseResult } from "../purchase-agreement/types";
+import type { OaciqTransactionDetails } from "../oaciq-reader/transaction-details";
 import { currentTorontoDateTime, isTransactionDeadlineOverdue, isTransactionDeadlineTime } from "./deadline-time";
 import { isExcludedDeadlineSection } from "../oaciq-reader/deadline-sections";
 
@@ -11,7 +11,7 @@ export const MANUAL_DEADLINE_SOURCE: TransactionDeadlineSource = {
 };
 export const CONFIDENCE_LABELS = { high: "Élevée", medium: "Moyenne", low: "Faible" } as const;
 export type DeadlineProposal = TransactionDeadlineDraft & { id: string; selected: boolean; dateText?: string };
-export type OaciqTransactionPreview = OaciqAnalysis & { requiresReview: boolean; basic: PurchaseAgreementParseResult | null };
+export type OaciqTransactionPreview = OaciqAnalysis & OaciqTransactionDetails & { requiresReview: boolean };
 
 export function isAgendaDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value < "1900-01-01" || value > "2200-12-31") return false;

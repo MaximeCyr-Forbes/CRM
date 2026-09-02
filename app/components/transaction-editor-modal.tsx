@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useContacts } from "../contacts-context";
 import {
   BROKER_LABELS,
@@ -35,7 +35,9 @@ import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import type { CentrisParseResult } from "../lib/centris-pdf/types";
 import { CentrisTransactionImport } from "./centris-transaction-import";
 import { OaciqTransactionImport } from "./oaciq-transaction-import";
-import { confirmedAgenda, type DeadlineProposal } from "../lib/transactions/oaciq-agenda";
+import { confirmedAgenda, type DeadlineProposal, type OaciqTransactionPreview } from "../lib/transactions/oaciq-agenda";
+import { matchOaciqParty, OACIQ_PREFILL_LABELS, prefillOaciqTransaction, preserveOaciqPrice, validOaciqPrice, type OaciqPrefillField, type OaciqPrefillConflict } from "../lib/transactions/oaciq-prefill";
+import type { OaciqParty } from "../lib/oaciq-reader/transaction-details";
 
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom",
@@ -88,6 +90,13 @@ export function TransactionEditorModal({
   const [creationKey] = useState(() => crypto.randomUUID());
   const [proposals, setProposals] = useState<DeadlineProposal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [oaciqAnalysis, setOaciqAnalysis] = useState<OaciqTransactionPreview | null>(null);
+  const [hasOaciqPrice, setHasOaciqPrice] = useState(false);
+  const latestForm = useRef({ values, price, contacts });
+  useEffect(() => { latestForm.current = { values, price, contacts }; }, [values, price, contacts]);
+  const [prefillConflicts, setPrefillConflicts] = useState<OaciqPrefillConflict[]>([]);
+  const dirtyFields = useRef(new Set<OaciqPrefillField>((["address", "centrisNumber", "price", "promiseDate"] as const).filter((field) => initial[field] !== null && initial[field] !== "")));
+  const previousPrefill = useRef<Partial<Record<OaciqPrefillField, string>>>({});
   useDialogLifecycle(true, onClose);
   const isBusy = isSaving || isSubmitting || isAnalyzing;
 
@@ -98,7 +107,32 @@ export function TransactionEditorModal({
   const visibleContacts = matchingContacts.slice(0, 100);
 
   function update<K extends keyof TransactionDraft>(field: K, value: TransactionDraft[K]) {
+    if (field === "address" || field === "centrisNumber" || field === "promiseDate") dirtyFields.current.add(field);
     setValues((current) => ({ ...current, [field]: value }));
+  }
+
+  function applyOaciqAnalysis(analysis: OaciqTransactionPreview) {
+    const current = latestForm.current;
+    const next = prefillOaciqTransaction(current.values, current.price, analysis, current.contacts, dirtyFields.current, previousPrefill.current);
+    previousPrefill.current = next.applied;
+    setValues(next.values); setPrice(next.price); setPrefillConflicts(next.conflicts); setOaciqAnalysis(analysis);
+    if (validOaciqPrice(analysis)) { setAppliedCentrisPricing(null); setHasOaciqPrice(true); }
+  }
+
+  function applyDetectedField(conflict: OaciqPrefillConflict) {
+    if (conflict.field === "price") setPrice(conflict.value);
+    else setValues((current) => ({ ...current, [conflict.field]: conflict.value }));
+    dirtyFields.current.delete(conflict.field);
+    previousPrefill.current[conflict.field] = conflict.value;
+    setPrefillConflicts((current) => current.filter((c) => c.field !== conflict.field));
+  }
+
+  function preparePartyContact(party: OaciqParty, create: boolean) {
+    setContactSearch(party.fullName);
+    if (create) {
+      setContactDraft({ ...EMPTY_TRANSACTION_CONTACT_DRAFT, firstName: party.firstName, lastName: party.lastName, email: party.email, phone: party.phone });
+      setContactError(null); setDuplicateContact(null); setIsAddingContact(true);
+    }
   }
 
   function changeType(type: TransactionType) {
@@ -240,25 +274,24 @@ export function TransactionEditorModal({
           <button aria-label="Fermer" onClick={onClose} type="button">×</button>
         </div>
         <form aria-busy={isBusy} className="transaction-form" onSubmit={submit}>
-          {mode === "create" && <OaciqTransactionImport proposals={proposals} onChange={setProposals} disabled={isSaving || isSubmitting} onBusyChange={setIsAnalyzing} onAnalyzed={(analysis) => setPrice(analysis.finalPrice == null ? "" : String(analysis.finalPrice))} onApplyBasic={(analysis) => {
-            setValues((current) => ({ ...current, address: current.address.trim() ? current.address : analysis.basic?.propertyAddress.fullAddress || analysis.propertyAddress,
-              promiseDate: current.promiseDate || analysis.acceptanceDateTime?.slice(0, 10) || null }));
-            if (!price && analysis.finalPrice != null) setPrice(String(analysis.finalPrice));
-          }} />}
+          {mode === "create" && <OaciqTransactionImport proposals={proposals} onChange={setProposals} disabled={isSaving || isSubmitting} onBusyChange={setIsAnalyzing} onAnalyzed={applyOaciqAnalysis} onApplyBasic={applyOaciqAnalysis} />}
+          {prefillConflicts.length > 0 && <div className="transaction-centris-warning transaction-field-wide" role="status"><strong>SAISIES CONSERVÉES · VALEURS OACIQ À CONFIRMER</strong>{prefillConflicts.map((conflict) => <p key={conflict.field}>{OACIQ_PREFILL_LABELS[conflict.field]} détecté(e) : {conflict.value} <button type="button" disabled={isBusy} onClick={() => applyDetectedField(conflict)}>Appliquer {OACIQ_PREFILL_LABELS[conflict.field].toLowerCase()}</button></p>)}</div>}
           {mode === "create" && <CentrisTransactionImport
             currentValues={{ ...values, price: price ? Number(price) : null }}
             disabled={isBusy}
+            protectedPrice={hasOaciqPrice}
             onApply={(nextValues, result) => {
-              setValues(nextValues);
-              setPrice(nextValues.price === null ? "" : String(nextValues.price));
-              setAppliedCentrisPricing(result.pricing);
+              const next = preserveOaciqPrice(nextValues, price, hasOaciqPrice);
+              setValues(next);
+              setPrice(next.price === null ? "" : String(next.price));
+              if (!hasOaciqPrice) setAppliedCentrisPricing(result.pricing);
             }}
           />}
           <label className="transaction-field transaction-field-wide"><span>Adresse *</span><input autoFocus={mode === "edit"} onChange={(event) => update("address", event.target.value)} required value={values.address} /></label>
           <label className="transaction-field transaction-field-wide"><span>Numéro Centris</span><input onChange={(event) => update("centrisNumber", event.target.value)} value={values.centrisNumber} /></label>
           <label className="transaction-field"><span>Type *</span><select onChange={(event) => changeType(event.target.value as TransactionType)} value={values.type}><option value="purchase">Achat</option><option value="sale">Vente</option></select></label>
           <label className="transaction-field"><span>Courtier *</span><select onChange={(event) => update("broker", event.target.value as TransactionBroker)} value={values.broker}>{CONTACT_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
-          <label className="transaction-field"><span>Prix</span><input min="0" onChange={(event) => setPrice(event.target.value)} step="0.01" type="number" value={price} />
+          <label className="transaction-field"><span>Prix</span><input min="0" onChange={(event) => { dirtyFields.current.add("price"); setPrice(event.target.value); }} step="0.01" type="number" value={price} />
             {appliedCentrisPricing?.mode === "monthly_rent" && <small className="transaction-centris-price-context">Valeur provenant d’une fiche de LOCATION : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.monthlyAmount ?? 0)} $ / mois.</small>}
             {appliedCentrisPricing?.mode === "annual_per_square_foot" && <small className="transaction-centris-price-context is-warning">Tarif détecté : {new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(appliedCentrisPricing.annualPerSquareFootAmount ?? 0)} $ / année / pi². Entrez manuellement le montant approprié.</small>}
           </label>
@@ -266,6 +299,11 @@ export function TransactionEditorModal({
           <label className="transaction-field transaction-field-wide"><span>Statut actuel</span><select onChange={(event) => update("status", event.target.value as TransactionDraft["status"])} value={values.status}>{statusesForTransaction(values.type).map((status) => <option key={status} value={status}>{TRANSACTION_STATUS_LABELS[status]}</option>)}</select></label>
           <fieldset className="transaction-contact-picker transaction-field-wide">
             <legend>Contacts liés</legend>
+            {oaciqAnalysis && <div className="oaciq-party-matches">{[...oaciqAnalysis.buyers, ...oaciqAnalysis.sellers].map((party, index) => {
+              const match = matchOaciqParty(party, contacts);
+              const linked = match.contactId && values.contactIds.includes(match.contactId);
+              return <div key={`${party.role}-${index}`}><strong>{party.role === "buyer" ? "ACHETEUR" : "VENDEUR"} {linked ? "LIÉ" : match.ambiguous ? "· LIAISON À CONFIRMER" : "NON LIÉ"}</strong><span>{party.fullName}</span>{!linked && <div><button type="button" disabled={isBusy} onClick={() => preparePartyContact(party, false)}>Rechercher / lier un contact</button><button type="button" disabled={isBusy || isCreatingContact} onClick={() => preparePartyContact(party, true)}>+ Ajouter ce contact</button></div>}</div>;
+            })}</div>}
             <div className="transaction-contact-tools">
               <label className="transaction-contact-search"><span className="sr-only">Rechercher un contact</span><input onChange={(event) => setContactSearch(event.target.value)} placeholder="Nom, téléphone ou courriel…" type="search" value={contactSearch} /></label>
               <button onClick={() => { setIsAddingContact(true); setContactError(null); setDuplicateContact(null); }} type="button">+ Ajouter un nouveau contact</button>

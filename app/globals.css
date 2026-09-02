@@ -10423,6 +10423,11 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .oaciq-review-heading { flex-wrap: wrap; }
 .oaciq-files li span { overflow-wrap: anywhere; }
 .oaciq-files button { flex-shrink: 0; }
+.oaciq-party-matches { display: grid; gap: 0.6rem; margin-bottom: 0.85rem; }
+.oaciq-party-matches > div { display: grid; gap: 0.4rem; padding: 0.7rem; border: 1px solid var(--line); overflow-wrap: anywhere; }
+.oaciq-party-matches strong { font-size: 0.65rem; color: var(--ink-soft); }
+.oaciq-party-matches > div > div { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.oaciq-party-matches button { min-height: 2.5rem; padding: 0.4rem 0.6rem; border: 1px solid var(--line); font-size: 0.7rem; cursor: pointer; }
 .oaciq-proposals { padding: 0; border: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
 .oaciq-proposal { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; border: 1px solid #dedad0; border-radius: 10px; min-width: 0; }
 .oaciq-select { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 650; }

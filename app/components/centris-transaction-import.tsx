@@ -111,10 +111,12 @@ function apiError(value: unknown) {
 export function CentrisTransactionImport({
   currentValues,
   disabled = false,
+  protectedPrice = false,
   onApply,
 }: {
   currentValues: TransactionDraft;
   disabled?: boolean;
+  protectedPrice?: boolean;
   onApply: (values: TransactionDraft, result: CentrisParseResult) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -198,13 +200,14 @@ export function CentrisTransactionImport({
   }
 
   function toggleField(field: CentrisImportField) {
+    if (field === "price" && protectedPrice) return;
     setSelection((current) => current ? { ...current, [field]: !current[field] } : current);
     setIsApplied(false);
   }
 
   function applySelection() {
     if (!result || !selection) return;
-    onApply(applyCentrisTransactionImport(currentValues, result, selection), result);
+    onApply(applyCentrisTransactionImport(currentValues, result, protectedPrice ? { ...selection, price: false } : selection), result);
     setIsApplied(true);
   }
 
@@ -352,13 +355,14 @@ export function CentrisTransactionImport({
                 return (
                   <label className="transaction-centris-field-choice" key={item.field}>
                     <input
-                      checked={selection[item.field]}
-                      disabled={!item.available || unavailableForUnrecognized}
+                      checked={item.field === "price" && protectedPrice ? false : selection[item.field]}
+                      disabled={disabled || !item.available || unavailableForUnrecognized || (item.field === "price" && protectedPrice)}
                       onChange={() => toggleField(item.field)}
                       type="checkbox"
                     />
                     <span>
                       <strong>{fieldLabels[item.field]}</strong>
+                      {item.field === "price" && protectedPrice && <small>Prix final OACIQ conservé · le prix demandé Centris ne le remplace pas.</small>}
                       {item.hasConflict && <small>Actuelle : {currentValueLabel(item.field, item.currentValue)}</small>}
                       <small>Centris : {detectedValueLabel(item.field, item.centrisValue)}</small>
                     </span>
