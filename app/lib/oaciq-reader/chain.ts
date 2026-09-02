@@ -1,5 +1,5 @@
 /** Current multi-form correction from source commit e6d5302. */
-import { addDays } from "./dates";
+import { addAcceptanceDeadline } from "./acceptance-deadlines";
 import { formNumber, pagesText } from "./forms";
 import type {
   OaciqAnnexR,
@@ -128,7 +128,7 @@ export function calculateTransactionDates(
       ? null
       : acceptedDay;
   const after = (n: number | null) =>
-    base && n !== null ? addDays(base, n) : null;
+    n !== null ? addAcceptanceDeadline(base, n, "").dueDate : null;
   const otherDays = annex?.otherOfferCancellationDays;
   return {
     effective_acceptance_date: acceptedDay,
@@ -142,7 +142,7 @@ export function calculateTransactionDates(
     ),
     financing_deadline: after(financingDays),
     other_offer_cancellation_deadline:
-      acceptedDay && otherDays != null ? addDays(acceptedDay, otherDays) : null,
+      otherDays != null ? addAcceptanceDeadline(acceptedDay, otherDays, "").dueDate : null,
     deed_of_sale_date: counter?.notaryDate || notaryDate,
     occupancy_date: counter?.occupationDate || occupationDate,
     occupancy_time: counter?.occupationDate

@@ -20,9 +20,37 @@ engine = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = engine
 spec.loader.exec_module(engine)
 
+# Observe the original calculation, not a reimplementation of the date rules.
+# In particular deadline_trace does not expose ISO results/days for PA 12.1.
+# Capture the actual date passed by add_acceptance_deadline to add_deadline.
+original_add_deadline = engine.add_deadline
+original_add_acceptance_deadline = engine.add_acceptance_deadline
+emitted_dates = {}
+relative_calculations = {}
+
+
+def observe_deadline(items, when, label, details="", suffix=""):
+    size = len(items)
+    original_add_deadline(items, when, label, details, suffix)
+    if len(items) > size:
+        emitted_dates[id(items[-1])] = when.isoformat() if when else None
+
+
+def observe_acceptance_deadline(items, accepted_day, days, label, details="", suffix="", relative_to="l'acceptation"):
+    original_add_acceptance_deadline(items, accepted_day, days, label, details, suffix, relative_to)
+    relative_calculations[id(items[-1])] = {
+        "dueDate": emitted_dates.get(id(items[-1])),
+        "baseDate": accepted_day.isoformat() if accepted_day else None,
+        "days": days,
+    }
+
+
+engine.add_deadline = observe_deadline
+engine.add_acceptance_deadline = observe_acceptance_deadline
+
 
 def project(result, paths, pages):
-    return {
+    projected = {
         "forms": [{"document": p.name, "kind": engine.document_kind(pages[p]),
                    "number": engine.extract_form_number(p, pages[p])} for p in paths],
         "mainDocument": result.file_name,
@@ -33,6 +61,13 @@ def project(result, paths, pages):
         "transactionDates": result.raw["transaction_dates"],
         "allDeadlinesDeferred": result.raw["all_deadlines_deferred"],
     }
+    if include_calculations:
+        projected["calculationDeadlines"] = [
+            {"title": d.label, "dateText": d.date_text, "details": d.details,
+             **relative_calculations[id(d)]}
+            for d in result.deadlines if id(d) in relative_calculations
+        ]
+    return projected
 
 
 original_open = engine.pdfplumber.open
@@ -90,6 +125,9 @@ def analyze(case):
 
 output = {}
 for case in json.load(sys.stdin):
+    emitted_dates.clear()
+    relative_calculations.clear()
+    include_calculations = case.get("includeCalculations", False)
     try:
         output[case["name"]] = analyze(case)
     except (ValueError, TypeError) as error:

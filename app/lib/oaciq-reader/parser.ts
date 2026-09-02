@@ -34,6 +34,7 @@ import {
 } from "./forms";
 import { parseAnnexF, parseAnnexR, parseAnnexWater } from "./annexes";
 import { isExcludedDeadlineSection } from "./deadline-sections";
+import { addAcceptanceDeadline } from "./acceptance-deadlines";
 import { resolveFinalPrice } from "./price";
 import {
   calculateTransactionDates,
@@ -211,19 +212,18 @@ export function analyzeExtractedOaciqDocuments(
     reference = base,
     relativeTo = basis,
   ) {
-    const dueDate = reference ? addDays(reference, days) : null;
-    const dateText = dueDate
-      ? formatDay(dueDate)
-      : `${days} ${days === 1 ? "jour" : "jours"} après ${relativeTo}`;
+    // All acceptance-relative clauses (including AF F2.1 and PA 12.1) use
+    // the same source function; this adapter only attaches CRM provenance.
+    const deadline = addAcceptanceDeadline(reference, days, title, details, suffix, relativeTo);
     emit(
-      title,
-      dateText + suffix,
-      details,
-      dueDate,
+      deadline.title,
+      deadline.dateText,
+      deadline.details,
+      deadline.dueDate,
       src,
-      timeToIso(suffix),
-      reference,
-      days,
+      deadline.dueTime,
+      deadline.baseDate,
+      deadline.days,
     );
   }
   const annexText = (doc: Doc, clause: string, next: string) =>
@@ -406,8 +406,8 @@ export function analyzeExtractedOaciqDocuments(
       string,
     ]) => {
       if (!days) return;
-      fixed(
-        addDays(acceptedDay, days),
+      after(
+        days,
         title,
         origin(
           clause,
@@ -416,6 +416,9 @@ export function analyzeExtractedOaciqDocuments(
           wEntry!.doc,
         ),
         `Clause ${clause} - ${days} jours après l'acceptation`,
+        "",
+        acceptedDay,
+        "l'acceptation",
       );
       notices.push({ clause, date: addDays(acceptedDay, days + 4) });
     };

@@ -155,6 +155,7 @@ describe("private local original PDFs — never committed", () => {
       ].map((names, i) => ({
         name: String(i),
         paths: names.map((n) => join(root, n)),
+        includeCalculations: true,
       }));
       const reference = spawnSync(
         process.env.OACIQ_PYTHON || "python",
@@ -192,6 +193,7 @@ describe("private local original PDFs — never committed", () => {
           warnings: a.warnings,
           transactionDates: a.transactionDates,
           allDeadlinesDeferred: a.allDeadlinesDeferred,
+          calculationDeadlines: a.deadlines.filter((d) => d.days !== null).map(({ title, dateText, details, dueDate, baseDate, days }) => ({ title, dateText, details, dueDate, baseDate, days })),
         };
         // Explicit extraction-only improvement: PDF.js recovers the footer's
         // PA 26598 in oasis.pdf; pdfplumber split this number and returned "".
