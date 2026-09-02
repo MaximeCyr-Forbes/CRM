@@ -16,6 +16,7 @@ import {
   type SupabaseOrderedRangeQuery,
 } from "../supabase/pagination";
 import { transactionInsertValues, transactionUpdateValues } from "./persistence";
+import { agendaInsertValues } from "./oaciq-agenda";
 import {
   isOptionalListingLinksUnavailableError,
   optionalListingLinkRows,
@@ -63,6 +64,12 @@ export type TransactionRow = {
 };
 
 export type TransactionDeadlineRow = {
+  source_type?: "manual" | "oaciq";
+  source_document?: string | null;
+  source_form?: string | null;
+  source_section?: string | null;
+  source_text?: string | null;
+  source_confidence?: "high" | "medium" | "low" | null;
   id: string;
   transaction_id: string;
   title: string;
@@ -108,6 +115,9 @@ function mapDeadline(row: TransactionDeadlineRow): TransactionDeadline {
     dueDate: row.due_date,
     dueTime: normalizeTransactionDeadlineTime(row.due_time),
     completed: row.completed,
+    source: { type: row.source_type ?? "manual", document: row.source_document ?? null,
+      form: row.source_form ?? null, section: row.source_section ?? null,
+      text: row.source_text ?? null, confidence: row.source_confidence ?? null },
     googleCalendarEventId: row.google_calendar_event_id,
     googleCalendarEventBroker: row.google_calendar_event_broker,
     googleCalendarSyncStatus: row.google_calendar_sync_status,
@@ -280,11 +290,14 @@ export async function createTransaction(
   creationKey = crypto.randomUUID(),
 ) {
   const admin = getSupabaseAdmin();
-  const { data, error } = await admin.rpc("create_transaction_with_contacts", {
+  const parameters = {
     p_values: transactionInsertValues(draft),
     p_contact_ids: [...new Set(draft.contactIds)],
     p_creation_key: creationKey,
-  });
+  };
+  const { data, error } = draft.deadlines?.length
+    ? await admin.rpc("create_transaction_with_agenda", { ...parameters, p_deadlines: agendaInsertValues(draft.deadlines) })
+    : await admin.rpc("create_transaction_with_contacts", parameters);
   if (error) throw error;
   const row = rpcTransactionRow(data, "La Transaction créée est introuvable.");
   const relations = await loadRelations([row.id]);

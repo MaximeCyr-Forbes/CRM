@@ -112,7 +112,9 @@ describe("écritures atomiques des Transactions", () => {
   });
 
   it("conserve une même clé de création pendant la tentative envoyée à l’API", () => {
-    expect(context).toContain("const creationKey = crypto.randomUUID();");
+    expect(context).toContain("const creationKey = draft.creationKey ?? crypto.randomUUID();");
+    const editor = readFileSync(resolve(process.cwd(), "app/components/transaction-editor-modal.tsx"), "utf8");
+    expect(editor).toContain("const [creationKey] = useState(() => crypto.randomUUID());");
     expect(context).toContain('{ action: "create", draft, creationKey }');
     expect(route).toContain("createTransaction(draft, body.creationKey as string | undefined)");
     expect(service).toContain("creationKey = crypto.randomUUID()");

@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { TransactionEditorModal } from "../../components/transaction-editor-modal";
+import { TransactionAgenda } from "../../components/transaction-agenda";
 import { DriveDocumentsSection } from "../../components/drive-documents-section";
 import { SaleCompletionModal } from "../../components/sale-completion-modal";
 import { PurchaseCompletionModal } from "../../components/purchase-completion-modal";
@@ -22,7 +23,6 @@ import {
   deadlineTitleFromChoice,
   showOtherConditionField,
 } from "../../lib/transactions/deadline-title";
-import { formatTransactionDeadlineTime, isTransactionDeadlineOverdue } from "../../lib/transactions/deadline-time";
 import { transactionDraftFromTransaction } from "../../lib/transactions/editor";
 import { canCompleteTransactionSale } from "../../lib/transactions/sale-completion";
 import { canCompleteTransactionPurchase, isFinalizedTransaction } from "../../lib/transactions/completion";
@@ -223,7 +223,7 @@ export default function TransactionDetailPage() {
 
     <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />
 
-    <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title"><div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">DATES IMPORTANTES</h2></div><button className="transaction-add-deadline" onClick={() => setDeadlineModal("new")} type="button">+ Ajouter une échéance</button></div><div className="transaction-deadlines">{transaction.deadlines.map((deadline) => { const overdue = isTransactionDeadlineOverdue(deadline); const formattedTime = formatTransactionDeadlineTime(deadline.dueTime); return <article className={deadline.completed ? "deadline-completed" : ""} key={deadline.id}><label><input checked={deadline.completed} onChange={(event) => void updateDeadline(transaction.id, deadline.id, { completed: event.target.checked })} type="checkbox" /><span aria-hidden="true" /></label><div><div className="deadline-title-line"><h3>{deadline.title}</h3>{overdue && <strong>EN RETARD</strong>}</div><p>{formatDate(deadline.dueDate)}{formattedTime ? ` · ${formattedTime}` : ""}</p><small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? "Google Agenda · " : ""}{deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}</small></div><div className="deadline-actions"><button onClick={() => setDeadlineModal(deadline)} type="button">Modifier</button><button className="destructive-button" onClick={async () => { if (window.confirm("Supprimer cette échéance ?")) { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); } }} type="button">Supprimer</button></div></article>; })}{transaction.deadlines.length === 0 && <div className="transaction-section-empty">Aucune échéance pour le moment.</div>}</div></section>
+    <TransactionAgenda deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
   </div>

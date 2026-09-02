@@ -11,6 +11,7 @@ import { deleteTransactionWithCalendarCleanup } from "../../lib/transactions/del
 import { transactionApiErrorMessage, transactionApiErrorStatus, transactionErrorMetadata, type TransactionAction } from "../../lib/transactions/api-error";
 import { isFinalizedTransaction } from "../../lib/transactions/completion";
 import { parseTransactionDeadlineTimeInput } from "../../lib/transactions/deadline-time";
+import { parseAgendaDeadlines } from "../../lib/transactions/oaciq-agenda";
 import {
   FINALIZED_TRANSACTION_DELETE_MESSAGE,
   FINALIZED_TRANSACTION_UPDATE_MESSAGE,
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
       }
       const draft = parseDraft(body.draft);
       if (!draft) return Response.json({ error: "Transaction invalide." }, { status: 400 });
+      const deadlines = parseAgendaDeadlines(submitted.deadlines ?? []);
+      if (!deadlines) return Response.json({ error: "Échéances invalides : vérifiez les titres, dates, heures et sources." }, { status: 400 });
+      draft.deadlines = deadlines;
       if (body.creationKey !== undefined && !isUuid(body.creationKey)) {
         return Response.json({ error: "Clé de création invalide." }, { status: 400 });
       }
@@ -223,7 +227,11 @@ export async function POST(request: Request) {
         : requestedAction === "deleteTransaction"
           ? "delete"
           : "other";
-    console.error("Opération transaction impossible", transactionErrorMetadata(error, requestedAction));
+    // A database error may contain the failing row (including private OACIQ clauses).
+    // For creation and deadline writes, keep technical codes only, never the row.
+    const metadata = transactionErrorMetadata(error, requestedAction);
+    const privateAgendaWrite = action === "create" || requestedAction.endsWith("Deadline");
+    console.error("Opération transaction impossible", privateAgendaWrite ? { action: requestedAction, code: metadata.code } : metadata);
     return Response.json({ error: transactionApiErrorMessage(error, action) }, { status: transactionApiErrorStatus(error) });
   }
 }

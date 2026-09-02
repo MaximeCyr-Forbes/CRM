@@ -10410,3 +10410,33 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
   .drive-documents-remove-confirm { align-items: flex-start; flex-wrap: wrap; }
   .drive-link-modal-backdrop { padding: 0.75rem; }
 }
+/* OACIQ review reuses the transaction form; no global theme changes. */
+.oaciq-import { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.oaciq-import h3, .oaciq-import h4, .oaciq-import p { margin: 0; }
+.oaciq-import header { display: grid; gap: 8px; }
+.oaciq-import header > p:last-child, .oaciq-notice, .oaciq-source { font-size: 12px; line-height: 1.6; }
+.oaciq-dropzone { display: grid; gap: 10px; border: 1px dashed #a7a39a; border-radius: 10px; padding: 18px; }
+.oaciq-dropzone input { max-width: 100%; }
+.oaciq-files { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.oaciq-files li, .oaciq-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.oaciq-review-heading { flex-wrap: wrap; }
+.oaciq-files li span { overflow-wrap: anywhere; }
+.oaciq-files button { flex-shrink: 0; }
+.oaciq-proposals { padding: 0; border: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.oaciq-proposal { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; border: 1px solid #dedad0; border-radius: 10px; min-width: 0; }
+.oaciq-select { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 650; }
+.oaciq-select input { width: 18px; height: 18px; accent-color: var(--ink); }
+.oaciq-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr) minmax(110px, 1fr); gap: 12px; }
+.oaciq-fields, .oaciq-fields label, .oaciq-fields input { min-width: 0; max-width: 100%; }
+.oaciq-fields input { width: 100%; }
+.oaciq-source { display: flex; gap: 12px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.oaciq-source-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
+.oaciq-warnings { background: #fcf3dd; border-radius: 8px; padding: 14px; font-size: 12px; line-height: 1.6; }
+.oaciq-import details summary, .transaction-deadlines details summary { cursor: pointer; font-size: 12px; }
+.oaciq-proposal > button { justify-self: start; }
+.oaciq-basic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 12px; }
+.oaciq-basic dt { font-weight: 650; }
+.oaciq-basic dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.deadline-title-line strong.agenda-done { color: #246549; background: #e7f3eb; }
+.deadline-title-line strong.agenda-upcoming { color: var(--ink); background: #eeece6; }
+@media (max-width: 649px) { .oaciq-fields, .oaciq-basic { grid-template-columns: minmax(0, 1fr); } .oaciq-import { padding: 14px; } }

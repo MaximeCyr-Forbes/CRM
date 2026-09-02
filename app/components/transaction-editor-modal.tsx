@@ -34,6 +34,8 @@ import { findTransactionsWithCentris, runSingleTransactionSave } from "../lib/tr
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 import type { CentrisParseResult } from "../lib/centris-pdf/types";
 import { CentrisTransactionImport } from "./centris-transaction-import";
+import { OaciqTransactionImport } from "./oaciq-transaction-import";
+import { confirmedAgenda, type DeadlineProposal } from "../lib/transactions/oaciq-agenda";
 
 const contactDraftLabels: Record<keyof ContactDraft, string> = {
   firstName: "Prénom",
@@ -83,8 +85,11 @@ export function TransactionEditorModal({
   const [duplicateMatches, setDuplicateMatches] = useState<ReadonlyArray<Transaction>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const saveLock = useRef(false);
+  const [creationKey] = useState(() => crypto.randomUUID());
+  const [proposals, setProposals] = useState<DeadlineProposal[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   useDialogLifecycle(true, onClose);
-  const isBusy = isSaving || isSubmitting;
+  const isBusy = isSaving || isSubmitting || isAnalyzing;
 
   const matchingContacts = useMemo(
     () => filterTransactionContacts(contacts, contactSearch),
@@ -165,11 +170,16 @@ export function TransactionEditorModal({
       centrisNumber: values.centrisNumber.trim(),
       price: price ? Number(price) : null,
       generalNotes: values.generalNotes.trim(),
+      ...(mode === "create" ? { creationKey, deadlines: confirmedAgenda(proposals) ?? [] } : {}),
     };
   }
 
   async function saveDraft(draft: TransactionDraft) {
     if (isBusy) return;
+    if (mode === "create" && !confirmedAgenda(proposals)) {
+      setError("Vérifiez le titre, la date et l’heure des échéances sélectionnées, ou décochez-les.");
+      return;
+    }
     setError(null);
     await runSingleTransactionSave(saveLock, async () => {
       setIsSubmitting(true);
@@ -230,6 +240,11 @@ export function TransactionEditorModal({
           <button aria-label="Fermer" onClick={onClose} type="button">×</button>
         </div>
         <form aria-busy={isBusy} className="transaction-form" onSubmit={submit}>
+          {mode === "create" && <OaciqTransactionImport proposals={proposals} onChange={setProposals} disabled={isSaving || isSubmitting} onBusyChange={setIsAnalyzing} onApplyBasic={(analysis) => {
+            setValues((current) => ({ ...current, address: current.address.trim() ? current.address : analysis.basic?.propertyAddress.fullAddress || analysis.propertyAddress,
+              promiseDate: current.promiseDate || analysis.acceptanceDateTime?.slice(0, 10) || null }));
+            if (!price && analysis.basic?.amount != null) setPrice(String(analysis.basic.amount));
+          }} />}
           {mode === "create" && <CentrisTransactionImport
             currentValues={{ ...values, price: price ? Number(price) : null }}
             disabled={isBusy}
@@ -239,7 +254,7 @@ export function TransactionEditorModal({
               setAppliedCentrisPricing(result.pricing);
             }}
           />}
-          <label className="transaction-field transaction-field-wide"><span>Adresse *</span><input autoFocus onChange={(event) => update("address", event.target.value)} required value={values.address} /></label>
+          <label className="transaction-field transaction-field-wide"><span>Adresse *</span><input autoFocus={mode === "edit"} onChange={(event) => update("address", event.target.value)} required value={values.address} /></label>
           <label className="transaction-field transaction-field-wide"><span>Numéro Centris</span><input onChange={(event) => update("centrisNumber", event.target.value)} value={values.centrisNumber} /></label>
           <label className="transaction-field"><span>Type *</span><select onChange={(event) => changeType(event.target.value as TransactionType)} value={values.type}><option value="purchase">Achat</option><option value="sale">Vente</option></select></label>
           <label className="transaction-field"><span>Courtier *</span><select onChange={(event) => update("broker", event.target.value as TransactionBroker)} value={values.broker}>{CONTACT_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>
@@ -270,7 +285,7 @@ export function TransactionEditorModal({
           </fieldset>
           <label className="transaction-field transaction-field-wide"><span>Notes générales</span><textarea onChange={(event) => update("generalNotes", event.target.value)} rows={4} value={values.generalNotes} /></label>
           {error && <p className="transaction-form-error" role="alert">{error}</p>}
-          <div className="transaction-form-actions transaction-field-wide"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isBusy} type="submit">{isBusy ? mode === "create" ? "CRÉATION…" : "ENREGISTREMENT…" : mode === "create" ? "Créer la transaction" : "Enregistrer les modifications"}</button></div>
+          <div className="transaction-form-actions transaction-field-wide"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isBusy} type="submit">{isAnalyzing ? "ANALYSE EN COURS…" : isBusy ? mode === "create" ? "CRÉATION…" : "ENREGISTREMENT…" : mode === "create" ? "Créer la transaction" : "Enregistrer les modifications"}</button></div>
         </form>
         {duplicateMatches.length > 0 && <div className="transaction-existing-backdrop" role="presentation">
           <section aria-labelledby="transaction-existing-title" aria-modal="true" className="transaction-existing-dialog" role="alertdialog">

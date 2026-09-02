@@ -36,6 +36,22 @@ export type SaleTransactionStatus = (typeof SALE_TRANSACTION_STATUSES)[number];
 export type TransactionStatus = PurchaseTransactionStatus | SaleTransactionStatus;
 export type TransactionBroker = Exclude<ContactBroker, "unassigned">;
 
+export type TransactionDeadlineSource = {
+  type: "manual" | "oaciq";
+  document: string | null;
+  form: string | null;
+  section: string | null;
+  text: string | null;
+  confidence: "high" | "medium" | "low" | null;
+};
+
+export type TransactionDeadlineDraft = {
+  title: string;
+  dueDate: string;
+  dueTime: string | null;
+  source: TransactionDeadlineSource;
+};
+
 export type TransactionDeadline = {
   id: string;
   transactionId: string;
@@ -43,6 +59,7 @@ export type TransactionDeadline = {
   dueDate: string;
   dueTime: string | null;
   completed: boolean;
+  source?: TransactionDeadlineSource;
   googleCalendarEventId: string | null;
   googleCalendarEventBroker: TransactionBroker | null;
   googleCalendarSyncStatus: CalendarSyncStatus;
@@ -102,7 +119,7 @@ export type TransactionPurchaseCompletion = {
 export type TransactionDraft = Pick<
   Transaction,
   "address" | "centrisNumber" | "type" | "broker" | "contactIds" | "price" | "promiseDate" | "status" | "generalNotes"
->;
+> & { deadlines?: TransactionDeadlineDraft[]; creationKey?: string };
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   purchase: "Achat",

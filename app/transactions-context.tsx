@@ -108,7 +108,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const create = useCallback((draft: TransactionDraft) => runWrite(async () => {
-    const creationKey = crypto.randomUUID();
+    const creationKey = draft.creationKey ?? crypto.randomUUID();
     const payload = await transactionRequest<Transaction>({ action: "create", draft, creationKey });
     return replaceTransaction(payload.data);
   }), [replaceTransaction, runWrite]);

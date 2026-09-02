@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TransactionDraft } from "../../data/transaction-types";
+import { MANUAL_DEADLINE_SOURCE } from "./oaciq-agenda";
 
 const supabase = vi.hoisted(() => ({ getAdmin: vi.fn() }));
 vi.mock("../supabase/server", () => ({ getSupabaseAdmin: supabase.getAdmin }));
@@ -82,6 +83,28 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
   beforeEach(() => {
     vi.restoreAllMocks();
     supabase.getAdmin.mockReset();
+  });
+
+  it("crée le dossier et les échéances par une seule RPC, y compris lors du retry", async () => {
+    const rpc = vi.fn(async () => ({ data: row, error: null }));
+    const from = vi.fn((_table: string) => tableQuery([], []));
+    supabase.getAdmin.mockReturnValue({ rpc, from });
+    const key = "b7fb7047-6f55-4d32-81d8-eec032de6ebb";
+    const values = { ...draft, deadlines: [{ title: "Inspection corrigée", dueDate: "2026-08-27", dueTime: null, source: MANUAL_DEADLINE_SOURCE }] };
+    await createTransaction(values, key);
+    await createTransaction(values, key);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenNthCalledWith(1, "create_transaction_with_agenda", expect.objectContaining({ p_creation_key: key, p_deadlines: [expect.objectContaining({ title: "Inspection corrigée", due_date: "2026-08-27", due_time: null, source_type: "manual" })] }));
+    expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1]);
+    expect(from.mock.calls.some(([table]) => table === "transactions")).toBe(false);
+  });
+
+  it("ne tente aucun insert séparé si la RPC agenda échoue", async () => {
+    const error = { code: "23514", message: "synthetic deadline failure" };
+    const rpc = vi.fn(async () => ({ data: null, error })), from = vi.fn();
+    supabase.getAdmin.mockReturnValue({ rpc, from });
+    await expect(createTransaction({ ...draft, deadlines: [{ title: "Test", dueDate: "2026-09-10", dueTime: null, source: MANUAL_DEADLINE_SOURCE }] })).rejects.toBe(error);
+    expect(rpc).toHaveBeenCalledOnce(); expect(from).not.toHaveBeenCalled();
   });
 
   it("liste les transactions même si listing_transaction_links est indisponible", async () => {
