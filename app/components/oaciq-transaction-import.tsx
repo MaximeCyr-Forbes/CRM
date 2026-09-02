@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { OaciqTransactionPreview } from "../lib/transactions/oaciq-agenda";
-import { CONFIDENCE_LABELS, MANUAL_DEADLINE_SOURCE, MAX_AGENDA_DEADLINES, OACIQ_UPLOAD_LIMITS, proposalsFromAnalysis, validateOaciqFiles, type DeadlineProposal } from "../lib/transactions/oaciq-agenda";
+import { CONFIDENCE_LABELS, MANUAL_DEADLINE_SOURCE, MAX_AGENDA_DEADLINES, OACIQ_UPLOAD_LIMITS, isAgendaDate, proposalsFromAnalysis, recalculateDeadlinesFromAcceptanceDate, validateOaciqFiles, type DeadlineProposal } from "../lib/transactions/oaciq-agenda";
 
 export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyChange, onApplyBasic, onAnalyzed }: {
   proposals: DeadlineProposal[]; onChange: (items: DeadlineProposal[]) => void;
@@ -12,17 +12,31 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analysis, setAnalysis] = useState<OaciqTransactionPreview | null>(null);
+  const [manualAcceptanceDate, setManualAcceptanceDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+  const detectedAcceptanceDate = analysis?.acceptanceDateTime?.slice(0, 10) || "";
+  const effectiveAcceptanceDate = detectedAcceptanceDate || (isAgendaDate(manualAcceptanceDate) ? manualAcceptanceDate : "");
+  const needsManualAcceptance = analysis && !detectedAcceptanceDate
+    && proposals.some((p) => p.acceptanceRule);
+  const displayWarnings = analysis?.warnings.map((warning) =>
+    !detectedAcceptanceDate && effectiveAcceptanceDate && warning.startsWith("Date d'acceptation du vendeur non détectée;")
+      ? `Date d’acceptation non détectée dans les documents : calculs basés sur la date saisie manuellement (${effectiveAcceptanceDate}). Vérifiez-la.`
+      : warning) ?? [];
+  function changeAcceptanceDate(value: string) {
+    if (disabled || busy || detectedAcceptanceDate) return;
+    setManualAcceptanceDate(value);
+    onChange(recalculateDeadlinesFromAcceptanceDate(proposals, value, analysis?.acceptanceDateTime));
+  }
   function setDocuments(next: File[]) {
     if (disabled || busy) return;
     const invalid = next.length ? validateOaciqFiles(next) : null;
     if (invalid) { setError(invalid); return; }
-    setFiles(next); setAnalysis(null); setError(null);
+    setFiles(next); setAnalysis(null); setManualAcceptanceDate(""); setError(null);
     onChange(proposals.filter((p) => p.source.type === "manual"));
   }
   function addFiles(next: File[]) {
@@ -43,6 +57,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
       if (!response.ok || !result?.data) throw new Error(result?.error ?? "Analyse impossible. Réessayez avec des PDF de moins de 4 Mo au total.");
       if (controller.signal.aborted) return;
       setAnalysis(result.data);
+      setManualAcceptanceDate("");
       // Only an explicit analysis action proposes transaction values. No effect
       // watches the result, so later manual edits cannot be overwritten.
       onAnalyzed(result.data);
@@ -77,9 +92,21 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
     {error && <p className="transaction-form-error" role="alert">{error}</p>}
     {files.length > 0 && !analysis && !busy && <p className="oaciq-notice">Aucune échéance de ces documents ne sera enregistrée sans analyse et révision.</p>}
     {analysis && <div className="oaciq-analysis-summary"><h4>FORMULAIRES DÉTECTÉS</h4><ul>{analysis.forms.map((f, i) => <li key={i}>{f.document} · {f.number || (f.kind === "unknown" ? "Formulaire à vérifier" : f.kind)}</li>)}</ul>
-      <dl className="oaciq-basic"><div><dt>Adresse proposée</dt><dd>{analysis.propertyAddress || "Non détectée"}{analysis.fieldSources.propertyAddress && <small> · PA · {analysis.fieldSources.propertyAddress.sourceSection} · {analysis.fieldSources.propertyAddress.sourceDocument}</small>}</dd></div><div><dt>Acheteurs</dt><dd>{analysis.buyers.map((p) => p.fullName).join(" · ") || "Non détectés"}</dd></div><div><dt>Vendeurs</dt><dd>{analysis.sellers.map((p) => p.fullName).join(" · ") || "Non détectés"}</dd></div><div><dt>PRIX FINAL</dt><dd>{analysis.finalPrice == null ? "À confirmer" : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(analysis.finalPrice)}{analysis.priceSourceDocument && <small> · {analysis.priceSourceForm} · {analysis.priceSourceSection} · {analysis.priceSourceDocument}</small>}</dd></div><div><dt>Date de la PA</dt><dd>{analysis.paDate || "Non détectée"}{analysis.fieldSources.paDate && <small> · {analysis.fieldSources.paDate.sourceSection} · {analysis.fieldSources.paDate.sourceDocument}</small>}</dd></div><div><dt>Date d’acceptation · base des délais</dt><dd>{analysis.acceptanceDateTime?.slice(0, 10) || "Non détectée"}</dd></div></dl>
+      <dl className="oaciq-basic"><div><dt>Adresse proposée</dt><dd>{analysis.propertyAddress || "Non détectée"}{analysis.fieldSources.propertyAddress && <small> · PA · {analysis.fieldSources.propertyAddress.sourceSection} · {analysis.fieldSources.propertyAddress.sourceDocument}</small>}</dd></div><div><dt>Acheteurs</dt><dd>{analysis.buyers.map((p) => p.fullName).join(" · ") || "Non détectés"}</dd></div><div><dt>Vendeurs</dt><dd>{analysis.sellers.map((p) => p.fullName).join(" · ") || "Non détectés"}</dd></div><div><dt>PRIX FINAL</dt><dd>{analysis.finalPrice == null ? "À confirmer" : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(analysis.finalPrice)}{analysis.priceSourceDocument && <small> · {analysis.priceSourceForm} · {analysis.priceSourceSection} · {analysis.priceSourceDocument}</small>}</dd></div><div><dt>Date de la PA</dt><dd>{analysis.paDate || "Non détectée"}{analysis.fieldSources.paDate && <small> · {analysis.fieldSources.paDate.sourceSection} · {analysis.fieldSources.paDate.sourceDocument}</small>}</dd></div><div><dt>Date d’acceptation · base des délais</dt><dd>{effectiveAcceptanceDate || "Non détectée"}{!detectedAcceptanceDate && effectiveAcceptanceDate && <small> · saisie manuelle</small>}</dd></div></dl>
+      {needsManualAcceptance && <div>
+        <label className="transaction-field"><span>DATE D’ACCEPTATION</span><input
+          type="date" aria-label="Date d’acceptation" aria-describedby="oaciq-acceptance-help"
+          min="1900-01-01" max="2200-12-31" value={manualAcceptanceDate} disabled={disabled || busy}
+          aria-invalid={!!manualAcceptanceDate && !isAgendaDate(manualAcceptanceDate)}
+          onChange={(e) => changeAcceptanceDate(e.target.value)}
+        /></label>
+        <p id="oaciq-acceptance-help" className="oaciq-notice">L’acceptation n’a pas été détectée dans les documents. Saisissez sa date réelle, qui peut différer de la date de la PA. Les échéances liées à l’acceptation se recalculent immédiatement, sans réanalyser les PDF. Les dates fixes et les échéances ajoutées manuellement restent inchangées.</p>
+        <p className="oaciq-notice" role="status">{effectiveAcceptanceDate
+          ? `Base saisie manuellement : ${effectiveAcceptanceDate}. Dates recalculées; révisez-les puis sélectionnez les échéances à ajouter.`
+          : "DATE D’ACCEPTATION REQUISE POUR CALCULER LES ÉCHÉANCES RELATIVES."}</p>
+      </div>}
       <button type="button" disabled={disabled || busy} onClick={() => onApplyBasic(analysis)}>Compléter les champs vides depuis la PA</button><p className="oaciq-notice">Champs préremplis et contacts existants présélectionnés uniquement si la correspondance est fiable. Aucun contact créé automatiquement. Vérifiez les parties, les dates et le prix final. Les saisies manuelles sont conservées; les conflits sont proposés à la confirmation ci-dessous. Une heure conventionnelle sans mention explicite dans la clause reste vide.</p>
-      {analysis.warnings.length > 0 && <div className="oaciq-warnings" role="status"><strong>À VÉRIFIER</strong><ul>{analysis.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}
+      {displayWarnings.length > 0 && <div className="oaciq-warnings" role="status"><strong>À VÉRIFIER</strong><ul>{displayWarnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}
     </div>}
     <div className="oaciq-review-heading"><h3>ÉCHÉANCES DÉTECTÉES</h3><span>{proposals.filter((p) => p.selected).length} sélectionnée(s)</span></div>
     <p className="oaciq-notice">Agenda interne uniquement. Aucun événement Google Agenda ne sera créé automatiquement.</p>
@@ -91,7 +118,9 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
           <label className="transaction-field"><span>Date</span><input aria-label={`Date échéance ${index + 1}`} type="date" value={p.dueDate} onChange={(e) => edit(p.id, { dueDate: e.target.value })} /></label>
           <label className="transaction-field"><span>Heure · Facultative</span><input aria-label={`Heure échéance ${index + 1}`} type="time" value={p.dueTime ?? ""} onChange={(e) => edit(p.id, { dueTime: e.target.value || null })} /></label>
         </div>
-        {!p.dueDate && p.dateText && <p className="oaciq-notice">{p.dateText} · Date à préciser avant sélection.</p>}
+        {!p.dueDate && p.dateText && <p className="oaciq-notice">{p.dateText} · {p.acceptanceRule && !effectiveAcceptanceDate
+          ? "DATE D’ACCEPTATION REQUISE POUR CALCULER CETTE ÉCHÉANCE. Renseignez le champ Date d’acceptation ci-dessus."
+          : "Date à préciser avant sélection."}</p>}
         <div className="oaciq-source"><span>{p.source.type === "manual" ? "Ajout manuel" : `Source : ${[p.source.form, p.source.section && `clause ${p.source.section}`, p.source.document].filter(Boolean).join(" · ")}`}</span>{p.source.confidence && <span>Confiance : {CONFIDENCE_LABELS[p.source.confidence]}</span>}</div>
         {p.source.text && <details><summary>Voir la source</summary><p className="oaciq-source-text">{p.source.text}</p></details>}
         <button type="button" className="destructive-button" aria-label={`Retirer l’échéance ${index + 1}`} onClick={() => onChange(proposals.filter((item) => item.id !== p.id))}>Retirer la proposition</button>

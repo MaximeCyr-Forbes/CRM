@@ -166,6 +166,7 @@ export function analyzeExtractedOaciqDocuments(
     dueTime: string | null = null,
     baseDate: string | null = null,
     days: number | null = null,
+    relativeRule?: OaciqDeadline["relativeRule"],
   ) {
     if (isExcludedDeadlineSection(src.section)) return;
     deadlines.push({
@@ -184,6 +185,7 @@ export function analyzeExtractedOaciqDocuments(
       confidence: dueDate ? (src.text || src.verifiedPositionedClause ? "high" : "medium") : "low",
       baseDate,
       days,
+      ...(relativeRule ? { relativeRule } : {}),
     });
   }
   function fixed(
@@ -211,6 +213,7 @@ export function analyzeExtractedOaciqDocuments(
     suffix = "",
     reference = base,
     relativeTo = basis,
+    referenceKind: "acceptance" | "seller_notice" = deferred ? "seller_notice" : "acceptance",
   ) {
     // All acceptance-relative clauses (including AF F2.1 and PA 12.1) use
     // the same source function; this adapter only attaches CRM provenance.
@@ -224,6 +227,7 @@ export function analyzeExtractedOaciqDocuments(
       deadline.dueTime,
       deadline.baseDate,
       deadline.days,
+      { reference: referenceKind, days, suffix },
     );
   }
   const annexText = (doc: Doc, clause: string, next: string) =>
@@ -259,6 +263,7 @@ export function analyzeExtractedOaciqDocuments(
       "",
       acceptedDay,
       "l'acceptation",
+      "acceptance",
     );
 
   const financingClause = extractActualClause(pages, "6.2", ["6.3"]);
@@ -419,6 +424,7 @@ export function analyzeExtractedOaciqDocuments(
         "",
         acceptedDay,
         "l'acceptation",
+        "acceptance",
       );
       notices.push({ clause, date: addDays(acceptedDay, days + 4) });
     };

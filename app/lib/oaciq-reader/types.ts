@@ -115,6 +115,12 @@ export type OaciqDeadline = {
   confidence: "high" | "medium" | "low";
   baseDate: string | null;
   days: number | null;
+  /** Emitted with the calculation, never inferred from a display label. */
+  relativeRule?: {
+    reference: "acceptance" | "seller_notice";
+    days: number;
+    suffix: string;
+  };
 };
 export type OaciqAnalysis = {
   finalPrice: number | null;

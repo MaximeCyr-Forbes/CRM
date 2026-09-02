@@ -4,6 +4,30 @@ import { describe, expect, it } from "vitest";
 const importer = readFileSync("app/components/oaciq-transaction-import.tsx", "utf8");
 const styles = readFileSync("app/globals.css", "utf8");
 
+describe("saisie unique de l’acceptation manquante", () => {
+  it("permet au dossier multipart de plus de 1 Mo d’atteindre la validation OACIQ existante", () => {
+    expect(readFileSync("next.config.ts", "utf8")).toContain('serverActions: { bodySizeLimit: "4mb" }');
+    expect(readFileSync("app/api/oaciq/analyze/route.ts", "utf8")).toContain('OACIQ_UPLOAD_LIMITS.bytes + 100_000');
+  });
+  it("présente un champ accessible seulement sans acceptation détectée et avec des délais concernés", () => {
+    expect(importer).toContain('analysis && !detectedAcceptanceDate');
+    expect(importer).toContain('proposals.some((p) => p.acceptanceRule)');
+    expect(importer).toContain('{needsManualAcceptance &&');
+    expect(importer).toContain('type="date" aria-label="Date d’acceptation" aria-describedby="oaciq-acceptance-help"');
+    expect(importer).toContain('DATE D’ACCEPTATION REQUISE POUR CALCULER CETTE ÉCHÉANCE');
+    expect(importer).toContain('qui peut différer de la date de la PA');
+  });
+  it("recalcule sans nouvel appel API, conserve la priorité de la détection et réinitialise la saisie avec les PDF", () => {
+    const handler = importer.slice(importer.indexOf('function changeAcceptanceDate'), importer.indexOf('function setDocuments'));
+    expect(handler).toContain('disabled || busy || detectedAcceptanceDate');
+    expect(handler).toContain('recalculateDeadlinesFromAcceptanceDate(proposals, value, analysis?.acceptanceDateTime)');
+    expect(handler).not.toMatch(/fetch|analyze\(|paDate/);
+    expect(importer.match(/setManualAcceptanceDate\(""\)/g)).toHaveLength(2);
+    expect(importer).toContain('detectedAcceptanceDate || (isAgendaDate(manualAcceptanceDate)');
+    expect(importer).toContain('value={p.dueDate}');
+  });
+});
+
 describe("zone de dépôt OACIQ harmonisée avec Centris", () => {
   it("cache l’input PDF multiple et laisse un vrai bouton accessible au clavier", () => {
     expect(importer).toMatch(/<input ref=\{inputRef\} className="sr-only" tabIndex=\{-1\} aria-label="Documents OACIQ PDF" type="file" multiple accept="application\/pdf,\.pdf"/);

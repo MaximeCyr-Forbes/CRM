@@ -100,3 +100,40 @@ Sur les quatre dossiers PDF source privés, dates/délais/avertissements concord
 Différence d'extraction explicitement testée : `oasis.pdf` fournit désormais son
 numéro PA présent en pied de page, que pdfplumber retournait vide. Ce gain de
 lecture ne change aucun calcul. Les tests ne tolèrent aucune autre divergence.
+
+## Workflow source réel et acceptation manquante
+
+Le 2 septembre 2026, le serveur et l'interface du dépôt source ci-dessus ont été
+lancés sans modification. Le dépôt réel de la PA privée et de ses annexes F/R
+passe par `prepareOcrDocuments`, `POST /api/analyze`, puis `renderResult`.
+La requête observée contient uniquement les trois PDF : texte lisible, aucun
+`ocr_data`. La réponse et l'interface indiquent une acceptation non détectée ;
+F2.1 et 12.1 restent respectivement à cinq et trente jours après l'acceptation.
+L'interface ne propose aucun champ de date ni étape préalable de saisie.
+Seul le texte du courriel final peut être édité, sans recalcul du moteur.
+L'acceptation provient donc des réponses/signatures de la PA ou de la CP finale
+acceptée, jamais de la date de la PA ni de la BO.
+
+Le fallback manuel est un **ajout UX demandé au CRM**, pas une fonctionnalité
+inventée dans la description de l'app source. Lorsque l'acceptation manque,
+`OaciqTransactionImport` expose un unique champ Date d'acceptation.
+`recalculateDeadlinesFromAcceptanceDate` transmet cette base au même
+`addAcceptanceDeadline` porté de Python. Le parseur émet `relativeRule` au
+moment du calcul : aucun jour/base n'est deviné depuis un titre ou un libellé.
+La CP/PA détectée garde la priorité. Changer la base recalcule immédiatement
+les propositions concernées, sans relire les PDF ni appeler une API.
+Les dates fixes, échéances manuelles et délais reportés à l'avis du vendeur
+restent inchangés ; R2.3 garde sa propre référence à l'acceptation comme dans
+la source. Effacer la base retire les dates calculées et leur sélection.
+Une saisie manuelle exige toujours la révision et la sélection des échéances.
+La règle de calcul est limitée à la prévisualisation, jamais envoyée à Supabase.
+
+`oaciq-acceptance-fallback.test.ts` couvre les cas automatique/manquant/CP,
+le changement et l'effacement de la base, les exceptions et la persistance.
+Le test PDF privé facultatif prend `OACIQ_PRIVATE_ACCEPTANCE_FILES`, tableau
+JSON de trois chemins locaux. Aucun PDF privé n'est stocké dans le dépôt.
+
+Le contrôle navigateur a aussi révélé la limite multipart préalable de Vinext
+(1 Mio), avant même la route API. `next.config.ts` l'aligne sur 4 Mio pour laisser
+passer les dossiers conformes à la limite existante de 4 000 000 octets et leurs
+en-têtes. Les validations de taille et de contenu propres à l'API restent intactes.

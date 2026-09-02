@@ -3,6 +3,7 @@ import type { OaciqAnalysis, OaciqDeadline } from "../oaciq-reader/types";
 import type { OaciqTransactionDetails } from "../oaciq-reader/transaction-details";
 import { currentTorontoDateTime, isTransactionDeadlineOverdue, isTransactionDeadlineTime } from "./deadline-time";
 import { isExcludedDeadlineSection } from "../oaciq-reader/deadline-sections";
+import { addAcceptanceDeadline } from "../oaciq-reader/acceptance-deadlines";
 
 export const OACIQ_UPLOAD_LIMITS = { files: 20, bytes: 4_000_000, timeoutMs: 90_000 } as const;
 export const MAX_AGENDA_DEADLINES = 100;
@@ -10,7 +11,11 @@ export const MANUAL_DEADLINE_SOURCE: TransactionDeadlineSource = {
   type: "manual", document: null, form: null, section: null, text: null, confidence: null,
 };
 export const CONFIDENCE_LABELS = { high: "Élevée", medium: "Moyenne", low: "Faible" } as const;
-export type DeadlineProposal = TransactionDeadlineDraft & { id: string; selected: boolean; dateText?: string };
+export type DeadlineProposal = TransactionDeadlineDraft & {
+  id: string; selected: boolean; dateText?: string;
+  /** Preview-only metadata, stripped by parseAgendaDeadlines before persistence. */
+  acceptanceRule?: { days: number; suffix: string };
+};
 export type OaciqTransactionPreview = OaciqAnalysis & OaciqTransactionDetails & { requiresReview: boolean };
 
 export function isAgendaDate(value: unknown): value is string {
@@ -41,8 +46,35 @@ export function proposalsFromAnalysis(analysis: OaciqAnalysis & { requiresReview
       id: `oaciq-${index}`, title: d.title, dueDate: d.dueDate ?? "", dueTime: proposedDueTime(d),
       selected: !hasUnresolvedDocument && d.confidence === "high" && isAgendaDate(d.dueDate),
       dateText: d.dateText,
+      ...(d.relativeRule?.reference === "acceptance" ? {
+        acceptanceRule: { days: d.relativeRule.days, suffix: d.relativeRule.suffix },
+      } : {}),
       source: { type: "oaciq", document: d.sourceDocument, form: d.sourceForm, section: d.sourceSection, text: d.sourceText, confidence: d.confidence },
     }];
+  });
+}
+
+/** The UI fallback only supplies the missing base to the source calculation.
+ * No PDF reanalysis, title parsing, PA-date substitution or Google side effect.
+ * A detected PA/final CP acceptance always takes priority over a manual value.
+ */
+export function recalculateDeadlinesFromAcceptanceDate(
+  proposals: DeadlineProposal[],
+  manualAcceptanceDate: string,
+  detectedAcceptanceDateTime: string | null = null,
+): DeadlineProposal[] {
+  const value = detectedAcceptanceDateTime?.slice(0, 10) || manualAcceptanceDate;
+  const base = isAgendaDate(value) ? value : null;
+  return proposals.map((proposal) => {
+    if (proposal.source.type !== "oaciq" || !proposal.acceptanceRule
+      || isExcludedDeadlineSection(proposal.source.section)) return proposal;
+    const { days, suffix } = proposal.acceptanceRule;
+    const calculated = addAcceptanceDeadline(base, days, proposal.title, "", suffix);
+    return { ...proposal, dueDate: calculated.dueDate ?? "", dateText: calculated.dateText,
+      // Preserve the user's choices and time edits. Clearing the base must
+      // remove any previous calculated date and its selection, not save it.
+      selected: base ? proposal.selected : false,
+    };
   });
 }
 
