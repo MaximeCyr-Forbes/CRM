@@ -61,7 +61,7 @@ const r2Text = (days: number) =>
   `${days} ${days === 1 ? "jour" : "jours"} après la réalisation de la conditionnelle de vente`;
 const acceptanceDaysPattern =
   /(?:dans\s+les|within)\s+(\d+)\s+(?:jours|days)\s+(?:suivant(?:e|es|s)?|following)\s+(?:l.?acceptation|acceptance)/i;
-type Origin = { document: Doc; section: string; text: string; type: string };
+type Origin = { document: Doc; section: string; text: string; type: string; verifiedPositionedClause?: boolean };
 
 export function analyzeExtractedOaciqDocuments(
   documents: Doc[],
@@ -180,7 +180,7 @@ export function analyzeExtractedOaciqDocuments(
         documentKind(pagesText(src.document)),
       sourceSection: src.section || null,
       sourceText: src.text || null,
-      confidence: dueDate ? (src.text ? "high" : "medium") : "low",
+      confidence: dueDate ? (src.text || src.verifiedPositionedClause ? "high" : "medium") : "low",
       baseDate,
       days,
     });
@@ -279,6 +279,10 @@ export function analyzeExtractedOaciqDocuments(
       annexText(fEntry!.doc, f.clause, "F2.2"),
       fEntry!.doc,
     );
+    // parseAnnexF already verified the F2.1 checkbox and its positioned day
+    // count. A flattened line starting with "X F2.1" may lack a text excerpt;
+    // that does not make this clearly detected clause less reliable.
+    financingSource.verifiedPositionedClause = true;
   }
   if (financingDays)
     after(

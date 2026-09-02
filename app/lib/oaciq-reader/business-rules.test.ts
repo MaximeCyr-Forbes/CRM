@@ -110,6 +110,14 @@ describe("règles métier demandées : 12.1 / 14.1 / acceptation / prix", () => 
     expect(d.baseDate).toBe("2026-09-10");
     expect(d.confidence).toBe("high");
   });
+  it("F2.1 positionnée avec coche avant le libellé garde une confiance élevée", () => {
+    const af = fiveDayAF();
+    af.pages[0].text = af.pages[0].text.replace("F2.1", "X F2.1");
+    const d = analyze([pricedPA(), af]).deadlines.find(d=>d.sourceSection==="F2.1")!;
+    expect(d.dueDate).toBe("2026-09-15");
+    expect(d.confidence).toBe("high");
+    expect(proposalsFromAnalysis(analyze([pricedPA(),af])).find(p=>p.source.section==="F2.1")?.selected).toBe(true);
+  });
   it("F2.1 = acceptation CP finale + 5, indépendant de l’upload", () => {
     const docs = [pricedPA(450000, true), fiveDayAF(), pricedCP(null)];
     for (const list of [docs, [...docs].reverse()])
