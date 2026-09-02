@@ -7,7 +7,7 @@ export type OaciqFormKind =
   | "annex_r"
   | "annex_f"
   | "annex_water"
-  | "ignored_bo"
+  | "bonification"
   | "unknown";
 export type OaciqWord = {
   text: string;
@@ -117,6 +117,12 @@ export type OaciqDeadline = {
   days: number | null;
 };
 export type OaciqAnalysis = {
+  finalPrice: number | null;
+  priceSourceForm: string | null;
+  priceSourceDocument: string | null;
+  priceSourceSection: string | null;
+  priceConfidence: "high" | "medium" | "low";
+  priceWarnings: string[];
   documents: { name: string; pageCount: number; ocrUsed: boolean }[];
   forms: { document: string; kind: OaciqFormKind; number: string }[];
   mainDocument: string;

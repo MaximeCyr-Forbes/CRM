@@ -2,6 +2,7 @@ import type { TransactionDeadlineDraft, TransactionDeadlineSource } from "../../
 import type { OaciqAnalysis, OaciqDeadline } from "../oaciq-reader/types";
 import type { PurchaseAgreementParseResult } from "../purchase-agreement/types";
 import { currentTorontoDateTime, isTransactionDeadlineOverdue, isTransactionDeadlineTime } from "./deadline-time";
+import { isExcludedDeadlineSection } from "../oaciq-reader/deadline-sections";
 
 export const OACIQ_UPLOAD_LIMITS = { files: 20, bytes: 4_000_000, timeoutMs: 90_000 } as const;
 export const MAX_AGENDA_DEADLINES = 100;
@@ -31,6 +32,7 @@ export function proposalsFromAnalysis(analysis: OaciqAnalysis & { requiresReview
   const seen = new Set<string>();
   const hasUnresolvedDocument = analysis.requiresReview || analysis.forms.some((form) => form.kind === "unknown");
   return analysis.deadlines.flatMap((d: OaciqDeadline, index) => {
+    if (isExcludedDeadlineSection(d.sourceSection)) return [];
     // Conservative: different clauses/documents are never collapsed by date alone.
     const key = JSON.stringify([d.type, d.title.normalize("NFC").trim().toLowerCase(), d.dueDate, d.dueTime, d.sourceDocument, d.sourceSection, d.sourceText]);
     if (seen.has(key)) return [];
@@ -69,6 +71,7 @@ export function parseAgendaDeadlines(input: unknown): TransactionDeadlineDraft[]
       if (!(s[key] === null || (typeof s[key] === "string" && (s[key] as string).length <= limit))) return null;
     }
     if (s.confidence !== null && s.confidence !== "high" && s.confidence !== "medium" && s.confidence !== "low") return null;
+    if (isExcludedDeadlineSection(s.section as string | null)) return null;
     result.push({ title: d.title.trim(), dueDate: d.dueDate, dueTime: d.dueTime, source: s as TransactionDeadlineSource });
   }
   return result;

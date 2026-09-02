@@ -30,8 +30,16 @@ export function resolveCounterProposalChain(
   response: OaciqResponse,
   counters: Counter[],
 ): Counter | null {
+  return resolveCounterProposalPath(main, response, counters).at(-1) ?? null;
+}
+/** Same source traversal, retaining only the path ending in a final acceptance. */
+export function resolveCounterProposalPath(
+  main: string,
+  response: OaciqResponse,
+  counters: Counter[],
+): Counter[] {
   if (!counters.length || !["counter", "unknown"].includes(response.action))
-    return null;
+    return [];
   const byNumber = new Map(
     counters.filter((c) => c.formNumber).map((c) => [c.formNumber, c]),
   );
@@ -42,7 +50,7 @@ export function resolveCounterProposalChain(
     const candidates = counters.filter(
       (c) => !c.targetFormNumber || c.targetFormNumber === main,
     );
-    if (!candidates.length) return null;
+    if (!candidates.length) return [];
     const referenced = new Set(
       candidates.map((c) => c.nextCounterProposalNumber).filter(Boolean),
     );
@@ -50,6 +58,7 @@ export function resolveCounterProposalChain(
     current = (roots.length ? roots : candidates).sort(compareCounter)[0];
   }
   const visited = new Set<string>();
+  const path: Counter[] = [];
   while (current) {
     const identity = current.formNumber || current.fileName;
     if (visited.has(identity))
@@ -57,9 +66,9 @@ export function resolveCounterProposalChain(
         "La chaîne de contre-propositions contient une référence circulaire.",
       );
     visited.add(identity);
-    if (current.responseAction === "accept" && current.acceptedAt)
-      return current;
-    if (current.responseAction !== "counter") return null;
+    path.push(current);
+    if (current.responseAction === "accept" && current.acceptedAt) return path;
+    if (current.responseAction !== "counter") return [];
     let next = byNumber.get(current.nextCounterProposalNumber);
     if (
       next?.targetFormNumber &&
@@ -83,7 +92,7 @@ export function resolveCounterProposalChain(
     }
     current = next;
   }
-  return null;
+  return [];
 }
 export function selectMainPromise(
   candidates: Doc[],

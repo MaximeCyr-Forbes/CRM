@@ -29,7 +29,8 @@ import {
 } from "./dates";
 
 const comparable = (a: ReturnType<typeof analyzeExtractedOaciqDocuments>) => ({
-  forms: a.forms,
+  // BO recognition is an intentional new requirement; dates still match the source.
+  forms: a.forms.map(f => ({...f,kind:f.kind === "bonification" ? "ignored_bo" : f.kind})),
   mainDocument: a.mainDocument,
   acceptanceDateTime: a.acceptanceDateTime,
   acceptanceSource: a.acceptanceSource,

@@ -11,6 +11,7 @@ export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<
   const documents = [];
   for (const input of inputs) documents.push(await extractOaciqPdf(input));
   const data = await analyzeOaciqDocuments(documents);
+  data.warnings.push(...data.priceWarnings);
   const merged = documents.some((doc) => {
     const kinds = new Set(doc.pages.map((page) => documentKind([page.text])).filter((kind) => kind !== "unknown"));
     return kinds.size > 1;

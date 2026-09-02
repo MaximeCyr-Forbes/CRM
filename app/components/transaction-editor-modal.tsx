@@ -240,10 +240,10 @@ export function TransactionEditorModal({
           <button aria-label="Fermer" onClick={onClose} type="button">×</button>
         </div>
         <form aria-busy={isBusy} className="transaction-form" onSubmit={submit}>
-          {mode === "create" && <OaciqTransactionImport proposals={proposals} onChange={setProposals} disabled={isSaving || isSubmitting} onBusyChange={setIsAnalyzing} onApplyBasic={(analysis) => {
+          {mode === "create" && <OaciqTransactionImport proposals={proposals} onChange={setProposals} disabled={isSaving || isSubmitting} onBusyChange={setIsAnalyzing} onAnalyzed={(analysis) => setPrice(analysis.finalPrice == null ? "" : String(analysis.finalPrice))} onApplyBasic={(analysis) => {
             setValues((current) => ({ ...current, address: current.address.trim() ? current.address : analysis.basic?.propertyAddress.fullAddress || analysis.propertyAddress,
               promiseDate: current.promiseDate || analysis.acceptanceDateTime?.slice(0, 10) || null }));
-            if (!price && analysis.basic?.amount != null) setPrice(String(analysis.basic.amount));
+            if (!price && analysis.finalPrice != null) setPrice(String(analysis.finalPrice));
           }} />}
           {mode === "create" && <CentrisTransactionImport
             currentValues={{ ...values, price: price ? Number(price) : null }}

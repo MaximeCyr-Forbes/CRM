@@ -33,6 +33,8 @@ import {
   textBetween,
 } from "./forms";
 import { parseAnnexF, parseAnnexR, parseAnnexWater } from "./annexes";
+import { isExcludedDeadlineSection } from "./deadline-sections";
+import { resolveFinalPrice } from "./price";
 import {
   calculateTransactionDates,
   resolveCounterProposalChain,
@@ -132,7 +134,7 @@ export function analyzeExtractedOaciqDocuments(
   const [buyers, sellers] = extractParties(main);
   const accepted =
     counter?.acceptedAt ||
-    (response.action === "counter"
+    (["counter", "refuse"].includes(response.action)
       ? null
       : acceptanceFromResponseText(pages) ||
         acceptanceFromSignatures(main.signatures, sellers, buyers));
@@ -164,6 +166,7 @@ export function analyzeExtractedOaciqDocuments(
     baseDate: string | null = null,
     days: number | null = null,
   ) {
+    if (isExcludedDeadlineSection(src.section)) return;
     deadlines.push({
       title,
       type: src.type,
@@ -656,6 +659,7 @@ export function analyzeExtractedOaciqDocuments(
     return x < y ? -1 : x > y ? 1 : 0;
   });
   return {
+    ...resolveFinalPrice(documents, main, accepted),
     documents: documents.map((d) => ({
       name: d.name,
       pageCount: d.pages.length,

@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { OaciqTransactionPreview } from "../lib/transactions/oaciq-agenda";
 import { CONFIDENCE_LABELS, MANUAL_DEADLINE_SOURCE, MAX_AGENDA_DEADLINES, OACIQ_UPLOAD_LIMITS, proposalsFromAnalysis, validateOaciqFiles, type DeadlineProposal } from "../lib/transactions/oaciq-agenda";
 
-export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyChange, onApplyBasic }: {
+export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyChange, onApplyBasic, onAnalyzed }: {
   proposals: DeadlineProposal[]; onChange: (items: DeadlineProposal[]) => void;
   disabled: boolean; onBusyChange: (busy: boolean) => void;
   onApplyBasic: (analysis: OaciqTransactionPreview) => void;
+  onAnalyzed: (analysis: OaciqTransactionPreview) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analysis, setAnalysis] = useState<OaciqTransactionPreview | null>(null);
@@ -40,6 +41,9 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
       if (!response.ok || !result?.data) throw new Error(result?.error ?? "Analyse impossible. Réessayez avec des PDF de moins de 4 Mo au total.");
       if (controller.signal.aborted) return;
       setAnalysis(result.data);
+      // Only the explicit analysis action applies a detected price. No effect
+      // watches the result, so later manual edits cannot be overwritten.
+      onAnalyzed(result.data);
       onChange([...proposals.filter((p) => p.source.type === "manual"), ...proposalsFromAnalysis(result.data)]);
     } catch (caught) {
       setError(controller.signal.aborted ? "L’analyse a dépassé le délai prévu. Réessayez ou saisissez les échéances manuellement." : caught instanceof Error ? caught.message : "Analyse impossible.");
@@ -56,7 +60,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
     {error && <p className="transaction-form-error" role="alert">{error}</p>}
     {files.length > 0 && !analysis && !busy && <p className="oaciq-notice">Aucune échéance de ces documents ne sera enregistrée sans analyse et révision.</p>}
     {analysis && <div className="oaciq-analysis-summary"><h4>FORMULAIRES DÉTECTÉS</h4><ul>{analysis.forms.map((f, i) => <li key={i}>{f.document} · {f.number || (f.kind === "unknown" ? "Formulaire à vérifier" : f.kind)}</li>)}</ul>
-      <dl className="oaciq-basic"><div><dt>Adresse proposée</dt><dd>{analysis.basic?.propertyAddress.fullAddress || analysis.propertyAddress || "Non détectée"}</dd></div><div><dt>Acheteurs</dt><dd>{(analysis.basic?.buyers.length ? analysis.basic.buyers : analysis.buyerNames).join(" · ") || "Non détectés"}</dd></div><div><dt>Vendeurs</dt><dd>{(analysis.basic?.sellers.length ? analysis.basic.sellers : analysis.sellerNames).join(" · ") || "Non détectés"}</dd></div><div><dt>Prix PA</dt><dd>{analysis.basic?.amount == null ? "Non détecté" : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(analysis.basic.amount)}</dd></div></dl>
+      <dl className="oaciq-basic"><div><dt>Adresse proposée</dt><dd>{analysis.basic?.propertyAddress.fullAddress || analysis.propertyAddress || "Non détectée"}</dd></div><div><dt>Acheteurs</dt><dd>{(analysis.basic?.buyers.length ? analysis.basic.buyers : analysis.buyerNames).join(" · ") || "Non détectés"}</dd></div><div><dt>Vendeurs</dt><dd>{(analysis.basic?.sellers.length ? analysis.basic.sellers : analysis.sellerNames).join(" · ") || "Non détectés"}</dd></div><div><dt>PRIX FINAL</dt><dd>{analysis.finalPrice == null ? "À confirmer" : new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(analysis.finalPrice)}{analysis.priceSourceDocument && <small> · {analysis.priceSourceForm} · {analysis.priceSourceSection} · {analysis.priceSourceDocument}</small>}</dd></div></dl>
       <button type="button" disabled={disabled || busy} onClick={() => onApplyBasic(analysis)}>Compléter les champs vides depuis la PA</button><p className="oaciq-notice">Aucun contact créé ou lié automatiquement. Vérifiez les parties et le prix final, notamment en présence d’une contre-proposition. Une heure conventionnelle du lecteur sans mention explicite dans la clause reste vide.</p>
       {analysis.warnings.length > 0 && <div className="oaciq-warnings" role="status"><strong>À VÉRIFIER</strong><ul>{analysis.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}
     </div>}

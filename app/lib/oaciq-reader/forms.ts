@@ -67,7 +67,7 @@ export function extractClause12(pages: string[]): string {
     ),
     ...pages,
   ]) {
-    const clause = extractActualClause([p], "12.1", ["13.", "SIGNATURES"]);
+    const clause = extractActualClause([p], "12.1", ["13.", "14.1", "SIGNATURES"]);
     if (
       clause &&
       cleanSpaces(clause.replace(new RegExp(markerPattern("12.1"), "m"), ""))
@@ -77,6 +77,18 @@ export function extractClause12(pages: string[]): string {
   return "";
 }
 export function formNumber(name: string, pages: string[]): string {
+  // The form's own code wins over the upload name or a reference to another PA.
+  const kind = documentKind(pages);
+  if (kind === "bonification") {
+    const own = /\bBO\s*[- ]?\s*(\d{4,6})\b/i.exec(pages.join("\n"));
+    if (own) return own[1].padStart(5, "0");
+  }
+  const codes = kind === "bonification" ? ["BO"] : kind === "counter_proposal" ? ["CP"] : kind === "annex_f" ? ["AF"] : kind === "annex_r" ? ["AR"] : kind === "annex_water" ? ["EAU"] : ["PAD", "PA", "PP"];
+  for (const code of codes) {
+    const matches = [...pages.join("\n").matchAll(new RegExp(`\\b${code}\\s*[- ]?\\s*(\\d{5,6})\\b`, "gi"))];
+    const numbers = [...new Set(matches.map((m) => m[1]))];
+    if (numbers.length === 1) return numbers[0];
+  }
   for (const re of [
     /\[(\d{5,6})\]/,
     /^\d+\.(\d{5,6})\b/,
@@ -98,7 +110,7 @@ export function formNumber(name: string, pages: string[]): string {
 export function documentKind(pages: string[]): OaciqFormKind {
   const first = norm(pages[0] || "");
   if (/\bbonifications?\s+avant\s+acceptation\b/.test(first))
-    return "ignored_bo";
+    return "bonification";
   if (/annexe eau potable|drinking water and septic/.test(first))
     return "annex_water";
   if (/annexe r|annex r/.test(first)) return "annex_r";
@@ -427,7 +439,7 @@ export function extractClause12Words(doc: Doc): string {
     if (!anchors.length) continue;
     const top = Math.min(...anchors.map((w) => w.top));
     const ends = words
-      .filter((w) => /^13[.]?$/.test(w.text) && w.x0 < 80 && w.top > top)
+      .filter((w) => /^(?:13[.]?|14[.,]1)$/.test(w.text) && w.x0 < 80 && w.top > top)
       .map((w) => w.top);
     const end = ends.length ? Math.min(...ends) : p.height - 70;
     const text = cleanSpaces(
@@ -637,10 +649,14 @@ function counterTarget(doc: Doc): string {
         .join("");
       if (digits.length >= 5 && digits.length <= 6) return digits;
     }
+    // Flattened PDFs may keep the reference as one word, not one digit per box.
+    const references = [...new Set(words.filter(w => w.top >= start && w.top < end && /^\d{5,6}$/.test(w.text)).map(w => w.text))];
+    if (references.length === 1) return references[0];
   }
+  // Never pick the CP's own number from its page heading as the target PA.
   return (
     /(?:promesse\s+d.?achat|contre-proposition)[\s\S]*?(?:PA|PAD|PP|CP)?\s*[- ]?\s*(\d{5,6})/i.exec(
-      pagesText(doc).join("\n"),
+      extractActualClause(pagesText(doc), "P2.1", ["P2.2"]),
     )?.[1] || ""
   );
 }
@@ -699,6 +715,9 @@ export function parseCounterProposal(doc: Doc): OaciqCounterProposal {
       page.width,
       tops.length ? Math.min(...tops) : Infinity,
     );
+    // Flattened/signature-text PDFs have no signature widget metadata. Use the
+    // same response-section reader as the source PA reader, never a BO date.
+    responseSignedAt ||= acceptanceFromResponseText(pages);
   }
   if (response.action === "unknown" && responseSignedAt)
     response.action = "accept";
