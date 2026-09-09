@@ -9,7 +9,8 @@ export function SelectionPage() {
 
   function handleBrokerSelection(broker: Broker) {
     selectBroker(broker);
-    router.push("/dashboard");
+    const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+    router.push(returnTo === "/mortgage-referrals" ? "/mortgage-referrals" : "/dashboard");
   }
 
   return (

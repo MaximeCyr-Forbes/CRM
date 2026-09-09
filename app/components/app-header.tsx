@@ -77,7 +77,7 @@ export function AppHeader() {
 
   function changeBroker() {
     clearBroker();
-    router.push("/");
+    router.push(pathname === "/mortgage-referrals" ? "/?returnTo=%2Fmortgage-referrals" : "/");
   }
 
   return (
