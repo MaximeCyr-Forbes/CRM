@@ -11,7 +11,7 @@
 .referral-table th, .referral-table td { padding: 1rem .8rem; vertical-align: top; border-bottom: 1px solid #eeeae3; min-width: 125px; max-width: 270px; overflow-wrap: anywhere; }
 .referral-table tbody tr:last-child td { border-bottom: 0; }
 .referral-table a, .referral-modal a { color: #244c70; text-decoration: underline; text-underline-offset: 3px; }
-.referral-table td:first-child a { font-weight: 600; }
+.referral-table td:first-child a { display: block; font-weight: 600; }
 .referral-contacts, .referral-actions { display: grid; gap: .65rem; }
 .referral-page button:not(.transaction-new), .referral-modal button:not(.transaction-new) { border: 1px solid #d5d0c7; border-radius: 7px; background: #fff; color: #19374f; padding: .65rem .8rem; font-size: .875rem; cursor: pointer; }
 .referral-page button:disabled, .referral-modal button:disabled { opacity: .5; cursor: wait; }
