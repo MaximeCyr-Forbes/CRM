@@ -1,6 +1,7 @@
 import { analyzeOaciqDocuments } from "../oaciq-reader";
 import { extractOaciqPdf } from "../oaciq-reader/pdf";
-import { documentKind } from "../oaciq-reader/forms";
+import { documentKind, pagesText } from "../oaciq-reader/forms";
+import { norm } from "../oaciq-reader/dates";
 import { extractTransactionDetails } from "../oaciq-reader/transaction-details";
 import type { OaciqPdfInput } from "../oaciq-reader/types";
 import type { OaciqTransactionPreview } from "./oaciq-agenda";
@@ -12,7 +13,12 @@ export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<
   const data = await analyzeOaciqDocuments(documents);
   data.warnings.push(...data.priceWarnings);
   const merged = documents.some((doc) => {
-    const kinds = new Set(doc.pages.map((page) => documentKind([page.text])).filter((kind) => kind !== "unknown"));
+    // A PA's clauses mention annexes and counter-proposals. Only standalone
+    // form headings identify additional forms, not those cross-references.
+    const headings = pagesText(doc).flatMap(text => text.split("\n")).map(norm)
+      .map(line => line.replace(/^(?:formulaire obligatoire|mandatory form)\s*[-–—:]?\s*/, ""))
+      .filter(line => /^(?:promesse d'achat|promise to purchase|contre-proposition|counter-proposal|annexe [rf]|annex [rf]|annexe eau potable|drinking water and septic|bonifications? avant acceptation)(?:\s+(?:pa|pad|pp|cp|af|ar|bo)?\s*\d{4,6})?(?:\s*[-–—:].*)?$/.test(line));
+    const kinds = new Set(headings.map(line => documentKind([line])).filter(kind => kind !== "unknown"));
     return kinds.size > 1;
   });
   const requiresReview = merged || data.forms.some((f) => f.kind === "unknown");

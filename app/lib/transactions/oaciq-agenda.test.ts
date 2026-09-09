@@ -5,6 +5,26 @@ import { promise, document, scenarios } from "../oaciq-reader/test-fixtures";
 import { agendaInsertValues, agendaState, confirmedAgenda, isAgendaDate, MANUAL_DEADLINE_SOURCE, parseAgendaDeadlines, proposedDueTime, proposalsFromAnalysis, validateOaciqFiles } from "./oaciq-agenda";
 
 describe("OACIQ → review → agenda", () => {
+  it("conserve uniquement les choix actuels, y compris une date ambiguë corrigée", () => {
+    const a = analyzeExtractedOaciqDocuments([promise()]);
+    const proposals = proposalsFromAnalysis(a);
+    const inspection = proposals.find(p => p.source.section === "8.1")!;
+    expect(inspection.selected).toBe(true);
+    inspection.selected = false;
+    const uncertain = proposalsFromAnalysis({ ...a, deadlines: [{ ...a.deadlines[0], dueDate: null, confidence: "low" }] })[0];
+    expect(uncertain).toMatchObject({ selected: false, requiresReview: true });
+    uncertain.dueDate = "2026-10-15";
+    uncertain.selected = true;
+    const saved = confirmedAgenda([...proposals, uncertain])!;
+    expect(saved.some(p => p.title === inspection.title)).toBe(false);
+    expect(saved.some(p => p.dueDate === "2026-10-15" && p.source.confidence === "low")).toBe(true);
+  });
+  it("ne présélectionne pas une proposition sans source identifiée", () => {
+    const a = analyzeExtractedOaciqDocuments([promise()]);
+    for (const missing of ["sourceDocument", "sourceForm", "sourceSection"] as const) {
+      expect(proposalsFromAnalysis({ ...a, deadlines: [{ ...a.deadlines[0], [missing]: null }] })[0].selected).toBe(false);
+    }
+  });
   it("contraint le dépôt PDF à sa colonne sur mobile", () => {
     const css = readFileSync("app/globals.css", "utf8");
     expect(css).toMatch(/\.oaciq-dropzone\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)[^}]*min-width:\s*0/);

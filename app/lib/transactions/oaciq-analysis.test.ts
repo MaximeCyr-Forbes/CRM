@@ -11,6 +11,15 @@ async function pdf(name: string, texts: string[]) {
   return { name, data: await doc.save() };
 }
 describe("dossier multi-PDF réel vers propositions transactionnelles", () => {
+  it("une PA citant ses annexes et une CP conserve les échéances fiables sélectionnées", async () => {
+    const result = await analyzeOaciqTransaction([await pdf("PA.pdf", [promise().pages[0].text,
+      "13. ANNEXES\nLes dispositions de l'annexe F font partie de la promesse d'achat.",
+      "Le vendeur fait une contre-proposition aux présentes.\nPA 10001"])]);
+    expect(result.requiresReview).toBe(false);
+    for (const section of ["6.2", "8.1", "9.1", "11.1", "11.2"]) {
+      expect(proposalsFromAnalysis(result).find(p => p.source.section === section)).toMatchObject({ selected: true, requiresReview: false });
+    }
+  });
   it("conserve exactement les échéances du moteur porté pour une PA et une annexe", async () => {
     const inputs = [await pdf("PA.pdf", [promise().pages[0].text]), await pdf("R.pdf", ["ANNEXE R\nR 30003\nConditions additionnelles sans délai renseigné"] )];
     const expected = await analyzeOaciqDocuments(inputs);

@@ -13,6 +13,7 @@ export const MANUAL_DEADLINE_SOURCE: TransactionDeadlineSource = {
 export const CONFIDENCE_LABELS = { high: "Élevée", medium: "Moyenne", low: "Faible" } as const;
 export type DeadlineProposal = TransactionDeadlineDraft & {
   id: string; selected: boolean; dateText?: string;
+  requiresReview?: boolean;
   /** Preview-only metadata, stripped by parseAgendaDeadlines before persistence. */
   acceptanceRule?: { days: number; suffix: string };
 };
@@ -42,9 +43,12 @@ export function proposalsFromAnalysis(analysis: OaciqAnalysis & { requiresReview
     const key = JSON.stringify([d.type, d.title.normalize("NFC").trim().toLowerCase(), d.dueDate, d.dueTime, d.sourceDocument, d.sourceSection, d.sourceText]);
     if (seen.has(key)) return [];
     seen.add(key);
+    const reliable = !hasUnresolvedDocument && d.confidence === "high" && isAgendaDate(d.dueDate)
+      && !!d.sourceDocument?.trim() && !!d.sourceForm?.trim() && !!d.sourceSection?.trim();
     return [{
       id: `oaciq-${index}`, title: d.title, dueDate: d.dueDate ?? "", dueTime: proposedDueTime(d),
-      selected: !hasUnresolvedDocument && d.confidence === "high" && isAgendaDate(d.dueDate),
+      selected: reliable,
+      requiresReview: !reliable,
       dateText: d.dateText,
       ...(d.relativeRule?.reference === "acceptance" ? {
         acceptanceRule: { days: d.relativeRule.days, suffix: d.relativeRule.suffix },
