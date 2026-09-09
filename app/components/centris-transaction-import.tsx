@@ -343,6 +343,13 @@ export function CentrisTransactionImport({
             </div>
           )}
 
+          {previewFields.some(item => item.field === "address" && item.hasConflict) && (
+            <div className="transaction-centris-warning" role="alert">
+              <strong>ADRESSES DIFFÉRENTES</strong>
+              <p>L’adresse Centris diffère de celle de la transaction. Vérifiez la propriété avant de choisir un remplacement. L’adresse actuelle est conservée par défaut.</p>
+            </div>
+          )}
+
           {isApplied ? (
             <div className="transaction-centris-applied" aria-live="polite">
               <strong>Informations Centris appliquées ✓</strong>

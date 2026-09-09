@@ -1,14 +1,15 @@
 import { cleanSpaces, inToronto, norm, parseFrenchDate } from "./dates";
 import { documentKind, pagesText } from "./forms";
 import type { OaciqExtractedDocument, OaciqWord } from "./types";
+import { extractPAPropertyAddress, type OaciqPropertyAddress } from "./property-address";
 
 export type OaciqFieldSource = { sourceDocument: string; sourceForm: string; sourceSection: string; confidence: "high" | "medium" | "low" };
 export type OaciqParty = {
   firstName: string; lastName: string; fullName: string; role: "buyer" | "seller";
   email: string; phone: string; source: OaciqFieldSource;
 };
-export type OaciqTransactionDetails = {
-  propertyAddress: string; centrisNumber: string; paDate: string | null;
+export type OaciqTransactionDetails = Partial<Omit<OaciqPropertyAddress, "propertyAddress">> & {
+  propertyAddress: string | null; centrisNumber: string; paDate: string | null;
   buyers: OaciqParty[]; sellers: OaciqParty[];
   fieldSources: { propertyAddress: OaciqFieldSource | null; centrisNumber: OaciqFieldSource | null; paDate: OaciqFieldSource | null };
 };
@@ -43,21 +44,11 @@ function party(fullName: string, role: OaciqParty["role"], context: string, sour
 /** Transaction-only enrichment of the ALREADY extracted main PA. No PDF read,
  * second parser, acceptance recalculation, or change to the deadline engine. */
 export function extractTransactionDetails(doc: OaciqExtractedDocument | undefined): OaciqTransactionDetails {
-  const result: OaciqTransactionDetails = { propertyAddress: "", centrisNumber: "", paDate: null, buyers: [], sellers: [], fieldSources: { propertyAddress: null, centrisNumber: null, paDate: null } };
+  const result: OaciqTransactionDetails = { propertyAddress: null, centrisNumber: "", paDate: null, buyers: [], sellers: [], fieldSources: { propertyAddress: null, centrisNumber: null, paDate: null } };
   if (!doc || documentKind(pagesText(doc)) !== "promise_to_purchase") return result;
   const source = (section: string): OaciqFieldSource => ({ sourceDocument: doc.name, sourceForm: "PA", sourceSection: section, confidence: "high" });
   const text = pagesText(doc).join("\n");
-  const property = /(?:^|\n)\s*3[.,]1\b([\s\S]*?)(?=\n\s*(?:3[.,][2-9]|4[.,\s]|designation cadastrale|dimensions|cadastral)|$)/i.exec(text)?.[1] ?? "";
-  // This fallback is still bounded to clause 3.1, never the parties' addresses.
-  const candidates = property.split("\n").map((s) => cleanSpaces(s).replace(/^adresse(?: de l['’]immeuble)?\s*:\s*/i, ""));
-  for (const page of doc.pages) {
-    const clause = page.words.find((w) => /^3[.,]1$/.test(w.text) && w.x0 < 100);
-    if (!clause) continue;
-    const end = Math.min(...page.words.filter((w) => w.top > clause.top && /^(?:3[.,][2-9]|4[.,]?)$/.test(w.text) && w.x0 < 100).map((w) => w.top), clause.top + 100);
-    candidates.unshift(...lines(page.words.filter((w) => w.top > clause.top + 3 && w.top < end)).map((r) => r.text));
-  }
-  result.propertyAddress = candidates.find((s) => /^\d+[A-Za-z]?(?:\s*[-–]\s*\d+[A-Za-z]?)?[,\s]+/.test(s)
-    && /\b(rue|rang|chemin|avenue|boulevard|boul\.?|route|montee|montée|place|terrasse|street|road|drive|lane|crescent)\b/i.test(s))?.normalize("NFC") ?? "";
+  Object.assign(result, extractPAPropertyAddress(doc) ?? {});
   if (result.propertyAddress) result.fieldSources.propertyAddress = source("3.1");
   const numbers = [...new Set([...text.matchAll(/(?:\b(?:num[eé]ro|no\.?|n[°º]|listing)\s*Centris|\bCentris\s*(?:no\.?|n[°º]|number|#|:))\s*[:#]?\s*(\d{5,10})\b/gi)].map((m) => m[1]))];
   if (numbers.length === 1) { result.centrisNumber = numbers[0]; result.fieldSources.centrisNumber = source("Numéro Centris explicite"); }
@@ -73,7 +64,11 @@ export function extractTransactionDetails(doc: OaciqExtractedDocument | undefine
       let lower = start.top;
       for (const row of side) {
         if (!roleName.test(norm(row.text)) || !/\b(nom|name)\b/.test(norm(row.text)) || /representant|mandataire/.test(norm(row.text))) continue;
-        const block = side.filter((r) => r.top > lower && r.top < row.top);
+        // The previous slot's caption may wrap onto additional lines; it is not
+        // the representative marker of the next buyer/seller.
+        const afterCaption = side.filter((r) => r.top > lower && r.top < row.top);
+        const firstValue = afterCaption.findIndex(r => !/^(?:representant,? lien|d.?une societe|\(ex\.?|\(ci.apres)/.test(norm(r.text)));
+        const block = firstValue < 0 ? [] : afterCaption.slice(firstValue);
         const representative = block.findIndex((r) => /represent|mandataire|temoin|witness|courtier|broker/.test(norm(r.text)));
         const safe = representative >= 0 ? block.slice(0, representative) : block;
         // Names belong to the labelled slot, not all text in the left/right column.

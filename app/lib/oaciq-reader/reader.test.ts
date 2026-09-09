@@ -39,7 +39,8 @@ const comparable = (a: ReturnType<typeof analyzeExtractedOaciqDocuments>) => ({
     dateText,
     details,
   })),
-  warnings: a.warnings,
+  // Address diagnostics are covered separately; preserve every legacy deadline warning.
+  warnings: a.warnings.filter(warning => warning !== "Adresse de l’immeuble non détectée dans la clause 3.1."),
   transactionDates: a.transactionDates,
   allDeadlinesDeferred: a.allDeadlinesDeferred,
 });

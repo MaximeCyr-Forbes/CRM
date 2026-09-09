@@ -1,6 +1,6 @@
+import { extractPAPropertyAddress } from "./property-address";
 // Port of the current Python reader's textual and positioned-field rules.
 import {
-  cleanAddress,
   cleanSpaces,
   extractTimeText,
   latest,
@@ -253,69 +253,8 @@ export function extractParties(doc: Doc): [string[], string[]] {
     }
   return [[], []];
 }
-export function extractPropertyAddress(doc: Doc): string {
-  for (const page of doc.pages.slice(0, 2))
-    for (const a of page.words.filter((w) => w.text === "3.1" && w.x0 < 80)) {
-      const address = cleanAddress(
-        page.words
-          .filter(
-            (w) =>
-              w.top >= a.top + 5 &&
-              w.top <= a.top + 22 &&
-              w.x0 < page.width - 30,
-          )
-          .sort((a, b) => a.x0 - b.x0)
-          .map((w) => w.text)
-          .join(" "),
-      );
-      if (
-        /\d/.test(address) &&
-        norm(address)
-          .split(" ")
-          .some((s) =>
-            [
-              "rue",
-              "rang",
-              "chemin",
-              "avenue",
-              "boulevard",
-              "street",
-              "road",
-            ].includes(s),
-          )
-      )
-        return address;
-    }
-  const lines = pagesText(doc)
-    .slice(0, 3)
-    .join("\n")
-    .split("\n")
-    .map(cleanSpaces);
-  for (let i = 0; i < lines.length; i++)
-    if (
-      /immeuble avec|immeuble detenu|the immovable, with|the immovable held/.test(
-        norm(lines[i]),
-      )
-    ) {
-      for (const line of lines.slice(i + 1, i + 5))
-        if (
-          line &&
-          ![
-            "numero",
-            "ville",
-            "province",
-            "code postal",
-            "designation cadastrale",
-            "number",
-            "street",
-            "city",
-            "postal code",
-            "cadastral description",
-          ].some((s) => norm(line).includes(s))
-        )
-          return cleanAddress(line);
-    }
-  return "";
+export function extractPropertyAddress(doc: Doc): string | null {
+  return extractPAPropertyAddress(doc)?.propertyAddress ?? null;
 }
 export const wordMatchesClause = (word: string, clause: string) => {
   const token = norm(word).replace(/\s+/g, "").replace(/\.+$/, ""),

@@ -36,7 +36,7 @@ describe("PDF → analyse unique → champs Nouvelle Transaction", () => {
   });
   it.skipIf(!process.env.OACIQ_PRIVATE_PA)("lit la vraie PA locale sans conserver son contenu dans le repository", async () => {
     const result = await analyzeOaciqTransaction([{ name: "PA-privee.pdf", data: new Uint8Array(readFileSync(process.env.OACIQ_PRIVATE_PA!)) }]);
-    expect(result.propertyAddress.length).toBeGreaterThan(5);
+    expect(result.propertyAddress?.length).toBeGreaterThan(5);
     expect(result.buyers.length).toBeGreaterThan(0);
     expect(result.sellers.length).toBeGreaterThan(0);
     expect(result.paDate).toMatch(/^20\d{2}-\d{2}-\d{2}$/);

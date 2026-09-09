@@ -38,7 +38,7 @@ export function prefillOaciqTransaction(
   const applied = { ...previous };
   const conflicts: OaciqPrefillConflict[] = [];
   const suggestions: Partial<Record<OaciqPrefillField, string>> = {};
-  if (analysis.fieldSources.propertyAddress?.confidence === "high" && /^\d/.test(analysis.propertyAddress)) suggestions.address = analysis.propertyAddress;
+  if (analysis.propertyAddress && analysis.fieldSources.propertyAddress?.confidence === "high" && /^\d/.test(analysis.propertyAddress)) suggestions.address = analysis.propertyAddress;
   if (analysis.fieldSources.centrisNumber?.confidence === "high" && /^\d{5,10}$/.test(analysis.centrisNumber)) suggestions.centrisNumber = analysis.centrisNumber;
   if (analysis.fieldSources.paDate?.confidence === "high" && isAgendaDate(analysis.paDate)) suggestions.promiseDate = analysis.paDate;
   if (validOaciqPrice(analysis)) suggestions.price = String(analysis.finalPrice);

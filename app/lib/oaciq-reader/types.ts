@@ -134,7 +134,7 @@ export type OaciqAnalysis = {
   mainDocument: string;
   acceptanceDateTime: string | null;
   acceptanceSource: string;
-  propertyAddress: string;
+  propertyAddress: string | null;
   buyerNames: string[];
   sellerNames: string[];
   deadlines: OaciqDeadline[];

@@ -15,7 +15,7 @@ describe("données transactionnelles de la PA principale, sans deuxième lecture
   });
   it("n’utilise jamais les adresses des parties si 3.1 est vide", () => {
     const doc = prefillPromise(); doc.pages = doc.pages.slice(0, 1);
-    expect(extractTransactionDetails(doc).propertyAddress).toBe("");
+    expect(extractTransactionDetails(doc).propertyAddress).toBeNull();
   });
   it("ne prend aucun nom de courtier, témoin ou mandataire dans les emplacements", () => {
     const doc = prefillPromise();

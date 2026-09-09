@@ -671,6 +671,8 @@ export function analyzeExtractedOaciqDocuments(
       y = deadlineSortValue(b.dateText, b.title, year);
     return x < y ? -1 : x > y ? 1 : 0;
   });
+  const propertyAddress = extractPropertyAddress(main);
+  if (!propertyAddress) warnings.push("Adresse de l’immeuble non détectée dans la clause 3.1.");
   return {
     ...resolveFinalPrice(documents, main, accepted),
     documents: documents.map((d) => ({
@@ -682,7 +684,7 @@ export function analyzeExtractedOaciqDocuments(
     mainDocument: main.name,
     acceptanceDateTime: accepted,
     acceptanceSource: counter?.fileName || main.name,
-    propertyAddress: extractPropertyAddress(main),
+    propertyAddress,
     buyerNames: buyers,
     sellerNames: sellers,
     deadlines,
