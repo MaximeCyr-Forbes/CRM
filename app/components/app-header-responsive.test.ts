@@ -13,6 +13,7 @@ describe("header responsive du CRM", () => {
       "Contacts",
       "Listings",
       "Transactions",
+      "Réf. hypothécaires",
       "Calendrier",
       "Drive",
       "Statistiques",

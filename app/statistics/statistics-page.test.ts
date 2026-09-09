@@ -13,7 +13,7 @@ describe("onglet Statistiques", () => {
       "Accueil",
       "Contacts",
       "Listings",
-      "Transactions",
+      "Transactions", "Réf. hypothécaires",
       "Calendrier",
       "Drive",
       "Statistiques",

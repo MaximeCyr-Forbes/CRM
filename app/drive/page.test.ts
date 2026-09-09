@@ -10,7 +10,7 @@ describe("onglet Google Drive", () => {
       "Accueil",
       "Contacts",
       "Listings",
-      "Transactions",
+      "Transactions", "Réf. hypothécaires",
       "Calendrier",
       "Drive",
       "Statistiques",

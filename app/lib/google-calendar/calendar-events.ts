@@ -32,12 +32,14 @@ export type GoogleCalendarEventSource = {
 const systemKinds = new Set<CRMCalendarEventKind>([
   "birthday",
   "mortgage_renewal",
+  "mortgage_referral",
   "follow_up",
   "transaction_deadline",
 ]);
 
 function normalizePrivateKind(value: string | undefined): CRMCalendarEventKind | null {
   if (value === "birthday") return "birthday";
+  if (value === "mortgage_referral") return "mortgage_referral";
   if (value === "mortgage-renewal" || value === "mortgage_renewal") return "mortgage_renewal";
   if (value === "follow-up" || value === "follow_up") return "follow_up";
   if (value === "transaction-deadline" || value === "transaction_deadline") return "transaction_deadline";

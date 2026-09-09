@@ -20,6 +20,9 @@ export function transactionApiErrorMessage(error: unknown, action: TransactionAc
   const metadata = error && typeof error === "object" ? error as DatabaseErrorMetadata : {};
   const text = errorText(metadata);
   if (isInvalidLinkedContactError(error)) return "Contact lié invalide.";
+  if (text.includes("mortgage_referrals") || text.includes("références hypothécaires")) {
+    return "Supprimez d’abord les références hypothécaires liées et leurs suivis avant de supprimer la transaction ou de changer son courtier.";
+  }
   if (metadata.code === "23514" && text.includes("status")) {
     return "Le statut sélectionné n’est pas accepté.";
   }

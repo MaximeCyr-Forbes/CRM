@@ -21,7 +21,7 @@ describe("retrait du parcours commercial des contacts", () => {
       "Accueil",
       "Contacts",
       "Listings",
-      "Transactions",
+      "Transactions", "Réf. hypothécaires",
       "Calendrier",
       "Drive",
       "Statistiques",

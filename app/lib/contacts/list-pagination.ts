@@ -68,10 +68,10 @@ export function buildContactProfileHref(contactId: string, returnTo: string) {
 }
 
 export function safeContactReturnTo(value: string | null) {
-  if (!value || !/^\/contacts(?:[?#]|$)/.test(value)) return "/contacts";
+  if (!value || !/^\/(?:contacts|mortgage-referrals)(?:[?#]|$)/.test(value)) return "/contacts";
   try {
     const parsed = new URL(value, "https://crm.local");
-    if (parsed.origin !== "https://crm.local" || parsed.pathname !== "/contacts") return "/contacts";
+    if (parsed.origin !== "https://crm.local" || !["/contacts", "/mortgage-referrals"].includes(parsed.pathname)) return "/contacts";
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return "/contacts";

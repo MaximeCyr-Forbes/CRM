@@ -12,6 +12,7 @@ const links = [
   { label: "Contacts", href: "/contacts", match: "/contacts" },
   { label: "Listings", href: "/listings", match: "/listings" },
   { label: "Transactions", href: "/transactions", match: "/transactions" },
+  { label: "Réf. hypothécaires", href: "/mortgage-referrals", match: "/mortgage-referrals" },
   { label: "Calendrier", href: "/calendar", match: "/calendar" },
   { label: "Drive", href: "/drive", match: "/drive" },
   { label: "Statistiques", href: "/statistics", match: "/statistics" },

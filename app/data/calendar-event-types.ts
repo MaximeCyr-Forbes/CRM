@@ -6,6 +6,7 @@ export const CRM_CALENDAR_EVENT_KINDS = [
   "follow_up",
   "birthday",
   "mortgage_renewal",
+  "mortgage_referral",
   "transaction_deadline",
   "centris_showing",
 ] as const;
@@ -58,6 +59,7 @@ export const CALENDAR_EVENT_KIND_LABELS: Record<CRMCalendarEventKind, string> = 
   follow_up: "Relance",
   birthday: "Anniversaire",
   mortgage_renewal: "Renouvellement",
+  mortgage_referral: "Suivi hypothécaire",
   transaction_deadline: "Échéance",
   centris_showing: "Visite Centris",
 };

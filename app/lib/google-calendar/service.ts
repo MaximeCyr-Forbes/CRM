@@ -335,7 +335,7 @@ function buildEventPayload(contact: ServerContactRow, eventId?: string): GoogleE
   };
 }
 
-async function googleCalendarRequest(
+export async function googleCalendarRequest(
   connection: GoogleConnectionRow,
   path: string,
   init: RequestInit,
@@ -387,7 +387,7 @@ export async function findCentrisShowingsCalendar(connection: GoogleConnectionRo
   )) ?? null;
 }
 
-async function requireGoogleCalendarConnection(broker: CalendarBroker) {
+export async function requireGoogleCalendarConnection(broker: CalendarBroker) {
   const connection = await getConnection(broker);
   if (!connection) throw new GoogleCalendarNotConnectedError("Google Agenda non connecté.");
   return connection;
