@@ -33,7 +33,8 @@ function dateIn(text: string): string | null {
 
 function party(fullName: string, role: OaciqParty["role"], context: string, source: OaciqFieldSource): OaciqParty | null {
   const name = cleanSpaces(fullName).normalize("NFC");
-  if (!/^[\p{L}\p{M}’' .-]{3,120}$/u.test(name) || name.split(/\s+/).length < 2
+  const company = /^(?=.*\p{L})[\p{L}\p{M}\d’' .&-]{3,120}\b(?:inc\.?|ltee\.?|ltée\.?|ltd\.?|s\.e\.n\.c\.?)$/iu.test(name);
+  if ((!company && !/^[\p{L}\p{M}’' .-]{3,120}$/u.test(name)) || name.split(/\s+/).length < 2
     || /\b(nom|adresse|acheteur|vendeur|buyer|seller|name|address|temoin|witness|courtier|broker|mandataire|representant|represented|representative|signature|identification|societe|corporation|ci-apres|hereinafter)\b/.test(norm(name))) return null;
   const emails = [...new Set(context.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g) ?? [])];
   const phones = [...new Set(context.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/g) ?? [])];
@@ -73,7 +74,8 @@ export function extractTransactionDetails(doc: OaciqExtractedDocument | undefine
         const safe = representative >= 0 ? block.slice(0, representative) : block;
         // Names belong to the labelled slot, not all text in the left/right column.
         const candidate = safe.map((r) => party(r.text, role, safe.map((s) => s.text).join("\n"), source("1"))).find(Boolean);
-        if (candidate) result[role === "buyer" ? "buyers" : "sellers"].push(candidate);
+        const parties = result[role === "buyer" ? "buyers" : "sellers"];
+        if (candidate && !parties.some(p=>norm(p.fullName)===norm(candidate.fullName))) parties.push(candidate);
         lower = row.top;
       }
     }

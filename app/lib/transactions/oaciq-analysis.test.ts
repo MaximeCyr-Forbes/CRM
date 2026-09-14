@@ -32,7 +32,7 @@ describe("dossier multi-PDF réel vers propositions transactionnelles", () => {
   it("signale MO non résolu au lieu de confirmer silencieusement les dates initiales", async () => {
     const result = await analyzeOaciqTransaction([await pdf("PA.pdf", [promise().pages[0].text]), await pdf("MO.pdf", ["MODIFICATIONS AUX CONDITIONS\nMO 10002\nLe délai d'inspection est modifié."])]);
     expect(result.requiresReview).toBe(true);
-    expect(result.warnings.join(" ")).toContain("MO/AG");
+    expect(result.warnings.join(" ")).toContain("MO 10002");
     expect(proposalsFromAnalysis(result).every((d) => !d.selected)).toBe(true);
   });
   it("signale un PDF regroupant PA et CP et laisse toutes les dates à vérifier", async () => {

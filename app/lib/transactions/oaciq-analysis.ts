@@ -9,8 +9,14 @@ import type { OaciqTransactionPreview } from "./oaciq-agenda";
 /** Preview only: one extraction/consolidated analysis, no save or Google call. */
 export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<OaciqTransactionPreview> {
   const documents = [];
-  for (const input of inputs) documents.push(await extractOaciqPdf(input));
+  const extractionWarnings: string[] = [];
+  for (const input of inputs) {
+    try { documents.push(await extractOaciqPdf(input)); }
+    catch { extractionWarnings.push(`${input.name} : PDF impossible à interpréter; les autres documents ont été analysés.`); }
+  }
+  if (!documents.length) throw new Error("Aucun document OACIQ exploitable.");
   const data = await analyzeOaciqDocuments(documents);
+  data.warnings.push(...extractionWarnings);
   data.warnings.push(...data.priceWarnings);
   const merged = documents.some((doc) => {
     // A PA's clauses mention annexes and counter-proposals. Only standalone
@@ -21,9 +27,9 @@ export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<
     const kinds = new Set(headings.map(line => documentKind([line])).filter(kind => kind !== "unknown"));
     return kinds.size > 1;
   });
-  const requiresReview = merged || data.forms.some((f) => f.kind === "unknown");
+  const requiresReview = !data.mainDocument || merged || extractionWarnings.length > 0 || data.forms.some((f) => f.kind === "unknown") || !!data.documentaryState?.modifications.some(m=>!m.applied) || data.forms.some(f=>f.kind==='modification' && !data.documentaryState?.modifications.some(m=>m.document===f.document));
   if (merged) data.warnings.push("À vérifier : ce PDF semble regrouper plusieurs formulaires. Le lecteur source ne les sépare pas automatiquement. Fournissez des PDF séparés, ou vérifiez et corrigez toutes les échéances.");
-  if (data.forms.some((f) => f.kind === "unknown")) data.warnings.push("À vérifier : un formulaire non pris en charge (notamment MO/AG) peut modifier les dates. Vérifiez les documents et corrigez les propositions; aucune échéance n’est cochée automatiquement.");
+  if (data.forms.some((f) => f.kind === "unknown")) data.warnings.push("À vérifier : un formulaire non pris en charge peut modifier les dates. Vérifiez les documents et corrigez les propositions; aucune échéance n’est cochée automatiquement.");
   const details = extractTransactionDetails(documents.find((doc) => doc.name === data.mainDocument));
   return { ...data, ...details, buyerNames: details.buyers.map((p) => p.fullName), sellerNames: details.sellers.map((p) => p.fullName), requiresReview };
 }

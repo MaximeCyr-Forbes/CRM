@@ -8,6 +8,7 @@ export type OaciqFormKind =
   | "annex_f"
   | "annex_water"
   | "bonification"
+  | "modification"
   | "unknown";
 export type OaciqWord = {
   text: string;
@@ -123,6 +124,11 @@ export type OaciqDeadline = {
   };
 };
 export type OaciqAnalysis = {
+  documentaryState?: {
+    links: { document: string; targetForm: string; section?: string }[];
+    modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean }[];
+    acceptanceDeadline: { date: string | null; time: string | null; sourceDocument: string };
+  };
   finalPrice: number | null;
   priceSourceForm: string | null;
   priceSourceDocument: string | null;

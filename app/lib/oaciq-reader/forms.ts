@@ -79,6 +79,7 @@ export function extractClause12(pages: string[]): string {
 export function formNumber(name: string, pages: string[]): string {
   // The form's own code wins over the upload name or a reference to another PA.
   const kind = documentKind(pages);
+  if (kind === "modification") return /\bMO\s*[- ]?\s*(\d{4,6})\b/i.exec(pages.join("\n"))?.[1].padStart(5, "0") || "";
   if (kind === "bonification") {
     const own = /\bBO\s*[- ]?\s*(\d{4,6})\b/i.exec(pages.join("\n"));
     if (own) return own[1].padStart(5, "0");
@@ -109,6 +110,8 @@ export function formNumber(name: string, pages: string[]): string {
 }
 export function documentKind(pages: string[]): OaciqFormKind {
   const first = norm(pages[0] || "");
+  if ((pages[0] || '').split('\n').some(line=>/^(?:formulaire obligatoire\s*[-–—:]?\s*)?modifications(?:\s+aux conditions)?$/.test(norm(line))) || /\bm1\.\s*identification du formulaire principal/.test(first))
+    return "modification";
   if (/\bbonifications?\s+avant\s+acceptation\b/.test(first))
     return "bonification";
   if (/annexe eau potable|drinking water and septic/.test(first))
