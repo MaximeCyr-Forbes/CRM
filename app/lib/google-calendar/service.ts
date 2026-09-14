@@ -844,6 +844,7 @@ export function buildDeadlineEventPayload(
     "",
     `Transaction : ${transaction.address}`,
     `Échéance : ${deadline.title}`,
+    deadline.source_type === "oaciq" ? `Source : ${[deadline.source_form, deadline.source_section, deadline.source_document].filter(Boolean).join(" · ")}` : null,
     appUrl ? `Fiche CRM : ${appUrl}/transactions/${transaction.id}` : null,
   ].filter((line): line is string => Boolean(line));
   const dueTime = normalizeTransactionDeadlineTime(deadline.due_time);
@@ -942,24 +943,18 @@ export async function syncTransactionDeadline(deadlineId: string): Promise<Trans
     }
 
     const eventExists = Boolean(deadline.google_calendar_event_id && deadline.google_calendar_event_broker === broker);
-    const eventId = eventExists ? deadline.google_calendar_event_id! : createGoogleEventId();
-    if (!eventExists) {
-      const { data, error } = await admin.from("transaction_deadlines").update({
-        google_calendar_event_id: eventId,
-        google_calendar_event_broker: broker,
-        google_calendar_sync_status: "pending",
-        google_calendar_last_error: null,
-      }).eq("id", deadline.id).select("*").single();
-      if (error) throw error;
-      deadline = data as TransactionDeadlineRow;
-    }
+    // A stable UUID-derived Google ID makes concurrent requests and retries
+    // idempotent, even if Google succeeds but saving its ID fails. Persist only
+    // after success so a failed first attempt keeps the CRM event ID null.
+    const eventId = eventExists ? deadline.google_calendar_event_id! : `d${deadline.id.replace(/-/g, "")}`;
     await upsertDeadlineGoogleEvent(connection, transaction, deadline, eventId, eventExists);
-    await admin.from("transaction_deadlines").update({
+    const { error: saveError } = await admin.from("transaction_deadlines").update({
       google_calendar_event_id: eventId,
       google_calendar_event_broker: broker,
       google_calendar_sync_status: "synced",
       google_calendar_last_error: null,
     }).eq("id", deadline.id);
+    if (saveError) throw saveError;
     return { status: "synced", message: "Échéance synchronisée avec Google Agenda." };
   } catch (error) {
     await admin.from("transaction_deadlines").update({
@@ -975,7 +970,7 @@ export async function deleteCalendarEventForTransactionDeadline(
 ) {
   if (!deadline.google_calendar_event_id || !deadline.google_calendar_event_broker) return;
   const connection = await getConnection(deadline.google_calendar_event_broker);
-  if (!connection) return;
+  if (!connection) throw new Error("Reconnectez Google Agenda avant de supprimer cette échéance synchronisée.");
   await deleteGoogleEvent(connection, deadline.google_calendar_event_id);
 }
 

@@ -1,4 +1,5 @@
-import type { TransactionDraft, TransactionStatus, TransactionType } from "../../data/transaction-types";
+import type { Transaction, TransactionDraft, TransactionStatus, TransactionType } from "../../data/transaction-types";
+import { currentTorontoDateTime } from "../../lib/transactions/deadline-time";
 import { statusesForTransaction, validStatusForTransaction } from "../../data/transaction-types";
 import type { TransactionBroker } from "../../data/transaction-types";
 import { requireApiAccess } from "../../lib/crm-access";
@@ -31,6 +32,24 @@ import {
 } from "../../lib/transactions/server-service";
 
 export const dynamic = "force-dynamic";
+
+// Google is secondary: a failure must never turn a committed CRM write into
+// an apparent creation failure. Each deadline can be retried independently.
+async function syncDeadlineSafely(id: string) {
+  try { return await syncTransactionDeadline(id); }
+  catch { return { status: "error" as const, message: "Échéance enregistrée · synchronisation Google à réessayer." }; }
+}
+
+async function syncAgenda(transaction: Transaction, deadlines = transaction.deadlines ?? []) {
+  const results = [];
+  for (let index = 0; index < deadlines.length; index += 4) {
+    results.push(...await Promise.all(deadlines.slice(index, index + 4).map(d => syncDeadlineSafely(d.id))));
+  }
+  const data = await getTransaction(transaction.id).catch(() => transaction);
+  return { data, calendar: { message: results.some(r => r?.status !== "synced")
+    ? "Transaction enregistrée · certaines échéances Google sont à synchroniser ou à réessayer."
+    : "Échéances synchronisées avec Google Agenda." } };
+}
 
 function isBroker(value: unknown): value is TransactionBroker {
   return value === "france" || value === "maxime" || value === "sandrine";
@@ -104,11 +123,19 @@ export async function POST(request: Request) {
       if (body.creationKey !== undefined && !isUuid(body.creationKey)) {
         return Response.json({ error: "Clé de création invalide." }, { status: 400 });
       }
-      return Response.json({ data: await createTransaction(draft, body.creationKey as string | undefined) });
+      const transaction = await createTransaction(draft, body.creationKey as string | undefined);
+      return Response.json(transaction.deadlines?.length ? await syncAgenda(transaction) : { data: transaction });
     }
 
     const transactionId = typeof body.transactionId === "string" ? body.transactionId : "";
     if (!transactionId) return Response.json({ error: "Transaction invalide." }, { status: 400 });
+
+    if (body.action === "syncDeadlines") {
+      const transaction = await getTransaction(transactionId);
+      const today = currentTorontoDateTime().date;
+      return Response.json(await syncAgenda(transaction, transaction.deadlines.filter(d => !d.completed && d.dueDate >= today
+        && (!d.googleCalendarEventId || d.googleCalendarSyncStatus !== "synced"))));
+    }
 
     if (body.action === "update") {
       const values = body.values && typeof body.values === "object"
@@ -138,7 +165,13 @@ export async function POST(request: Request) {
       if (values.price === null || typeof values.price === "number") allowed.price = values.price;
       if (values.promiseDate === null || isDate(values.promiseDate)) allowed.promiseDate = values.promiseDate;
       if (typeof values.generalNotes === "string") allowed.generalNotes = values.generalNotes;
-      return Response.json({ data: await updateTransaction(transactionId, allowed) });
+      const updated = await updateTransaction(transactionId, allowed);
+      // Update existing Google events when their address/broker changes, but
+      // never backfill old internal deadlines from an unrelated form edit.
+      if (updated.address !== existing.address || updated.broker !== existing.broker) {
+        return Response.json(await syncAgenda(updated, updated.deadlines.filter(d => !!d.googleCalendarEventId)));
+      }
+      return Response.json({ data: updated });
     }
 
     if (body.action === "deleteTransaction") {
@@ -164,10 +197,9 @@ export async function POST(request: Request) {
       const title = typeof body.title === "string" ? body.title.trim() : "";
       const dueDate = body.dueDate;
       const dueTime = parseTransactionDeadlineTimeInput(body.dueTime);
-      const syncToGoogle = body.syncToGoogle === true;
       if (!title || !isDate(dueDate) || !dueTime.valid) return Response.json({ error: "Échéance invalide." }, { status: 400 });
-      const deadlineId = await insertDeadline(transactionId, title, dueDate, dueTime.value ?? null, syncToGoogle);
-      const calendar = syncToGoogle ? await syncTransactionDeadline(deadlineId) : null;
+      const deadlineId = await insertDeadline(transactionId, title, dueDate, dueTime.value ?? null, true);
+      const calendar = await syncDeadlineSafely(deadlineId);
       return Response.json({ data: await getTransaction(transactionId), calendar });
     }
 
@@ -187,10 +219,9 @@ export async function POST(request: Request) {
         ...(isDate(body.dueDate) ? { dueDate: body.dueDate } : {}),
         ...(dueTime.value !== undefined ? { dueTime: dueTime.value } : {}),
         ...(typeof body.completed === "boolean" ? { completed: body.completed } : {}),
-        ...(body.syncToGoogle === true ? { syncToGoogle: true } : {}),
+        syncToGoogle: true,
       });
-      const shouldSync = body.syncToGoogle === true || Boolean(existing.google_calendar_event_id);
-      const calendar = shouldSync ? await syncTransactionDeadline(deadlineId) : null;
+      const calendar = await syncDeadlineSafely(deadlineId);
       return Response.json({ data: await getTransaction(transactionId), calendar });
     }
 
@@ -205,7 +236,7 @@ export async function POST(request: Request) {
       try {
         await deleteCalendarEventForTransactionDeadline(deadline);
       } catch {
-        warning = "Échéance supprimée du CRM · événement Google impossible à supprimer.";
+        return Response.json({ error: "Suppression Google impossible. L’échéance est conservée ; reconnectez Google Agenda ou réessayez." }, { status: 502 });
       }
       await deleteDeadline(deadlineId);
       return Response.json({ data: await getTransaction(transactionId), warning });

@@ -57,7 +57,7 @@ function DeadlineModal({
   initial?: TransactionDeadline;
   isSaving: boolean;
   onClose: () => void;
-  onSave: (values: { title: string; dueDate: string; dueTime: string | null; syncToGoogle: boolean }) => Promise<void>;
+  onSave: (values: { title: string; dueDate: string; dueTime: string | null }) => Promise<void>;
 }) {
   const initialTitleState = deadlineTitleEditorState(initial?.title);
   const [choice, setChoice] = useState(initialTitleState.choice);
@@ -65,7 +65,6 @@ function DeadlineModal({
   const [otherConditionTitle, setOtherConditionTitle] = useState(initialTitleState.otherConditionTitle);
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? "");
   const [dueTime, setDueTime] = useState(initial?.dueTime ?? "");
-  const [syncToGoogle, setSyncToGoogle] = useState(Boolean(initial?.googleCalendarEventId));
   const [error, setError] = useState<string | null>(null);
   useDialogLifecycle(true, onClose);
 
@@ -76,7 +75,7 @@ function DeadlineModal({
     }
     const title = deadlineTitleFromChoice(choice, customTitle, otherConditionTitle);
     if (!title || !dueDate) return setError("Ajoutez un titre et une date.");
-    try { await onSave({ title, dueDate, dueTime: dueTime || null, syncToGoogle }); }
+    try { await onSave({ title, dueDate, dueTime: dueTime || null }); }
     catch { setError("L’échéance n’a pas pu être enregistrée."); }
   }
 
@@ -90,7 +89,7 @@ function DeadlineModal({
         <label className="transaction-field"><span>Date</span><input onChange={(event) => setDueDate(event.target.value)} required type="date" value={dueDate} /></label>
         <label className="transaction-field"><span>Heure <small>Facultative</small></span><input aria-label="Heure facultative de l’échéance" onChange={(event) => setDueTime(event.target.value)} type="time" value={dueTime} /></label>
       </div>
-      <label className="deadline-calendar-choice"><input checked={syncToGoogle} onChange={(event) => setSyncToGoogle(event.target.checked)} type="checkbox" /><span>Ajouter à Google Agenda du courtier responsable</span></label>
+      <p className="oaciq-notice">Google Agenda : synchronisation automatique avec l’agenda du courtier responsable, si connecté.</p>
       {error && <p className="transaction-form-error" role="alert">{error}</p>}
       <div className="transaction-form-actions"><button onClick={onClose} type="button">Annuler</button><button className="transaction-submit" disabled={isSaving} type="submit">Enregistrer</button></div>
     </form>
@@ -127,7 +126,7 @@ export default function TransactionDetailPage() {
   const params = useParams<{ transactionId: string }>();
   const router = useRouter();
   const { contacts } = useContacts();
-  const { transactions, isLoading, isSaving, error, updateTransaction, updateStatus, completeSale, completePurchase, returnToMarket, deleteTransaction, addDeadline, updateDeadline, deleteDeadline, addNote } = useTransactions();
+  const { transactions, isLoading, isSaving, error, updateTransaction, updateStatus, completeSale, completePurchase, returnToMarket, deleteTransaction, addDeadline, updateDeadline, deleteDeadline, syncDeadlines, addNote } = useTransactions();
   const { listings, retry: retryListings } = useListings();
   const transaction = transactions.find((item) => item.id === params.transactionId);
   const linkedContacts = useMemo(() => transaction?.contactIds.map((id) => contacts.find((contact) => contact.id === id)).filter(Boolean) ?? [], [contacts, transaction]);
@@ -159,9 +158,9 @@ export default function TransactionDetailPage() {
   const showReturnToMarketAction = canReturnTransactionToMarket(transaction, sourceListing);
   const finalized = isFinalizedTransaction(transaction);
 
-  async function saveDeadline(values: { title: string; dueDate: string; dueTime: string | null; syncToGoogle: boolean }) {
+  async function saveDeadline(values: { title: string; dueDate: string; dueTime: string | null }) {
     const result = deadlineModal === "new"
-      ? await addDeadline(transaction!.id, values.title, values.dueDate, values.dueTime, values.syncToGoogle)
+      ? await addDeadline(transaction!.id, values.title, values.dueDate, values.dueTime)
       : await updateDeadline(transaction!.id, deadlineModal!.id, values);
     setDeadlineModal(null);
     setConfirmation(result.message ?? "Échéance enregistrée.");
@@ -223,7 +222,7 @@ export default function TransactionDetailPage() {
 
     <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />
 
-    <TransactionAgenda deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
+    <TransactionAgenda onSync={async () => { const result = await syncDeadlines(transaction.id); setConfirmation(result.message ?? "Synchronisation terminée."); }} deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
   </div>

@@ -36,7 +36,8 @@ type TransactionsContextValue = {
   completePurchase: (transactionId: string, values: TransactionPurchaseCompletion) => Promise<Transaction>;
   returnToMarket: (transactionId: string) => Promise<TransactionReturnToMarketResult>;
   deleteTransaction: (transactionId: string) => Promise<{ message?: string }>;
-  addDeadline: (transactionId: string, title: string, dueDate: string, dueTime: string | null, syncToGoogle: boolean) => Promise<MutationResult>;
+  addDeadline: (transactionId: string, title: string, dueDate: string, dueTime: string | null) => Promise<MutationResult>;
+  syncDeadlines: (transactionId: string) => Promise<MutationResult>;
   updateDeadline: (transactionId: string, deadlineId: string, values: { title?: string; dueDate?: string; dueTime?: string | null; completed?: boolean; syncToGoogle?: boolean }) => Promise<MutationResult>;
   deleteDeadline: (transactionId: string, deadlineId: string) => Promise<MutationResult>;
   addNote: (transactionId: string, content: string) => Promise<Transaction>;
@@ -172,10 +173,15 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return { message: payload.warning };
   }), [runWrite]);
 
-  const addDeadline = useCallback((transactionId: string, title: string, dueDate: string, dueTime: string | null, syncToGoogle: boolean) => runWrite(async () => {
-    const payload = await transactionRequest<Transaction>({ action: "addDeadline", transactionId, title, dueDate, dueTime, syncToGoogle });
+  const addDeadline = useCallback((transactionId: string, title: string, dueDate: string, dueTime: string | null) => runWrite(async () => {
+    const payload = await transactionRequest<Transaction>({ action: "addDeadline", transactionId, title, dueDate, dueTime });
     replaceTransaction(payload.data);
     return { transaction: payload.data, message: payload.calendar?.message };
+  }), [replaceTransaction, runWrite]);
+
+  const syncDeadlines = useCallback((transactionId: string) => runWrite(async () => {
+    const payload = await transactionRequest<Transaction>({ action: "syncDeadlines", transactionId });
+    return { transaction: replaceTransaction(payload.data), message: payload.calendar?.message };
   }), [replaceTransaction, runWrite]);
 
   const editDeadline = useCallback((transactionId: string, deadlineId: string, values: { title?: string; dueDate?: string; dueTime?: string | null; completed?: boolean; syncToGoogle?: boolean }) => runWrite(async () => {
@@ -209,10 +215,11 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     returnToMarket,
     deleteTransaction: removeTransaction,
     addDeadline,
+    syncDeadlines,
     updateDeadline: editDeadline,
     deleteDeadline: removeDeadline,
     addNote,
-  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, completePurchase, returnToMarket, removeTransaction, addDeadline, editDeadline, removeDeadline, addNote]);
+  }), [transactions, isLoading, pendingWrites, error, loadTransactions, create, update, updateStatus, completeSale, completePurchase, returnToMarket, removeTransaction, addDeadline, syncDeadlines, editDeadline, removeDeadline, addNote]);
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>;
 }

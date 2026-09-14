@@ -4,11 +4,12 @@ import type { TransactionDeadline } from "../data/transaction-types";
 import { compareTransactionDeadlines, formatTransactionDeadlineTime } from "../lib/transactions/deadline-time";
 import { agendaState, CONFIDENCE_LABELS } from "../lib/transactions/oaciq-agenda";
 
-export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComplete, onDelete }: {
+export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComplete, onDelete, onSync }: {
   deadlines: TransactionDeadline[]; disabled: boolean; onAdd: () => void;
   onEdit: (deadline: TransactionDeadline) => void;
   onComplete: (deadline: TransactionDeadline, completed: boolean) => Promise<unknown>;
   onDelete: (deadline: TransactionDeadline) => Promise<unknown>;
+  onSync: () => Promise<unknown>;
 }) {
   const [now, setNow] = useState(() => new Date());
   const [pending, setPending] = useState(false);
@@ -24,6 +25,8 @@ export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComple
   return <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title">
     <div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">AGENDA DE LA TRANSACTION</h2></div><button className="transaction-add-deadline" disabled={disabled} onClick={onAdd} type="button">+ Ajouter une échéance</button></div>
     {error && <p role="alert" className="transaction-form-error">{error}</p>}
+    <p className="oaciq-notice">Google Agenda : synchronisation automatique avec l’agenda du courtier responsable, si connecté.</p>
+    <button className="transaction-add-deadline" disabled={disabled || pending} onClick={() => void change(onSync)} type="button">Synchroniser les échéances</button>
     <div className="transaction-deadlines">{[...deadlines].sort(compareTransactionDeadlines).map((deadline) => {
       const state = agendaState(deadline, now);
       const time = formatTransactionDeadlineTime(deadline.dueTime);

@@ -133,14 +133,14 @@ describe("heure des échéances de transaction", () => {
     expect(backToAllDay.start).toEqual({ date: "2026-08-27" });
   });
 
-  it("expose le champ heure dans l’interface et ne synchronise que sur demande ou événement existant", () => {
+  it("expose le champ heure dans l’interface et synchronise automatiquement sans case Google", () => {
     const page = readFileSync("app/transactions/[transactionId]/page.tsx", "utf8");
     const route = readFileSync("app/api/transactions/route.ts", "utf8");
     expect(page).toContain('type="time"');
     expect(page).toContain("initial?.dueTime ?? \"\"");
     expect(page).toContain("dueTime: dueTime || null");
-    expect(route).toContain("syncToGoogle ? await syncTransactionDeadline(deadlineId) : null");
-    expect(route).toContain("body.syncToGoogle === true || Boolean(existing.google_calendar_event_id)");
+    expect(route).toContain("await syncDeadlineSafely(deadlineId)");
+    expect(page).not.toContain("deadline-calendar-choice");
     expect(readFileSync("app/lib/google-calendar/service.ts", "utf8")).toContain('method: "PUT"');
   });
 

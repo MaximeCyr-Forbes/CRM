@@ -109,7 +109,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
       {displayWarnings.length > 0 && <div className="oaciq-warnings" role="status"><strong>À VÉRIFIER</strong><ul>{displayWarnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></div>}
     </div>}
     <div className="oaciq-review-heading"><h3>ÉCHÉANCES DÉTECTÉES</h3><span>{proposals.filter((p) => p.selected).length} sélectionnée(s)</span></div>
-    <p className="oaciq-notice">Les échéances fiables sont cochées par défaut et seront enregistrées dans l’agenda de la transaction. Décochez celles à exclure. Aucun événement Google Agenda ne sera créé automatiquement.</p>
+    <p className="oaciq-notice">Les échéances fiables sont cochées par défaut et seront enregistrées dans l’agenda de la transaction. Décochez celles à exclure. Les échéances enregistrées seront synchronisées automatiquement avec Google Agenda du courtier responsable, si connecté.</p>
     <fieldset className="oaciq-proposals" disabled={disabled || busy}>
       {proposals.map((p, index) => <article className="oaciq-proposal" key={p.id}>
         {(p.requiresReview || !isAgendaDate(p.dueDate)) && <p className="oaciq-notice"><strong>À VÉRIFIER</strong> · Confirmez la source et une date valide avant de sélectionner cette échéance.</p>}
