@@ -37,6 +37,7 @@ export function mapListing(row: ListingRow, ownerRows: ReadonlyArray<ListingOwne
     collaboratingBrokerName: row.collaborating_broker_name ?? "",
     propertyType: row.property_type,
     listingDate: row.listing_date,
+    contractSignedDate: row.contract_signed_date ?? null,
     expirationDate: row.expiration_date,
     centrisUrl: row.centris_url ?? "",
     publicUrl: row.public_url ?? "",

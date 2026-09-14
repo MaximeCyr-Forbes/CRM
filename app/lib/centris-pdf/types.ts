@@ -58,6 +58,8 @@ export type CentrisParseResult = {
     taxesApplicable: boolean | null;
   };
   dates: {
+    contractSignedDate: string | null;
+    contractExpirationDate: string | null;
     paAcceptedDate: string | null;
     conditionsLiftedDate: string | null;
     occupancyDate: string | null;

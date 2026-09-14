@@ -231,9 +231,11 @@ export function ListingEditorModal({
     selection: CentrisListingImportSelection,
   ) {
     setValues(nextValues);
-    setAskingPrice(nextValues.askingPrice === null ? "" : String(nextValues.askingPrice));
-    setMonthlyRent(nextValues.monthlyRent === null ? "" : String(nextValues.monthlyRent));
-    setAppliedCentrisPricing(selection.price || result.pricing.mode === "annual_per_square_foot" ? result.pricing : null);
+    if (selection.price || selection.purpose) {
+      setAskingPrice(nextValues.askingPrice === null ? "" : String(nextValues.askingPrice));
+      setMonthlyRent(nextValues.monthlyRent === null ? "" : String(nextValues.monthlyRent));
+      setAppliedCentrisPricing(selection.price || result.pricing.mode === "annual_per_square_foot" ? result.pricing : null);
+    }
     setDuplicateListing(null);
   }
 
@@ -289,7 +291,8 @@ export function ListingEditorModal({
                 <label><span>Loyer mensuel</span><span className="listing-money-field"><input min="0" onChange={(event) => setMonthlyRent(event.target.value)} step="0.01" type="number" value={monthlyRent} /><strong>$ / mois</strong></span>{appliedCentrisPricing?.mode === "monthly_rent" && <small className="transaction-centris-price-context">Loyer provenant de la fiche Centris : {new Intl.NumberFormat("fr-CA").format(appliedCentrisPricing.monthlyAmount ?? 0)} $ / mois.</small>}{appliedCentrisPricing?.mode === "annual_per_square_foot" && <small className="transaction-centris-price-context is-warning">Tarif détecté : {new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(appliedCentrisPricing.annualPerSquareFootAmount ?? 0)} $ / année / pi². Montant mensuel à confirmer manuellement.</small>}</label>
               )}
               <label><span>Date de mise en marché</span><input onChange={(event) => update("listingDate", event.target.value || null)} type="date" value={values.listingDate ?? ""} /></label>
-              <label><span>Date d’expiration</span><input onChange={(event) => update("expirationDate", event.target.value || null)} type="date" value={values.expirationDate ?? ""} /></label>
+              <label><span>Date de signature du contrat</span><input onChange={(event) => update("contractSignedDate", event.target.value || null)} type="date" value={values.contractSignedDate ?? ""} /></label>
+              <label><span>Date d’expiration du contrat</span><input onChange={(event) => update("expirationDate", event.target.value || null)} type="date" value={values.expirationDate ?? ""} /></label>
             </div>
           </fieldset>
 

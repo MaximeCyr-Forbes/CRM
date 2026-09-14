@@ -17,6 +17,16 @@ const owner2 = "00000000-0000-4000-8000-000000000002";
 const owner3 = "00000000-0000-4000-8000-000000000003";
 const missingOwner = "00000000-0000-4000-8000-000000000099";
 
+it('persists contract dates independently of listing date and allows manual correction',async()=>{
+  const service=createListingsService(new MemoryListingRepository());
+  const listing=await service.createListing(listingDraft({contractSignedDate:'2026-09-09',expirationDate:'2027-03-31',listingDate:'2026-09-12'}));
+  expect(await service.getListing(listing.id)).toMatchObject({contractSignedDate:'2026-09-09',expirationDate:'2027-03-31',listingDate:'2026-09-12'});
+  await service.updateListing(listing.id,{contractSignedDate:'2026-09-08'});
+  expect(await service.getListing(listing.id)).toMatchObject({contractSignedDate:'2026-09-08',listingDate:'2026-09-12'});
+  await service.updateListing(listing.id,{contractSignedDate:null});
+  expect((await service.getListing(listing.id)).contractSignedDate).toBeNull();
+});
+
 function listingDraft(values: Partial<ListingDraft> = {}): ListingDraft {
   return {
     civicNumber: "150",
@@ -65,6 +75,7 @@ function rowFromDraft(id: string, draft: ListingDraft): ListingRow {
     collaborating_broker_name: "",
     property_type: draft.propertyType,
     listing_date: draft.listingDate,
+    contract_signed_date: draft.contractSignedDate ?? null,
     expiration_date: draft.expirationDate,
     centris_url: draft.centrisUrl,
     public_url: draft.publicUrl,
@@ -131,6 +142,7 @@ class MemoryListingRepository implements ListingRepository {
       broker: "broker", status: "status", purpose: "purpose", askingPrice: "asking_price",
       monthlyRent: "monthly_rent", propertyType: "property_type", listingDate: "listing_date",
       expirationDate: "expiration_date", centrisUrl: "centris_url", publicUrl: "public_url",
+      contractSignedDate: "contract_signed_date",
       primaryImageUrl: "primary_image_url", generalNotes: "general_notes",
     };
     const updated = { ...current } as Record<string, unknown>;

@@ -149,6 +149,7 @@ export default function ListingDetailPage() {
             <div><dt>Statut</dt><dd>{LISTING_STATUS_LABELS[listing.status]}</dd></div>
             <div><dt>Type de mandat</dt><dd>{LISTING_PURPOSE_LABELS[listing.purpose]}</dd></div>
             <div><dt>Date de mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div>
+            <div><dt>Signature du contrat de courtage</dt><dd>{formatListingDate(listing.contractSignedDate ?? null)}</dd></div>
             <div><dt>Date d’expiration</dt><dd>{formatListingDate(listing.expirationDate)}</dd></div>
           </dl>
           {listing.status === "sold" && (

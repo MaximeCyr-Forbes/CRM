@@ -77,6 +77,7 @@ export type Listing = {
   collaboratingBrokerName: string;
   propertyType: ListingPropertyType;
   listingDate: string | null;
+  contractSignedDate?: string | null;
   expirationDate: string | null;
   centrisUrl: string;
   publicUrl: string;
@@ -111,6 +112,7 @@ export type ListingDraft = Pick<
   | "monthlyRent"
   | "propertyType"
   | "listingDate"
+  | "contractSignedDate"
   | "expirationDate"
   | "centrisUrl"
   | "publicUrl"

@@ -2,6 +2,7 @@ import { normalizeExtractedPDF, removeCentrisSourceBlock, sourcePagesFor } from 
 import { parseCentrisAddress } from "./parse-address";
 import { parseCentrisPricing } from "./parse-price";
 import { parseCentrisProperty } from "./parse-property";
+import { parseContractDates } from "./parse-contract-dates";
 import { mapCentrisResultToTransactionSuggestions } from "./transaction-mapping";
 import type { CentrisMarketStatus, CentrisParseResult, ExtractedPDFText } from "./types";
 
@@ -58,12 +59,14 @@ export function parseCentrisText(extracted: ExtractedPDFText, sourceFileName: st
   const address = parseCentrisAddress(firstPage);
   const pricing = parseCentrisPricing(firstPage);
   const { property, financial, rentalUnits } = parseCentrisProperty(normalized.text);
+  const contract = parseContractDates(normalized.pages);
   const dates = {
+    ...contract.dates,
     paAcceptedDate: explicitDate(normalized.text, /Date PA acceptée/i),
     conditionsLiftedDate: explicitDate(normalized.text, /Date de levée des conditions/i),
     occupancyDate: explicitDate(normalized.text, /Date (?:ou délai d’occupation|d'occupation)/i),
   };
-  const warnings: string[] = [];
+  const warnings: string[] = [...contract.warnings];
   if (!isRecognizedCentrisDocument) warnings.push("Le document ne correspond pas clairement à une fiche détaillée Centris.");
   if (!address.fullAddress) warnings.push("Adresse non détectée avec suffisamment de confiance.");
   if (pricing.mode === "annual_per_square_foot") {
@@ -89,6 +92,8 @@ export function parseCentrisText(extracted: ExtractedPDFText, sourceFileName: st
     rentalUnits,
     sections: parseSections(normalized.text),
     confidence: {
+      contractSignedDate: dates.contractSignedDate ? 'high' : 'low',
+      expirationDate: dates.contractExpirationDate ? 'high' : 'low',
       centrisNumber: centrisNumber ? "high" : "low",
       centrisMarketStatus: centrisMarketStatusRaw ? "high" : "low",
       address: address.fullAddress ? "high" : "low",
@@ -97,6 +102,7 @@ export function parseCentrisText(extracted: ExtractedPDFText, sourceFileName: st
       paAcceptedDate: dates.paAcceptedDate ? "high" : "low",
     },
     sourcePages: {
+      ...contract.sourcePages,
       centrisNumber: sourcePagesFor(normalized.pages, /No\s+Centris|\b\d{7,9}\s*\([^)]*\)/i),
       address: sourcePagesFor(normalized.pages, /No\s+Centris|\b[A-Z]\d[A-Z]\s*\d[A-Z]\d\b/i),
       propertyType: sourcePagesFor(normalized.pages, /Genre de propriété|\bTerrain\b/i),

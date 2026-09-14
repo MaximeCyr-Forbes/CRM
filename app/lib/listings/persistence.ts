@@ -40,6 +40,7 @@ export type ListingRow = {
   collaborating_broker_name: string;
   property_type: ListingPropertyType;
   listing_date: string | null;
+  contract_signed_date?: string | null;
   expiration_date: string | null;
   centris_url: string;
   public_url: string;
@@ -123,7 +124,7 @@ function isNullableAmount(value: unknown): value is number | null {
 }
 
 function isNullableDate(value: unknown): value is string | null {
-  return value === null || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value));
+  return value === null || isValidDate(value);
 }
 
 function isValidDate(value: unknown): value is string {
@@ -193,6 +194,7 @@ export function parseListingDraft(value: unknown): ListingDraft | null {
     || !isNullableAmount(data.askingPrice)
     || !isNullableAmount(data.monthlyRent)
     || !isNullableDate(data.listingDate)
+    || (data.contractSignedDate !== undefined && !isNullableDate(data.contractSignedDate))
     || !isNullableDate(data.expirationDate)
   ) return null;
   const ownerContactIds = uniqueOwnerIds(data.ownerContactIds);
@@ -216,6 +218,7 @@ export function parseListingDraft(value: unknown): ListingDraft | null {
     monthlyRent: data.monthlyRent,
     propertyType: data.propertyType,
     listingDate: data.listingDate,
+    contractSignedDate: data.contractSignedDate ?? null,
     expirationDate: data.expirationDate,
     centrisUrl: text("centrisUrl"),
     publicUrl: text("publicUrl"),
@@ -237,6 +240,7 @@ export function parseListingUpdate(value: unknown): ListingUpdate | null {
     "monthlyRent",
     "propertyType",
     "listingDate",
+    "contractSignedDate",
     "expirationDate",
     "ownerContactIds",
   ]);
@@ -277,6 +281,10 @@ export function parseListingUpdate(value: unknown): ListingUpdate | null {
   if (data.listingDate !== undefined) {
     if (!isNullableDate(data.listingDate)) return null;
     result.listingDate = data.listingDate;
+  }
+  if (data.contractSignedDate !== undefined) {
+    if (!isNullableDate(data.contractSignedDate)) return null;
+    result.contractSignedDate = data.contractSignedDate;
   }
   if (data.expirationDate !== undefined) {
     if (!isNullableDate(data.expirationDate)) return null;

@@ -18,6 +18,8 @@ function draft(values: Partial<ListingDraft> = {}): ListingDraft {
 }
 
 const allSelected: CentrisListingImportSelection = {
+  contractSignedDate: true,
+  expirationDate: true,
   address: true,
   centrisNumber: true,
   propertyType: true,

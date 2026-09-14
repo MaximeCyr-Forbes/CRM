@@ -67,6 +67,7 @@ describe("activation visuelle Listings", () => {
       "20260821110000_add_listing_sale_completion.sql",
       "20260822133000_allow_listing_return_to_market.sql",
       "20260824173000_update_listing_checklist_documents.sql",
+      "20260914162119_listing_contract_signed_date.sql",
     ]);
   });
 });

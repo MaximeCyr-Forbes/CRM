@@ -27,6 +27,8 @@ class CentrisListingImportError extends Error {
 }
 
 const fieldLabels: Record<CentrisListingImportField, string> = {
+  contractSignedDate: 'Date de signature du contrat',
+  expirationDate: 'Date d’expiration du contrat',
   address: "Adresse",
   centrisNumber: "Numéro Centris",
   propertyType: "Type de propriété",
@@ -122,6 +124,8 @@ export function CentrisListingImport({
   ) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const latestValues = useRef(currentValues);
+  latestValues.current = currentValues;
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [fileName, setFileName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -172,7 +176,10 @@ export function CentrisListingImport({
       const parsed = (payload as { data?: CentrisParseResult } | null)?.data;
       if (!parsed) throw new Error("La fiche Centris n’a retourné aucune information exploitable.");
       setResult(parsed);
-      setSelection(defaultCentrisListingImportSelection(currentValues, parsed));
+      const dateSelection = defaultCentrisListingImportSelection(latestValues.current, parsed);
+      setSelection(dateSelection);
+      const onlyDates = Object.fromEntries(Object.keys(dateSelection).map(key=>[key,(key==='contractSignedDate' || key==='expirationDate') && dateSelection[key as CentrisListingImportField]])) as CentrisListingImportSelection;
+      if(onlyDates.contractSignedDate || onlyDates.expirationDate) onApply(applyCentrisListingImport(latestValues.current, parsed, onlyDates),parsed,onlyDates);
       setStatus("success");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "La fiche Centris n’a pas pu être analysée.");

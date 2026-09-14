@@ -18,6 +18,8 @@ export const CENTRIS_LISTING_IMPORT_FIELDS = [
   "price",
   "status",
   "generalNotes",
+  "contractSignedDate",
+  "expirationDate",
 ] as const;
 
 export type CentrisListingImportField = (typeof CENTRIS_LISTING_IMPORT_FIELDS)[number];
@@ -161,6 +163,8 @@ function fieldConfidence(result: CentrisParseResult, field: CentrisListingImport
 }
 
 function fieldValues(current: ListingDraft, result: CentrisParseResult, field: CentrisListingImportField) {
+  if (field==='contractSignedDate') return {currentValue:current.contractSignedDate ?? null,centrisValue:result.dates.contractSignedDate};
+  if (field==='expirationDate') return {currentValue:current.expirationDate,centrisValue:result.dates.contractExpirationDate};
   if (field === "address") return { currentValue: currentAddress(current), centrisValue: centrisAddress(result) };
   if (field === "centrisNumber") return { currentValue: current.centrisNumber, centrisValue: result.centrisNumber };
   if (field === "propertyType") return {
@@ -189,6 +193,7 @@ function fieldValues(current: ListingDraft, result: CentrisParseResult, field: C
 }
 
 function hasMeaningfulCurrentValue(current: ListingDraft, field: CentrisListingImportField) {
+  if(field==='contractSignedDate' || field==='expirationDate') return !!current[field];
   if (field === "address") {
     return Boolean(current.civicNumber.trim() || current.address.trim() || current.apartment.trim()
       || current.city.trim() || current.postalCode.trim());
@@ -252,6 +257,8 @@ export function applyCentrisListingImport(
   selection: CentrisListingImportSelection,
 ): ListingDraft {
   const next: ListingDraft = { ...current, ownerContactIds: [...current.ownerContactIds] };
+  if(selection.contractSignedDate && result.dates.contractSignedDate) next.contractSignedDate=result.dates.contractSignedDate;
+  if(selection.expirationDate && result.dates.contractExpirationDate) next.expirationDate=result.dates.contractExpirationDate;
   const purpose = detectedPurpose(result);
 
   if (selection.address && centrisAddress(result)) {
