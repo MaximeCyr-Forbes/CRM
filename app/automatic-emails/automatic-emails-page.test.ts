@@ -26,7 +26,9 @@ describe("module Courriels Auto verrouillé", () => {
     expect(page).not.toContain("sendGmailMessage");
     expect(page).not.toContain("messages.send");
     for (const text of ["CAMPAGNES PERSONNALISÉES", "+ NOUVELLE CAMPAGNE", "DESTINATAIRES", "SÉQUENCE DE COURRIELS", "VOIR TOUS LES ENVOIS PRÉVUS"]) expect(custom).toContain(text);
-    expect(custom).toContain("SIMULATION SEULEMENT — AUCUN COURRIEL NE PEUT PARTIR");
+    expect(custom).toContain("AUCUN ENVOI AUTOMATIQUE");
+    expect(custom).toContain("PRÊTE POUR ENVOI MANUEL");
+    expect(custom).toContain("ENVOYER MAINTENANT");
     expect(custom).not.toContain("sendGmailMessage");
   });
 

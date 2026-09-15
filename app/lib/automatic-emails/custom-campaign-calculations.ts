@@ -18,13 +18,13 @@ function addDays(value: string, days: number) {
 
 export function resolveCustomEmailTemplate(template: string, contact: Pick<CustomEmailCampaignContact, "firstName" | "lastName" | "email" | "phone">) {
   const values: Record<string, string> = {
-    firstName: contact.firstName,
-    lastName: contact.lastName,
-    fullName: `${contact.firstName} ${contact.lastName}`.trim(),
-    email: contact.email,
-    phone: contact.phone,
+    firstName: (contact.firstName ?? "").trim(),
+    lastName: (contact.lastName ?? "").trim(),
+    fullName: `${(contact.firstName ?? "").trim()} ${(contact.lastName ?? "").trim()}`.trim(),
+    email: (contact.email ?? "").trim(),
+    phone: (contact.phone ?? "").trim(),
   };
-  return template.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9]*)\s*\}\}/g, (_, name: string) => values[name] ?? "");
+  return template.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9]*)\s*\}\}/g, (token, name: string) => Object.hasOwn(values, name) && values[name] ? values[name] : token);
 }
 
 export function customCampaignDuration(steps: readonly Pick<CustomEmailCampaignStep, "delayDaysAfterPrevious">[]) {

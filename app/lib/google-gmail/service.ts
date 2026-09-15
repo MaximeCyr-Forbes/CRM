@@ -13,6 +13,7 @@ export class GmailNotEnabledError extends Error {}
 export class GmailAuthorizationRequiredError extends Error {}
 export class GmailSignatureAuthorizationRequiredError extends Error {}
 export class GmailSendError extends Error {}
+export class GmailSendUncertainError extends Error {}
 
 export type GmailMessageInput = {
   to: string;
@@ -81,6 +82,11 @@ export function escapeGmailMessageHtml(message: string) {
     .replace(/\r\n|\r|\n/g, "<br>");
 }
 
+export function gmailMessageHtml(message: string, identity: GmailSendAsIdentity | null) {
+  const signature = identity?.signature?.trim() ? identity.signature : "";
+  return `<div dir="ltr">${escapeGmailMessageHtml(message)}${signature ? `<br><br>${signature}` : ""}</div>`;
+}
+
 function formatMailbox(identity: GmailSendAsIdentity) {
   const email = identity.sendAsEmail.trim();
   if (!EMAIL_PATTERN.test(email) || /[\r\n]/.test(email)) return null;
@@ -122,7 +128,7 @@ export function buildGmailRawMessage(
   const signatureText = signatureHtml ? gmailSignatureHtmlToText(signatureHtml) : "";
   const normalizedMessage = message.replace(/\r\n|\r|\n/g, "\r\n");
   const textBody = `${normalizedMessage}${signatureText ? `\r\n\r\n${signatureText}` : ""}`;
-  const htmlBody = `<div dir="ltr">${escapeGmailMessageHtml(message)}${signatureHtml ? `<br><br>${signatureHtml}` : ""}</div>`;
+  const htmlBody = gmailMessageHtml(message, identity);
   const mailbox = identity ? formatMailbox(identity) : null;
   const replyTo = identity?.replyToAddress?.trim();
   const headers = [
@@ -162,7 +168,7 @@ async function loadGmailSendAsIdentity(connection: GoogleConnectionRow) {
   return selectGmailSendAsIdentity(result.sendAs ?? [], connection.google_account_email);
 }
 
-export async function sendGmailMessage(broker: CalendarBroker, input: GmailMessageInput) {
+export async function prepareGmailSender(broker: CalendarBroker) {
   const connection = await getGoogleConnection(broker);
   if (!connection || !connection.scopes.includes(GMAIL_SEND_SCOPE)) {
     throw new GmailNotEnabledError("Gmail n’est pas activé pour ce courtier.");
@@ -172,20 +178,38 @@ export async function sendGmailMessage(broker: CalendarBroker, input: GmailMessa
   }
 
   const identity = await loadGmailSendAsIdentity(connection);
-  const response = await googleAuthenticatedRequest(connection, GMAIL_SEND_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ raw: buildGmailRawMessage(input, identity) }),
-  });
+  if (!identity || !formatMailbox(identity)) throw new GmailSendError("Identité Gmail indisponible.");
+  return { connection, identity };
+}
+
+export async function sendPreparedGmailMessage(sender: Awaited<ReturnType<typeof prepareGmailSender>>, input: GmailMessageInput) {
+  const { connection, identity } = sender;
+  const raw = buildGmailRawMessage(input, identity);
+  let response: Response;
+  try {
+    response = await googleAuthenticatedRequest(connection, GMAIL_SEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw }),
+    });
+  } catch {
+    throw new GmailSendUncertainError("Réponse Gmail inconnue. Vérifiez les messages envoyés avant toute nouvelle tentative.");
+  }
+  if (response.status >= 500) throw new GmailSendUncertainError("Réponse Gmail incertaine. Vérifiez les messages envoyés.");
   if (response.status === 403) {
     throw new GmailAuthorizationRequiredError("L’autorisation Gmail doit être renouvelée.");
   }
   if (!response.ok) throw new GmailSendError("Le courriel n’a pas pu être envoyé.");
 
-  const result = (await response.json()) as { id?: string; threadId?: string };
+  const result = (await response.json().catch(() => ({}))) as { id?: string; threadId?: string };
+  if (!result.id) throw new GmailSendUncertainError("Confirmation Gmail incomplète. Vérifiez les messages envoyés.");
   return {
     id: result.id ?? null,
     threadId: result.threadId ?? null,
     senderEmail: identity?.sendAsEmail ?? connection.google_account_email,
   };
+}
+
+export async function sendGmailMessage(broker: CalendarBroker, input: GmailMessageInput) {
+  return sendPreparedGmailMessage(await prepareGmailSender(broker), input);
 }

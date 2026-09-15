@@ -1,0 +1,11 @@
+work
+outputs
+dist
+.output
+.vinext
+.wrangler
+node_modules
+.env*
+*.log
+*.tsbuildinfo
+**/*.pdf
