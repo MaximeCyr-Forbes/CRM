@@ -5,6 +5,10 @@ import { workspaceRequest } from "../lib/workspace-request";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBroker } from "../broker-context";
+import { useCRMData } from "../crm-data-context";
+import { ShellIcon } from "../components/shell-icons";
+import { DashboardActions, DashboardTransactions } from "./dashboard-panels";
+import "./dashboard.css";
 import { DataStatus } from "../components/data-status";
 import { DailyNotificationsPanel } from "../components/daily-notifications-panel";
 import { useContacts } from "../contacts-context";
@@ -30,8 +34,9 @@ type FollowUpNotice = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { selectedBroker, isBrokerReady, capabilities } = useBroker();
+  const { selectedBroker, workspaceUser, isBrokerReady, capabilities } = useBroker();
   const { contacts } = useContacts();
+  const { isLoading: areContactsLoading, error: contactsError } = useCRMData();
   const { completeFollowUp } = useFollowUps();
   const { listings, isLoading: areListingsLoading, error: listingsError } = useListings();
   const { transactions, isLoading: areTransactionsLoading, error: transactionsError } = useTransactions();
@@ -166,40 +171,39 @@ export default function Dashboard() {
     return null;
   }
 
+  const activeTransactions = transactions.filter(transaction => transaction.broker === brokerKey && !isTransactionCompleted(transaction));
+  const displayMetrics = [metrics[4], metrics[3], metrics[0], metrics[1], metrics[2]];
+  const metricIcons = { transactions: "Transactions", listings: "Listings", today: "Calendrier", late: "Calendrier", buyers: "Contacts" };
+
   return (
-    <main className="dashboard-page">
+    <main className="dashboard-page dashboard-premium">
       <div className="dashboard-shell">
         <header className="dashboard-header">
           <div className="dashboard-identity">
             <div>
               <p className="eyebrow">Équipe Forbes · CRM</p>
-              <h1>Bonjour {selectedBroker}</h1>
+              <h1>Bonjour {workspaceUser === "immoplus" ? "Immoplus" : selectedBroker}</h1>
+              <p className="dash-intro">Vue d’ensemble de votre journée.</p>
             </div>
           </div>
-          <span className="dashboard-broker-label">{selectedBroker.toUpperCase()}</span>
+          <div className="dash-context"><span>{workspaceUser === "immoplus" ? "Courtier de travail" : "Votre espace"}</span><strong>{selectedBroker}</strong></div>
         </header>
 
         <DataStatus />
 
         <section className="metrics-section" aria-labelledby="overview-title">
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">Vue d’ensemble</p>
-              <h2 id="overview-title">Votre journée en un coup d’œil</h2>
-            </div>
-            <span className="today-label">Aujourd’hui</span>
-          </div>
+          <h2 className="dash-sr-only" id="overview-title">Votre journée en un coup d’œil</h2>
 
           <div className="metrics-grid">
-            {metrics.map((metric) => (
+            {displayMetrics.map((metric) => (
               <button
                 className={`metric-card metric-${metric.tone}`}
                 key={metric.label}
                 onClick={() => router.push(metric.href)}
                 type="button"
               >
-                <span className="metric-topline" aria-hidden="true" />
-                <span className="metric-value">{metric.value}</span>
+                <span className="dash-kpi-icon" aria-hidden="true"><ShellIcon name={metricIcons[metric.tone]} /></span>
+                <span className="metric-value">{((metric.tone === "transactions" && (areTransactionsLoading || transactionsError)) || (["today", "late", "buyers"].includes(metric.tone) && (areContactsLoading || contactsError))) ? "—" : metric.value}</span>
                 <span className="metric-label">{metric.label}</span>
                 <span className="metric-arrow" aria-hidden="true">→</span>
               </button>
@@ -208,6 +212,7 @@ export default function Dashboard() {
         </section>
 
         <div className="dashboard-priorities-grid">
+          <DashboardActions queue={areContactsLoading || contactsError ? [] : followUpQueue} transactions={areTransactionsLoading || transactionsError ? [] : activeTransactions} loading={areContactsLoading || areTransactionsLoading} unavailable={Boolean(contactsError || transactionsError)} today={today} onNavigate={href => router.push(href)} />
           <section className="follow-ups-section" aria-labelledby="follow-ups-title">
             <div className="follow-ups-heading">
               <div>
@@ -232,7 +237,8 @@ export default function Dashboard() {
             </div>
 
             <div className="follow-ups-list">
-              {todaysClients.map((client) => (
+              {(areContactsLoading || contactsError) && <p className="dash-empty" role="status">{contactsError ?? "Chargement des relances…"}</p>}
+              {!areContactsLoading && !contactsError && todaysClients.map((client) => (
                 <article className="follow-up-row" key={client.id}>
                   <div className="client-avatar" aria-hidden="true">
                     {getContactName(client)
@@ -283,7 +289,7 @@ export default function Dashboard() {
                   </div>
                 </article>
               ))}
-              {todaysClients.length === 0 && (
+              {!areContactsLoading && !contactsError && todaysClients.length === 0 && (
                 <div className="follow-ups-empty">
                   <span aria-hidden="true">✓</span>
                   <p>Aucune relance programmée pour aujourd’hui.</p>
@@ -291,6 +297,8 @@ export default function Dashboard() {
               )}
             </div>
           </section>
+
+          <DashboardTransactions transactions={activeTransactions} contacts={contacts} loading={areTransactionsLoading} error={transactionsError} onNavigate={href => router.push(href)} />
 
           <DailyNotificationsPanel
             listingsUnavailable={areListingsLoading || Boolean(listingsError)}
