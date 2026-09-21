@@ -1,4 +1,5 @@
 "use client";
+import "./transactions.css";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -114,10 +115,10 @@ export default function TransactionsPage() {
   }
 
   return (
-    <main className="transactions-page">
+    <main className="transactions-page transactions-premium">
       <div className="transactions-shell">
         <header className="transactions-header">
-          <div><p className="section-kicker">Dossiers immobiliers</p><h1>TRANSACTIONS</h1><p>Les dossiers, leurs clients et leurs prochaines dates importantes.</p></div>
+          <div><p className="section-kicker">Dossiers immobiliers</p><h1>Transactions</h1><p>Suivi des dossiers actifs, achats et ventes.</p></div>
           <button className="transaction-new" onClick={() => setIsCreating(true)} type="button">+ Nouvelle transaction</button>
         </header>
 
@@ -132,19 +133,27 @@ export default function TransactionsPage() {
         {error && <div className="transaction-status transaction-status-error" role="alert"><span>{error}</span><button onClick={() => void retry()} type="button">Réessayer</button></div>}
         {isLoading && <div className="transaction-status">Chargement des transactions…</div>}
 
-        <section className="transaction-grid" aria-live="polite">
+        <section className="transactions-results" aria-live="polite" aria-label="Résultats des transactions">
+          <table className="transactions-table">
+            <caption className="sr-only">Transactions correspondant aux filtres</caption>
+            <thead><tr><th scope="col">Propriété</th><th scope="col">Clients / Courtier</th><th scope="col">Prix</th><th scope="col">Statut</th><th scope="col">{stateFilter === "sold" ? "Date du notaire" : "Prochaine échéance"}</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
           {visibleTransactions.map((transaction) => {
             const linkedContacts = transaction.contactIds.map((contactId) => contacts.find((contact) => contact.id === contactId)).filter(Boolean);
             const nextDeadline = getNextTransactionDeadline(transaction);
             const isOverdue = Boolean(nextDeadline && isTransactionDeadlineOverdue(nextDeadline));
             const nextDeadlineTime = nextDeadline ? formatTransactionDeadlineTime(nextDeadline.dueTime) : null;
-            return <article className={`transaction-card ${isOverdue ? "transaction-card-overdue" : ""}`} key={transaction.id}>
-              <div className="transaction-card-top"><span>{TRANSACTION_TYPE_LABELS[transaction.type]}</span><span className={`transaction-status-badge ${stateFilter === "sold" ? "status-finalized" : `status-${transaction.status}`}`}>{stateFilter === "sold" ? finalizedTransactionLabel(transaction) : TRANSACTION_STATUS_LABELS[transaction.status]}</span></div>
-              <h2>{transaction.address}</h2>
-              <dl><div><dt>Clients</dt><dd>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</dd></div><div><dt>Courtier</dt><dd>{BROKER_LABELS[transaction.broker]}</dd></div>{stateFilter === "sold" ? <><div><dt>Date du notaire</dt><dd>{transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée"}</dd></div><div><dt>Prix final</dt><dd>{formatAmount(transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</dd></div></> : <div><dt>Prochaine échéance</dt><dd className={isOverdue ? "transaction-deadline-overdue" : ""}>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}${nextDeadlineTime ? ` · ${nextDeadlineTime}` : ""}` : "Aucune échéance"}</dd></div>}</dl>
-              <button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">Ouvrir <span aria-hidden="true">→</span></button>
-            </article>;
+            return <tr className={isOverdue ? "transaction-row-overdue" : ""} key={transaction.id}>
+              <td className="tx-property"><span className="tx-type">{TRANSACTION_TYPE_LABELS[transaction.type]}</span><h2><button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">{transaction.address}</button></h2></td>
+              <td className="tx-people" data-label="Clients"><span>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</span><small>Courtier · {BROKER_LABELS[transaction.broker]}</small></td>
+              <td className="tx-price" data-label={stateFilter === "sold" ? "Prix final" : "Prix"}>{formatAmount(stateFilter === "sold" && transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</td>
+              <td className="tx-state"><span className={`transaction-status-badge ${stateFilter === "sold" ? "status-finalized" : `status-${transaction.status}`}`}>{stateFilter === "sold" ? finalizedTransactionLabel(transaction) : TRANSACTION_STATUS_LABELS[transaction.status]}</span></td>
+              <td className={`tx-next ${isOverdue ? "transaction-deadline-overdue" : ""}`} data-label={stateFilter === "sold" ? "Date du notaire" : "Prochaine échéance"}>{stateFilter === "sold" ? (transaction.notaryDate ? formatDate(transaction.notaryDate) : "Non renseignée") : <>{isOverdue && <strong>EN RETARD · </strong>}{nextDeadline ? `${nextDeadline.title} · ${formatDate(nextDeadline.dueDate)}${nextDeadlineTime ? ` · ${nextDeadlineTime}` : ""}` : "Aucune échéance"}</>}</td>
+              <td className="tx-open"><button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">Ouvrir <span aria-hidden="true">↗</span></button></td>
+            </tr>;
           })}
+            </tbody>
+          </table>
           {!isLoading && visibleTransactions.length === 0 && <div className="transactions-empty"><span aria-hidden="true">◇</span><h2>Aucune transaction</h2><p>Créez une transaction ou modifiez les filtres.</p></div>}
         </section>
       </div>

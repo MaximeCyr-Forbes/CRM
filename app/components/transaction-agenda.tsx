@@ -33,8 +33,9 @@ export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComple
       const date = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${deadline.dueDate}T12:00:00Z`));
       const source = deadline.source;
       return <article className={deadline.completed ? "deadline-completed" : ""} key={deadline.id}>
+        <time className="tx-agenda-date" dateTime={deadline.dueDate}>{date}{time && <span>{time}</span>}</time>
         <label><input aria-label={`Fait : ${deadline.title}`} checked={deadline.completed} disabled={pending || disabled} onChange={(e) => void change(() => onComplete(deadline, e.target.checked))} type="checkbox" /><span aria-hidden="true" /></label>
-        <div><div className="deadline-title-line"><h3>{deadline.title}</h3><strong className={state === "FAIT" ? "agenda-done" : state === "EN RETARD" ? "agenda-overdue" : "agenda-upcoming"}>{state}</strong></div><p>{date}{time ? ` · ${time}` : ""}</p>
+        <div className="tx-agenda-content"><div className="deadline-title-line"><h3>{deadline.title}</h3><strong className={state === "FAIT" ? "agenda-done" : state === "EN RETARD" ? "agenda-overdue" : "agenda-upcoming"}>{state}</strong></div>
           <small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? `Google Agenda · ${deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}` : deadline.googleCalendarSyncStatus === "pending" || deadline.googleCalendarSyncStatus === "error" ? deadline.googleCalendarLastError ?? "Synchronisation Google en attente" : "Agenda interne · Non envoyé à Google"}</small>
           {source?.type === "oaciq" && <div className="oaciq-source"><span>Source : {[source.form, source.section && `clause ${source.section}`, source.document].filter(Boolean).join(" · ")}</span>{source.confidence && <span>Confiance : {CONFIDENCE_LABELS[source.confidence]}</span>}</div>}
           {source?.text && <details><summary>Voir la source</summary><p className="oaciq-source-text">{source.text}</p></details>}

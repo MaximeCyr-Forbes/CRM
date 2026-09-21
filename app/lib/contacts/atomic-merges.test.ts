@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migrationName = "20260825143000_make_contact_merges_atomic.sql";
-const migration = readFileSync(resolve(process.cwd(), "supabase/migrations", migrationName), "utf8");
+const migration = readFileSync(resolve(process.cwd(), "supabase/migrations", migrationName), "utf8").replace(/\r\n/g, "\n");
 const schema = readFileSync(resolve(process.cwd(), "supabase/schema.sql"), "utf8");
 const service = readFileSync(resolve(process.cwd(), "app/lib/contacts/server-service.ts"), "utf8");
 

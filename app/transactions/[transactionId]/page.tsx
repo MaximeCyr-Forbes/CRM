@@ -1,4 +1,5 @@
 "use client";
+import "../transactions.css";
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -151,8 +152,8 @@ export default function TransactionDetailPage() {
     return () => window.clearTimeout(timeout);
   }, [confirmation]);
 
-  if (isLoading && !transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transaction-status">Chargement de la transaction…</div></div></main>;
-  if (!transaction) return <main className="transactions-page"><div className="transactions-shell"><div className="transactions-empty"><h1>Transaction introuvable</h1><button onClick={() => router.push("/transactions")} type="button">Retour aux transactions</button></div></div></main>;
+  if (isLoading && !transaction) return <main className="transactions-page transactions-premium"><div className="transactions-shell"><div className="transaction-status">Chargement de la transaction…</div></div></main>;
+  if (!transaction) return <main className="transactions-page transactions-premium"><div className="transactions-shell"><div className="transactions-empty"><h1>Transaction introuvable</h1><button onClick={() => router.push("/transactions")} type="button">Retour aux transactions</button></div></div></main>;
   const showSaleAction = canCompleteTransactionSale(transaction);
   const showPurchaseAction = canCompleteTransactionPurchase(transaction);
   const showReturnToMarketAction = canReturnTransactionToMarket(transaction, sourceListing);
@@ -186,7 +187,7 @@ export default function TransactionDetailPage() {
     router.push("/transactions");
   }
 
-  return <main className="transaction-detail-page"><div className="transaction-detail-shell">
+  return <main className="transaction-detail-page transactions-premium"><div className="transaction-detail-shell">
     {error && <div className="transaction-status transaction-status-error" role="alert">{error}</div>}
     {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
 
@@ -220,9 +221,9 @@ export default function TransactionDetailPage() {
 
     <section className="transaction-detail-section" aria-labelledby="transaction-clients-title"><div className="transaction-section-heading"><div><p className="section-kicker">Relations</p><h2 id="transaction-clients-title">CLIENTS LIÉS</h2></div></div><div className="transaction-linked-clients">{linkedContacts.map((contact) => <button key={contact!.id} onClick={() => router.push(`/contacts/${contact!.id}`)} type="button"><span>{getContactName(contact!)}</span><small>{BROKER_LABELS[contact!.broker]}</small><strong>Ouvrir →</strong></button>)}{linkedContacts.length === 0 && <p>Aucun contact lié à cette transaction.</p>}</div></section>
 
-    <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />
-
     <TransactionAgenda onSync={async () => { const result = await syncDeadlines(transaction.id); setConfirmation(result.message ?? "Synchronisation terminée."); }} deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
+
+    <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
   </div>

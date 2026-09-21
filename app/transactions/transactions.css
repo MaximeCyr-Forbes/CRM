@@ -1,0 +1,225 @@
+/* Phase 3: presentation only. Scoped so shared forms keep their other module styles. */
+.transactions-premium { color: var(--crm-text); }
+.transactions-premium :is(.transactions-shell, .transaction-detail-shell) { max-width: 1500px; padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.transactions-premium .section-kicker { color: var(--crm-text-muted); font-size: 10px; font-weight: 500; letter-spacing: .1em; }
+.transactions-premium :is(.transactions-header, .transaction-detail-header) { gap: 24px; padding: 0 0 24px; border: 0; }
+.transactions-premium :is(.transactions-header, .transaction-detail-header) h1 { margin: 8px 0 10px; font-family: var(--font-serif); font-weight: 400; font-size: clamp(28px, 2.8vw, 40px); line-height: 1.18; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.transactions-premium :is(.transactions-header, .transaction-detail-header) p:not(.section-kicker) { margin: 0; color: var(--crm-text-muted); font-size: 14px; line-height: 1.6; }
+.transactions-premium button { cursor: pointer; }
+.transactions-premium button:disabled { cursor: not-allowed; }
+.transactions-premium .destructive-button,
+.transactions-premium :is(.transaction-detail-actions, .deadline-actions) .destructive-button { color: #965d4c; border: 1px solid #ecd8d2; background: #fcf5f3; }
+.transactions-premium .transaction-detail-section > .transaction-add-deadline { background: white; color: var(--crm-accent); border: 1px solid var(--crm-border); }
+.transactions-premium .deadline-presets button { min-height: 44px; border-radius: 8px; font-size: 13px; }
+.transactions-premium :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--crm-accent); outline-offset: 3px; }
+.transactions-premium :is(.transaction-new, .transaction-add-deadline, .transaction-note-form button) { min-height: 44px; border-radius: 9px; padding: 11px 16px; font-size: 12px; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.transactions-premium .transaction-new { background: var(--crm-accent); border-color: var(--crm-accent); color: white; box-shadow: var(--crm-shadow-sm); }
+.transactions-premium .transactions-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 20px; padding: 16px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; }
+.transactions-premium .transaction-filter-group { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 0; border-radius: 9px; background: var(--crm-bg); }
+.transactions-premium .transaction-filter-group button { min-height: 38px; padding: 8px 12px; border: 0; border-radius: 7px; color: var(--crm-text-muted); background: transparent; font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.transactions-premium .transaction-filter-group button[aria-pressed="true"] { background: white; color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.transactions-premium .transaction-year-filter { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.transactions-premium .transaction-year-filter select { min-height: 44px; border: 1px solid var(--crm-border); border-radius: 8px; background: white; padding: 8px; }
+.transactions-premium .transactions-search { flex: 1 1 240px; min-width: 0; margin: 0; border: 1px solid var(--crm-border); border-radius: 9px; background: white; }
+.transactions-premium .transactions-search input { width: 100%; min-width: 0; min-height: 44px; font-size: 14px; }
+.transactions-premium .transaction-status { margin: 12px 0; padding: 14px 16px; border-radius: 10px; font-size: 14px; }
+.transactions-premium .transactions-results { min-width: 0; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.transactions-premium .transactions-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.transactions-premium .transactions-table th { padding: 17px 16px; font-size: 11px; font-weight: 500; color: var(--crm-text-muted); border-bottom: 1px solid var(--crm-border); }
+.transactions-premium .transactions-table th:nth-child(1) { width: 27%; }
+.transactions-premium .transactions-table th:nth-child(2) { width: 19%; }
+.transactions-premium .transactions-table th:nth-child(3) { width: 12%; }
+.transactions-premium .transactions-table th:nth-child(4) { width: 13%; }
+.transactions-premium .transactions-table th:nth-child(5) { width: 21%; }
+.transactions-premium .transactions-table th:nth-child(6) { width: 8%; }
+.transactions-premium .transactions-table td { padding: 20px 16px; font-size: 13px; line-height: 1.55; vertical-align: middle; overflow-wrap: anywhere; }
+.transactions-premium .transactions-table tbody tr + tr { border-top: 1px solid var(--crm-border-soft); }
+.transactions-premium .transactions-table tbody tr:hover { background: #fafbfd; }
+.transactions-premium .tx-type { color: var(--crm-text-muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.transactions-premium .tx-property h2 { margin: 5px 0 0; font: 600 14px/1.5 var(--font-sans); }
+.transactions-premium :is(.tx-property, .tx-open) button { min-height: 44px; padding: 0; border: 0; color: var(--crm-accent); background: transparent; text-align: left; font: inherit; }
+.transactions-premium .tx-people small { display: block; margin-top: 6px; color: var(--crm-text-muted); font-size: 11px; }
+.transactions-premium .tx-price { font-weight: 600; }
+.transactions-premium .tx-open { text-align: right; }
+.transactions-premium .tx-open button { font-size: 12px; white-space: nowrap; }
+.transactions-premium .tx-next { color: var(--crm-text-muted); font-size: 12px; }
+.transactions-premium .transaction-deadline-overdue { color: #965d4c !important; }
+.transactions-premium .transaction-deadline-overdue strong { font-size: 10px; font-weight: 500; }
+.transactions-premium .transaction-status-badge { display: inline-flex; padding: 5px 9px; border-radius: 6px; font-size: 11px; line-height: 1.5; font-weight: 500; text-transform: none; color: #506174; background: #f0f3f6; }
+.transactions-premium :is(.status-financing, .status-pa_accepted) { color: #355b92; background: #ecf2fc; }
+.transactions-premium :is(.status-inspection, .status-other_conditions) { color: #89601d; background: #fcf2e7; }
+.transactions-premium .status-notary { color: #725491; background: #f3eefb; }
+.transactions-premium :is(.status-finalized, .status-completed, .status-conditions_met) { color: #376e4b; background: #ebf5ee; }
+.transactions-premium .status-cancelled { color: #965d4c; background: #fbf0ed; }
+.transactions-premium :is(.transactions-empty, .transaction-section-empty) { padding: 28px 20px; border: 0; border-radius: 14px; background: white; font-size: 14px; }
+
+/* Detail: compact summary, distinct sections, and the existing agenda controls. */
+.transactions-premium .transaction-detail-actions { gap: 12px; margin: 0 0 20px; padding: 0; }
+.transactions-premium .transaction-detail-actions > div { flex-wrap: wrap; }
+.transactions-premium .transaction-detail-actions button { min-height: 44px; padding: 10px 12px; font-size: 11px; font-weight: 500; letter-spacing: 0; border-radius: 8px; text-transform: none; }
+.transactions-premium .transaction-detail-header > div { min-width: 0; }
+.transactions-premium .transaction-detail-header > label { flex-shrink: 0; font-size: 11px; font-weight: 500; }
+.transactions-premium :is(input:not([type="checkbox"]), select, textarea) { min-width: 0; max-width: 100%; border-color: var(--crm-border); border-radius: 8px; background-color: white; color: var(--crm-text); }
+.transactions-premium .transaction-overview { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; padding: 20px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.transactions-premium .transaction-overview article { min-height: 48px; padding: 0; gap: 8px; border: 0; min-width: 0; }
+.transactions-premium .transaction-overview span { font-size: 10px; font-weight: 500; letter-spacing: .05em; color: var(--crm-text-muted); }
+.transactions-premium .transaction-overview strong { font: 550 14px/1.5 var(--font-sans); overflow-wrap: anywhere; }
+.transactions-premium :is(.transaction-detail-section, .drive-documents-section) { margin-top: 20px; padding: 24px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.transactions-premium :is(.transaction-section-heading, .drive-documents-heading) { gap: 16px; margin-bottom: 18px; align-items: center; }
+.transactions-premium :is(.transaction-section-heading, .drive-documents-heading) h2 { font: 600 17px/1.4 var(--font-sans); letter-spacing: -.015em; }
+.transactions-premium .transaction-detail-section .transaction-overview { padding: 0; border: 0; box-shadow: none; }
+.transactions-premium .transaction-linked-clients { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.transactions-premium .transaction-linked-clients button { min-height: 108px; padding: 16px; border: 1px solid var(--crm-border); border-radius: 10px; background: white; }
+.transactions-premium .transaction-linked-clients button:hover { background: var(--crm-bg); }
+.transactions-premium .transaction-linked-clients button span { font: 600 14px/1.5 var(--font-sans); overflow-wrap: anywhere; }
+.transactions-premium .transaction-linked-clients button strong { color: var(--crm-accent); font-size: 11px; font-weight: 500; text-transform: none; }
+.transactions-premium .transaction-source-listing > button { min-height: 64px; border-radius: 10px; border-color: var(--crm-border); background: var(--crm-bg); }
+.transactions-premium .transaction-source-listing > button strong { font: 600 14px/1.5 var(--font-sans); }
+.transactions-premium .transaction-source-listing > button b { color: var(--crm-accent); }
+.transactions-premium .transaction-deadlines { margin-top: 16px; border: 0; background: white; overflow: visible; }
+.transactions-premium .transaction-deadlines article { position: relative; grid-template-columns: 140px 44px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 20px 0; border: 0; }
+.transactions-premium .transaction-deadlines article + article { border-top: 1px solid var(--crm-border-soft); }
+.transactions-premium .tx-agenda-date { font-size: 12px; color: var(--crm-text-muted); line-height: 1.5; padding-top: 12px; }
+.transactions-premium .tx-agenda-date span { display: block; margin-top: 5px; font-weight: 600; color: var(--crm-text); }
+.transactions-premium .transaction-deadlines article > label { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+.transactions-premium .transaction-deadlines article > label::after { position: absolute; content: ""; width: 1px; top: 38px; bottom: -30px; background: var(--crm-border); pointer-events: none; }
+.transactions-premium .transaction-deadlines article:last-child > label::after { display: none; }
+.transactions-premium .transaction-deadlines article > label span { width: 20px; height: 20px; border-color: #b9c5d2; background: white; }
+.transactions-premium .transaction-deadlines article > label:focus-within { outline: 2px solid var(--crm-accent); border-radius: 8px; }
+.transactions-premium .transaction-deadlines article > label input:checked + span { display: grid; place-items: center; border: 0; background: #e5f2e9; box-shadow: none; }
+.transactions-premium .transaction-deadlines article > label input:checked + span::after { content: "✓"; color: #376e4b; font-size: 13px; }
+.transactions-premium .tx-agenda-content { min-width: 0; padding-top: 9px; overflow-wrap: anywhere; }
+.transactions-premium .transaction-deadlines h3 { font: 600 14px/1.5 var(--font-sans); }
+.transactions-premium .deadline-title-line { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+.transactions-premium .deadline-title-line strong { font-size: 10px; font-weight: 500; padding: 4px 7px; border-radius: 5px; }
+.transactions-premium .agenda-overdue { color: #965d4c; background: #fbf0ed; }
+.transactions-premium .agenda-done { color: #376e4b; background: #ebf5ee; }
+.transactions-premium .calendar-deadline-state { display: block; margin-top: 6px; font-size: 11px; line-height: 1.5; }
+.transactions-premium .deadline-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.transactions-premium .deadline-actions button { min-height: 44px; padding: 8px 10px; border-radius: 8px; border-color: var(--crm-border); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.transactions-premium .transaction-deadlines .deadline-completed { opacity: 1; }
+.transactions-premium .deadline-completed h3 { color: var(--crm-text-muted); }
+.transactions-premium :is(.transaction-general-note, .transaction-note-form, .transaction-notes-list article) { border-radius: 10px; border-color: var(--crm-border); background: var(--crm-bg); padding: 16px; font-size: 14px; }
+.transactions-premium .transaction-notes-list article { border-left: 2px solid var(--crm-border); }
+.transactions-premium .transaction-general-note span { color: var(--crm-text-muted); }
+.transactions-premium :is(.transaction-note-form label > span, .transaction-field > span, .transaction-contact-picker legend) { font-size: 11px; font-weight: 550; color: var(--crm-text-muted); letter-spacing: .04em; }
+.transactions-premium .drive-documents-heading > button { min-height: 44px; font-size: 11px; border-radius: 8px; letter-spacing: 0; }
+.transactions-premium .drive-documents-list > article { background: var(--crm-bg); border-color: var(--crm-border); }
+.transactions-premium .drive-documents-list > article > span { background: #edf2f7; color: var(--crm-accent); }
+.transactions-premium .drive-documents-actions :is(a, button) { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* Modals retain their forms, submission handlers, and single body scroll lock. */
+.transactions-premium :is(.transaction-modal-backdrop, .listing-editor-backdrop, .drive-link-modal-backdrop, .transaction-existing-backdrop) { background: rgba(22, 35, 54, .38); backdrop-filter: none; overflow: hidden; }
+.transactions-premium :is(.transaction-modal, .listing-sold-modal, .drive-link-modal, .transaction-existing-dialog) { max-height: calc(100svh - 40px); max-height: calc(100dvh - 40px); border: 1px solid var(--crm-border); border-radius: 16px; background: white; box-shadow: 0 20px 70px #17263c26; overflow-y: auto; overscroll-behavior: contain; }
+.transactions-premium .transaction-modal { padding: 0 24px 24px; }
+.transactions-premium .transaction-create-modal { width: min(100%, 860px); }
+.transactions-premium .transaction-modal-heading { position: sticky; top: 0; z-index: 3; margin: 0 -24px; padding: 20px 24px; background: white; border-bottom: 1px solid var(--crm-border); }
+.transactions-premium :is(.transaction-modal-heading, .listing-sold-heading, .drive-link-modal > header) h2 { font: 600 20px/1.35 var(--font-sans); letter-spacing: -.02em; }
+.transactions-premium :is(.transaction-modal-heading, .listing-sold-heading, .drive-link-modal > header) > button { min-width: 44px; min-height: 44px; border-radius: 9px; background: var(--crm-bg); }
+.transactions-premium .transaction-form { gap: 18px; padding-top: 20px; }
+.transactions-premium .transaction-form > .transaction-field { min-width: 0; }
+.transactions-premium :is(.transaction-field, .transaction-new-contact-fields label) input { min-width: 0; width: 100%; }
+.transactions-premium .transaction-form-actions { position: sticky; bottom: -24px; z-index: 2; margin: 4px -24px -24px; padding: 16px 24px; border-top: 1px solid var(--crm-border); background: white; }
+.transactions-premium :is(.transaction-form-actions, .transaction-existing-actions) button { border-radius: 8px; font-size: 12px; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.transactions-premium .transaction-contact-tools > button { border-radius: 8px; font-size: 11px; font-weight: 500; letter-spacing: 0; background: white; text-transform: none; }
+.transactions-premium .transaction-contact-list { border-color: var(--crm-border); border-radius: 10px; }
+.transactions-premium .transaction-contact-list > label { min-height: 64px; gap: 10px; }
+.transactions-premium .transaction-contact-list > label strong { white-space: normal; overflow-wrap: anywhere; font-size: 13px; }
+.transactions-premium .transaction-contact-list > label small { font-size: 11px; overflow-wrap: anywhere; }
+.transactions-premium .transaction-new-contact { border-radius: 10px; background: var(--crm-bg); }
+.transactions-premium .transaction-new-contact-fields label > span { font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.transactions-premium :is(.oaciq-import, .transaction-centris-import) { border: 1px solid var(--crm-border); border-radius: 12px; padding: 18px; background: #fafbfd; }
+.transactions-premium :is(.oaciq-import h3, .transaction-centris-heading h3) { font: 600 15px/1.5 var(--font-sans); }
+.transactions-premium :is(.oaciq-dropzone, .transaction-centris-dropzone) { min-height: 112px; padding: 20px 14px; border: 1px dashed #b8c6d6; border-radius: 10px; background: white; color: var(--crm-accent); box-shadow: none; }
+.transactions-premium :is(.oaciq-dropzone, .transaction-centris-dropzone):hover { background: #f1f5fa; border-color: var(--crm-accent); }
+.transactions-premium :is(.oaciq-dropzone, .transaction-centris-dropzone) strong { font: 550 13px/1.5 var(--font-sans); }
+.transactions-premium :is(.oaciq-dropzone, .transaction-centris-dropzone) small { font-size: 12px; }
+.transactions-premium .oaciq-proposal { background: white; border-color: var(--crm-border); padding: 16px; }
+.transactions-premium .oaciq-select { min-height: 44px; }
+.transactions-premium :is(.oaciq-import, .transaction-centris-import) button:not(.oaciq-dropzone) { min-height: 44px; font-size: 12px; border-radius: 8px; }
+.transactions-premium :is(.oaciq-warnings, .transaction-centris-warning, .transaction-contact-duplicate) { border: 1px solid #eee1c9; border-radius: 9px; background: #fcf7ed; color: #795d32; overflow-wrap: anywhere; }
+.transactions-premium :is(.oaciq-files, .oaciq-notice, .oaciq-basic, .oaciq-source, .transaction-centris-preview) { min-width: 0; overflow-wrap: anywhere; }
+.transactions-premium .transaction-centris-summary { background: white; border-color: var(--crm-border); border-radius: 10px; }
+.transactions-premium .transaction-centris-field-choice { border-color: var(--crm-border); border-radius: 8px; background: white; }
+.transactions-premium .transaction-existing-dialog { font-size: 14px; }
+.transactions-premium .transaction-existing-dialog h3 { font: 600 20px/1.4 var(--font-sans); }
+.transactions-premium .transaction-existing-dialog article { border-radius: 9px; border-color: var(--crm-border); background: var(--crm-bg); }
+
+@media (max-width: 1199px) {
+  .transactions-premium .transactions-table :is(th, td) { padding: 16px 10px; }
+  .transactions-premium .transaction-deadlines article { grid-template-columns: 115px 44px minmax(0, 1fr); gap: 10px; }
+  .transactions-premium .deadline-actions { grid-column: 3; }
+}
+@media (max-width: 767px) {
+  .transactions-premium :is(.transactions-header, .transaction-detail-header) { flex-direction: column; align-items: stretch; gap: 16px; }
+  .transactions-premium .transaction-new { width: 100%; }
+  .transactions-premium .transactions-controls { padding: 12px; gap: 10px; }
+  .transactions-premium .transaction-filter-group { width: 100%; }
+  .transactions-premium .transaction-filter-group button { flex: 1; min-height: 44px; padding-inline: 8px; }
+  .transactions-premium .transactions-search { flex-basis: 100%; }
+  .transactions-premium .transactions-results { background: transparent; box-shadow: none; border: 0; }
+  .transactions-premium .transactions-table, .transactions-premium .transactions-table tbody { display: block; }
+  .transactions-premium .transactions-table thead { display: none; }
+  .transactions-premium .transactions-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; margin-bottom: 14px; padding: 18px; background: white; border: 1px solid var(--crm-border); border-radius: 14px; box-shadow: var(--crm-shadow-sm); }
+  .transactions-premium .transactions-table td { display: block; padding: 0; min-width: 0; }
+  .transactions-premium .tx-property { grid-column: 1 / -1; grid-row: 1; }
+  .transactions-premium .tx-property h2 { margin-top: 14px; font-size: 16px; }
+  .transactions-premium .tx-property .tx-type { display: block; }
+  .transactions-premium .tx-property button { min-height: 44px; }
+  .transactions-premium .tx-state { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
+  .transactions-premium .tx-people { grid-column: 1 / -1; grid-row: 2; }
+  .transactions-premium .tx-price { grid-column: 1; grid-row: 3; font-size: 17px !important; align-self: center; }
+  .transactions-premium .tx-next { grid-column: 1 / -1; grid-row: 4; padding-top: 12px !important; border-top: 1px solid var(--crm-border-soft); }
+  .transactions-premium .tx-next::before { content: attr(data-label); display: block; margin-bottom: 5px; color: var(--crm-text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .transactions-premium .tx-open { grid-column: 2; grid-row: 3; }
+  .transactions-premium .tx-open button { min-height: 44px; padding: 8px 12px; background: var(--crm-bg); border-radius: 8px; }
+  .transactions-premium .transaction-detail-actions { flex-direction: column; align-items: stretch; }
+  .transactions-premium .transaction-detail-actions > button { align-self: flex-start; }
+  .transactions-premium .transaction-detail-actions > div { width: 100%; gap: 8px; }
+  .transactions-premium .transaction-detail-actions > div button { flex: 1 1 auto; }
+  .transactions-premium .transaction-detail-header > label { width: 100%; }
+  .transactions-premium .transaction-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px; gap: 20px 14px; }
+  .transactions-premium .transaction-overview article { border: 0 !important; }
+  .transactions-premium :is(.transaction-detail-section, .drive-documents-section) { padding: 18px; margin-top: 16px; }
+  .transactions-premium :is(.transaction-section-heading, .drive-documents-heading) { flex-direction: column; align-items: stretch; }
+  .transactions-premium .transaction-linked-clients { grid-template-columns: minmax(0, 1fr); }
+  .transactions-premium .transaction-source-listing > button { flex-direction: column; align-items: flex-start; }
+  .transactions-premium .transaction-deadlines article { grid-template-columns: 44px minmax(0, 1fr); gap: 6px 10px; padding: 18px 0; }
+  .transactions-premium .tx-agenda-date { grid-column: 2; grid-row: 1; padding: 0; font-size: 12px; }
+  .transactions-premium .tx-agenda-date span { display: inline; margin-left: 8px; }
+  .transactions-premium .transaction-deadlines article > label { grid-column: 1; grid-row: 1 / 3; }
+  .transactions-premium .tx-agenda-content { grid-column: 2; padding: 0; }
+  .transactions-premium .deadline-actions { grid-column: 2; }
+  .transactions-premium .deadline-actions button { flex: 1; }
+  .transactions-premium .drive-documents-list article strong { white-space: normal; overflow-wrap: anywhere; }
+  .transactions-premium :is(input:not([type="checkbox"]), select, textarea) { font-size: 16px !important; width: 100%; min-width: 0; max-width: 100%; }
+  .transactions-premium :is(input[type="date"], input[type="time"]) { display: block; box-sizing: border-box; min-height: 48px; }
+  .transactions-premium :is(.transaction-modal-backdrop, .listing-editor-backdrop, .drive-link-modal-backdrop) { padding: 8px; }
+  .transactions-premium :is(.transaction-modal, .listing-sold-modal, .drive-link-modal) { width: 100%; max-height: calc(100svh - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
+  .transactions-premium .transaction-modal-heading { margin-inline: -16px; padding: max(14px, env(safe-area-inset-top)) 16px 14px; }
+  .transactions-premium .transaction-modal-heading h2 { font-size: 18px; }
+  .transactions-premium .transaction-form { grid-template-columns: minmax(0, 1fr); }
+  .transactions-premium .transaction-field-wide { grid-column: 1 / -1; }
+  .transactions-premium :is(.oaciq-fields, .oaciq-basic, .deadline-date-time-fields, .transaction-contact-list, .transaction-new-contact-fields) { grid-template-columns: minmax(0, 1fr); }
+  .transactions-premium .transaction-contact-list { max-height: none; overflow: visible; }
+  .transactions-premium .transaction-contact-list > label:nth-child(odd) { border-right: 0; }
+  .transactions-premium .transaction-contact-tools { display: grid; }
+  .transactions-premium .transaction-form-actions { bottom: calc(-1 * max(16px, env(safe-area-inset-bottom))); margin-inline: -16px; margin-bottom: calc(-1 * max(16px, env(safe-area-inset-bottom))); padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
+  .transactions-premium .transaction-form-actions button { flex: 1; padding: 10px 8px; min-height: 48px; }
+  .transactions-premium :is(.oaciq-import, .transaction-centris-import) { padding: 14px; }
+  .transactions-premium .oaciq-files li { flex-wrap: wrap; }
+  .transactions-premium .oaciq-files li span { flex: 1 1 150px; min-width: 0; }
+  .transactions-premium .oaciq-proposal { padding: 12px; }
+  .transactions-premium .oaciq-warnings ul { padding-left: 18px; }
+  .transactions-premium .transaction-existing-dialog { padding: 18px; }
+  .transactions-premium :is(.listing-sold-heading, .drive-link-modal > header) { position: sticky; top: 0; z-index: 3; margin-inline: -16px; padding: max(14px, env(safe-area-inset-top)) 16px 14px; background: white; border-bottom: 1px solid var(--crm-border); }
+  .transactions-premium :is(.listing-sold-actions, .drive-link-modal > footer) { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .crm-app-shell:has(.transactions-premium) .crm-topbar :is(button, select) { min-height: 44px; }
+  .crm-app-shell:has(.transactions-premium) .crm-icon-button { min-width: 44px; }
+  .crm-app-shell:has(.transactions-premium) .crm-topbar { grid-template-columns: 44px minmax(0, 1fr); }
+  .crm-app-shell:has(.transactions-premium) .crm-working-broker select,
+  .crm-app-shell:has(.transactions-premium) .global-search-input input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .transactions-premium *, .transactions-premium *::before, .transactions-premium *::after { animation: none !important; transition: none !important; }
+}
