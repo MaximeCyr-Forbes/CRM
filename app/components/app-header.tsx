@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BROKERS, type Broker, useBroker } from "../broker-context";
 import { appNavigationOrder, softwareLinks } from "../data/software-links";
@@ -22,8 +22,15 @@ const links = [
 
 export function AppHeader() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isSelectionPage = pathname === "/";
+  const isAssistantSelection = isSelectionPage && searchParams.get("workspace") === "immoplus";
   const router = useRouter();
   const { selectedBroker, clearBroker, workspaceUser, selectBroker } = useBroker();
+  // The selection URL owns its presentation. Keep the business session intact
+  // so Forward can restore the dashboard after Back / Back.
+  const displayedWorkspace = isSelectionPage ? isAssistantSelection ? "immoplus" : null : workspaceUser;
+  const displayedBroker = isSelectionPage ? null : selectedBroker;
   const headerRef = useRef<HTMLElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const softwareButtonRef = useRef<HTMLButtonElement>(null);
@@ -127,13 +134,13 @@ export function AppHeader() {
       </nav>
       <div className="app-header-tools">
         <GlobalSearch />
-        <div className={`app-broker-state${workspaceUser === "immoplus" ? " app-assistant-state" : ""}`}>
-          <span>{workspaceUser === "immoplus" ? "Utilisateur IMMOPLUS · Courtier de travail" : "Courtier consulté"}</span>
-          {workspaceUser === "immoplus" ? <select aria-label="Courtier de travail" value={selectedBroker ?? ""} onChange={(event) => { selectBroker(event.target.value as Broker); router.replace(pathname); }}>
+        <div className={`app-broker-state${displayedWorkspace === "immoplus" ? " app-assistant-state" : ""}`}>
+          <span>{displayedWorkspace === "immoplus" ? "Utilisateur IMMOPLUS · Courtier de travail" : "Courtier consulté"}</span>
+          {isAssistantSelection ? <strong>COURTIER À CHOISIR</strong> : displayedWorkspace === "immoplus" ? <select aria-label="Courtier de travail" value={selectedBroker ?? ""} onChange={(event) => { selectBroker(event.target.value as Broker); router.replace(pathname); }}>
             <option value="" disabled>Choisir</option>{BROKERS.map((broker) => <option key={broker} value={broker}>{broker.toUpperCase()}</option>)}
-          </select> : <strong>{selectedBroker?.toUpperCase() ?? "AUCUN"}</strong>}
+          </select> : <strong>{displayedBroker?.toUpperCase() ?? "AUCUN"}</strong>}
         </div>
-        <button className="app-change-broker" onClick={changeBroker} type="button">{workspaceUser === "immoplus" ? "Changer d’utilisateur" : "Changer"}</button>
+        <button className="app-change-broker" onClick={changeBroker} type="button">{displayedWorkspace === "immoplus" ? "Changer d’utilisateur" : "Changer"}</button>
         <AccountMenu />
       </div>
       {isSoftwareOpen && (
