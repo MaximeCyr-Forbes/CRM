@@ -22,7 +22,8 @@
 .listings-premium :is(.listing-overview-stats, .listing-market-snapshot > div) { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .listings-premium :is(.listing-overview-stats article, .listing-market-snapshot > div > article) { min-width: 0; padding: 20px 16px; border: 1px solid var(--crm-border); border-radius: 12px; background: white; box-shadow: var(--crm-shadow-sm); }
 .listings-premium :is(.listing-overview-stats article > span, .listing-market-snapshot article > span) { color: var(--crm-text-muted); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
-.listings-premium .listing-overview-stats strong { font: 500 clamp(18px, 1.7vw, 25px)/1.4 var(--font-sans); color: var(--crm-text); overflow-wrap: anywhere; }
+.listings-premium .listing-overview-stats strong { font: 500 clamp(18px, 1.35vw, 22px)/1.4 var(--font-sans); color: var(--crm-text); overflow-wrap: anywhere; }
+.listings-premium :is(.listing-overview-stats, .listing-market-snapshot > div) { border: 0; background: transparent; }
 .listings-premium .listing-market-snapshot article strong { font: 500 14px/1.5 var(--font-sans); color: var(--crm-text); overflow-wrap: anywhere; }
 .listings-premium .listing-overview-panels { gap: 16px; margin-top: 16px; }
 .listings-premium .listing-overview-panels > section { border: 1px solid var(--crm-border); border-radius: 14px; padding: 20px; background: white; }
