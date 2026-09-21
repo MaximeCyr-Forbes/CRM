@@ -1,4 +1,5 @@
 "use client";
+import "./listings.css";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -6,6 +7,7 @@ import { useBroker } from "../broker-context";
 import { ListingEditorModal } from "../components/listing-editor-modal";
 import { ListingMedia } from "../components/listing-media";
 import { ListingOverview } from "../components/listing-overview";
+import { ListingChecklistPreview } from "../components/listing-checklist-preview";
 import { useContacts } from "../contacts-context";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
@@ -93,13 +95,13 @@ export default function ListingsPage() {
   }
 
   return (
-    <main className="listings-page">
+    <main className="listings-page listings-premium">
       <div className="listings-shell">
         <header className="listings-header">
           <div>
             <p className="section-kicker">Inventaire de l’équipe</p>
             <h1>LISTINGS</h1>
-            <p>Propriétés actuellement représentées par l’Équipe Forbes.</p>
+            <p>Suivi des propriétés en mise en marché.</p>
           </div>
           <div className="listings-header-actions">
             <div className="listings-summary" aria-live="polite">
@@ -220,6 +222,7 @@ export default function ListingsPage() {
                       {listing.centrisNumber && <div><dt>Numéro Centris</dt><dd>{listing.centrisNumber}</dd></div>}
                       <div className="listing-card-owners"><dt>{owners.length > 1 ? "Propriétaires" : "Propriétaire"}</dt><dd>{owners.length ? owners.join(" · ") : "Non renseigné"}</dd></div>
                     </dl>
+                    <ListingChecklistPreview listingId={listing.id} />
                     <div className="listing-card-actions">
                       <button className="listing-card-open" onClick={() => openListing(listing.id)} type="button">Ouvrir <span aria-hidden="true">→</span></button>
                       <button className="listing-card-edit" onClick={() => setEditingListing(listing)} type="button">Modifier <span aria-hidden="true">✎</span></button>

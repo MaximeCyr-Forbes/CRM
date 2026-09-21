@@ -1,4 +1,5 @@
 "use client";
+import "../listings.css";
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -75,12 +76,12 @@ export default function ListingDetailPage() {
   }
 
   if (isLoading) {
-    return <main className="listing-detail-page"><div className="listing-detail-state" aria-live="polite"><span>Chargement de la fiche Listing…</span></div></main>;
+    return <main className="listing-detail-page listings-premium"><div className="listing-detail-state" aria-live="polite"><span>Chargement de la fiche Listing…</span></div></main>;
   }
 
   if (error) {
     return (
-      <main className="listing-detail-page">
+      <main className="listing-detail-page listings-premium">
         <div className="listing-detail-state listing-detail-state-error" role="alert">
           <div><strong>Listing temporairement indisponible.</strong><span>La fiche n’a pas pu être chargée.</span></div>
           <button onClick={() => void retry()} type="button">Réessayer</button>
@@ -91,7 +92,7 @@ export default function ListingDetailPage() {
 
   if (!listing) {
     return (
-      <main className="listing-detail-page">
+      <main className="listing-detail-page listings-premium">
         <div className="listing-detail-state">
           <div><strong>LISTING INTROUVABLE</strong><span>Ce Listing n’existe plus ou n’est pas accessible.</span></div>
           <button onClick={() => router.push("/listings")} type="button">Retour aux Listings</button>
@@ -104,7 +105,7 @@ export default function ListingDetailPage() {
   const finalized = isFinalizedListing(listing);
 
   return (
-    <main className="listing-detail-page">
+    <main className="listing-detail-page listings-premium">
       <div className="listing-detail-shell">
         {confirmation && <div aria-live="polite" className="follow-up-confirmation" role="status"><span aria-hidden="true">✓</span><strong>{confirmation}</strong></div>}
         <button className="listing-detail-back" onClick={returnToListings} type="button"><span aria-hidden="true">←</span> Retour aux Listings</button>
@@ -149,8 +150,6 @@ export default function ListingDetailPage() {
             <div><dt>Statut</dt><dd>{LISTING_STATUS_LABELS[listing.status]}</dd></div>
             <div><dt>Type de mandat</dt><dd>{LISTING_PURPOSE_LABELS[listing.purpose]}</dd></div>
             <div><dt>Date de mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div>
-            <div><dt>Signature du contrat de courtage</dt><dd>{formatListingDate(listing.contractSignedDate ?? null)}</dd></div>
-            <div><dt>Date d’expiration</dt><dd>{formatListingDate(listing.expirationDate)}</dd></div>
           </dl>
           {listing.status === "sold" && (
             <div className="listing-sale-result">
@@ -172,6 +171,14 @@ export default function ListingDetailPage() {
               </div>
             </div>
           )}
+        </section>
+
+        <section className="listing-detail-section listing-contract" aria-labelledby="listing-contract-title">
+          <div className="listing-detail-section-heading"><div><p className="section-kicker">Dates du mandat</p><h2 id="listing-contract-title">CONTRAT DE COURTAGE</h2></div></div>
+          <dl className="listing-detail-information">
+            <div><dt>Signature du contrat de courtage</dt><dd>{formatListingDate(listing.contractSignedDate ?? null)}</dd></div>
+            <div><dt>Date d’expiration</dt><dd>{formatListingDate(listing.expirationDate)}</dd></div>
+          </dl>
         </section>
 
         <section className="listing-detail-section" aria-labelledby="listing-owners-title">
@@ -197,12 +204,12 @@ export default function ListingDetailPage() {
 
         <DriveDocumentsSection broker={listing.broker} entityId={listing.id} entityType="listing" />
 
+        <ListingTracking listing={listing} key={listing.updatedAt} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
+
         <section className="listing-detail-section" aria-labelledby="listing-notes-title">
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Suivi interne</p><h2 id="listing-notes-title">NOTES INTERNES</h2></div></div>
           <p className={listing.generalNotes ? "listing-detail-notes" : "listing-detail-empty"}>{listing.generalNotes || "Aucune note interne pour le moment."}</p>
         </section>
-
-        <ListingTracking listing={listing} key={listing.updatedAt} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
       </div>
 
       {isEditing && <ListingEditorModal

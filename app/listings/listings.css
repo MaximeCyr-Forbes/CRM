@@ -1,0 +1,262 @@
+/* Phase 4: presentation scoped to Listings; report and shared module styles stay independent. */
+.listings-premium { color: var(--crm-text); }
+.listings-premium.listings-page, .listings-premium.listing-detail-page { padding-top: 36px; }
+.listings-premium *, .listings-premium *::before, .listings-premium *::after { box-sizing: border-box; }
+.listings-premium :is(.listings-shell, .listing-detail-shell) { width: 100%; max-width: 1800px; min-width: 0; margin-inline: auto; padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.listings-premium .section-kicker { color: var(--crm-text-muted); font-size: 10px; font-weight: 500; letter-spacing: .1em; }
+.listings-premium :is(.listings-header, .listing-detail-header) { gap: 24px; padding: 0 0 24px; border: 0; }
+.listings-premium :is(.listings-header, .listing-detail-header) h1 { font: 400 clamp(28px, 2.8vw, 40px)/1.18 var(--font-serif); letter-spacing: -.035em; margin: 8px 0 10px; overflow-wrap: anywhere; }
+.listings-premium :is(.listings-header, .listing-detail-header) p:not(.section-kicker) { color: var(--crm-text-muted); font-size: 14px; line-height: 1.6; }
+.listings-premium :is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--crm-accent); outline-offset: 3px; }
+.listings-premium :is(button, a) { overflow-wrap: anywhere; }
+.listings-premium button { cursor: pointer; }
+.listings-premium button:disabled { cursor: not-allowed; }
+.listings-premium :is(.listing-new, .listing-detail-actions button, .listing-card-actions button, .listing-tracking-panel > header > button, .listing-task-form button, .listing-owner-card > button, .drive-documents-heading button, .listing-market-snapshot header button) { min-height: 44px; padding: 10px 14px; border-radius: 8px; font: 500 12px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.listings-premium .listing-new { color: white; background: var(--crm-accent); border-color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listings-summary { border: 0; background: none; padding: 0; }
+.listings-premium .listings-summary strong { font: 500 22px var(--font-sans); }
+.listings-premium .listings-summary span { font-size: 11px; color: var(--crm-text-muted); }
+.listings-premium :is(.listing-overview, .listing-market-snapshot) { border: 0; background: none; padding: 0; margin: 0 0 24px; box-shadow: none; }
+.listings-premium :is(.listing-overview-heading, .listing-market-snapshot > header) { margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+.listings-premium :is(.listing-overview-heading h2, .listing-market-snapshot h2, .listing-detail-section-heading h2, .drive-documents-heading h2) { font: 600 16px/1.4 var(--font-sans); letter-spacing: -.015em; }
+.listings-premium :is(.listing-overview-stats, .listing-market-snapshot > div) { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.listings-premium :is(.listing-overview-stats article, .listing-market-snapshot > div > article) { min-width: 0; padding: 20px 16px; border: 1px solid var(--crm-border); border-radius: 12px; background: white; box-shadow: var(--crm-shadow-sm); }
+.listings-premium :is(.listing-overview-stats article > span, .listing-market-snapshot article > span) { color: var(--crm-text-muted); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.listings-premium .listing-overview-stats strong { font: 500 clamp(18px, 1.7vw, 25px)/1.4 var(--font-sans); color: var(--crm-text); overflow-wrap: anywhere; }
+.listings-premium .listing-market-snapshot article strong { font: 500 14px/1.5 var(--font-sans); color: var(--crm-text); overflow-wrap: anywhere; }
+.listings-premium .listing-overview-panels { gap: 16px; margin-top: 16px; }
+.listings-premium .listing-overview-panels > section { border: 1px solid var(--crm-border); border-radius: 14px; padding: 20px; background: white; }
+.listings-premium .listing-overview-panels h3 { font: 600 14px/1.5 var(--font-sans); letter-spacing: 0; }
+.listings-premium :is(.listing-attention-list, .listing-renewal-list) { max-height: 260px; }
+.listings-premium .listing-attention-list button { border-radius: 8px; background: var(--crm-bg); padding: 12px; gap: 6px; }
+.listings-premium :is(.listing-attention-list, .listing-renewal-list) :is(strong, small, b, time) { font-size: 12px; letter-spacing: 0; overflow-wrap: anywhere; }
+.listings-premium :is(.listing-attention-list, .listing-renewal-list) p { font-size: 13px; color: var(--crm-text-muted); }
+.listings-premium .listings-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 18px; margin: 0 0 20px; background: white; border: 1px solid var(--crm-border); border-radius: 14px; }
+.listings-premium .listings-filter-block { min-width: 0; }
+.listings-premium .listings-filter-block > span, .listings-premium .listings-search > span:first-child { font-size: 10px; color: var(--crm-text-muted); font-weight: 500; letter-spacing: .04em; }
+.listings-premium .listings-filter-options { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 9px; background: var(--crm-bg); }
+.listings-premium .listings-filter-options button { min-height: 38px; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--crm-text-muted); font: 500 12px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.listings-premium .listings-filter-options button[aria-pressed="true"] { background: white; color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listings-search { min-width: 0; flex: 1 1 260px; }
+.listings-premium .listings-search-field { min-height: 44px; border-radius: 9px; background: white; border-color: var(--crm-border); }
+.listings-premium .listings-search input { width: 100%; min-width: 0; font-size: 14px; }
+.listings-premium .listings-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.listings-premium .listing-card { display: grid; grid-template-columns: 156px minmax(0, 1fr); min-width: 0; overflow: hidden; background: white; border: 1px solid var(--crm-border); border-radius: 14px; box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listing-card-media { min-height: 180px; aspect-ratio: auto; }
+.listings-premium .listing-card-media > :first-child { height: 100%; }
+.listings-premium :is(.listing-purpose-badge, .listing-status-badge) { border: 0; border-radius: 6px; padding: 5px 8px; font: 500 10px/1.4 var(--font-sans); letter-spacing: 0; }
+.listings-premium .listing-purpose-badge { background: #edf2f6; color: #385568; }
+.listings-premium .listing-status-active { background: #e9f4ee; color: #416654; }
+.listings-premium :is(.listing-status-conditional, .listing-status-offer_received) { background: #fbf1df; color: #856535; }
+.listings-premium :is(.listing-status-sold, .listing-status-rented) { background: #eaeefa; color: #4b5880; }
+.listings-premium :is(.listing-status-expired, .listing-status-withdrawn) { background: #f1eeee; color: #776566; }
+.listings-premium .listing-card-content { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(120px, .8fr); gap: 12px 24px; padding: 22px; }
+.listings-premium .listing-card-address { min-width: 0; grid-column: 1; grid-row: 1; }
+.listings-premium .listing-card-address h2 { font: 600 16px/1.5 var(--font-sans); margin: 0; letter-spacing: -.015em; }
+.listings-premium .listing-card-address p { font-size: 12px; color: var(--crm-text-muted); line-height: 1.6; }
+.listings-premium .listing-card-price { grid-column: 3; grid-row: 1; color: var(--crm-text); font: 600 19px/1.5 var(--font-sans); letter-spacing: -.025em; }
+.listings-premium .listing-card-market-meta { grid-column: 1; grid-row: 2; align-self: start; gap: 6px; margin: 0; font-size: 11px; }
+.listings-premium .listing-card-details { grid-column: 2; grid-row: 1 / 4; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; border: 0; }
+.listings-premium .listing-card-details > div { min-width: 0; border: 0; padding: 0; }
+.listings-premium .listing-card-details dt { font-size: 10px; font-weight: 400; letter-spacing: .02em; color: var(--crm-text-muted); }
+.listings-premium .listing-card-details dd { font-size: 12px; margin-top: 2px; font-weight: 500; overflow-wrap: anywhere; }
+.listings-premium .listing-broker { color: var(--crm-text-muted); }
+.listings-premium .listing-card-actions { grid-column: 3; grid-row: 2 / 4; display: flex; flex-direction: column; align-self: end; gap: 8px; padding: 0; border: 0; }
+.listings-premium .listing-card-actions .listing-card-open { background: var(--crm-bg); color: var(--crm-accent); border-color: var(--crm-border); }
+.listings-premium .listing-card-actions .listing-card-edit { background: white; border-color: var(--crm-border); color: var(--crm-text-muted); }
+.listings-premium .listing-checklist-preview { grid-column: 1; grid-row: 3; width: min(220px, 100%); color: var(--crm-text-muted); font-size: 11px; align-self: end; }
+.listings-premium .listing-checklist-preview > span { display: flex; justify-content: space-between; gap: 12px; }
+.listings-premium .listing-checklist-preview progress { width: 100%; height: 5px; margin-top: 8px; border: 0; border-radius: 9px; overflow: hidden; background: #edf0f2; color: #819b90; }
+.listings-premium .listing-checklist-preview progress::-webkit-progress-bar { background: #edf0f2; border-radius: 9px; }
+.listings-premium .listing-checklist-preview progress::-webkit-progress-value { background: #819b90; border-radius: 9px; }
+.listings-premium .listing-checklist-preview progress::-moz-progress-bar { background: #819b90; }
+.listings-premium .listing-detail-back { margin-bottom: 20px; min-height: 44px; font-size: 12px; }
+.listings-premium .listing-detail-header { flex-wrap: wrap; }
+.listings-premium .listing-detail-header h1 { max-width: none; }
+.listings-premium .listing-detail-header > div:first-child { min-width: 0; flex: 1 1 350px; }
+.listings-premium .listing-detail-actions { flex-wrap: wrap; gap: 8px; }
+.listings-premium .listing-detail-actions button { background: white; color: var(--crm-text); border-color: var(--crm-border); }
+.listings-premium .listing-detail-actions .listing-accepted-pa-button { background: var(--crm-accent); color: white; }
+.listings-premium :is(.destructive-button, .listing-task-delete) { background: #fcf5f3; color: #965d4c; border: 1px solid #ecd8d2; }
+.listings-premium .listing-detail-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border: 1px solid var(--crm-border); border-radius: 14px; background: white; overflow: hidden; margin-bottom: 24px; box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listing-detail-media { min-height: 180px; max-height: 240px; aspect-ratio: auto; }
+.listings-premium .listing-detail-media-content { height: 100%; min-height: 180px; }
+.listings-premium .listing-detail-price-panel { background: white; padding: 28px; }
+.listings-premium .listing-detail-price-panel strong { color: var(--crm-text); font: 500 clamp(24px, 2.5vw, 36px)/1.3 var(--font-sans); letter-spacing: -.035em; overflow-wrap: anywhere; }
+.listings-premium .listing-detail-price-panel :is(span, p) { font-size: 13px; color: var(--crm-text-muted); font-weight: 400; letter-spacing: 0; }
+.listings-premium :is(.listing-detail-section, .drive-documents-section) { min-width: 0; margin: 0 0 20px; padding: 24px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listing-detail-information { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.listings-premium .listing-detail-information > div { min-width: 0; padding: 0; border: 0; }
+.listings-premium .listing-detail-information dt { font-size: 10px; color: var(--crm-text-muted); font-weight: 500; letter-spacing: .04em; }
+.listings-premium .listing-detail-information dd { font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.listings-premium .listing-contract .listing-detail-information { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.listings-premium .listing-owner-list { gap: 12px; }
+.listings-premium .listing-owner-card { border: 1px solid var(--crm-border); border-radius: 10px; background: white; padding: 16px; }
+.listings-premium .listing-owner-card p { font-size: 12px; overflow-wrap: anywhere; }
+.listings-premium .listing-owner-card > div > button { font: 600 14px/1.5 var(--font-sans); }
+.listings-premium :is(.listing-detail-empty, .listing-detail-notes) { font-size: 13px; line-height: 1.7; }
+.listings-premium .listing-tracking { background: transparent; padding: 0; border: 0; box-shadow: none; }
+.listings-premium .listing-tracking-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.listings-premium .listing-tracking-panel { padding: 22px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.listings-premium .listing-tracking-panel > header { flex-wrap: wrap; align-items: center; border-color: var(--crm-border-soft); }
+.listings-premium .listing-tracking-panel h3 { font: 600 16px/1.5 var(--font-sans); letter-spacing: -.015em; }
+.listings-premium .listing-tracking-panel > header span { font-size: 10px; font-weight: 500; color: var(--crm-text-muted); letter-spacing: .05em; }
+.listings-premium .listing-checklist-progress { height: 5px; background: #edf0f2; margin-block: 20px; }
+.listings-premium .listing-checklist-progress span { background: #819b90; }
+.listings-premium .listing-task-list article { padding-block: 4px; border-color: var(--crm-border-soft); }
+.listings-premium .listing-task-list label { min-height: 44px; align-items: center; flex: 1; padding-block: 8px; gap: 12px; }
+.listings-premium .listing-task-list input { flex: 0 0 20px; width: 20px; height: 20px; margin: 0; accent-color: #55776a; }
+.listings-premium .listing-task-list strong { font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.listings-premium .listing-task-list small { font-size: 11px; }
+.listings-premium .listing-task-list article > div button,
+.listings-premium :is(.listing-visit-list, .listing-offer-list) article header button { width: 44px; height: 44px; border-radius: 8px; }
+.listings-premium .listing-documents-group { background: #f9fafb; border-color: var(--crm-border); border-radius: 10px; }
+.listings-premium .listing-documents-toggle { min-height: 56px; padding: 14px; }
+.listings-premium .listing-documents-toggle > span:first-child { font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.listings-premium .listing-documents-toggle > strong { font: 500 12px var(--font-sans); color: var(--crm-text-muted); }
+.listings-premium .listing-documents-content { padding: 0 14px 10px; }
+.listings-premium .listing-documents-content h4 { font-size: 10px; font-weight: 600; }
+.listings-premium .listing-task-form { flex-wrap: wrap; gap: 8px; }
+.listings-premium .listing-task-form input { flex: 1 1 180px; min-height: 44px; border-radius: 8px; font-size: 14px; }
+.listings-premium :is(.listing-visit-summary, .listing-offer-summary) { gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.listings-premium :is(.listing-visit-list, .listing-offer-list) { gap: 12px; }
+.listings-premium :is(.listing-visit-list, .listing-offer-list) > article { border: 1px solid var(--crm-border); border-radius: 10px; background: #fafbfc; padding: 16px; }
+.listings-premium :is(.listing-visit-list, .listing-offer-list) article header { gap: 12px; flex-wrap: wrap; }
+.listings-premium :is(.listing-visit-list, .listing-offer-list) article :is(p, blockquote) { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.listings-premium :is(.listing-visit-list, .listing-offer-list) article p span { font-size: 10px; letter-spacing: .02em; font-weight: 500; }
+.listings-premium .listing-visit-list article header > strong { font-size: 13px; letter-spacing: 0; text-transform: none; }
+.listings-premium :is(.listing-interest, .listing-offer-status, .listing-offer-linked, .listing-rental-accepted) { border-radius: 6px; padding: 6px 8px; font-size: 11px; letter-spacing: 0; font-weight: 500; }
+.listings-premium .listing-interest-high { background: #e9f4ee; color: #416654; }
+.listings-premium .listing-interest-medium { background: #fbf1df; color: #856535; }
+.listings-premium .listing-interest-low { background: #f1eeee; color: #776566; }
+.listings-premium .listing-offer-summary article { border-radius: 10px; background: var(--crm-bg); border-color: var(--crm-border); }
+.listings-premium .listing-offer-summary article strong { font: 500 22px var(--font-sans); }
+.listings-premium .listing-offer-summary article span { font-size: 11px; letter-spacing: 0; text-transform: none; }
+.listings-premium .listing-linked-transaction { border: 1px solid #dce8e1; background: #f2f8f5; border-radius: 10px; padding: 18px; overflow-wrap: anywhere; }
+.listings-premium .listing-linked-transaction button { min-height: 44px; border-radius: 8px; }
+.listings-premium :is(.listing-price-history, .listing-activity-list) > article { padding: 16px 0; border-bottom: 1px solid var(--crm-border-soft); gap: 16px; }
+.listings-premium .listing-price-history strong { font: 500 16px/1.5 var(--font-sans); }
+.listings-premium :is(.listing-price-history, .listing-activity-list) :is(time, span, small, p) { font-size: 12px; line-height: 1.6; letter-spacing: 0; overflow-wrap: anywhere; }
+.listings-premium .listing-activity-list strong { font-size: 13px; line-height: 1.5; letter-spacing: 0; }
+.listings-premium .listing-activity-list article > div { min-width: 0; }
+.listings-premium :is(.listings-empty, .listings-state, .listing-detail-state) { padding: 32px; border-radius: 14px; background: white; border-color: var(--crm-border); }
+.listings-premium .listings-loading-grid div { min-height: 180px; border-radius: 14px; }
+.listings-premium :is(input:not([type="checkbox"]), select, textarea) { min-width: 0; max-width: 100%; width: 100%; border-radius: 8px; font-family: var(--font-sans); font-size: 14px; }
+.listings-premium :is(input[type="date"], input[type="time"], select) { min-height: 44px; }
+.listings-premium :is(.listing-editor-backdrop, .drive-link-modal-backdrop) { padding: 20px; overflow: hidden; background: rgba(20, 32, 49, .4); backdrop-filter: blur(5px); }
+.listings-premium :is(.listing-editor-modal, .listing-visit-modal, .listing-pa-accepted-modal, .listing-delete-modal, .drive-link-modal) { width: min(860px, 100%); max-width: 100%; min-width: 0; max-height: calc(100svh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; background: white; border: 1px solid var(--crm-border); border-radius: 16px; box-shadow: 0 24px 80px #13233b29; }
+.listings-premium :is(.listing-visit-modal, .listing-offer-modal, .listing-pa-accepted-modal, .listing-delete-modal) { width: min(680px, 100%); }
+.listings-premium .listing-editor-heading { position: sticky; top: 0; z-index: 3; padding: 20px 24px; background: white; border-color: var(--crm-border); }
+.listings-premium .listing-editor-heading > div { min-width: 0; }
+.listings-premium .listing-editor-heading h2 { font: 600 20px/1.4 var(--font-sans); letter-spacing: -.025em; overflow-wrap: anywhere; }
+.listings-premium .listing-editor-heading > button { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 8px; background: var(--crm-bg); border: 0; }
+.listings-premium .listing-detail-actions .listing-editor-heading > button { flex: 0 0 44px; width: 44px; }
+.listings-premium .listing-editor-heading > button { font-size: 22px; }
+.listings-premium .listing-editor-actions .listing-editor-submit,
+.listings-premium .listing-pa-accepted-actions .listing-editor-submit,
+.listings-premium .listing-create-transaction { color: white; background: var(--crm-accent); border-color: var(--crm-accent); }
+.listings-premium :is(.listing-editor-form, .listing-visit-form, .listing-offer-form, .listing-pa-accepted-form) { padding: 24px; gap: 20px; min-width: 0; }
+.listings-premium .listing-editor-section { min-width: 0; border: 0; padding: 0; margin: 0 0 24px; }
+.listings-premium .listing-editor-section legend { padding-bottom: 16px; font: 600 14px/1.5 var(--font-sans); letter-spacing: 0; }
+.listings-premium .listing-editor-section legend > span { background: var(--crm-bg); border: 0; border-radius: 7px; color: var(--crm-text-muted); }
+.listings-premium :is(.listing-editor-fields, .listing-visit-fields, .listing-offer-form, .listing-pa-accepted-form, .listing-new-contact-fields) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.listings-premium :is(.listing-editor-fields, .listing-visit-fields, .listing-offer-form, .listing-pa-accepted-form, .listing-new-contact-fields) > label { min-width: 0; }
+.listings-premium :is(.listing-editor-form, .listing-visit-form, .listing-offer-form, .listing-pa-accepted-form) label > span:first-child { font-size: 12px; font-weight: 500; color: var(--crm-text-muted); letter-spacing: 0; text-transform: none; }
+.listings-premium :is(.listing-editor-actions, .listing-visit-actions, .listing-pa-accepted-actions) { position: sticky; bottom: 0; z-index: 2; grid-column: 1 / -1; margin: 0 -24px -24px; padding: 16px 24px; gap: 10px; background: white; border-top: 1px solid var(--crm-border); }
+.listings-premium :is(.listing-editor-actions, .listing-visit-actions, .listing-pa-accepted-actions, .listing-delete-actions) button { min-height: 44px; border-radius: 8px; padding: 10px 16px; font: 500 13px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.listings-premium .listing-purpose-options button { min-height: 44px; border-radius: 8px; font-size: 13px; letter-spacing: 0; }
+.listings-premium .listing-contact-tools { gap: 12px; flex-wrap: wrap; }
+.listings-premium .listing-contact-tools label { min-width: 0; }
+.listings-premium .listing-contact-tools button { min-height: 44px; border-radius: 8px; font-size: 12px; }
+.listings-premium :is(.listing-selected-owners, .listing-new-contact, .listing-contact-results, .listing-contact-duplicate, .listing-duplicate-warning, .listing-editor-error) { border-radius: 10px; overflow-wrap: anywhere; }
+.listings-premium .listing-contact-results > label { min-height: 56px; }
+.listings-premium :is(.transaction-centris-import, .purchase-agreement-import) { min-width: 0; padding: 20px; background: #f9fafb; border: 1px solid var(--crm-border); border-radius: 12px; }
+.listings-premium :is(.transaction-centris-dropzone, .listing-centris-dropzone) { min-width: 0; border: 1px dashed #a5b3bf; border-radius: 12px; background: #f2f5f8; padding: 24px 18px; }
+.listings-premium :is(.transaction-centris-heading, .purchase-agreement-heading) { flex-wrap: wrap; }
+.listings-premium :is(.transaction-centris-heading h3, .purchase-agreement-heading h4) { font: 600 14px/1.5 var(--font-sans); letter-spacing: 0; }
+.listings-premium :is(.transaction-centris-import, .purchase-agreement-import) p { font-size: 13px; line-height: 1.6; }
+.listings-premium :is(.transaction-centris-preview, .purchase-agreement-preview, .transaction-centris-details, .transaction-centris-field-choice, .purchase-agreement-warning) { min-width: 0; border-radius: 9px; overflow-wrap: anywhere; }
+.listings-premium :is(.transaction-centris-actions, .purchase-agreement-preview > footer) { flex-wrap: wrap; gap: 10px; }
+.listings-premium :is(.transaction-centris-actions, .purchase-agreement-preview > footer) button { min-height: 44px; border-radius: 8px; }
+.listings-premium :is(.drive-documents-heading, .drive-documents-list article) { flex-wrap: wrap; gap: 12px; }
+.listings-premium .drive-documents-list article { border-radius: 10px; background: #f9fafb; border-color: var(--crm-border); }
+.listings-premium .drive-documents-list article strong { white-space: normal; overflow-wrap: anywhere; }
+.listings-premium .drive-link-modal { padding: 24px; }
+
+@media (hover: hover) {
+  .listings-premium .listing-card:hover { border-color: #c9d5df; box-shadow: 0 4px 16px #192a3b09; }
+  .listings-premium .listings-filter-options button:hover { color: var(--crm-accent); background: #fff; }
+}
+@media (max-width: 1399px) {
+  .listings-premium :is(.listing-overview-stats, .listing-market-snapshot > div) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .listings-premium .listing-card { grid-template-columns: 120px minmax(0, 1fr); }
+  .listings-premium .listing-card-content { gap: 12px 18px; padding: 18px; }
+}
+@media (max-width: 1099px) {
+  .listings-premium .listing-card-content { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .listings-premium .listing-card-price { grid-column: 1; grid-row: 2; }
+  .listings-premium .listing-card-market-meta { grid-row: 3; }
+  .listings-premium .listing-checklist-preview { grid-row: 4; }
+  .listings-premium .listing-card-actions { grid-column: 2; grid-row: 4; flex-direction: row; }
+  .listings-premium .listing-card-actions button { flex: 1; }
+  .listings-premium .listing-tracking-grid { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-detail-actions { width: 100%; }
+}
+@media (max-width: 899px) {
+  .listings-premium .listings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .listings-premium .listing-card { display: block; }
+  .listings-premium .listing-card-media { height: 160px; min-height: 0; }
+  .listings-premium .listing-card-content { display: flex; flex-direction: column; gap: 14px; }
+  .listings-premium .listing-card-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .listings-premium .listing-card-owners { grid-column: 1 / -1; }
+  .listings-premium .listing-card-actions { width: 100%; }
+  .listings-premium .listing-checklist-preview { width: 100%; }
+  .listings-premium .listing-overview-panels { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-detail-information { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .listings-premium .listing-owner-card { flex-wrap: wrap; }
+}
+@media (max-width: 767px) {
+  .listings-premium :is(.listings-header, .listing-detail-header) { flex-direction: column; align-items: stretch; gap: 16px; }
+  .listings-premium .listing-detail-header > div:first-child { flex-basis: auto; }
+  .listings-premium .listings-header-actions { width: 100%; justify-content: space-between; gap: 12px; }
+  .listings-premium .listings-header-actions .listing-new { flex: 1; }
+  .listings-premium :is(.listing-overview-stats, .listing-market-snapshot > div) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .listings-premium :is(.listing-overview-stats article, .listing-market-snapshot > div > article) { padding: 16px; }
+  .listings-premium .listings-filters { padding: 14px; gap: 12px; }
+  .listings-premium :is(.listings-filter-block, .listings-search) { width: 100%; flex-basis: 100%; }
+  .listings-premium .listings-filter-options button { min-height: 44px; flex: 1 1 auto; }
+  .listings-premium .listings-grid { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-card-media { height: 180px; }
+  .listings-premium .listing-detail-hero { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-detail-price-panel { padding: 20px; }
+  .listings-premium .listing-detail-actions button { flex: 1 1 auto; }
+  .listings-premium .listing-detail-actions .destructive-button { flex: 0 1 auto; margin-left: auto; }
+  .listings-premium :is(.listing-detail-section, .listing-tracking-panel, .drive-documents-section) { padding: 18px; }
+  .listings-premium .listing-tracking { padding: 0; }
+  .listings-premium :is(.listing-detail-section-heading, .drive-documents-heading) { flex-wrap: wrap; }
+  .listings-premium .listing-owner-list { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-owner-card > button { width: 100%; }
+  .listings-premium :is(.listing-visit-list, .listing-offer-list) article header > div { flex-wrap: wrap; }
+  .listings-premium .listing-tracking-panel > header > button { width: 100%; }
+  .listings-premium .listing-activity-list article { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .listings-premium :is(input:not([type="checkbox"]), select, textarea) { font-size: 16px !important; }
+  .listings-premium :is(input[type="date"], input[type="time"]) { display: block; min-height: 48px; }
+  .listings-premium :is(.listing-editor-backdrop, .drive-link-modal-backdrop) { padding: 8px; }
+  .listings-premium :is(.listing-editor-modal, .listing-visit-modal, .listing-pa-accepted-modal, .listing-delete-modal, .drive-link-modal) { width: 100%; max-height: calc(100svh - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; }
+  .listings-premium .listing-editor-heading { padding: max(14px, env(safe-area-inset-top)) 16px 14px; }
+  .listings-premium .listing-editor-heading h2 { font-size: 18px; }
+  .listings-premium :is(.listing-editor-form, .listing-visit-form, .listing-offer-form, .listing-pa-accepted-form) { padding: 16px; }
+  .listings-premium :is(.listing-editor-fields, .listing-visit-fields, .listing-offer-form, .listing-pa-accepted-form, .listing-new-contact-fields, .transaction-centris-summary, .purchase-agreement-summary) { grid-template-columns: minmax(0, 1fr); }
+  .listings-premium :is(.listing-field-wide, .listing-contact-field-wide) { grid-column: 1 / -1; }
+  .listings-premium :is(.listing-editor-actions, .listing-visit-actions, .listing-pa-accepted-actions) { bottom: 0; margin: 0 -16px -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
+  .listings-premium :is(.listing-editor-actions, .listing-visit-actions, .listing-pa-accepted-actions, .listing-delete-actions) button { min-height: 48px; flex: 1; padding-inline: 10px; }
+  .listings-premium .listing-contact-tools { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .listings-premium .listing-contact-results { max-height: none; overflow: visible; }
+  .listings-premium :is(.transaction-centris-import, .purchase-agreement-import) { padding: 14px; }
+  .listings-premium .transaction-centris-field-choice { grid-template-columns: auto minmax(0, 1fr); }
+  .listings-premium .transaction-centris-field-choice > em { grid-column: 2; }
+  .listings-premium .drive-link-modal { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .listings-premium *, .listings-premium *::before, .listings-premium *::after { animation: none !important; transition: none !important; }
+}
