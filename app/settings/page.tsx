@@ -139,8 +139,8 @@ export default function SettingsPage() {
     <main className="settings-page">
       <section className="settings-shell" aria-labelledby="settings-title">
         <header className="settings-header">
-          <p className="section-kicker">PARAMÈTRES</p>
-          <h1 id="settings-title">GOOGLE AGENDA</h1>
+          <p className="section-kicker">Votre espace de travail</p>
+          <h1 id="settings-title">PARAMÈTRES</h1>
           <p>
             Chaque courtier connecte son propre calendrier. Les relances restent
             toujours séparées.
@@ -161,6 +161,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        <h2 className="settings-section-title">GOOGLE &amp; GMAIL</h2>
         <div className="calendar-connections">
           {connections.map((connection) => (
             <article className="calendar-connection-card" key={connection.broker}>

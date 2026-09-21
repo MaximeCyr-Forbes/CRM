@@ -1,0 +1,283 @@
+/* Phase 7 — presentation only. Status, broker and event-kind colors stay semantic. */
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) {
+  --ink: var(--crm-text);
+  --ink-soft: var(--crm-text-muted);
+  --paper: var(--crm-surface);
+  --line: var(--crm-border);
+  --cream: var(--crm-bg);
+  color: var(--crm-text);
+  background: var(--crm-bg);
+  font-family: var(--font-sans);
+}
+:is(.drive-shell, .statistics-shell, .automatic-emails-shell, .settings-shell) { min-width: 0; }
+:is(.drive-heading, .statistics-heading, .automatic-emails-heading, .settings-header) {
+  margin: 0 0 28px;
+  padding: 0;
+  border: 0;
+  align-items: flex-start;
+}
+:is(.drive-heading, .statistics-heading, .automatic-emails-heading, .settings-header) h1 {
+  margin: 6px 0 12px;
+  font: 620 clamp(26px, 2.5vw, 36px)/1.2 var(--font-sans);
+  letter-spacing: -.035em;
+}
+:is(.drive-heading, .statistics-heading, .automatic-emails-heading, .settings-header) p:not(.section-kicker) {
+  max-width: 660px;
+  margin: 0;
+  color: var(--crm-text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) .section-kicker {
+  color: var(--crm-text-soft);
+  font: 600 10px/1.5 var(--font-sans);
+  letter-spacing: .1em;
+}
+:is(.drive-section-title, .statistics-section-title, .automatic-emails-section-title,
+  .settings-drive-header, .settings-recommendations-heading) h2,
+.settings-section-title {
+  margin: 0 0 8px;
+  font: 600 17px/1.4 var(--font-sans);
+  letter-spacing: -.015em;
+}
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) button,
+.drive-open-folder-link {
+  min-height: 44px;
+  border-radius: var(--crm-radius-sm);
+  font-family: var(--font-sans);
+  letter-spacing: .015em;
+}
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  border-color: var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  font-family: var(--font-sans);
+}
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) :is(input:not([type="checkbox"]), select) { min-height: 44px; }
+:is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--crm-accent);
+  outline-offset: 3px;
+}
+:is(.drive-root-card, .drive-item-card, .statistics-kpi-card, .statistics-panel,
+  .automatic-emails-upcoming, .automatic-email-rule-card, .automatic-emails-connections,
+  .automatic-emails-history, .custom-campaign-card, .calendar-connection-card,
+  .settings-drive, .recommendation-submit-card, .recommendation-admin) {
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-surface);
+  box-shadow: var(--crm-shadow-sm);
+}
+/* Drive: document names keep the existing native links and navigation history. */
+.drive-heading { gap: 24px; }
+.drive-heading > div:first-child { min-width: 0; }
+.drive-heading-actions { min-width: 250px; gap: 8px; }
+.drive-heading-actions > div { padding: 10px 12px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); background: white; }
+.drive-heading-actions span { font-size: 10px; color: var(--crm-text-muted); }
+.drive-heading-actions strong { font-size: 12px; }
+.drive-heading-actions > button { padding: 10px 16px; font-size: 11px; }
+.drive-search { margin: 0 0 28px; padding: 8px 10px 8px 16px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-md); background: white; box-shadow: var(--crm-shadow-sm); }
+.drive-search input { font-size: 14px; font-weight: 400; letter-spacing: 0; }
+.drive-search button { font-size: 11px; padding-inline: 16px; }
+.drive-section-title { margin-bottom: 16px; gap: 12px; }
+.drive-section-title:has(> .section-kicker) { align-items: flex-start; flex-direction: column; gap: 4px; }
+.drive-root-grid { gap: 14px; }
+.drive-root-card { padding: 18px; gap: 14px; }
+.drive-root-card > span, .drive-item-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: var(--crm-accent-soft); color: var(--crm-accent); font-size: 24px; }
+.drive-root-card h3, .drive-item-card h3 { font: 550 14px/1.5 var(--font-sans); }
+.drive-root-card small, .drive-item-copy > span { font-size: 10px; font-weight: 500; letter-spacing: .035em; }
+.drive-root-card p, .drive-item-card p { font-size: 11px; line-height: 1.5; }
+.drive-root-card .drive-remove-root { min-height: 44px; }
+.drive-folder-navigation { margin: 24px 0 16px; padding: 8px 12px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); background: white; }
+.drive-breadcrumbs button { font-size: 11px; letter-spacing: 0; text-transform: none; }
+.drive-item-card { padding: 14px 18px; gap: 14px; }
+.drive-item-card:hover { border-color: var(--crm-accent); }
+.drive-item-card > a:not(.drive-open-folder-link) { display: inline-flex; min-height: 44px; align-items: center; font-size: 10px; }
+.drive-entity-links span { font-size: 10px; }
+.drive-state, .drive-notice { border-radius: var(--crm-radius-sm); font-size: 13px; }
+/* Statistics: values and chart geometry are supplied by the existing engine. */
+.statistics-context { min-width: 180px; padding: 12px 16px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); background: white; }
+.statistics-context strong { font: 550 14px/1.5 var(--font-sans); }
+.statistics-filters { padding: 12px; border-color: var(--crm-border); border-radius: var(--crm-radius-md); background: white; box-shadow: none; gap: 10px; }
+.statistics-year-filter { border-color: var(--crm-border); }
+.statistics-filter-group button { font-size: 11px; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.statistics-filter-group button[aria-pressed="true"] { background: var(--crm-accent-soft); color: var(--crm-accent); box-shadow: none; }
+.statistics-kpi-card { min-height: 145px; padding: 20px; }
+.statistics-kpi-card > span:first-child { max-width: 80%; font-size: 11px; font-weight: 550; letter-spacing: .025em; }
+.statistics-kpi-card > strong { margin-top: 20px; font: 600 clamp(23px, 2.3vw, 32px)/1.25 var(--font-sans); font-variant-numeric: tabular-nums; }
+.statistics-kpi-card > small { font-size: 9px; font-weight: 500; }
+button.statistics-kpi-card:hover { transform: none; border-color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.statistics-month-panel { border: 1px solid var(--crm-border); border-radius: var(--crm-radius-md); background: white; color: var(--crm-text); box-shadow: var(--crm-shadow-sm); }
+.statistics-month-panel .section-kicker, .statistics-month-panel .statistics-section-title > p:last-child { color: var(--crm-text-muted); }
+.statistics-month-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.statistics-month-grid article { min-height: 120px; border-color: var(--crm-border-soft); background: var(--crm-surface-muted); }
+.statistics-month-grid article > span:first-child { color: var(--crm-text-muted); font-size: 10px; font-weight: 550; }
+.statistics-month-grid article > strong { font: 600 24px/1.3 var(--font-sans); font-variant-numeric: tabular-nums; }
+.statistics-month-grid .statistics-comparison.positive { color: var(--crm-success); }
+.statistics-month-grid .statistics-comparison.negative { color: var(--crm-danger); }
+.statistics-month-grid .statistics-comparison.neutral { color: var(--crm-text-muted); }
+.statistics-panel { padding: 24px; }
+.statistics-performance-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.statistics-performance-grid article { min-height: 128px; }
+.statistics-performance-grid article > strong, .statistics-health-grid strong { font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums; }
+.statistics-performance-grid .statistics-delay-card { background: var(--crm-accent-soft); color: var(--crm-accent); }
+.statistics-performance-grid .statistics-delay-card > span, .statistics-performance-grid .statistics-delay-card > small { color: var(--crm-text-muted); }
+.statistics-table tbody th, .statistics-chart-heading > strong { font-family: var(--font-sans); font-size: 13px; font-weight: 550; }
+.statistics-table-wrap { max-width: 100%; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); }
+.statistics-table th, .statistics-table td { padding: 16px; font-variant-numeric: tabular-nums; }
+.statistics-chart { background: var(--crm-bg); }
+.statistics-progress span { background: var(--crm-accent); }
+.statistics-definitions { border-left: 0; border-top: 1px solid var(--crm-border); padding-inline: 0; }
+/* Automatic configuration and manual sending remain separate workflows. */
+.automatic-emails-mode { flex-shrink: 0; padding: 9px 12px; border-color: var(--crm-border); border-radius: var(--crm-radius-sm); background: var(--crm-accent-soft); font-size: 10px; }
+.automatic-emails-lock { padding: 22px; border: 1px solid var(--crm-border); background: var(--crm-accent-soft); color: var(--crm-text); box-shadow: none; }
+.automatic-emails-lock-icon { border-color: var(--crm-border); color: var(--crm-accent); background: white; }
+.automatic-emails-lock h2 { font: 600 19px/1.4 var(--font-sans); }
+.automatic-emails-lock div > span { color: var(--crm-text-muted); font-size: 12px; line-height: 1.6; }
+.automatic-emails-lock > strong { background: white; }
+.automatic-emails-upcoming, .automatic-emails-connections, .automatic-emails-history { padding: 24px; }
+.automatic-emails-upcoming article strong { font-family: var(--font-sans); font-weight: 600; }
+.automatic-email-rule-card, .custom-campaign-card { padding: 24px; }
+.automatic-email-rule-card h3, .custom-campaign-card h3 { font: 600 17px/1.4 var(--font-sans); }
+.automatic-email-rule-card dt, .custom-campaign-card dt { font-size: 10px; font-weight: 550; letter-spacing: .025em; }
+.automatic-email-rule-card dd, .custom-campaign-card dd { font-size: 13px; overflow-wrap: anywhere; }
+.automatic-email-rule-actions { flex-direction: row; flex-wrap: wrap; }
+.automatic-email-rule-actions button { flex: 1 1 130px; padding: 10px; font-size: 11px; font-weight: 550; }
+.custom-campaigns { padding-top: 28px; margin-top: 32px; }
+.custom-campaigns-heading { align-items: flex-start; flex-wrap: wrap; margin-bottom: 16px; }
+.custom-campaigns-heading > button { flex-shrink: 0; font-size: 11px; }
+.custom-campaign-contact-tools button[aria-pressed="true"], .automatic-email-schedule-filters button[aria-pressed="true"] { background: var(--crm-accent-soft); color: var(--crm-accent); border-color: var(--crm-border); }
+.custom-campaign-contact-list label { min-height: 54px; }
+.custom-campaign-contact-list label:has(input:checked) { background: var(--crm-accent-soft); }
+.custom-campaign-contact-list input { accent-color: var(--crm-accent); }
+.custom-campaign-contact-tools button, .custom-campaign-sequence article header button { font-size: 10px; }
+.custom-campaign-editor-body > label { display: grid; gap: 8px; font-size: 13px; }
+.custom-campaign-editor-body > label select { width: 100%; padding: 10px; background: white; border: 1px solid var(--crm-border); }
+.custom-campaign-editor-body > button, .custom-campaign-editor-body > div > button,
+.custom-campaign-editor-body > section[aria-label] button { padding: 10px 14px; border: 1px solid var(--crm-border); background: white; color: var(--crm-text); font-size: 11px; cursor: pointer; }
+.custom-campaign-editor-body > section[aria-label] { padding: 18px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-md); background: var(--crm-accent-soft); }
+.custom-campaign-editor-body > section[aria-label] button:disabled { opacity: .45; cursor: not-allowed; }
+.custom-campaign-editor-body p { overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
+.automatic-email-simulation-warning { background: var(--crm-accent-soft); color: var(--crm-accent); }
+/* Settings: scoped status colors and all existing connection actions are kept. */
+.settings-header > button { margin-top: 18px; }
+.settings-section-title { margin: 28px 0 16px; }
+.calendar-connections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.calendar-connection-card { min-width: 0; display: flex; flex-direction: column; align-items: stretch; padding: 22px; gap: 20px; }
+.calendar-connection-card > div:first-child { min-width: 0; align-items: flex-start; gap: 12px; }
+.calendar-connection-card > div:first-child > div { min-width: 0; }
+.calendar-connection-card h2 { font: 600 16px/1.4 var(--font-sans); }
+.calendar-connection-card p { font-size: 12px; line-height: 1.6; }
+.calendar-connection-card small { font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.calendar-connection-actions { display: flex; flex-direction: column; align-items: stretch; margin-top: auto; gap: 8px; }
+.settings-page .calendar-connect, .settings-page .calendar-disconnect { padding: 10px 14px; font-size: 11px; }
+.settings-page .calendar-broker-photo-frame { width: 44px; height: 44px; flex: 0 0 44px; }
+.settings-page .calendar-broker-photo-maxime { transform-origin: center 38%; }
+.settings-drive { margin-top: 28px; padding: 24px; }
+.settings-drive-header { flex-wrap: wrap; gap: 16px; }
+.settings-drive-header p:last-child { font-size: 13px; }
+.settings-drive-header > button { font-size: 11px; }
+.settings-drive-roots > article { border-radius: var(--crm-radius-sm); background: var(--crm-bg); }
+.settings-drive-roots h3 { font: 550 14px/1.5 var(--font-sans); }
+.settings-drive-root-actions { flex-wrap: wrap; }
+.settings-drive-root-actions :is(a, button) { min-height: 44px; border-radius: var(--crm-radius-sm); font-size: 10px; }
+.settings-drive-remove-confirmation { flex-wrap: wrap; }
+.settings-drive-remove-confirmation small { flex-basis: 100%; }
+.settings-recommendations { margin-top: 32px; }
+.settings-recommendations-heading > p:last-child { font-size: 13px; }
+.recommendation-submit-card, .recommendation-admin { padding: 24px; }
+.recommendation-form input, .recommendation-form textarea { background: white; }
+.recommendation-admin-header h3 { font: 600 15px/1.5 var(--font-sans); }
+.recommendation-admin-header > strong { font-size: 11px; }
+.recommendation-filters { flex-wrap: wrap; gap: 8px; }
+.recommendation-filters button { font-size: 11px; }
+.recommendation-filters button.is-active { background: var(--crm-accent-soft); color: var(--crm-accent); border-color: var(--crm-border); }
+.recommendation-filters button.is-active strong { background: white; color: var(--crm-accent); }
+.recommendation-row { padding: 18px; border-radius: var(--crm-radius-sm); }
+.recommendation-row h4 { font: 550 14px/1.5 var(--font-sans); }
+.recommendation-row-unread { border-left-color: var(--crm-accent); }
+/* Existing dialogs, with a single scroll container and reachable controls. */
+:is(.automatic-email-modal-backdrop, .drive-modal-backdrop, .recommendation-detail-backdrop) { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgb(24 40 60 / 35%); backdrop-filter: none; }
+:is(.automatic-email-modal, .drive-remove-modal, .recommendation-detail-modal) { min-width: 0; max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-lg); background: white; box-shadow: var(--crm-shadow-md); }
+.automatic-email-modal > header { position: sticky; top: 0; z-index: 2; padding: 20px 24px; background: white; }
+.automatic-email-modal > header h2, .drive-remove-modal h2, .recommendation-detail-header h2 { font: 600 19px/1.4 var(--font-sans); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.automatic-email-modal > header > button, .recommendation-detail-header > button { flex-shrink: 0; width: 44px; min-height: 44px; border-radius: var(--crm-radius-sm); background: var(--crm-surface-muted); }
+.automatic-email-modal > footer { position: sticky; bottom: 0; z-index: 2; padding: 16px 24px; border-top: 1px solid var(--crm-border); background: white; }
+.automatic-email-editor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.automatic-email-editor-grid label { min-width: 0; font-size: 11px; font-weight: 550; letter-spacing: .015em; }
+.automatic-email-modal :is(input:not([type="checkbox"]), select, textarea) { font-size: 14px; font-weight: 400; }
+.custom-campaign-recipients > div:first-child, .custom-campaign-sequence > div:first-child, .custom-campaign-sequence article header { flex-wrap: wrap; }
+.automatic-email-modal :is(dd, p, strong) { overflow-wrap: anywhere; }
+@media (max-width: 1279px) {
+  .calendar-connections { grid-template-columns: 1fr; }
+  .calendar-connection-card { flex-direction: row; align-items: center; justify-content: space-between; }
+  .calendar-connection-actions { margin-top: 0; max-width: 240px; }
+  .statistics-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics-performance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .statistics-two-column, .statistics-chart-grid { grid-template-columns: 1fr; }
+  .drive-root-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .drive-heading, .statistics-heading, .automatic-emails-heading { flex-wrap: wrap; }
+  .drive-heading-actions { width: 100%; min-width: 0; grid-template-columns: 1fr 1fr; }
+  .drive-heading-actions > button { grid-column: 1 / -1; }
+  .automatic-email-rule-grid, .custom-campaign-grid { grid-template-columns: 1fr; }
+  .automatic-emails-upcoming > div:last-child { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .automatic-emails-upcoming > div:last-child > button { grid-column: 1 / -1; }
+  .statistics-month-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  :is(.drive-page, .statistics-page, .automatic-emails-page, .settings-page) :is(input:not([type="checkbox"]), select, textarea) { font-size: 16px; }
+  :is(.drive-heading, .statistics-heading, .automatic-emails-heading, .settings-header) h1 { font-size: 25px; }
+  .drive-search { grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 10px; }
+  .drive-search button { grid-column: 1 / -1; width: 100%; }
+  .drive-root-card, .drive-item-card { grid-template-columns: auto minmax(0, 1fr); padding: 16px; }
+  .drive-root-card > div:last-child { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+  .drive-item-card > :is(a, button), .drive-item-unavailable { grid-column: 1 / -1; max-width: none !important; justify-content: center; }
+  .drive-section-title { flex-wrap: wrap; }
+  .drive-folder-navigation { padding: 6px; }
+  .drive-breadcrumbs button { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .statistics-context { width: 100%; }
+  .statistics-kpi-card { padding: 14px; min-height: 132px; }
+  .statistics-kpi-card > span:first-child { max-width: none; }
+  .statistics-kpi-card > strong { font-size: 23px; overflow-wrap: anywhere; }
+  .statistics-panel, .statistics-month-panel { padding: 16px; }
+  .statistics-performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics-custom-dates label { display: grid; flex: 1 1 120px; }
+  .automatic-emails-lock { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .automatic-emails-lock > strong { grid-column: 1 / -1; text-align: center; }
+  .automatic-emails-lock h2 { font-size: 16px; }
+  .automatic-emails-upcoming, .automatic-emails-connections, .automatic-emails-history,
+  .automatic-email-rule-card, .custom-campaign-card, .settings-drive,
+  .recommendation-submit-card, .recommendation-admin { padding: 16px; }
+  .automatic-emails-upcoming > div:last-child, .automatic-emails-connections > div:last-of-type { grid-template-columns: 1fr; }
+  .automatic-emails-upcoming article { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .automatic-emails-upcoming article strong { margin: 0; }
+  .automatic-emails-history article { grid-template-columns: 1fr; gap: 8px; }
+  .calendar-connection-card { flex-direction: column; align-items: stretch; padding: 16px; }
+  .calendar-connection-actions { max-width: none; }
+  .settings-drive-roots > article { align-items: stretch; flex-direction: column; }
+  .settings-drive-root-actions { justify-content: flex-start; }
+  .settings-drive-root-actions > :is(a, button) { flex: 1; justify-content: center; }
+  .settings-drive-remove-confirmation { display: grid; width: 100%; min-width: 0; grid-template-columns: 1fr 1fr; }
+  .settings-drive-remove-confirmation small { grid-column: 1 / -1; white-space: normal; line-height: 1.5; }
+  .settings-drive-remove-confirmation button { min-width: 0; padding-inline: 6px; }
+  .recommendation-admin-header { align-items: flex-start; flex-direction: column; }
+  .recommendation-row { grid-template-columns: 1fr; padding: 14px; }
+  .recommendation-row-actions { flex-wrap: wrap; }
+  .recommendation-row-actions button { flex: 1 1 90px; }
+  .automatic-email-modal-backdrop { padding: 8px; }
+  .automatic-email-modal { max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .automatic-email-modal > header { padding: 16px; }
+  .automatic-email-modal > header h2 { font-size: 17px; }
+  .automatic-email-modal > footer { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); flex-wrap: wrap; }
+  .automatic-email-modal > footer button { flex: 1; }
+  .automatic-email-editor-grid, .automatic-email-editor-section > div { grid-template-columns: 1fr; }
+  .automatic-email-editor-grid, .custom-campaign-editor-body { padding: 16px; }
+  .custom-campaign-basics { padding: 0; }
+  .automatic-email-url-row { grid-template-columns: 1fr; }
+  .custom-campaign-contact-list label { grid-template-columns: auto minmax(0, 1fr); }
+  .custom-campaign-contact-list em { grid-column: 2; }
+  .automatic-email-schedule-list article { grid-template-columns: 1fr; gap: 8px; }
+  .automatic-email-schedule-list > article > span { justify-self: start; }
+}

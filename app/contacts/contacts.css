@@ -12,7 +12,7 @@
 .contacts-premium .contacts-main-actions { flex-wrap: wrap; gap: 8px; }
 .contacts-premium :is(.contact-action, .profile-action, .contact-profile-back, .contact-profile-reassign, .profile-section-heading button, .notes-add-button, .drive-documents-heading button) { min-height: 44px; padding: 10px 14px; border-radius: 9px; font: 500 12px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; background: white; border: 1px solid var(--crm-border); color: var(--crm-text); }
 .contacts-premium :is(.contact-action.contact-action-primary, .profile-action.profile-action-primary) { color: white; background: var(--crm-accent); border-color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
-.contacts-premium .unassigned-alert { margin: 0 0 18px; padding: 12px 16px; border: 1px solid #e8e1d5; border-radius: 12px; background: #faf7f1; box-shadow: none; }
+.contacts-premium .unassigned-alert { margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--crm-border); border-radius: 12px; background: var(--crm-accent-soft); box-shadow: none; }
 .contacts-premium .unassigned-alert-count { width: 38px; height: 38px; font: 500 17px var(--font-sans); border-radius: 9px; }
 .contacts-premium .unassigned-alert strong { font-size: 11px; letter-spacing: .035em; }
 .contacts-premium .unassigned-alert small { font-size: 12px; }
@@ -27,8 +27,8 @@
 .contacts-premium .contacts-list-head { font: 500 10px/1.5 var(--font-sans); color: var(--crm-text-muted); background: #fafbfc; letter-spacing: .04em; }
 .contacts-premium .contact-row { min-height: 84px; padding-block: 12px; border-color: var(--crm-border-soft); }
 .contacts-premium .contact-row:hover { background: #fafbfc; }
-.contacts-premium .contact-row-return-highlight { background: #f6eedc; }
-.contacts-premium .contact-row-selected { background: #faf4e9; }
+.contacts-premium .contact-row-return-highlight { background: var(--crm-accent-soft); }
+.contacts-premium .contact-row-selected { background: var(--crm-accent-soft); }
 .contacts-premium .contact-main-cell { gap: 10px; }
 .contacts-premium .contact-main-cell > div { min-width: 0; }
 .contacts-premium .contact-initials { width: 34px; height: 34px; font: 500 11px var(--font-sans); color: #697888; background: #f0f3f6; border: 0; }
