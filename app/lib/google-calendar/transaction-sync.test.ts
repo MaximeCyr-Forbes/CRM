@@ -87,3 +87,11 @@ describe("transaction Google sync, server authority and idempotency", () => {
     expect(payload.description).not.toContain("PRIVATE CLAUSE");
   });
 });
+
+it.each(["france", "maxime", "sandrine"] as const)("routes an assistant's existing transaction to its persisted %s broker", async (broker) => {
+  transaction.broker = broker;
+  expect((await syncTransactionDeadline(id)).status).toBe("synced");
+  expect(mocks.connection).toHaveBeenCalledWith(broker);
+  expect(deadline.google_calendar_event_broker).toBe(broker);
+  expect(events.size).toBe(1);
+});

@@ -1,5 +1,5 @@
 import { isRecommendationId } from "../../../data/recommendation-types";
-import { requireApiAccess } from "../../../lib/crm-access";
+import { requireApiAccess, requireWorkspaceAdmin } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   deleteRecommendation,
@@ -17,6 +17,8 @@ type RecommendationRouteContext = {
 export async function PATCH(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
+  const denied = await requireWorkspaceAdmin(request);
+  if (denied) return denied;
   if (!isSameOriginRequest(request)) {
     return Response.json({ error: "Origine refusée." }, { status: 403 });
   }
@@ -76,6 +78,8 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
 export async function DELETE(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
+  const denied = await requireWorkspaceAdmin(request);
+  if (denied) return denied;
   if (!isSameOriginRequest(request)) {
     return Response.json(
       { error: "Origine refusée." },

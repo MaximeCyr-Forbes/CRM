@@ -40,7 +40,7 @@ import { getListingDaysOnMarket, getListingExpirationInfo } from "../lib/listing
 export default function ListingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedBroker } = useBroker();
+  const { selectedBroker, workspaceUser, workingBroker } = useBroker();
   const { contacts } = useContacts();
   const { listings, isLoading, isSaving, error, retry, createListing, updateListing } = useListings();
   const [search, setSearch] = useState("");
@@ -48,7 +48,7 @@ export default function ListingsPage() {
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [overviewRefreshToken, setOverviewRefreshToken] = useState(0);
-  const brokerFilter = listingBrokerFilterFromParam(searchParams.get("broker"));
+  const brokerFilter = listingBrokerFilterFromParam(searchParams.get("broker") ?? (workspaceUser === "immoplus" ? workingBroker : null));
   const purposeFilter = listingPurposeFilterFromParam(searchParams.get("purpose"));
   const statusFilter = listingStatusFilterFromParam(searchParams.get("status"));
   const contactNames = useMemo(() => buildContactNameMap(contacts), [contacts]);
@@ -81,7 +81,7 @@ export default function ListingsPage() {
 
   function updateFilter(name: "broker" | "purpose" | "status", value: string) {
     const next = new URLSearchParams(searchParams.toString());
-    if (value === "all" && name !== "status") next.delete(name);
+    if (value === "all" && name !== "status" && !(name === "broker" && workspaceUser === "immoplus")) next.delete(name);
     else next.set(name, value);
     const query = next.toString();
     router.push(query ? `/listings?${query}` : "/listings");

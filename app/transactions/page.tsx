@@ -70,8 +70,8 @@ export default function TransactionsPage() {
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
   useEffect(() => {
-    if (CONTACT_BROKERS.includes(queryBroker as TransactionBroker)) setBrokerFilter(queryBroker as TransactionBroker);
-  }, [queryBroker]);
+    setBrokerFilter(initialBroker ?? "all");
+  }, [initialBroker]);
 
   useEffect(() => {
     if (queryState === "active" || queryState === "sold" || queryState === "completed") setStateFilter(queryState);

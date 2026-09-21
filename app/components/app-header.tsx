@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useBroker } from "../broker-context";
+import { BROKERS, type Broker, useBroker } from "../broker-context";
 import { appNavigationOrder, softwareLinks } from "../data/software-links";
 import { AccountMenu } from "./account-menu";
 import { GlobalSearch } from "./global-search";
@@ -23,7 +23,7 @@ const links = [
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { selectedBroker, clearBroker } = useBroker();
+  const { selectedBroker, clearBroker, workspaceUser, selectBroker } = useBroker();
   const headerRef = useRef<HTMLElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const softwareButtonRef = useRef<HTMLButtonElement>(null);
@@ -127,11 +127,13 @@ export function AppHeader() {
       </nav>
       <div className="app-header-tools">
         <GlobalSearch />
-        <div className="app-broker-state">
-          <span>Courtier consulté</span>
-          <strong>{selectedBroker?.toUpperCase() ?? "AUCUN"}</strong>
+        <div className={`app-broker-state${workspaceUser === "immoplus" ? " app-assistant-state" : ""}`}>
+          <span>{workspaceUser === "immoplus" ? "Utilisateur IMMOPLUS · Courtier de travail" : "Courtier consulté"}</span>
+          {workspaceUser === "immoplus" ? <select aria-label="Courtier de travail" value={selectedBroker ?? ""} onChange={(event) => { selectBroker(event.target.value as Broker); router.replace(pathname); }}>
+            <option value="" disabled>Choisir</option>{BROKERS.map((broker) => <option key={broker} value={broker}>{broker.toUpperCase()}</option>)}
+          </select> : <strong>{selectedBroker?.toUpperCase() ?? "AUCUN"}</strong>}
         </div>
-        <button className="app-change-broker" onClick={changeBroker} type="button">Changer</button>
+        <button className="app-change-broker" onClick={changeBroker} type="button">{workspaceUser === "immoplus" ? "Changer d’utilisateur" : "Changer"}</button>
         <AccountMenu />
       </div>
       {isSoftwareOpen && (

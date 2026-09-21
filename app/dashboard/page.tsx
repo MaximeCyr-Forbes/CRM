@@ -1,5 +1,7 @@
 "use client";
 
+import { workspaceRequest } from "../lib/workspace-request";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBroker } from "../broker-context";
@@ -28,7 +30,7 @@ type FollowUpNotice = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { selectedBroker, isBrokerReady } = useBroker();
+  const { selectedBroker, isBrokerReady, capabilities } = useBroker();
   const { contacts } = useContacts();
   const { completeFollowUp } = useFollowUps();
   const { listings, isLoading: areListingsLoading, error: listingsError } = useListings();
@@ -97,7 +99,7 @@ export default function Dashboard() {
   }, [isBrokerReady, router, selectedBroker]);
 
   useEffect(() => {
-    if (selectedBroker !== "Maxime") {
+    if (!capabilities.administerRecommendations) {
       setRecommendations([]);
       setRecommendationsUnavailable(false);
       return;
@@ -106,7 +108,7 @@ export default function Dashboard() {
     let isCurrent = true;
     setRecommendations([]);
     setRecommendationsUnavailable(false);
-    void fetch("/api/recommendations", { cache: "no-store" })
+    void workspaceRequest("/api/recommendations", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Chargement impossible");
         return response.json() as Promise<{ data?: CRMRecommendation[] }>;
@@ -121,7 +123,7 @@ export default function Dashboard() {
     return () => {
       isCurrent = false;
     };
-  }, [selectedBroker]);
+  }, [capabilities.administerRecommendations]);
 
   useEffect(() => {
     if (!followUpNotice) return;

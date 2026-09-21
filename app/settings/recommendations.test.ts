@@ -26,10 +26,10 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).not.toContain("window.alert");
   });
 
-  it("limite visuellement l’administration à Maxime sans prétendre à une sécurité de rôle", () => {
+  it("limite l’administration aux capacités de l’utilisateur", () => {
     const component = source("app/components/settings-recommendations.tsx");
-    expect(component).toContain('selectedBroker === "Maxime"');
-    expect(component).toContain("TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur");
+    expect(component).toContain('capabilities.administerRecommendations');
+    expect(component).toContain("workspaceRequest");
     expect(component).toContain("RECOMMANDATIONS REÇUES");
     expect(component).toContain("À TRAITER");
     expect(component).toContain("✓ TOUT EST TRAITÉ");
@@ -112,7 +112,7 @@ describe("interface des recommandations dans Paramètres", () => {
     expect(component).toContain('["pending", "À FAIRE", recommendationCounts.pending]');
     expect(component).toContain('["completed", "FAITES", recommendationCounts.completed]');
     expect(component).toContain('["all", "TOUTES", recommendationCounts.all]');
-    expect(component).toContain('selectedBroker === "Maxime"');
+    expect(component).toContain('capabilities.administerRecommendations');
     expect(component).toContain("✓ Recommandation supprimée.");
     expect(component).toContain("La recommandation n’a pas pu être supprimée. Réessayez.");
   });

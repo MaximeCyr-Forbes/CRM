@@ -1,3 +1,4 @@
+import { isWorkspaceUser, workspaceCapabilities, type WorkspaceUser } from "./workspace";
 import { cookies } from "next/headers";
 
 export const CRM_ACCESS_COOKIE = "ef_crm_access";
@@ -116,4 +117,23 @@ export async function requireApiAccess() {
       { status: 401, headers: { "Cache-Control": "private, no-store" } },
     ),
   } as const;
+}
+
+// Operational workspace selection uses the existing shared CRM access; this is
+// deliberately not a new individual authentication/account system.
+export async function createWorkspaceToken(user: WorkspaceUser) {
+  const expires = Date.now() + 60 * 60 * 1000;
+  const payload = `workspace:v1:${user}:${expires}`;
+  const signature = await crypto.subtle.sign("HMAC", await getSessionKey(["sign"]), new TextEncoder().encode(payload));
+  return `${user}.${expires}.${bytesToBase64Url(new Uint8Array(signature))}`;
+}
+export async function requireWorkspaceAdmin(request: Request) {
+  try {
+    const [user, expiresText, signature, extra] = (request.headers.get("X-CRM-Workspace") ?? "").split(".");
+    const expires = Number(expiresText);
+    if (!extra && isWorkspaceUser(user) && workspaceCapabilities(user).administerRecommendations
+      && expires > Date.now() && expires <= Date.now() + 60 * 60 * 1000
+      && await crypto.subtle.verify("HMAC", await getSessionKey(["verify"]), base64UrlToBytes(signature), new TextEncoder().encode(`workspace:v1:${user}:${expires}`))) return null;
+  } catch { /* An invalid token never grants administration. */ }
+  return Response.json({ error: "Cet espace ne possède pas les droits d’administration." }, { status: 403 });
 }

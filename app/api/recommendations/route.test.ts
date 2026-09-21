@@ -3,6 +3,7 @@ import type { CRMRecommendation, CRMRecommendationDraft } from "../../data/recom
 
 const state = vi.hoisted(() => ({
   accessDenied: false,
+  adminDenied: false,
   sameOrigin: true,
   drafts: [] as CRMRecommendationDraft[],
   recommendations: [] as CRMRecommendation[],
@@ -10,6 +11,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/crm-access", () => ({
+  requireWorkspaceAdmin: vi.fn(async () => state.adminDenied ? Response.json({ error: "Interdit" }, { status: 403 }) : null),
   requireApiAccess: vi.fn(async () => ({
     response: state.accessDenied
       ? Response.json({ error: "Accès CRM requis." }, { status: 401 })
@@ -125,6 +127,7 @@ function patch(id: string, action?: "read" | "complete" | "reopen" | "invalid") 
 describe("API recommandations", () => {
   beforeEach(() => {
     state.accessDenied = false;
+  state.adminDenied = false;
     state.sameOrigin = true;
     state.drafts = [];
     state.recommendations = [];
@@ -159,7 +162,7 @@ describe("API recommandations", () => {
 
   it("protège les lectures et les écritures par la session CRM", async () => {
     state.accessDenied = true;
-    expect((await GET()).status).toBe(401);
+    expect((await GET(new Request("http://localhost/api/recommendations"))).status).toBe(401);
     expect((await post({ title: "Titre", content: "Texte", submittedBy: "maxime" })).status).toBe(401);
     expect((await patch(recommendationId, "complete")).status).toBe(401);
     expect((await remove(recommendationId)).status).toBe(401);
@@ -176,7 +179,7 @@ describe("API recommandations", () => {
 
   it("retourne les recommandations persistées au rechargement", async () => {
     await post({ title: "Titre", content: "Texte", submittedBy: "france" });
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/recommendations"));
     const payload = await response.json() as { data: CRMRecommendation[] };
     expect(response.status).toBe(200);
     expect(payload.data).toHaveLength(1);
@@ -254,7 +257,7 @@ describe("API recommandations", () => {
     expect(payload.data).toEqual({ recommendationId });
     expect(state.deletedRecommendationIds).toEqual([recommendationId]);
 
-    const refreshed = await GET();
+    const refreshed = await GET(new Request("http://localhost/api/recommendations"));
     const refreshedPayload = await refreshed.json() as { data: CRMRecommendation[] };
     expect(refreshedPayload.data).toEqual([]);
   });
@@ -267,4 +270,12 @@ describe("API recommandations", () => {
     expect((await remove("identifiant-invalide")).status).toBe(400);
     expect(state.deletedRecommendationIds).toHaveLength(0);
   });
+});
+
+it("refuse l’administration à Immoplus même lorsqu’il travaille pour Maxime", async () => {
+  state.adminDenied = true;
+  expect((await GET(new Request("http://localhost/api/recommendations"))).status).toBe(403);
+  expect((await PATCH(new Request("http://localhost/api/recommendations/" + recommendationId, { method: "PATCH" }), { params: Promise.resolve({ recommendationId }) })).status).toBe(403);
+  expect((await remove(recommendationId)).status).toBe(403);
+  expect(state.deletedRecommendationIds).toEqual([]);
 });

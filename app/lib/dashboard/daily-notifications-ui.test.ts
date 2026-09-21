@@ -47,8 +47,8 @@ describe("interface Notifications du jour", () => {
   it("signale les sources temporairement indisponibles sans masquer les autres notifications", () => {
     expect(dashboard).toContain("areListingsLoading || Boolean(listingsError)");
     expect(dashboard).toContain("areTransactionsLoading || Boolean(transactionsError)");
-    expect(dashboard).toContain('selectedBroker !== "Maxime"');
-    expect(dashboard).toContain('fetch("/api/recommendations", { cache: "no-store" })');
+    expect(dashboard).toContain('!capabilities.administerRecommendations');
+    expect(dashboard).toContain('workspaceRequest("/api/recommendations", { cache: "no-store" })');
     expect(dashboard).toContain("recommendationsUnavailable={recommendationsUnavailable}");
     expect(panel).toContain("Certaines données Listings sont temporairement indisponibles.");
     expect(panel).toContain("Certaines données Transactions sont temporairement indisponibles.");

@@ -10446,3 +10446,8 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: rg
 .deadline-title-line strong.agenda-done { color: #246549; background: #e7f3eb; }
 .deadline-title-line strong.agenda-upcoming { color: var(--ink); background: #eeece6; }
 @media (max-width: 649px) { .oaciq-fields, .oaciq-basic { grid-template-columns: minmax(0, 1fr); } .oaciq-import { padding: 14px; } }
+
+/* The assistant identity remains visible at every responsive breakpoint. */
+.app-assistant-state, .app-assistant-state span { display: grid; }
+.app-assistant-state select { color: inherit; background: transparent; border: 1px solid #d3d7dc; border-radius: 4px; padding: 0.25rem; font: inherit; font-size: 0.72rem; }
+.broker-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }

@@ -23,7 +23,7 @@ describe("pagination et retour dans la liste Contacts", () => {
     expect(listPage).toContain('const querySearch = searchParams.get("q") ?? ""');
     expect(listPage).toContain("router.replace(contactsListHref(currentQuery");
     expect(listPage).toContain('q: value || null');
-    expect(listPage).toContain('broker: filter === "all" ? null : filter');
+    expect(listPage).toContain('broker: filter === "all" && workspaceUser !== "immoplus" ? null : filter');
     expect(listPage).toContain('page: "1"');
     expect(listPage).toContain('const queryFollowUp = searchParams.get("followUp")');
   });

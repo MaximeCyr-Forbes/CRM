@@ -193,7 +193,7 @@ function automaticImportResolution(candidate: ImportCandidate): ImportResolution
 export default function ContactsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedBroker } = useBroker();
+  const { selectedBroker, workingBroker, workspaceUser } = useBroker();
   const {
     contacts,
     addManualContact,
@@ -239,7 +239,7 @@ export default function ContactsPage() {
   const currentQuery = searchParams.toString();
   const activeFilter = filterOptions.some((option) => option.value === queryBroker)
     ? queryBroker as ContactFilter
-    : "all";
+    : workspaceUser === "immoplus" && workingBroker ? workingBroker : "all";
   const today = toLocalISODate(new Date());
 
   const normalizedTerms = [normalizeName(search), normalizePhone(search), normalizeEmail(search)].filter(Boolean);
@@ -279,7 +279,7 @@ export default function ContactsPage() {
 
   function changeContactFilter(filter: ContactFilter) {
     router.replace(contactsListHref(currentQuery, {
-      broker: filter === "all" ? null : filter,
+      broker: filter === "all" && workspaceUser !== "immoplus" ? null : filter,
       page: "1",
     }), { scroll: false });
   }
@@ -729,7 +729,7 @@ export default function ContactsPage() {
           {(Object.keys(contactDraftLabels) as Array<keyof ContactDraft>).map((field) => <label key={field}><span>{contactDraftLabels[field]}</span><input onChange={(event) => setManualDraft((current) => ({ ...current, [field]: event.target.value }))} type={field === "email" ? "email" : field === "phone" ? "tel" : field === "birthDate" || field === "mortgageRenewalDate" ? "date" : "text"} value={manualDraft[field]} /></label>)}
           <label><span>Provenance du client</span><select onChange={(event) => setManualClientProvenance(event.target.value === "" ? null : event.target.value as ClientProvenance)} value={manualClientProvenance ?? ""}><option value="">Non renseignée</option>{CLIENT_PROVENANCES.map((provenance) => <option key={provenance} value={provenance}>{CLIENT_PROVENANCE_LABELS[provenance]}</option>)}</select></label>
           {manualError && <p className="import-error">{manualError}</p>}<button className="manual-contact-continue" type="submit">Continuer vers l’attribution</button>
-        </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}</span><span aria-hidden="true">→</span></button>)}</div>}
+        </form> : <div className="broker-choice-grid">{CONTACT_BROKERS.map((broker) => <button className={broker === workingBroker ? "broker-choice-current" : ""} autoFocus={broker === workingBroker} disabled={isSaving} key={broker} onClick={() => void chooseManualBroker(broker)} type="button"><span>{BROKER_LABELS[broker]}{broker === workingBroker ? " · Courtier de travail" : ""}</span><span aria-hidden="true">→</span></button>)}</div>}
       </section></div>}
 
       {importKind && <div className="contact-modal-backdrop"><section aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">

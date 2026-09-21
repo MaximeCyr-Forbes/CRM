@@ -1,5 +1,7 @@
 "use client";
 
+import { workspaceRequest } from "../lib/workspace-request";
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type Broker, useBroker } from "../broker-context";
@@ -32,7 +34,7 @@ const BROKER_KEYS: Record<Broker, RecommendationAuthor> = {
 export function SettingsRecommendations() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedBroker } = useBroker();
+  const { selectedBroker, capabilities } = useBroker();
   const linkedRecommendationId = searchParams.get("recommendation");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -56,9 +58,7 @@ export function SettingsRecommendations() {
   const openedDeepLinkRef = useRef<string | null>(null);
 
   const submittedBy = selectedBroker ? BROKER_KEYS[selectedBroker] : null;
-  // TODO : remplacer cette vérification d’affichage par un vrai rôle utilisateur
-  // lorsque l’authentification individuelle sera ajoutée.
-  const showAdministration = selectedBroker === "Maxime";
+  const showAdministration = capabilities.administerRecommendations;
 
   useEffect(() => {
     if (!showAdministration) {
@@ -75,7 +75,7 @@ export function SettingsRecommendations() {
     let isCurrent = true;
     setIsLoadingAdmin(true);
     setAdminError(null);
-    void fetch("/api/recommendations", { cache: "no-store" })
+    void workspaceRequest("/api/recommendations", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Chargement impossible");
         return response.json() as Promise<{ data: CRMRecommendation[] }>;
@@ -124,7 +124,7 @@ export function SettingsRecommendations() {
     setIsSubmitting(true);
     setFormError(null);
     try {
-      const response = await fetch("/api/recommendations", {
+      const response = await workspaceRequest("/api/recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, content, submittedBy }),
@@ -154,7 +154,7 @@ export function SettingsRecommendations() {
     if (recommendation.status === "read") return;
     setAdminError(null);
     try {
-      const response = await fetch(`/api/recommendations/${recommendation.id}`, {
+      const response = await workspaceRequest(`/api/recommendations/${recommendation.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "read" }),
@@ -210,7 +210,7 @@ export function SettingsRecommendations() {
     setCompletionConfirmation(null);
     setAdminError(null);
     try {
-      const response = await fetch(`/api/recommendations/${recommendation.id}`, {
+      const response = await workspaceRequest(`/api/recommendations/${recommendation.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: shouldBeCompleted ? "complete" : "reopen" }),
@@ -245,7 +245,7 @@ export function SettingsRecommendations() {
     if (!acquireRecommendationDeletionLock(deletionLock, recommendationId)) return;
     setDeletingRecommendationId(recommendationId);
     try {
-      const response = await fetch(`/api/recommendations/${recommendationId}`, {
+      const response = await workspaceRequest(`/api/recommendations/${recommendationId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
