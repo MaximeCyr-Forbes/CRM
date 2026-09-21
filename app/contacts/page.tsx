@@ -1,5 +1,7 @@
 "use client";
 
+import "./contacts.css";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
 import { DataStatus } from "../components/data-status";
@@ -12,6 +14,7 @@ import { useCRMData } from "../crm-data-context";
 import { useBroker } from "../broker-context";
 import {
   BROKER_LABELS,
+  CLIENT_TYPE_LABELS,
   CLIENT_PROVENANCES,
   CLIENT_PROVENANCE_LABELS,
   CONTACT_ASSIGNMENTS,
@@ -105,7 +108,7 @@ const PAGINATION_LIST_HEADER_GAP = 12;
 const RETURNED_CONTACT_HEADER_GAP = 12;
 
 function scrollContactsListAfterPagination(list: HTMLElement) {
-  const header = document.querySelector<HTMLElement>(".app-header");
+  const header = document.querySelector<HTMLElement>(".crm-topbar, .app-header");
   const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
   const listTop = list.getBoundingClientRect().top;
 
@@ -116,7 +119,7 @@ function scrollContactsListAfterPagination(list: HTMLElement) {
 }
 
 function scrollReturnedContactIntoView(target: HTMLElement) {
-  const header = document.querySelector<HTMLElement>(".app-header");
+  const header = document.querySelector<HTMLElement>(".crm-topbar, .app-header");
   const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
   const targetTop = target.getBoundingClientRect().top;
 
@@ -615,6 +618,9 @@ export default function ContactsPage() {
   }, [querySearch]);
 
   useEffect(() => {
+    // Browser Back restores the URL before the router publishes its search params.
+    // Do not replace that URL using the previous contact profile's parameters.
+    if (new URLSearchParams(window.location.search).toString() !== currentQuery) return;
     if (isLoading || search !== querySearch || searchParams.get("page") === String(currentPage)) return;
     router.replace(contactsListHref(currentQuery, { page: String(currentPage) }), { scroll: false });
   }, [currentPage, currentQuery, isLoading, querySearch, router, search, searchParams]);
@@ -676,11 +682,11 @@ export default function ContactsPage() {
   }, [areAllVisibleSelected, selectedVisibleCount]);
 
   return (
-    <main className="contacts-page">
+    <main className="contacts-page contacts-premium">
       <div className="contacts-shell">
         <DataStatus />
         <header className="contacts-header">
-          <div><p className="section-kicker">Répertoire de l’équipe</p><h1>CONTACTS</h1><p>{contacts.length} contacts sauvegardés dans le CRM.</p></div>
+          <div><p className="section-kicker">Répertoire de l’équipe · {contacts.length} contacts</p><h1>Contacts</h1><p>Votre base clients et vos suivis.</p></div>
           <div className="contacts-main-actions">
             <button className="contact-action contact-action-primary" disabled={isSaving} onClick={openManualModal} type="button">Ajouter un contact</button>
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("csv")} type="button">Importer CSV</button>
@@ -700,7 +706,7 @@ export default function ContactsPage() {
           <div className="contacts-list" ref={contactsListRef}>
             <div className="contacts-list-head" aria-hidden="true"><span>Contact</span><span>Coordonnées</span><span>Courtier</span><span>Suivi</span><span>Actions</span></div>
             {pagedContacts.map((contact) => <article className={`contact-row${selectedContactIds.has(contact.id) ? " contact-row-selected" : ""}${highlightedContactId === contact.id ? " contact-row-return-highlight" : ""}`} id={`contact-${contact.id}`} key={contact.id}>
-              <div className="contact-main-cell">{activeFilter === "unassigned" && <label className="contact-select-control" onClick={(event) => event.stopPropagation()}><input aria-label={`Sélectionner ${getContactName(contact)}`} checked={selectedContactIds.has(contact.id)} disabled={isBulkDeleting} onChange={() => toggleContactSelection(contact.id)} type="checkbox" /><span className="sr-only">Sélectionner {getContactName(contact)}</span></label>}<span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => openContact(contact.id)} type="button">{getContactName(contact)}</button></h2><small>{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
+              <div className="contact-main-cell">{activeFilter === "unassigned" && <label className="contact-select-control" onClick={(event) => event.stopPropagation()}><input aria-label={`Sélectionner ${getContactName(contact)}`} checked={selectedContactIds.has(contact.id)} disabled={isBulkDeleting} onChange={() => toggleContactSelection(contact.id)} type="checkbox" /><span className="sr-only">Sélectionner {getContactName(contact)}</span></label>}<span className="contact-initials" aria-hidden="true">{[contact.firstName, contact.lastName].filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?"}</span><div><h2><button aria-label={`Ouvrir la fiche de ${getContactName(contact)}`} className="contact-name-button" onClick={() => openContact(contact.id)} type="button">{getContactName(contact)}</button></h2><small>{contact.clientType && <span>{CLIENT_TYPE_LABELS[contact.clientType]} · </span>}{contact.priority ? `Priorité · ${PRIORITY_LABELS[contact.priority]}` : "Priorité non définie"}</small></div></div>
               <div className="contact-coordinates">{contact.phone ? <a href={`tel:${contact.phone}`}>{contact.phone}</a> : <span>Téléphone non renseigné</span>}{contact.email ? <button aria-label={`Envoyer un courriel à ${getContactName(contact)}`} className="contact-email-link" onClick={() => setEmailContactId(contact.id)} type="button">{contact.email}</button> : <span>Email non renseigné</span>}</div>
               <span className={`contact-broker-badge broker-${contact.broker}`}>{BROKER_LABELS[contact.broker]}</span><span className="contact-follow-up-cell">{contact.nextFollowUpDate ? formatFollowUpDate(contact.nextFollowUpDate) : "Aucune relance"}</span>
               <div className="contact-row-actions"><button onClick={() => openContact(contact.id)} type="button">Ouvrir</button><button onClick={() => setAssignmentTargetId(contact.id)} type="button">Changer le courtier</button></div>

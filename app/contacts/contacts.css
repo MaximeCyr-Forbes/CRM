@@ -1,0 +1,202 @@
+/* Contacts presentation only. Shared components retain their own styles elsewhere. */
+.contacts-premium { color: var(--crm-text); background: var(--crm-bg); }
+.contacts-premium *, .contacts-premium *::before, .contacts-premium *::after { box-sizing: border-box; }
+.contacts-premium :is(.contacts-shell, .profile-shell) { width: 100%; max-width: 1800px; min-width: 0; padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.contacts-premium .section-kicker { color: var(--crm-text-muted); font: 500 10px/1.5 var(--font-sans); letter-spacing: .1em; }
+.contacts-premium :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--crm-accent); outline-offset: 3px; }
+.contacts-premium :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+.contacts-premium :is(button, a, h1, h2, h3, p, dd, strong) { overflow-wrap: anywhere; }
+.contacts-premium .contacts-header { padding: 0 0 24px; gap: 24px; flex-wrap: wrap; border: 0; }
+.contacts-premium :is(.contacts-header, .profile-title) h1 { font: 400 clamp(30px, 3vw, 42px)/1.18 var(--font-serif); letter-spacing: -.035em; margin: 8px 0 10px; }
+.contacts-premium .contacts-header > div:first-child > p:last-child { color: var(--crm-text-muted); font-size: 14px; }
+.contacts-premium .contacts-main-actions { flex-wrap: wrap; gap: 8px; }
+.contacts-premium :is(.contact-action, .profile-action, .contact-profile-back, .contact-profile-reassign, .profile-section-heading button, .notes-add-button, .drive-documents-heading button) { min-height: 44px; padding: 10px 14px; border-radius: 9px; font: 500 12px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; background: white; border: 1px solid var(--crm-border); color: var(--crm-text); }
+.contacts-premium :is(.contact-action.contact-action-primary, .profile-action.profile-action-primary) { color: white; background: var(--crm-accent); border-color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.contacts-premium .unassigned-alert { margin: 0 0 18px; padding: 12px 16px; border: 1px solid #e8e1d5; border-radius: 12px; background: #faf7f1; box-shadow: none; }
+.contacts-premium .unassigned-alert-count { width: 38px; height: 38px; font: 500 17px var(--font-sans); border-radius: 9px; }
+.contacts-premium .unassigned-alert strong { font-size: 11px; letter-spacing: .035em; }
+.contacts-premium .unassigned-alert small { font-size: 12px; }
+.contacts-premium .contacts-directory { border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.contacts-premium .contacts-tools { display: flex; flex-wrap: wrap; gap: 14px; padding: 18px; border-color: var(--crm-border-soft); }
+.contacts-premium .contact-filters { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; background: var(--crm-bg); border-radius: 9px; }
+.contacts-premium .contact-filters button { min-height: 38px; border: 0; border-radius: 7px; padding: 8px 10px; font: 500 12px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.contacts-premium .contact-filters .contact-filter-active { background: white; color: var(--crm-accent); box-shadow: var(--crm-shadow-sm); }
+.contacts-premium .contacts-search { flex: 1 1 260px; width: auto; min-width: 0; min-height: 44px; border: 1px solid var(--crm-border); border-radius: 9px; background: white; color: var(--crm-text-muted); }
+.contacts-premium .contacts-search input { font-size: 14px; }
+.contacts-premium :is(.contacts-list-head, .contact-row) { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(80px, .5fr) minmax(85px, .55fr) 142px; gap: 14px; padding-inline: 20px; }
+.contacts-premium .contacts-list-head { font: 500 10px/1.5 var(--font-sans); color: var(--crm-text-muted); background: #fafbfc; letter-spacing: .04em; }
+.contacts-premium .contact-row { min-height: 84px; padding-block: 12px; border-color: var(--crm-border-soft); }
+.contacts-premium .contact-row:hover { background: #fafbfc; }
+.contacts-premium .contact-row-return-highlight { background: #f6eedc; }
+.contacts-premium .contact-row-selected { background: #faf4e9; }
+.contacts-premium .contact-main-cell { gap: 10px; }
+.contacts-premium .contact-main-cell > div { min-width: 0; }
+.contacts-premium .contact-initials { width: 34px; height: 34px; font: 500 11px var(--font-sans); color: #697888; background: #f0f3f6; border: 0; }
+.contacts-premium .contact-main-cell h2 { font: 600 13px/1.45 var(--font-sans); white-space: normal; }
+.contacts-premium .contact-name-button { white-space: normal; overflow-wrap: anywhere; }
+.contacts-premium .contact-main-cell small { color: var(--crm-text-muted); font: 400 10px/1.5 var(--font-sans); }
+.contacts-premium .contact-coordinates { gap: 5px; font-size: 12px; }
+.contacts-premium .contact-coordinates :is(a, button, span) { font-size: 12px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; text-align: left; }
+.contacts-premium .contact-broker-badge { font: 500 11px/1.4 var(--font-sans); padding: 5px 8px; }
+.contacts-premium .contact-follow-up-cell { font: 400 11px/1.5 var(--font-sans); color: var(--crm-text-muted); }
+.contacts-premium .contact-row-actions { flex-direction: column; align-items: stretch; gap: 4px; }
+.contacts-premium .contact-row-actions button { min-height: 30px; padding: 5px 8px; border: 1px solid var(--crm-border); border-radius: 7px; font: 500 11px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.contacts-premium .contact-row-actions button:first-child { background: var(--crm-bg); color: var(--crm-accent); }
+.contacts-premium .contacts-pagination { gap: 14px; flex-wrap: wrap; padding: 16px 20px; border-color: var(--crm-border-soft); }
+.contacts-premium .contacts-pagination button { min-height: 40px; min-width: 40px; border-radius: 8px; font: 500 11px/1.4 var(--font-sans); letter-spacing: 0; }
+.contacts-premium .contacts-pagination button.is-current { background: var(--crm-accent); color: white; border-color: var(--crm-accent); box-shadow: none; }
+.contacts-premium .contacts-pagination > p { font-size: 12px; }
+.contacts-premium .contacts-empty { padding: 40px 20px; }
+.contacts-premium .contacts-empty h2 { font: 600 18px var(--font-sans); }
+.contacts-premium .contacts-bulk-actions { gap: 16px; flex-wrap: wrap; padding: 12px 20px; background: #fcfaf7; }
+.contacts-premium .contacts-selection-summary { flex-wrap: wrap; gap: 12px; }
+.contacts-premium .contacts-selection-summary > div { flex-wrap: wrap; }
+.contacts-premium .contact-profile-back { margin: 0 0 24px; }
+.contacts-premium .profile-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding: 0 0 28px; }
+.contacts-premium .profile-title { min-width: 0; flex: 1 1 350px; gap: 18px; }
+.contacts-premium .profile-title > div:last-child { min-width: 0; }
+.contacts-premium .profile-avatar { width: 64px; height: 64px; flex-shrink: 0; border-radius: 18px; background: #edf1f5; border: 1px solid var(--crm-border); color: #687b8d; font: 500 20px var(--font-sans); }
+.contacts-premium .profile-tags { flex-wrap: wrap; gap: 6px; }
+.contacts-premium .profile-tags > span { font-size: 11px; letter-spacing: 0; padding: 5px 8px; border-radius: 6px; }
+.contacts-premium .profile-actions { margin: 0; flex-wrap: wrap; gap: 8px; }
+.contacts-premium .profile-overview { gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.contacts-premium :is(.profile-info-card, .profile-addresses-section, .contact-property-history, .drive-documents-section, .notes-section) { min-width: 0; padding: 22px; border: 1px solid var(--crm-border); border-radius: 14px; background: white; box-shadow: var(--crm-shadow-sm); }
+.contacts-premium :is(.profile-addresses-section, .contact-property-history, .drive-documents-section, .notes-section) { margin-top: 20px; }
+.contacts-premium .profile-card-heading { margin-bottom: 20px; }
+.contacts-premium .info-card-label { color: var(--crm-text); font: 600 15px/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.contacts-premium .card-edit-button { width: 36px; height: 36px; border-radius: 8px; background: var(--crm-bg); color: var(--crm-text-muted); border-color: var(--crm-border); }
+.contacts-premium .info-group + .info-group { margin-top: 14px; padding-top: 14px; border-color: var(--crm-border-soft); }
+.contacts-premium .info-group span { font: 400 11px/1.5 var(--font-sans); color: var(--crm-text-muted); letter-spacing: 0; text-transform: none; }
+.contacts-premium .info-group :is(strong, address strong, .contact-direct-link) { font: 500 14px/1.5 var(--font-sans); color: var(--crm-text); }
+.contacts-premium .info-group small { display: block; margin-top: 5px; color: var(--crm-text-muted); font-size: 11px; line-height: 1.5; }
+.contacts-premium .profile-info-highlight { background: #f1f5f8; border-color: #dbe4eb; }
+.contacts-premium .profile-info-highlight .next-follow-up strong { color: var(--crm-accent); font-size: 21px; }
+.contacts-premium .calendar-sync-state { color: var(--crm-text); border-color: #dbe4eb; }
+.contacts-premium .calendar-sync-state :is(span, strong) { color: var(--crm-text-muted); font-size: 12px; line-height: 1.5; letter-spacing: 0; }
+.contacts-premium :is(.profile-section-heading, .notes-heading, .drive-documents-heading) { gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.contacts-premium :is(.profile-section-heading, .notes-heading, .drive-documents-heading, .contact-property-history) h2 { font: 600 16px/1.4 var(--font-sans); letter-spacing: -.015em; }
+.contacts-premium .profile-address-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.contacts-premium .profile-address-list article { min-width: 0; border: 1px solid var(--crm-border-soft); border-radius: 10px; background: #fafbfc; padding: 16px; font-size: 13px; }
+.contacts-premium .profile-address-list article strong { font-size: 10px; color: var(--crm-text-muted); }
+.contacts-premium .contact-property-history-summary { gap: 12px; }
+.contacts-premium .contact-property-history-summary article { min-width: 0; border-radius: 10px; background: var(--crm-bg); padding: 16px; border-color: var(--crm-border-soft); }
+.contacts-premium .contact-property-history-summary strong { font: 500 clamp(16px, 1.5vw, 22px)/1.4 var(--font-sans); }
+.contacts-premium .contact-property-history-card { border-radius: 12px; padding: 18px; border-color: var(--crm-border); }
+.contacts-premium .contact-property-history-address h3 { font: 600 15px/1.5 var(--font-sans); }
+.contacts-premium .contact-property-history-details dd { font: 500 13px/1.5 var(--font-sans); }
+.contacts-premium .contact-property-history-actions { flex-wrap: wrap; }
+.contacts-premium .contact-property-history-actions a { border-radius: 8px; font-size: 11px; letter-spacing: 0; }
+.contacts-premium .drive-documents-list article { min-width: 0; border-radius: 10px; border-color: var(--crm-border-soft); background: #fafbfc; }
+.contacts-premium .drive-documents-actions { flex-wrap: wrap; }
+.contacts-premium .note-history-row { padding: 18px 0; gap: 14px; border-color: var(--crm-border-soft); }
+.contacts-premium .note-marker { width: 30px; height: 30px; border-radius: 50%; background: var(--crm-bg); color: var(--crm-text-muted); }
+.contacts-premium .note-content p { font: 400 14px/1.7 var(--font-sans); }
+.contacts-premium .note-meta :is(time, strong) { font: 400 11px/1.5 var(--font-sans); letter-spacing: 0; }
+.contacts-premium .contact-danger-zone { margin-top: 24px; padding-top: 20px; border-color: var(--crm-border); }
+.contacts-premium .destructive-button { min-height: 44px; border-radius: 8px; font-size: 11px; letter-spacing: 0; }
+/* One scrolling surface per modal, with reachable actions on short windows. */
+.contacts-premium :is(.contact-modal-backdrop, .follow-up-modal-backdrop, .drive-link-modal-backdrop) { padding: 24px; background: rgb(22 36 53 / 38%); backdrop-filter: blur(5px); overflow: hidden; }
+.contacts-premium :is(.contact-modal, .follow-up-modal, .drive-link-modal) { min-width: 0; max-width: 100%; max-height: calc(100svh - 48px); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--crm-border); border-radius: 16px; background: white; box-shadow: 0 24px 80px rgb(22 36 53 / 20%); }
+.contacts-premium :is(.contact-modal-header, .follow-up-modal-header) { position: sticky; top: -24px; z-index: 2; margin: -1px 0 20px; padding-block: 12px; background: white; border-bottom: 1px solid var(--crm-border-soft); gap: 16px; }
+.contacts-premium :is(.contact-modal-header, .follow-up-modal-header) h2 { font: 600 20px/1.35 var(--font-sans); letter-spacing: -.025em; }
+.contacts-premium :is(.contact-modal-header > button, .close-follow-up-modal) { width: 40px; height: 40px; flex-shrink: 0; border-radius: 9px; background: var(--crm-bg); border-color: var(--crm-border); }
+.contacts-premium :is(.contact-modal, .follow-up-modal, .import-review-shell) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { width: 100%; border: 1px solid var(--crm-border); border-radius: 8px; background: #fafbfc; color: var(--crm-text); padding: 11px 12px; font: 400 14px/1.5 var(--font-sans); }
+.contacts-premium :is(.contact-modal, .follow-up-modal, .import-review-shell) label { min-width: 0; }
+.contacts-premium :is(.manual-contact-form, .contact-editor-form, .address-form-grid, .import-contact-review-fields) { gap: 16px; }
+.contacts-premium :is(.manual-contact-form, .contact-editor-form, .address-form-grid, .contact-email-form, .import-contact-review-fields) label > span { font: 500 11px/1.5 var(--font-sans); letter-spacing: 0; color: var(--crm-text-muted); }
+.contacts-premium :is(.contact-modal, .follow-up-modal, .import-review-shell) button { min-height: 40px; border-radius: 8px; font-weight: 500; letter-spacing: 0; }
+.contacts-premium :is(.contact-editor-actions, .contact-email-actions, .note-editor-actions, .address-manager-footer, .merge-footer, .duplicate-actions, .import-contact-review-actions, .contact-bulk-delete-actions, .delete-contact-actions) { position: sticky; bottom: -24px; z-index: 1; padding-block: 16px; background: white; border-top: 1px solid var(--crm-border-soft); gap: 10px; }
+.contacts-premium .manual-contact-continue { position: sticky; bottom: -12px; min-height: 44px; border-radius: 8px; background: var(--crm-accent); }
+.contacts-premium .import-drop-zone { border: 1px dashed #c9d4de; border-radius: 12px; padding: 32px 20px; background: #f7f9fb; }
+.contacts-premium .import-file-mark { border-radius: 10px; background: white; color: var(--crm-accent); }
+.contacts-premium .broker-choice-grid { gap: 10px; }
+.contacts-premium .broker-choice-grid button { border-radius: 10px; background: #fafbfc; border-color: var(--crm-border); }
+.contacts-premium .contact-email-sender { border-radius: 10px; background: #f4f6f9; border-color: var(--crm-border); }
+.contacts-premium .contact-email-sender strong { font: 600 14px/1.5 var(--font-sans); }
+.contacts-premium :is(.duplicate-card, .address-manager-list article, .import-existing-contact) { min-width: 0; border-radius: 10px; background: #f8fafb; border-color: var(--crm-border); }
+.contacts-premium .duplicate-card h3 { font: 600 16px/1.5 var(--font-sans); }
+.contacts-premium .merge-field-row { grid-template-columns: minmax(100px, .65fr) repeat(2, minmax(0, 1fr)); }
+.contacts-premium .merge-field-row button { min-width: 0; overflow-wrap: anywhere; }
+.contacts-premium .import-review-layer { background: var(--crm-bg); }
+.contacts-premium .import-review-shell { max-width: 1400px; padding-top: 20px; padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.contacts-premium .import-review-header { gap: 16px; flex-wrap: wrap; padding: 16px 0 24px; }
+.contacts-premium .import-review-header h2 { font: 600 24px/1.4 var(--font-sans); letter-spacing: -.025em; }
+.contacts-premium .import-review-header-actions { gap: 8px; flex-wrap: wrap; }
+.contacts-premium .imported-contact-row { min-width: 0; padding: 18px; margin-top: 10px; background: white; border: 1px solid var(--crm-border); border-radius: 12px; }
+.contacts-premium .imported-contact-identity { min-width: 0; }
+.contacts-premium .imported-contact-identity span { overflow-wrap: anywhere; }
+.contacts-premium .import-review-filters { flex-wrap: wrap; }
+.contacts-premium .follow-up-option { background: #fafbfc; border: 1px solid var(--crm-border); border-radius: 9px; }
+.contacts-premium .custom-date-panel { background: #f4f6f9; border-radius: 10px; }
+.contacts-premium .follow-up-confirmation { max-width: calc(100% - 32px); border-radius: 12px; }
+@media (max-width: 1180px) {
+  .contacts-premium :is(.contacts-list-head, .contact-row) { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 80px 85px 118px; gap: 10px; padding-inline: 14px; }
+  .contacts-premium .profile-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contacts-premium .profile-info-highlight { grid-column: 1 / -1; }
+  .contacts-premium .profile-address-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .contacts-premium .contacts-list-head { display: none; }
+  .contacts-premium .contact-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 132px; gap: 10px 16px; padding: 18px; }
+  .contacts-premium .contact-main-cell { grid-column: 1; grid-row: 1; }
+  .contacts-premium .contact-coordinates { grid-column: 2; grid-row: 1 / 3; }
+  .contacts-premium .contact-row > .contact-broker-badge { grid-column: 1; grid-row: 2; margin-left: 44px; }
+  .contacts-premium .contact-follow-up-cell { grid-column: 2; grid-row: 3; }
+  .contacts-premium .contact-row-actions { grid-column: 3; grid-row: 1 / 4; }
+  .contacts-premium .contact-row-actions button { min-height: 40px; }
+  .contacts-premium .contacts-pagination-pages { display: none; }
+  .contacts-premium .contacts-pagination-mobile { display: inline; }
+}
+@media (max-width: 767px) {
+  .contacts-premium :is(.contacts-header, .profile-hero) { gap: 18px; }
+  .contacts-premium .contacts-main-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .contacts-premium .contact-action-primary { grid-column: 1 / -1; }
+  .contacts-premium .contacts-tools { padding: 14px; gap: 12px; }
+  .contacts-premium .contacts-search { order: -1; flex-basis: 100%; }
+  .contacts-premium .contact-filters { width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+  .contacts-premium .contact-filters button { flex-shrink: 0; min-height: 44px; }
+  .contacts-premium .contact-row { grid-template-columns: minmax(0, 1fr) auto; padding: 18px 14px; gap: 12px; }
+  .contacts-premium .contact-main-cell { grid-column: 1; grid-row: 1; }
+  .contacts-premium .contact-main-cell h2 { font-size: 14px; }
+  .contacts-premium .contact-row > .contact-broker-badge { grid-column: 2; grid-row: 1; margin: 0; }
+  .contacts-premium .contact-coordinates { grid-column: 1 / -1; grid-row: 2; gap: 0; }
+  .contacts-premium .contact-coordinates :is(a, button) { min-height: 36px; display: flex; align-items: center; font-size: 13px; }
+  .contacts-premium .contact-follow-up-cell { grid-column: 1 / -1; grid-row: 3; font-size: 12px; }
+  .contacts-premium .contact-row-actions { grid-column: 1 / -1; grid-row: 4; flex-direction: row; }
+  .contacts-premium .contact-row-actions button { flex: 1; min-height: 44px; font-size: 12px; }
+  .contacts-premium .contacts-pagination { justify-content: center; padding: 16px 12px; }
+  .contacts-premium .contacts-pagination > div { width: 100%; justify-content: space-between; gap: 5px; }
+  .contacts-premium .contacts-pagination button { min-height: 44px; padding: 8px; font-size: 10px; }
+  .contacts-premium .contacts-pagination-mobile { min-width: 66px; font-size: 11px; }
+  .contacts-premium .profile-title { flex-basis: 100%; gap: 12px; }
+  .contacts-premium .profile-avatar { width: 50px; height: 50px; border-radius: 14px; font-size: 16px; }
+  .contacts-premium .profile-title h1 { font-size: 30px; }
+  .contacts-premium .profile-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .contacts-premium .profile-overview { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium .profile-info-highlight { grid-column: auto; grid-row: 1; }
+  .contacts-premium :is(.profile-info-card, .profile-addresses-section, .contact-property-history, .drive-documents-section, .notes-section) { padding: 18px; }
+  .contacts-premium :is(.profile-address-list, .contact-property-history-grid) { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium .contact-property-history-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contacts-premium .contact-property-history-summary article { padding: 12px; }
+  .contacts-premium .contact-property-history-summary strong { font-size: 17px; }
+  .contacts-premium .info-group .contact-direct-link { display: flex; min-height: 40px; align-items: center; }
+  .contacts-premium .notes-heading-actions { flex-wrap: wrap; gap: 10px; }
+  .contacts-premium .note-meta { gap: 10px; flex-wrap: wrap; }
+  .contacts-premium :is(.contact-modal-backdrop, .follow-up-modal-backdrop, .drive-link-modal-backdrop) { padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  .contacts-premium :is(.contact-modal, .follow-up-modal, .drive-link-modal) { padding: 18px; max-height: calc(100svh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); border-radius: 14px; }
+  .contacts-premium :is(.contact-modal-header, .follow-up-modal-header) { top: -18px; }
+  .contacts-premium :is(.contact-modal-header, .follow-up-modal-header) h2 { font-size: 18px; }
+  .contacts-premium :is(.contact-editor-actions, .contact-email-actions, .note-editor-actions, .address-manager-footer, .merge-footer, .duplicate-actions, .import-contact-review-actions, .contact-bulk-delete-actions, .delete-contact-actions) { bottom: -18px; display: flex; flex-flow: row wrap; }
+  .contacts-premium :is(.contact-editor-actions, .contact-email-actions, .note-editor-actions, .address-manager-footer, .merge-footer, .duplicate-actions, .import-contact-review-actions, .contact-bulk-delete-actions, .delete-contact-actions) button { flex: 1 1 120px; }
+  .contacts-premium :is(.manual-contact-form, .contact-editor-form, .address-form-grid, .duplicate-comparison, .import-contact-review-fields, .import-mapping-grid, .import-mapping-selects) { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium :is(.address-street, .import-review-field-wide) { grid-column: auto; }
+  .contacts-premium :is(input:not([type=checkbox]):not([type=radio]), select, textarea), .contacts-premium :is(.contact-modal, .follow-up-modal, .import-review-shell) :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { font-size: 16px; }
+  .contacts-premium .merge-field-row { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium .merge-address-option { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium :is(.merge-addresses-heading, .address-manager-list article, .import-contact-review-navigation, .import-contact-review-section-heading) { flex-wrap: wrap; gap: 12px; }
+  .contacts-premium .imported-contact-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .contacts-premium .incomplete-editor { grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium .import-quality-actions { flex-wrap: wrap; }
+  .contacts-premium .custom-date-panel > div { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .contacts-premium .follow-up-option { min-height: 48px; }
+}

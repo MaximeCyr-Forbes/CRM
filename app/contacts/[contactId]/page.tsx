@@ -1,5 +1,7 @@
 "use client";
 
+import "../contacts.css";
+
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useClientNotes } from "../../client-notes-context";
@@ -170,7 +172,7 @@ export default function ContactProfilePage() {
 
   if (!contact) {
     return (
-      <main className="client-page">
+      <main className="client-page contacts-premium">
         <div className="profile-shell"><DataStatus /></div>
       </main>
     );
@@ -388,7 +390,7 @@ export default function ContactProfilePage() {
   }
 
   return (
-    <main className="client-page">
+    <main className="client-page contacts-premium">
       <div className="profile-shell">
         <DataStatus />
         <button className="contact-profile-back" onClick={() => router.push(returnTo)} type="button">← RETOUR AUX CONTACTS</button>
