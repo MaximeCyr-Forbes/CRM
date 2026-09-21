@@ -1,5 +1,7 @@
 "use client";
 
+import "./calendar.css";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBroker } from "../broker-context";
@@ -208,7 +210,7 @@ export default function CalendarPage() {
     .filter((item) => centrisStatuses[item] === "authorization_required" || centrisStatuses[item] === "unavailable");
 
   return (
-    <main className="calendar-page"><div className="calendar-shell">
+    <main className="calendar-page calendar-premium"><div className="calendar-shell">
       <header className="calendar-page-header"><div><p className="section-kicker">Équipe Forbes · CRM</p><h1>CALENDRIER</h1><p>Votre horaire immobilier, synchronisé avec Google Agenda.</p><div className="calendar-mode-switch" role="group" aria-label="Mode du calendrier"><button aria-pressed={mode === "personal"} onClick={() => setMode("personal")} type="button">Mon calendrier</button><button aria-pressed={mode === "team"} onClick={() => setMode("team")} type="button">Équipe</button></div></div>{mode === "personal" && broker && personalConnected ? <div className="calendar-account"><span>Agenda consulté</span><strong>{BROKER_LABELS[broker]}</strong>{personalConnection?.email && <small>{personalConnection.email}</small>}</div> : mode === "team" ? <div className="calendar-account"><span>Vue équipe</span><strong>{connectedBrokers.length} agenda{connectedBrokers.length > 1 ? "s" : ""}</strong><small>France · Maxime · Sandrine</small></div> : null}</header>
 
       {isConnectionLoading ? <section className="calendar-empty-state"><p>Vérification de Google Agenda…</p></section> : mode === "personal" && !broker ? <section className="calendar-empty-state"><h2>SÉLECTIONNEZ UN COURTIER</h2><button onClick={() => router.push("/")} type="button">Choisir un courtier</button></section> : mode === "personal" && !personalConnected ? <section className="calendar-empty-state calendar-disconnected"><h2>GOOGLE AGENDA NON CONNECTÉ</h2><p>Le calendrier de {broker ? BROKER_LABELS[broker] : "ce courtier"} doit être connecté.</p><button onClick={() => broker && window.location.assign(`/api/google-calendar/connect?broker=${broker}`)} type="button">Connecter Google Agenda</button></section> : mode === "team" && connectedBrokers.length === 0 ? <section className="calendar-empty-state"><h2>AUCUN AGENDA CONNECTÉ</h2><button onClick={() => router.push("/settings")} type="button">Ouvrir les paramètres</button></section> : <>
