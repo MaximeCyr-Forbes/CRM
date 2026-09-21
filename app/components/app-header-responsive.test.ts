@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { appNavigationOrder } from "../data/software-links";
 
 const root = process.cwd();
-const source = (path: string) => readFileSync(resolve(root, path), "utf8");
+const source = (path: string) => readFileSync(resolve(root, path), "utf8").replace(/\r\n/g, "\n");
 
 describe("header responsive du CRM", () => {
   it("conserve tous les onglets dans leur ordre métier", () => {

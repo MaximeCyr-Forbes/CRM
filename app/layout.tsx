@@ -7,6 +7,7 @@ import { CRMDataProvider } from "./crm-data-context";
 import { ListingsProvider } from "./listings-context";
 import { TransactionsProvider } from "./transactions-context";
 import "./globals.css";
+import "./app-shell.css";
 
 export const metadata: Metadata = {
   title: "Équipe Forbes | CRM",

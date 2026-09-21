@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth-context";
 import { useBroker } from "../broker-context";
 
@@ -9,6 +9,26 @@ export function AccountMenu() {
   const { clearBroker } = useBroker();
   const [isOpen, setIsOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function closeOutside(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setIsOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isOpen]);
 
   async function logout() {
     setIsSigningOut(true);
@@ -22,8 +42,8 @@ export function AccountMenu() {
   }
 
   return (
-    <div className="account-menu">
-      <button aria-expanded={isOpen} aria-label="Menu d’accès équipe" className="account-menu-trigger" onClick={() => setIsOpen((current) => !current)} type="button">
+    <div className="account-menu" ref={menuRef}>
+      <button aria-expanded={isOpen} aria-label="Menu d’accès équipe" className="account-menu-trigger" onClick={() => setIsOpen((current) => !current)} ref={triggerRef} type="button">
         <strong>Accès équipe</strong><span aria-hidden="true">▾</span>
       </button>
       {isOpen && (
