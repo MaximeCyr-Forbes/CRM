@@ -18,7 +18,7 @@ describe("module Courriels Auto verrouillé", () => {
   it("affiche les quatre règles, le verrou et les simulations sans activation", () => {
     const page = source("app/automatic-emails/page.tsx");
     const custom = source("app/automatic-emails/custom-campaigns-section.tsx");
-    expect(page).toContain("ENVOIS AUTOMATIQUES VERROUILLÉS");
+    expect(page).toContain("AUTOMATISATIONS GÉNÉRALES VERROUILLÉES");
     expect(page).toContain("MODE SIMULATION");
     expect(page).toContain("SIMULATION SEULEMENT");
     expect(page).toContain("AUTOMATIC_EMAIL_RULE_LABELS");

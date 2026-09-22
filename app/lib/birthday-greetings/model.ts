@@ -18,8 +18,8 @@ export function birthdayClock(now = new Date()) {
 export function birthdaySender(contact: BirthdayContact, rule: AutomaticEmailRule) {
   return contact.broker === "unassigned" ? rule.defaultBroker : contact.broker;
 }
-export function renderBirthday(contact: BirthdayContact, rule: AutomaticEmailRule) {
-  const values: Record<string, string> = { firstName: contact.first_name.trim(), lastName: contact.last_name.trim(), fullName: `${contact.first_name} ${contact.last_name}`.trim() };
+export function renderBirthday(contact: BirthdayContact, rule: AutomaticEmailRule, extras: Record<string, string> = {}) {
+  const values: Record<string, string> = { firstName: contact.first_name.trim(), lastName: contact.last_name.trim(), fullName: `${contact.first_name} ${contact.last_name}`.trim(), ...extras };
   for (const key of templateVariables(`${rule.subjectTemplate}\n${rule.bodyTemplate}`)) {
     if (!Object.hasOwn(values, key) || !values[key] || /^(undefined|null)$/i.test(values[key])) throw new TypeError(`Variable {{${key}}} manquante ou invalide pour ce contact.`);
   }

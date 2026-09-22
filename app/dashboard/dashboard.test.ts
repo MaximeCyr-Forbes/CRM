@@ -25,6 +25,7 @@ vi.mock("../listings-context", () => ({ useListings: () => ({ listings: [], isLo
 vi.mock("../follow-up-context", () => ({ useFollowUps: () => ({ completeFollowUp: state.complete }) }));
 vi.mock("../lib/workspace-request", () => ({ workspaceRequest: state.request }));
 vi.mock("../components/data-status", () => ({ DataStatus: () => null }));
+vi.mock("../lib/purchase-anniversary/use-notifications", () => ({ usePurchaseNotifications: () => ({ notifications: [], error: false, resolve: vi.fn() }) }));
 import Dashboard from "./page";
 import { DashboardActions, DashboardTransactions } from "./dashboard-panels";
 import { DailyNotificationsPanel } from "../components/daily-notifications-panel";

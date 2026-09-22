@@ -16,6 +16,7 @@ import {
   type AutomaticEmailRule,
   type AutomaticEmailTransactionType,
 } from "../data/automatic-email-types";
+import { useSimulation } from "./use-simulation";
 import { BirthdayFallback } from "./birthday-fallback";
 import CustomCampaignsSection from "./custom-campaigns-section";
 
@@ -74,59 +75,56 @@ function transactionTypeLabel(type: AutomaticEmailOccurrence["transactionType"])
 export default function AutomaticEmailsPage() {
   const [rules, setRules] = useState<AutomaticEmailRule[]>([]);
   const [deliveries, setDeliveries] = useState<AutomaticEmailDelivery[]>([]);
-  const [occurrences, setOccurrences] = useState<AutomaticEmailOccurrence[]>([]);
+
   const [connections, setConnections] = useState<CalendarConnectionStatus[]>([]);
   const [editing, setEditing] = useState<AutomaticEmailRule | null>(null);
   const [previewRuleId, setPreviewRuleId] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleFilter, setScheduleFilter] = useState<"all" | "google_review">("all");
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadingRules, setLoadingRules] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const today = quebecToday();
+  const [today, setToday] = useState(quebecToday);
+  const [revision, setRevision] = useState(0);
+  const [reloadRules, setReloadRules] = useState(0);
+  const [loadingConnections, setLoadingConnections] = useState(true);
+  useEffect(() => { const timer = window.setInterval(() => setToday(quebecToday()), 30000); return () => window.clearInterval(timer); }, []);
   const through = addDays(today, 30);
 
-  async function load() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [rulesResponse, occurrenceResponse, connectionResponse] = await Promise.all([
-        fetch("/api/automatic-emails/rules", { cache: "no-store" }),
-        fetch(`/api/automatic-emails/occurrences?from=${today}&to=${through}`, { cache: "no-store" }),
-        fetch("/api/google-calendar/connections", { cache: "no-store" }),
-      ]);
-      const rulesBody = await rulesResponse.json() as { data?: RulesPayload; error?: string };
-      const occurrenceBody = await occurrenceResponse.json() as { data?: { occurrences: AutomaticEmailOccurrence[] }; error?: string };
-      const connectionBody = await connectionResponse.json() as { connections?: CalendarConnectionStatus[]; error?: string };
-      if (!rulesResponse.ok || !rulesBody.data) throw new Error(rulesBody.error ?? "Chargement des règles impossible.");
-      if (!occurrenceResponse.ok || !occurrenceBody.data) throw new Error(occurrenceBody.error ?? "Simulation impossible.");
-      setRules(rulesBody.data.rules);
-      setDeliveries(rulesBody.data.deliveries);
-      setOccurrences(occurrenceBody.data.occurrences);
-      setConnections(connectionBody.connections ?? []);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Chargement impossible.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => { void load(); }, []);
-
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoadingRules(true); setError(null);
+    void fetch("/api/automatic-emails/rules", { cache: "no-store", signal: controller.signal })
+      .then(async r => { const body = await r.json() as { data?: RulesPayload; error?: string }; if (!r.ok || !body.data) throw new Error(body.error ?? "Chargement des règles impossible."); return body.data; })
+      .then(data => { if (!controller.signal.aborted) { setRules(data.rules); setDeliveries(data.deliveries); } })
+      .catch(e => { if (!controller.signal.aborted) setError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingRules(false); });
+    return () => controller.abort();
+  }, [reloadRules]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/google-calendar/connections", { cache: "no-store", signal: controller.signal })
+      .then(async r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => { if (!controller.signal.aborted) setConnections(data.connections ?? []); })
+      .catch(() => undefined).finally(() => { if (!controller.signal.aborted) setLoadingConnections(false); });
+    return () => controller.abort();
+  }, []);
+  const simulation = useSimulation(today, through, revision, !loadingRules && rules.length > 0, showSchedule, previewRuleId);
+  const occurrences = simulation.occurrences;
   const previewRule = rules.find((rule) => rule.id === previewRuleId) ?? null;
-  const previewOccurrence = occurrences.find((item) => item.ruleId === previewRuleId) ?? null;
-  const todayCount = occurrences.filter((item) => item.scheduledDate === today).length;
-  const tomorrowCount = occurrences.filter((item) => item.scheduledDate === addDays(today, 1)).length;
-  const weekCount = occurrences.filter((item) => item.scheduledDate >= today && item.scheduledDate <= addDays(today, 7)).length;
+  const previewOccurrence = simulation.preview;
+  const todayCount = simulation.loadingSummary ? "—" : simulation.summary?.summary.today ?? "—";
+  const tomorrowCount = simulation.loadingSummary ? "—" : simulation.summary?.summary.tomorrow ?? "—";
+  const weekCount = simulation.loadingSummary ? "—" : simulation.summary?.summary.nextSevenDays ?? "—";
   const visibleOccurrences = scheduleFilter === "google_review"
     ? occurrences.filter((item) => item.ruleType === "google_review")
     : occurrences;
   const cardData = useMemo(() => rules.map((rule) => {
-    const ruleOccurrences = occurrences.filter((item) => item.ruleId === rule.id);
+    const item = simulation.summary?.rules.find(item => item.ruleId === rule.id);
     const issues = ruleConfigurationIssues(rule);
-    return { rule, issues, count: ruleOccurrences.length, next: ruleOccurrences[0] ?? null };
-  }), [occurrences, rules]);
+    return { rule, issues, count: simulation.loadingSummary ? "—" : item?.count30Days ?? "—", next: item?.nextDate ? { scheduledDate: item.nextDate, scheduledTime: item.nextTime } : null };
+  }), [simulation.summary, simulation.loadingSummary, rules]);
 
   async function saveRule() {
     if (!editing) return;
@@ -153,7 +151,7 @@ export default function AutomaticEmailsPage() {
       setEditing(null);
       setConfirmation("Configuration enregistrée en mode verrouillé.");
       window.setTimeout(() => setConfirmation(null), 4000);
-      await load();
+      setRevision(v => v + 1);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Enregistrement impossible.");
     } finally {
@@ -164,21 +162,22 @@ export default function AutomaticEmailsPage() {
   return <main className="automatic-emails-page"><div className="automatic-emails-shell">
     <header className="automatic-emails-heading"><div><p className="section-kicker">Préparation contrôlée</p><h1>COURRIELS AUTO</h1><p>Configurez et simulez les communications récurrentes de l’Équipe Forbes.</p></div><span className="automatic-emails-mode">MODE SIMULATION</span></header>
 
-    <section className="automatic-emails-lock" aria-label="État de sécurité"><span className="automatic-emails-lock-icon" aria-hidden="true">⌑</span><div><p>VERROU MAÎTRE</p><h2>ENVOIS AUTOMATIQUES VERROUILLÉS</h2><span>Les autres règles restent verrouillées. Seul le filet Bonne fête peut être activé ci-dessous.</span></div><strong>VERROUILLÉS</strong></section>
+    <section className="automatic-emails-lock" aria-label="État de sécurité"><span className="automatic-emails-lock-icon" aria-hidden="true">⌑</span><div><p>VERROU MAÎTRE</p><h2>AUTOMATISATIONS GÉNÉRALES VERROUILLÉES</h2><span>Exceptions contrôlées : Bonne fête à 17 h et Anniversaire d’achat à 17 h, activables séparément. Les autres règles restent verrouillées.</span></div><strong>VERROUILLÉS</strong></section>
 
-    {error && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => void load()} type="button">Réessayer</button></div>}
-    {isLoading && <div className="automatic-emails-loading" role="status">Calcul des simulations…</div>}
+    {error && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => setReloadRules(v => v + 1)} type="button">Réessayer</button></div>}
+    {loadingRules && <div className="automatic-emails-loading" role="status">Chargement des règles…</div>}
 
-    {!isLoading && <>
+    {<>
+      {simulation.summaryError && <p role="status">Simulation temporairement indisponible.<button onClick={() => setRevision(v => v + 1)} type="button">Réessayer</button></p>}
       <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><p className="section-kicker">À venir</p><h2>SIMULATION DES 30 PROCHAINS JOURS</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>occurrence{todayCount === 1 ? "" : "s"} potentielle{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>occurrence{tomorrowCount === 1 ? "" : "s"} potentielle{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>Dans 7 jours</span><strong>{weekCount}</strong><small>occurrence{weekCount === 1 ? "" : "s"} potentielle{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
 
-      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><p className="section-kicker">Automatisations V1</p><h2 id="automatic-rules-title">RÈGLES PRÉPARÉES</h2><p>Les autres règles restent en simulation. Bonne fête dispose de son propre bouton de secours à 17 h.</p></div><div className="automatic-email-rule-grid">
-        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "CONFIGURATION INCOMPLÈTE" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status].toUpperCase()}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType].toUpperCase()}</h3>{rule.ruleType === "birthday" && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, birthdayFallbackEnabled: enabled } } : r))} />}<dl><div><dt>Mode prévu</dt><dd>{AUTOMATIC_EMAIL_MODE_LABELS[rule.executionMode]}</dd></div><div><dt>Expéditeur</dt><dd>Selon le courtier du Contact{rule.defaultBroker ? ` · secours ${BROKER_LABELS[rule.defaultBroker]}` : " · secours requis"}</dd></div><div><dt>Déclencheur</dt><dd>{triggerLabel(rule)}</dd></div><div><dt>Destinataires potentiels</dt><dd>{count} sur 30 jours</dd></div><div><dt>Prochaine occurrence</dt><dd>{next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : "Aucune dans les 30 jours"}</dd></div><div><dt>Signature Gmail</dt><dd>{rule.defaultBroker && connections.find((item) => item.broker === rule.defaultBroker)?.gmailSignatureEnabled ? "Utilisée automatiquement ✓" : "À vérifier / autoriser"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
+      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><p className="section-kicker">Automatisations V1</p><h2 id="automatic-rules-title">RÈGLES PRÉPARÉES</h2><p>Les autres règles restent en simulation. Bonne fête et Anniversaire d’achat ont chacun leur bouton de secours à 17 h.</p></div><div className="automatic-email-rule-grid">
+        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "CONFIGURATION INCOMPLÈTE" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status].toUpperCase()}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType].toUpperCase()}</h3>{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); }} />}<dl><div><dt>Mode prévu</dt><dd>{AUTOMATIC_EMAIL_MODE_LABELS[rule.executionMode]}</dd></div><div><dt>Expéditeur</dt><dd>Selon le courtier du Contact{rule.defaultBroker ? ` · secours ${BROKER_LABELS[rule.defaultBroker]}` : " · secours requis"}</dd></div><div><dt>Déclencheur</dt><dd>{triggerLabel(rule)}</dd></div><div><dt>Destinataires potentiels</dt><dd>{count} sur 30 jours</dd></div><div><dt>Prochaine occurrence</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucune dans les 30 jours"}</dd></div><div><dt>Signature Gmail</dt><dd>{rule.defaultBroker && connections.find((item) => item.broker === rule.defaultBroker)?.gmailSignatureEnabled ? "Utilisée automatiquement ✓" : "À vérifier / autoriser"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
       </div></section>
 
       <CustomCampaignsSection />
 
-      <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><p className="section-kicker">Infrastructure existante</p><h2>GMAIL ET SIGNATURES</h2></div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail prêt ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature réelle est récupérée directement de Gmail au moment de chaque envoi autorisé. Aucun nouveau scope OAuth n’est requis.</p></section>
+      <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><p className="section-kicker">Infrastructure existante</p><h2>GMAIL ET SIGNATURES</h2>{loadingConnections && <p role="status">Vérification des connexions…</p>}</div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail prêt ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature réelle est récupérée directement de Gmail au moment de chaque envoi autorisé. Aucun nouveau scope OAuth n’est requis.</p></section>
 
       <section className="automatic-emails-history"><div className="automatic-emails-section-title"><p className="section-kicker">Historique</p><h2>HISTORIQUE DES AUTRES RÈGLES</h2></div>{deliveries.length === 0 ? <p>Aucune file persistante n’a été créée. Les simulations affichées sur cette page ne sont pas enregistrées comme des envois.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</section>
     </>}
@@ -197,8 +196,8 @@ export default function AutomaticEmailsPage() {
       </div></div>}
       {editing.ruleType === "mortgage_renewal" && <label>Nombre de mois avant<input max="24" min="1" onChange={(event) => setEditing({ ...editing, triggerConfig: { leadMonths: Number(event.target.value) } })} type="number" value={editing.triggerConfig.leadMonths ?? 6} /></label>}
       <div className="automatic-email-editor-section automatic-email-editor-wide"><h3>HEURE PRÉVUE</h3><div>
-        <label>Heure<input disabled={editing.ruleType === "birthday"} max="23" min="0" onChange={(event) => setEditing({ ...editing, sendHour: Number(event.target.value) })} type="number" value={editing.sendHour} /></label>
-        <label>Minute<input disabled={editing.ruleType === "birthday"} max="59" min="0" onChange={(event) => setEditing({ ...editing, sendMinute: Number(event.target.value) })} type="number" value={editing.sendMinute} /></label>
+        <label>Heure<input disabled={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary"} max="23" min="0" onChange={(event) => setEditing({ ...editing, sendHour: Number(event.target.value) })} type="number" value={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary" ? 17 : editing.sendHour} /></label>
+        <label>Minute<input disabled={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary"} max="59" min="0" onChange={(event) => setEditing({ ...editing, sendMinute: Number(event.target.value) })} type="number" value={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary" ? 0 : editing.sendMinute} /></label>
       </div><small>Fuseau horaire : America/Toronto</small></div>
       {editing.ruleType === "google_review" && <label className="automatic-email-editor-wide">Lien direct pour donner un avis Google<div className="automatic-email-url-row"><input onChange={(event) => setEditing({ ...editing, triggerConfig: { ...editing.triggerConfig, googleReviewUrl: event.target.value } })} placeholder="https://..." type="url" value={editing.triggerConfig.googleReviewUrl ?? ""} /><button disabled={!isHttpsUrl(editing.triggerConfig.googleReviewUrl)} onClick={() => window.open(editing.triggerConfig.googleReviewUrl ?? "", "_blank", "noopener,noreferrer")} type="button">TESTER LE LIEN</button></div><small>HTTPS obligatoire. Ce bouton ouvre seulement le lien dans un nouvel onglet.</small></label>}
       <label className="automatic-email-editor-wide">Objet<input onChange={(event) => setEditing({ ...editing, subjectTemplate: event.target.value })} value={editing.subjectTemplate} /></label>
@@ -209,12 +208,12 @@ export default function AutomaticEmailsPage() {
     <footer><button onClick={() => setEditing(null)} type="button">ANNULER</button><button disabled={isSaving} onClick={() => void saveRule()} type="button">{isSaving ? "ENREGISTREMENT…" : "ENREGISTRER"}</button></footer>
   </section></div>}
 
-  {previewRule && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setPreviewRuleId(null); } }} aria-labelledby="automatic-email-preview-title" aria-modal="true" className="automatic-email-modal" role="dialog"><header><div><p className="section-kicker">Aucun envoi</p><h2 id="automatic-email-preview-title">{previewRule.ruleType === "google_review" ? "DEMANDE D’AVIS GOOGLE" : "PRÉVISUALISATION"}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setPreviewRuleId(null)} type="button">×</button></header><div className="automatic-email-simulation-warning"><strong>SIMULATION SEULEMENT</strong><span>Aucun courriel ne sera envoyé.</span></div>{previewOccurrence ? <dl className="automatic-email-preview">
+  {previewRule && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setPreviewRuleId(null); } }} aria-labelledby="automatic-email-preview-title" aria-modal="true" className="automatic-email-modal" role="dialog"><header><div><p className="section-kicker">Aucun envoi</p><h2 id="automatic-email-preview-title">{previewRule.ruleType === "google_review" ? "DEMANDE D’AVIS GOOGLE" : "PRÉVISUALISATION"}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setPreviewRuleId(null)} type="button">×</button></header><div className="automatic-email-simulation-warning"><strong>SIMULATION SEULEMENT</strong><span>Aucun courriel ne sera envoyé.</span></div>{simulation.loadingPreview ? <p role="status">Chargement de l’aperçu…</p> : simulation.previewError ? <p role="alert">{simulation.previewError}</p> : previewOccurrence ? <dl className="automatic-email-preview">
     {previewOccurrence.ruleType === "google_review" && <><div><dt>Transaction</dt><dd>{previewOccurrence.transactionAddress || "Adresse non renseignée"}</dd></div><div><dt>Type</dt><dd>{transactionTypeLabel(previewOccurrence.transactionType)}</dd></div><div><dt>Date de conclusion</dt><dd>{previewOccurrence.conclusionDate ? formatDate(previewOccurrence.conclusionDate) : "Non renseignée"}</dd></div></>}
     <div><dt>Envoi prévu</dt><dd>{formatDate(previewOccurrence.scheduledDate)} à {previewOccurrence.scheduledTime} · America/Toronto</dd></div><div><dt>Destinataire</dt><dd>{previewOccurrence.recipientName}<br />{previewOccurrence.recipientEmail || "Adresse courriel manquante"}</dd></div><div><dt>Expéditeur prévu</dt><dd>{previewOccurrence.brokerLabel}</dd></div><div><dt>Objet</dt><dd>{previewOccurrence.subject}</dd></div><div><dt>Message</dt><dd>{previewOccurrence.message}</dd></div><div><dt>Signature Gmail</dt><dd>{previewOccurrence.gmailSignatureReady ? "sera ajoutée ✓" : "à autoriser avant une future activation"}</dd></div>{previewOccurrence.blockingReasons.length > 0 && <div><dt>État</dt><dd>BLOQUÉE · {previewOccurrence.blockingReasons.join(" ")}</dd></div>}
   </dl> : <p className="automatic-email-empty-preview">Aucun destinataire potentiel pour cette règle dans les 30 prochains jours.</p>}<footer><button onClick={() => setPreviewRuleId(null)} type="button">FERMER</button></footer></section></div>}
 
-  {showSchedule && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setShowSchedule(false); } }} aria-labelledby="automatic-email-schedule-title" aria-modal="true" className="automatic-email-modal automatic-email-schedule" role="dialog"><header><div><p className="section-kicker">30 prochains jours</p><h2 id="automatic-email-schedule-title">ENVOIS PRÉVUS</h2></div><button autoFocus aria-label="Fermer" onClick={() => setShowSchedule(false)} type="button">×</button></header><div className="automatic-email-simulation-warning"><strong>SIMULATION SEULEMENT</strong><span>Cette liste est une simulation. Bonne fête suit uniquement son bouton de secours à 17 h.</span></div><div className="automatic-email-schedule-filters" aria-label="Filtrer les simulations"><button aria-pressed={scheduleFilter === "all"} onClick={() => setScheduleFilter("all")} type="button">TOUS</button><button aria-pressed={scheduleFilter === "google_review"} onClick={() => setScheduleFilter("google_review")} type="button">AVIS GOOGLE</button></div><div className="automatic-email-schedule-list">{visibleOccurrences.map((item) => <article key={`${item.ruleId}:${item.occurrenceKey}`}><time>{formatDate(item.scheduledDate)} · {item.scheduledTime}</time><div><strong>{item.recipientName}</strong><span>{item.ruleType === "google_review" ? "AVIS GOOGLE" : item.ruleName}{item.transactionAddress ? ` · ${item.transactionAddress}` : ""}{item.transactionType ? ` · ${transactionTypeLabel(item.transactionType)}` : ""}</span><span>Courtier prévu · {item.brokerLabel}</span>{item.blockingReasons.length > 0 && <small>{item.blockingReasons.join(" ")}</small>}</div><span className={item.blockingReasons.length ? "blocked" : "ready"}>{item.blockingReasons.length ? "BLOQUÉ" : "PRÊT"}</span></article>)}{visibleOccurrences.length === 0 && <p>Aucune occurrence potentielle dans les 30 prochains jours.</p>}</div><footer><button onClick={() => setShowSchedule(false)} type="button">FERMER</button></footer></section></div>}
+  {showSchedule && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setShowSchedule(false); } }} aria-labelledby="automatic-email-schedule-title" aria-modal="true" className="automatic-email-modal automatic-email-schedule" role="dialog"><header><div><p className="section-kicker">30 prochains jours</p><h2 id="automatic-email-schedule-title">ENVOIS PRÉVUS</h2></div><button autoFocus aria-label="Fermer" onClick={() => setShowSchedule(false)} type="button">×</button></header><div className="automatic-email-simulation-warning"><strong>SIMULATION SEULEMENT</strong><span>Cette liste est une simulation. Chaque anniversaire suit uniquement son propre bouton de secours à 17 h.</span></div><div className="automatic-email-schedule-filters" aria-label="Filtrer les simulations"><button aria-pressed={scheduleFilter === "all"} onClick={() => setScheduleFilter("all")} type="button">TOUS</button><button aria-pressed={scheduleFilter === "google_review"} onClick={() => setScheduleFilter("google_review")} type="button">AVIS GOOGLE</button></div><div className="automatic-email-schedule-list">{simulation.loadingSchedule && <p role="status">Chargement des envois prévus…</p>}{simulation.scheduleError && <p role="alert">{simulation.scheduleError}</p>}{visibleOccurrences.map((item) => <article key={`${item.ruleId}:${item.occurrenceKey}`}><time>{formatDate(item.scheduledDate)} · {item.scheduledTime}</time><div><strong>{item.recipientName}</strong><span>{item.ruleType === "google_review" ? "AVIS GOOGLE" : item.ruleName}{item.transactionAddress ? ` · ${item.transactionAddress}` : ""}{item.transactionType ? ` · ${transactionTypeLabel(item.transactionType)}` : ""}</span><span>Courtier prévu · {item.brokerLabel}</span>{item.blockingReasons.length > 0 && <small>{item.blockingReasons.join(" ")}</small>}</div><span className={item.blockingReasons.length ? "blocked" : "ready"}>{item.blockingReasons.length ? "BLOQUÉ" : "PRÊT"}</span></article>)}{!simulation.loadingSchedule && !simulation.scheduleError && visibleOccurrences.length === 0 && <p>Aucune occurrence potentielle dans les 30 prochains jours.</p>}</div><footer><button onClick={() => setShowSchedule(false)} type="button">FERMER</button></footer></section></div>}
 
   {confirmation && <div className="automatic-email-confirmation" role="status">✓ {confirmation}</div>}
   </main>;

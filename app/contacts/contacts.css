@@ -200,3 +200,6 @@
   .contacts-premium .custom-date-panel > div { display: grid; grid-template-columns: minmax(0, 1fr); }
   .contacts-premium .follow-up-option { min-height: 48px; }
 }
+
+.contacts-sort { display:grid; gap:5px; font-size:10px; font-weight:700; flex-shrink:0; }
+.contacts-sort select { min-height:44px; max-width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:white; color:var(--ink); font:inherit; font-size:12px; }

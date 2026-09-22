@@ -55,8 +55,8 @@ export async function createAutomaticEmailRule(draft: AutomaticEmailRuleDraft) {
 }
 
 export async function updateAutomaticEmailRule(ruleId: string, draft: AutomaticEmailRuleDraft) {
-  if (draft.ruleType === "birthday") {
-    const { data, error } = await getSupabaseAdmin().rpc("update_birthday_rule", { p_id: ruleId, p_values: rowValues(draft) });
+  if (draft.ruleType === "birthday" || draft.ruleType === "purchase_anniversary") {
+    const { data, error } = await getSupabaseAdmin().rpc(draft.ruleType === "birthday" ? "update_birthday_rule" : "update_purchase_anniversary_rule", { p_id: ruleId, p_values: rowValues(draft) });
     if (error) throw error;
     return data?.[0] ? mapAutomaticEmailRuleRow(data[0] as AutomaticEmailRuleRow) : null;
   }

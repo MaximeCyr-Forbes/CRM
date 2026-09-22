@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const days = (Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000;
   if (days > 366) return Response.json({ error: "La simulation est limitée à 366 jours." }, { status: 400 });
   try {
-    const result = await getAutomaticEmailOccurrences({ from, to, ruleId, today });
+    const result = await getAutomaticEmailOccurrences({ from, to, ruleId, today, mode: search.get("mode") });
     return result
       ? Response.json({ data: result, simulationOnly: true }, { headers: { "Cache-Control": "private, no-store" } })
       : Response.json({ error: "Règle introuvable." }, { status: 404 });

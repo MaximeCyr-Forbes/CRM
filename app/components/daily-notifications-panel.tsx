@@ -9,12 +9,14 @@ const TYPE_LABELS: Record<DailyNotificationType, string> = {
   listing_expiration: "LISTING",
   follow_up: "RELANCE",
   birthday: "ANNIVERSAIRE",
+  purchase_anniversary: "ANNIVERSAIRE D’ACHAT",
 };
 
 export function DailyNotificationsPanel({
   notifications,
   onNavigate,
   onBirthday,
+  onPurchaseAnniversary,
   listingsUnavailable = false,
   recommendationsUnavailable = false,
   transactionsUnavailable = false,
@@ -22,6 +24,7 @@ export function DailyNotificationsPanel({
   notifications: ReadonlyArray<DailyNotification>;
   onNavigate: (href: string) => void;
   onBirthday?: (contactId: string) => void;
+  onPurchaseAnniversary?: (id: string) => void;
   listingsUnavailable?: boolean;
   recommendationsUnavailable?: boolean;
   transactionsUnavailable?: boolean;
@@ -40,11 +43,11 @@ export function DailyNotificationsPanel({
 
       {notifications.length > 0 ? (
         <div className="daily-notifications-list">
-          {notifications.map((notification) => notification.type === "birthday" && onBirthday ? (
+          {notifications.map((notification) => ((notification.type === "birthday" && onBirthday) || (notification.type === "purchase_anniversary" && onPurchaseAnniversary)) ? (
             <div className="daily-notification-row daily-notification-birthday" key={notification.id}>
-              <span className="daily-notification-type">ANNIVERSAIRE</span>
-              <span className="daily-notification-main"><strong>{notification.title}</strong><span>{notification.detail}</span></span>
-              <div className="birthday-row-actions"><button type="button" onClick={() => onNavigate(notification.href)}>OUVRIR</button><button type="button" onClick={() => onBirthday(notification.entityId)}>SOUHAITER BONNE FÊTE</button></div>
+              <span className="daily-notification-type">{TYPE_LABELS[notification.type]}</span>
+              <span className="daily-notification-main"><strong>{notification.title}</strong><span>{notification.detail}</span>{notification.secondaryDetail && <small>{notification.secondaryDetail}</small>}</span>
+              <div className="birthday-row-actions"><button type="button" onClick={() => onNavigate(notification.href)}>OUVRIR</button><button type="button" onClick={() => notification.type === "birthday" ? onBirthday?.(notification.entityId) : onPurchaseAnniversary?.(notification.entityId)}>{notification.type === "birthday" ? "SOUHAITER BONNE FÊTE" : "SOUHAITER BON ANNIVERSAIRE"}</button></div>
             </div>
           ) : (
             <button

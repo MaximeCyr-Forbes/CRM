@@ -1,6 +1,7 @@
 "use client";
 
 import "./contacts.css";
+import { compareContacts, parseContactSort } from "../lib/contacts/sort";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
@@ -240,6 +241,7 @@ export default function ContactsPage() {
   const queryFollowUp = searchParams.get("followUp");
   const querySearch = searchParams.get("q") ?? "";
   const currentQuery = searchParams.toString();
+  const sort = parseContactSort(searchParams.get("sort"));
   const activeFilter = filterOptions.some((option) => option.value === queryBroker)
     ? queryBroker as ContactFilter
     : workspaceUser === "immoplus" && workingBroker ? workingBroker : "all";
@@ -251,8 +253,8 @@ export default function ContactsPage() {
       .filter((contact) => activeFilter === "all" || contact.broker === activeFilter)
       .filter((contact) => queryFollowUp !== "overdue" || Boolean(contact.nextFollowUpDate && contact.nextFollowUpDate < today))
       .filter((contact) => normalizedTerms.length === 0 || normalizedTerms.some((term) => searchableContactText(contact).includes(term)))
-      .sort((first, second) => second.createdAt.localeCompare(first.createdAt)),
-    [activeFilter, contacts, normalizedTerms.join("|"), queryFollowUp, today],
+      .sort(compareContacts(sort)),
+    [activeFilter, contacts, normalizedTerms.join("|"), queryFollowUp, today, sort],
   );
   const unassignedCount = contacts.filter((contact) => contact.broker === "unassigned").length;
   const pagination = paginateContacts(visibleContacts, parseContactsPage(searchParams.get("page")));
@@ -698,6 +700,7 @@ export default function ContactsPage() {
           <div className="contacts-tools">
             <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => changeContactFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
             <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => changeContactSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
+            <label className="contacts-sort">TRIER PAR<select value={sort} onChange={event => router.replace(contactsListHref(currentQuery, { sort: event.target.value, page: "1" }), { scroll: false })}><option value="created">DATE D’AJOUT</option><option value="name">A À Z</option></select></label>
           </div>
           {activeFilter === "unassigned" && <div className={`contacts-bulk-actions${selectedContactIds.size > 0 ? " contacts-bulk-actions-active" : ""}`}>
             <label className="contacts-select-all"><input aria-label="Sélectionner tous les contacts visibles" checked={areAllVisibleSelected} disabled={isBulkDeleting || pagedContacts.length === 0} onChange={() => setSelectedContactIds((current) => toggleVisibleContactSelection(current, pagedContactIds))} ref={selectAllCheckboxRef} type="checkbox" /><span>Tout sélectionner</span></label>

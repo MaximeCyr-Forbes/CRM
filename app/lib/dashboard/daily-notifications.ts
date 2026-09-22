@@ -10,7 +10,8 @@ export type DailyNotificationType =
   | "transaction_deadline"
   | "listing_expiration"
   | "follow_up"
-  | "birthday";
+  | "birthday"
+  | "purchase_anniversary";
 
 export type DailyNotification = {
   id: string;
@@ -30,6 +31,7 @@ export const DAILY_NOTIFICATION_PRIORITIES: Record<DailyNotificationType, number
   listing_expiration: 30,
   follow_up: 40,
   birthday: 50,
+  purchase_anniversary: 51,
 };
 
 const CLOSED_LISTING_STATUSES = new Set<Listing["status"]>(["sold", "rented", "expired", "withdrawn"]);

@@ -1,5 +1,7 @@
 "use client";
 
+import { PurchaseAnniversaryModal } from "../components/purchase-anniversary-modal";
+import { usePurchaseNotifications } from "../lib/purchase-anniversary/use-notifications";
 import { BirthdayGreetingModal } from "../components/birthday-greeting-modal";
 import { birthdayClock, resolvedBirthdayStatuses } from "../lib/birthday-greetings/model";
 import { workspaceRequest } from "../lib/workspace-request";
@@ -68,6 +70,8 @@ export default function Dashboard() {
     return () => { current = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [today, birthdayRevision]);
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
+  const purchaseNotifications = usePurchaseNotifications(brokerKey, today);
+  const [purchaseId, setPurchaseId] = useState<string | null>(null);
   const brokerContacts = brokerKey
     ? contacts.filter((contact) => contact.broker === brokerKey)
     : [];
@@ -198,6 +202,8 @@ export default function Dashboard() {
 
   return (
     <main className="dashboard-page dashboard-premium">
+      {purchaseNotifications.error && <p role="status">Anniversaires d’achat temporairement indisponibles.</p>}
+      {purchaseId && <PurchaseAnniversaryModal key={purchaseId} transactionId={purchaseId.split(":")[0]} contactId={purchaseId.split(":")[1]} onClose={() => setPurchaseId(null)} onResolved={() => { purchaseNotifications.resolve(purchaseId); setPurchaseId(null); }} />}
       {birthdayContactId && <BirthdayGreetingModal contactId={birthdayContactId} onClose={() => setBirthdayContactId(null)} onResolved={() => { setResolvedBirthdayIds(ids => [...ids, birthdayContactId]); setBirthdayContactId(null); setBirthdayRevision(v => v + 1); }} />}
       <div className="dashboard-shell">
         <header className="dashboard-header">
@@ -325,8 +331,9 @@ export default function Dashboard() {
           {birthdayError && <p role="status">État des anniversaires temporairement indisponible. L’état sera vérifié avant toute action.</p>}
           <DailyNotificationsPanel
             onBirthday={setBirthdayContactId}
+            onPurchaseAnniversary={setPurchaseId}
             listingsUnavailable={areListingsLoading || Boolean(listingsError)}
-            notifications={dailyNotifications}
+            notifications={[...dailyNotifications, ...purchaseNotifications.notifications]}
             onNavigate={(href) => router.push(href)}
             recommendationsUnavailable={recommendationsUnavailable}
             transactionsUnavailable={areTransactionsLoading || Boolean(transactionsError)}

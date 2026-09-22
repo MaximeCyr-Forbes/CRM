@@ -73,14 +73,14 @@ function subtractMonths(value: string, months: number) {
   return dateKey(target.getUTCFullYear(), target.getUTCMonth() + 1, Math.min(day, lastDay));
 }
 
-function anniversaryDates(source: string, from: string, to: string) {
+export function anniversaryDates(source: string, from: string, to: string, observeLeapDay = false) {
   if (!DATE_PATTERN.test(source)) return [];
   const [, month, day] = parts(source);
   const [fromYear] = parts(from);
   const [toYear] = parts(to);
   const dates: string[] = [];
   for (let year = fromYear; year <= toYear; year += 1) {
-    const date = validDate(year, month, day);
+    const date = validDate(year, month, day) ?? (observeLeapDay && month === 2 && day === 29 ? validDate(year, 2, 28) : null);
     if (date && date >= from && date <= to) dates.push(date);
   }
   return dates;
@@ -170,10 +170,6 @@ function contactsForTransaction(dataset: AutomaticEmailPreviewDataset, transacti
     .filter((contact): contact is AutomaticEmailContact => Boolean(contact));
 }
 
-function contactForTransaction(dataset: AutomaticEmailPreviewDataset, transactionId: string) {
-  return contactsForTransaction(dataset, transactionId)[0] ?? null;
-}
-
 function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPreviewDataset, from: string, to: string) {
   const values: AutomaticEmailOccurrence[] = [];
   if (rule.ruleType === "birthday") {
@@ -197,13 +193,15 @@ function occurrencesForRule(rule: AutomaticEmailRule, dataset: AutomaticEmailPre
   }
   if (rule.ruleType === "purchase_anniversary") {
     for (const transaction of dataset.transactions.filter((item) => item.type === "purchase" && item.purchaseFinalizedAt && item.notaryDate)) {
-      const contact = contactForTransaction(dataset, transaction.id);
-      if (!contact) continue;
-      for (const date of anniversaryDates(transaction.notaryDate!, from, to)) {
+      for (const contact of contactsForTransaction(dataset, transaction.id)) for (const date of anniversaryDates(transaction.notaryDate!, from, to, true)) {
+        if (date.slice(0,4) <= transaction.notaryDate!.slice(0,4)) continue;
         values.push(occurrence(rule, contact, dataset, {
           key: `purchase-anniversary:${transaction.id}:${contact.id}:${date.slice(0, 4)}`,
           date,
           transactionId: transaction.id,
+          transactionAddress: transaction.address,
+          transactionType: transaction.type,
+          conclusionDate: transaction.notaryDate,
           variables: { purchaseDate: businessDate(transaction.notaryDate!) },
         }));
       }
