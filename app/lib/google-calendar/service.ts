@@ -1307,7 +1307,8 @@ export async function deleteMortgageRenewalEventsForContact(contactId: string) {
   for (const row of rows) {
     if (!row.google_calendar_event_id) continue;
     const connection = await getConnection(row.broker);
-    if (connection) await deleteGoogleEvent(connection, row.google_calendar_event_id);
+    if (!connection) throw new Error(`Google Agenda de ${row.broker} n’est plus connecté.`);
+    await deleteGoogleEvent(connection, row.google_calendar_event_id);
   }
   const result = await admin.from("contact_mortgage_renewal_calendar_events").delete().eq("contact_id", contactId);
   if (result.error) throw result.error;

@@ -721,6 +721,10 @@ as $$
 declare
   v_transaction public.transactions;
 begin
+  -- FK cascade runs after the parent contact is gone; direct edits stay locked.
+  if tg_op = 'DELETE' and not exists (select 1 from public.contacts where id = old.contact_id) then
+    return old;
+  end if;
   if tg_op in ('UPDATE', 'DELETE') then
     select * into v_transaction from public.transactions where id = old.transaction_id;
     if found and (
@@ -3710,7 +3714,7 @@ on conflict(contact_id,broker) do nothing;
 
 create table public.contact_birthday_greetings (
   id uuid primary key default gen_random_uuid(),
-  contact_id uuid not null references public.contacts(id),
+  contact_id uuid not null references public.contacts(id) on delete cascade,
   occurrence_date date not null,
   status text not null check(status in ('manual_done','manual_sending','manual_email_sent','auto_sending','auto_email_sent','failed','uncertain')),
   sender_broker public.broker_assignment check(sender_broker <> 'unassigned'),
@@ -3826,7 +3830,7 @@ create temporary table purchase_counts on commit drop as select (select count(*)
 create table public.purchase_anniversary_greetings (
   id uuid primary key default gen_random_uuid(),
   transaction_id uuid not null references public.transactions(id),
-  contact_id uuid not null references public.contacts(id),
+  contact_id uuid not null references public.contacts(id) on delete cascade,
   occurrence_date date not null,
   status text not null check(status in ('manual_done','manual_sending','manual_email_sent','auto_sending','auto_email_sent','failed','uncertain')),
   sender_broker public.broker_assignment check(sender_broker <> 'unassigned'),

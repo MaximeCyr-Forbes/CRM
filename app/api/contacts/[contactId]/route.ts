@@ -1,6 +1,7 @@
 import { deleteContactAndCalendar } from "../../../lib/contacts/server-service";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { requireApiAccess } from "../../../lib/crm-access";
+import { contactDeleteDiagnostic } from "../../../lib/contacts/delete-error";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,10 @@ export async function DELETE(
   try {
     await deleteContactAndCalendar(contactId);
     return Response.json({ deleted: true });
-  } catch {
+  } catch (error) {
+    console.error("contact_delete_failed", contactDeleteDiagnostic(contactId, error));
     return Response.json(
-      { error: "Suppression impossible sans laisser de donnée orpheline." },
+      { error: "Impossible de supprimer le contact. Une donnée liée ou son calendrier empêche encore la suppression." },
       { status: 502 },
     );
   }
