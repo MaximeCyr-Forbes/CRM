@@ -15,7 +15,7 @@ export type DeadlineProposal = TransactionDeadlineDraft & {
   id: string; selected: boolean; dateText?: string;
   requiresReview?: boolean;
   /** Preview-only metadata, stripped by parseAgendaDeadlines before persistence. */
-  acceptanceRule?: { days: number; suffix: string };
+  acceptanceRule?: { days: number; suffix: string; relativeText?: string };
 };
 export type OaciqTransactionPreview = OaciqAnalysis & OaciqTransactionDetails & { requiresReview: boolean };
 
@@ -49,9 +49,11 @@ export function proposalsFromAnalysis(analysis: OaciqAnalysis & { requiresReview
       id: `oaciq-${index}`, title: d.title, dueDate: d.dueDate ?? "", dueTime: proposedDueTime(d),
       selected: reliable,
       requiresReview: !reliable,
-      dateText: d.dateText,
+      dateText: !d.dueDate && d.type === "documents_review" ? d.details : d.dateText,
       ...(d.relativeRule?.reference === "acceptance" ? {
-        acceptanceRule: { days: d.relativeRule.days, suffix: d.relativeRule.suffix },
+        acceptanceRule: { days: d.relativeRule.days, suffix: d.relativeRule.suffix,
+          ...(d.type === "documents_review" ? { relativeText: d.details } : {}),
+        },
       } : {}),
       source: { type: "oaciq", document: d.sourceDocument, form: d.sourceForm, section: d.sourceSection, text: d.sourceText, confidence: d.confidence },
     }];
@@ -74,7 +76,7 @@ export function recalculateDeadlinesFromAcceptanceDate(
       || isExcludedDeadlineSection(proposal.source.section)) return proposal;
     const { days, suffix } = proposal.acceptanceRule;
     const calculated = addAcceptanceDeadline(base, days, proposal.title, "", suffix);
-    return { ...proposal, dueDate: calculated.dueDate ?? "", dateText: calculated.dateText,
+    return { ...proposal, dueDate: calculated.dueDate ?? "", dateText: !base && proposal.acceptanceRule.relativeText ? proposal.acceptanceRule.relativeText : calculated.dateText,
       // Preserve the user's choices and time edits. Clearing the base must
       // remove any previous calculated date and its selection, not save it.
       selected: base ? proposal.selected : false,

@@ -100,3 +100,14 @@ describe("premium timeline preserves deadline actions", () => {
     vi.stubGlobal("window", { confirm: vi.fn().mockReturnValue(true) }); const { tree, callbacks, deadline } = agenda(); button(tree, "Supprimer").onClick(); expect(callbacks.onDelete).toHaveBeenCalledWith(deadline); vi.unstubAllGlobals();
   });
 });
+
+it("renders both clause 9.1 deadlines as separate agenda lines", () => {
+  const deadlines = [
+    { id: "delivery", title: "Délai pour fournir les documents", dueDate: "2026-09-15" },
+    { id: "review", title: "Délai pour la lecture des documents", dueDate: "2026-09-22" },
+  ].map(d => ({ ...d, dueTime: null, completed: false, source: { type: "oaciq", form: "10001", section: "9.1", document: "PA-synthetique.pdf", confidence: "high", text: "Documents demandés" } })) as TransactionDeadline[];
+  const tree = TransactionAgenda({ deadlines, disabled: false, onAdd: vi.fn(), onEdit: vi.fn(), onComplete: vi.fn(), onDelete: vi.fn(), onSync: vi.fn() });
+  const html = renderToStaticMarkup(tree);
+  for (const d of deadlines) expect(html).toContain(d.title);
+  expect(nodes(tree, (_, type) => type === "time").map(p => p.dateTime)).toEqual(["2026-09-15", "2026-09-22"]);
+});

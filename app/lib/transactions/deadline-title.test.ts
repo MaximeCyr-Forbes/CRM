@@ -48,3 +48,8 @@ describe("titre des échéances Autres conditions", () => {
       .toBe("Réception des clés");
   });
 });
+
+it("creates and edits the single manual Documents 9.1 preset", () => {
+  expect(deadlineTitleFromChoice("Documents 9.1", "", "")).toBe("Documents 9.1");
+  expect(deadlineTitleEditorState("Documents 9.1")).toEqual({ choice: "Documents 9.1", customTitle: "", otherConditionTitle: "" });
+});

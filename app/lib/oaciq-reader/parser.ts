@@ -63,7 +63,7 @@ const r2Text = (days: number) =>
   `${days} ${days === 1 ? "jour" : "jours"} après la réalisation de la conditionnelle de vente`;
 const acceptanceDaysPattern =
   /(?:dans\s+les|within)\s+(\d+)\s+(?:jours|days)\s+(?:suivant(?:e|es|s)?|following)\s+(?:l.?acceptation|acceptance)/i;
-type Origin = { document: Doc; section: string; text: string; type: string; verifiedPositionedClause?: boolean };
+type Origin = { document: Doc; section: string; text: string; type: string; verifiedPositionedClause?: boolean; precedingDays?: number };
 
 export function analyzeExtractedOaciqDocuments(
   documents: Doc[],
@@ -201,14 +201,16 @@ export function analyzeExtractedOaciqDocuments(
     const replacement = applicable.find(m=>m.targetForm===documentReference(src.document) && m.section===src.section);
     if (replacement && (replacement.date || (replacement.days!==null && relativeRule?.reference==='acceptance'))) {
       if (replacement.days!==null && relativeRule?.reference==='acceptance') {
-        const derivedOffset = src.type==='inspection_report' ? 4 : src.type==='documents_review' ? 7 : 0;
+        const derivedOffset = src.type==='inspection_report' ? 4 : src.type==='documents_review' ? (src.precedingDays ?? 0) : 0;
         const effectiveDays = replacement.days + derivedOffset;
         const calculated = addAcceptanceDeadline(baseDate,effectiveDays,title,details,relativeRule.suffix);
         dueDate=calculated.dueDate; dateText=calculated.dateText; dueTime=calculated.dueTime;
         days=effectiveDays; relativeRule={...relativeRule,days};
-        details=`${days} jours après l'acceptation — modifié par MO ${replacement.formNumber}`;
+        details=src.type==='documents_review'
+          ? `${derivedOffset} jours après le délai de remise des documents (${replacement.days} jours après l'acceptation) — modifié par MO ${replacement.formNumber}`
+          : `${days} jours après l'acceptation — modifié par MO ${replacement.formNumber}`;
       } else if (replacement.date) {
-        dueDate=replacement.date; dueTime=replacement.time; dateText=formatDay(dueDate); relativeRule=undefined; days=null; baseDate=null;
+        dueDate=src.type==='documents_review' ? addDays(replacement.date, src.precedingDays ?? 0) : replacement.date; dueTime=replacement.time; dateText=formatDay(dueDate); relativeRule=undefined; days=null; baseDate=null;
       }
       src={...src,document:documents.find(d=>d.name===replacement.document)!,text:replacement.text};
       replacement.applied=true;
@@ -377,6 +379,10 @@ export function analyzeExtractedOaciqDocuments(
   const documentsDays =
     deadlineDays(documentsClause) ||
     extractClauseDaysWords(main, "9.1", "following");
+  // App Courriel native_reader.follow_days, commit 3b3da6d6: read the
+  // successive interval from the clause, then resolve it after delivery.
+  const following = /(?:\((\d+)\)|(\d+)(?:e|ème)?|quatrieme|septieme|fourth|seventh)\s*(?:journee|jours?|days?)[^\d.]{0,90}?(?:expiration|expiry)/i.exec(norm(documentsClause));
+  const reviewDays = following ? Number(following[1] || following[2] || (/quatrieme|fourth/.test(following[0]) ? 4 : 7)) : null;
   const names =
     /(?:documents suivants|following documents)\s*:\s*(.+?)\s+(?:(?:À|A) cet effet|To this effect)/i.exec(
       documentsClause,
@@ -396,11 +402,11 @@ export function analyzeExtractedOaciqDocuments(
       origin("9.1", "documents_delivery", documentsClause),
       `${documentsDays} jours après ${basis}`,
     );
-    after(
-      documentsDays + 7,
+    if (reviewDays !== null) after(
+      documentsDays + reviewDays,
       "Délai pour la lecture des documents",
-      origin("9.1", "documents_review", documentsClause),
-      "7 jours après le délai de remise des documents",
+      { ...origin("9.1", "documents_review", documentsClause), precedingDays: reviewDays },
+      `${reviewDays} jours après le délai de remise des documents`,
     );
   }
   const notaryClause = textBetween(combined, "11.1", ["11.2"]);
@@ -740,7 +746,7 @@ export function analyzeExtractedOaciqDocuments(
     deadlines,
     warnings,
     allDeadlinesDeferred: deferred,
-    transactionDates: calculateTransactionDates(
+    transactionDates: { ...calculateTransactionDates(
       accepted,
       financingDays,
       inspectionDays,
@@ -751,5 +757,8 @@ export function analyzeExtractedOaciqDocuments(
       occupationTime,
       counter,
     ),
+      documents_delivery_deadline: deadlines.find(d => d.type === "documents_delivery")?.dueDate ?? null,
+      documents_review_deadline: deadlines.find(d => d.type === "documents_review")?.dueDate ?? null,
+    },
   };
 }

@@ -146,6 +146,7 @@ export const TRANSACTION_STATUS_LABELS: Record<TransactionStatus, string> = {
 export const DEADLINE_PRESETS = [
   "Inspection",
   "Financement",
+  "Documents 9.1",
   "Autres conditions",
   "Signature chez le notaire",
 ] as const;

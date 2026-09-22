@@ -95,3 +95,18 @@ it.each(["france", "maxime", "sandrine"] as const)("routes an assistant's existi
   expect(deadline.google_calendar_event_broker).toBe(broker);
   expect(events.size).toBe(1);
 });
+
+it("keeps a distinct idempotent Google event for each clause 9.1 deadline", async () => {
+  deadline.source_section = "9.1"; deadline.due_time = null;
+  deadline.title = "Délai pour fournir les documents";
+  await syncTransactionDeadline(deadline.id);
+  const delivery = structuredClone(deadline);
+  deadline = { ...deadline, id: "00000000-0000-4000-8000-000000000002", title: "Délai pour la lecture des documents", due_date: "2026-09-22", google_calendar_event_id: null };
+  await syncTransactionDeadline(deadline.id);
+  const review = structuredClone(deadline);
+  expect(review.google_calendar_event_id).not.toBe(delivery.google_calendar_event_id);
+  for (const saved of [delivery, review]) { deadline = saved; await syncTransactionDeadline(saved.id); }
+  expect(events.size).toBe(2);
+  expect([...events.values()].map(e => e.start)).toEqual([{ date: "2026-09-15" }, { date: "2026-09-22" }]);
+  expect(mocks.connection.mock.calls.every(([broker]) => broker === "france")).toBe(true);
+});

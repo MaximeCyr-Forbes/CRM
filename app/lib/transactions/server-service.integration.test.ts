@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TransactionDraft } from "../../data/transaction-types";
-import { MANUAL_DEADLINE_SOURCE } from "./oaciq-agenda";
+import { analyzeExtractedOaciqDocuments } from "../oaciq-reader/parser";
+import { promise } from "../oaciq-reader/test-fixtures";
+import { agendaInsertValues, confirmedAgenda, proposalsFromAnalysis, MANUAL_DEADLINE_SOURCE } from "./oaciq-agenda";
 
 const supabase = vi.hoisted(() => ({ getAdmin: vi.fn() }));
 vi.mock("../supabase/server", () => ({ getSupabaseAdmin: supabase.getAdmin }));
@@ -97,6 +99,19 @@ describe("service Transactions sans dépendance obligatoire aux Listings", () =>
     expect(rpc).toHaveBeenNthCalledWith(1, "create_transaction_with_agenda", expect.objectContaining({ p_creation_key: key, p_deadlines: [expect.objectContaining({ title: "Inspection corrigée", due_date: "2026-08-27", due_time: null, source_type: "manual" })] }));
     expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1]);
     expect(from.mock.calls.some(([table]) => table === "transactions")).toBe(false);
+  });
+
+  it("persists and returns both clause 9.1 deadlines in the same transaction", async () => {
+    const proposals = proposalsFromAnalysis(analyzeExtractedOaciqDocuments([promise({ documents: 5, date: "2026-09-10" })])).filter(p => p.source.section === "9.1");
+    const deadlines = confirmedAgenda(proposals)!;
+    const stored = agendaInsertValues(deadlines).map((d, i) => ({ ...d, id: `document-${i}`, transaction_id: row.id, completed: false }));
+    const rpc = vi.fn(async () => ({ data: row, error: null }));
+    const from = vi.fn((table: string) => tableQuery(table === "transaction_deadlines" ? stored : [], []));
+    supabase.getAdmin.mockReturnValue({ rpc, from });
+    const result = await createTransaction({ ...draft, deadlines });
+    expect(rpc).toHaveBeenCalledWith("create_transaction_with_agenda", expect.objectContaining({ p_deadlines: agendaInsertValues(deadlines) }));
+    expect(result.deadlines.map(d => [d.title, d.dueDate])).toEqual(deadlines.map(d => [d.title, d.dueDate]));
+    expect(result.deadlines).toHaveLength(2);
   });
 
   it("ne tente aucun insert séparé si la RPC agenda échoue", async () => {

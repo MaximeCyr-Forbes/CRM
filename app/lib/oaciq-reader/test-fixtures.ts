@@ -65,6 +65,7 @@ export function promise(
       `8.1 ${en ? "within" : "dans les"} ${options.inspection ?? 10} ${en ? "days" : "jours"}`,
       options.waiver ? "CLAUSE 8.1 OPTION RENONCIATION INITIALEE" : "",
       `9.1 ${en ? "following documents" : "documents suivants"}: déclaration de copropriété ${en ? "To this effect within" : "À cet effet dans les"} ${options.documents ?? 7} ${en ? "days" : "jours"}`,
+      en ? "Within seven (7) days following the expiry of the above deadline." : "Dans les sept (7) jours suivant l’expiration du délai mentionné ci-dessus.",
       "10.1 Déclarations",
       en ? "11.1 November 23, 2026" : "11.1 23 novembre 2026",
       en ? "11.2 November 27, 2026 12:00" : "11.2 27 novembre 2026 12h00",
