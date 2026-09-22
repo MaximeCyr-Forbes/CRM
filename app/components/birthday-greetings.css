@@ -1,0 +1,14 @@
+.birthday-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:#15213766; backdrop-filter:blur(6px); }
+.birthday-dialog { background:#fff; color:#172234; border:1px solid #e2e7ed; border-radius:22px; box-shadow:0 24px 80px #15213733; padding:28px; width:min(480px,100%); max-height:90dvh; overflow:auto; }
+.birthday-dialog h2 { margin:8px 0 24px; } .birthday-dialog h3 { overflow-wrap:anywhere; }
+.birthday-dialog p,.birthday-dialog small { line-height:1.6; } .birthday-dialog small { color:#657186; }
+.birthday-buttons { display:grid; gap:10px; margin:24px 0 14px; }
+.birthday-buttons button,.birthday-row-actions button { min-height:44px; border-radius:10px; border:1px solid #dce2eb; background:#f6f8fb; color:#26364d; padding:10px 14px; font:inherit; font-size:12px; font-weight:650; cursor:pointer; }
+.birthday-buttons .birthday-send { background:#253c58; color:white; border-color:#253c58; }
+.birthday-buttons button:disabled { opacity:.5; cursor:not-allowed; } .birthday-error { color:#a53b36; }
+.birthday-row-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.birthday-fallback { padding:18px; border:1px solid #dce3eb; border-radius:14px; background:#f5f8fb; margin:16px 0; }
+.birthday-fallback button { width:100%; min-height:48px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; font-weight:700; color:#26364d; cursor:pointer; }
+.birthday-fallback button[aria-checked=true] { background:#225f49; color:white; }
+.birthday-fallback small { display:block; margin-top:9px; line-height:1.5; }
+@media(max-width:600px) { .daily-notification-birthday { flex-wrap:wrap; } .birthday-row-actions { width:100%; } .birthday-row-actions button { flex:1; } .birthday-dialog { padding:22px; } }

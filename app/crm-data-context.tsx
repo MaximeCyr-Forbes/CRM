@@ -494,6 +494,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
             return replacement ? preserveAddressHistory(contact, replacement) : contact;
           }),
         );
+        await requestBirthdaySync([...updatedContacts.keys()]);
         const contactsToSync = [...updatedContacts.values()]
           .filter(
             (contact) =>
@@ -504,7 +505,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           await requestCalendarSync(contactsToSync);
         }
       }),
-    [requestCalendarSync, runWrite],
+    [requestCalendarSync, requestBirthdaySync, runWrite],
   );
 
   const assignContact = useCallback(
@@ -560,7 +561,7 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
           const [sync] = await requestCalendarSync([contactId]);
           if (sync?.contact) updated = sync.contact;
         }
-        if (currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId]);
+        if (brokerChanged || currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId]);
         if (currentContact.mortgageRenewalDate !== updated.mortgageRenewalDate) {
           await requestMortgageRenewalSync([contactId]);
         }

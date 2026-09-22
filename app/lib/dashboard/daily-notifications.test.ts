@@ -230,12 +230,12 @@ describe("notifications quotidiennes du dashboard", () => {
     expect(notifications({ contacts: [contact({ mortgageRenewalDate: "2026-08-21" })] })).toEqual([]);
   });
 
-  it("garde les renouvellements non attribués et anniversaires d’un autre courtier visibles pour l’équipe", () => {
+  it("garde les renouvellements non attribués mais filtre les anniversaires d’un autre courtier", () => {
     const results = notifications({ contacts: [
       contact({ id: "unassigned", broker: "unassigned", mortgageRenewalDate: today }),
       contact({ id: "france-birthday", broker: "france", birthDate: "1975-08-20" }),
     ] });
-    expect(results.map((item) => item.id)).toEqual(["mortgage:unassigned", "birthday:france-birthday"]);
+    expect(results.map((item) => item.id)).toEqual(["mortgage:unassigned"]);
   });
 
   it("filtre les relances selon le courtier consulté", () => {
@@ -322,5 +322,15 @@ describe("notifications quotidiennes du dashboard", () => {
     const localToday = toLocalISODate(localNearMidnight);
     expect(localToday).toBe("2026-08-20");
     expect(notifications({ contacts: [contact({ mortgageRenewalDate: localToday })], date: localToday })).toHaveLength(1);
+  });
+});
+
+
+describe("birthday routing", () => {
+  it.each(["france", "maxime", "sandrine"] as const)("assigned and unassigned in %s", broker => {
+    const contacts = [contact({ id: "a", broker, birthDate: "1980-08-20" }), contact({ id: "u", broker: "unassigned", birthDate: "1980-08-20" })];
+    const get = (resolvedBirthdayIds: string[]) => getDailyNotifications({ contacts, transactions: [], listings: [], broker, today, resolvedBirthdayIds });
+    expect(get([]).map(n => n.entityId).sort()).toEqual(["a","u"]);
+    expect(get(["u"]).map(n => n.entityId)).toEqual(["a"]);
   });
 });

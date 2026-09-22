@@ -44,7 +44,7 @@ describe("édition rapide de la fiche contact", () => {
     expect(dataContext).toContain("mergeAddressCollections([editedPrimary], previousAddresses)");
     expect(dataContext).toContain("setPrimaryAddress(");
     expect(dataContext).toContain("if (brokerChanged && (updated.nextFollowUpDate || updated.googleCalendarEventId))");
-    expect(dataContext).toContain("if (currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId])");
+    expect(dataContext).toContain("if (brokerChanged || currentContact.birthDate !== updated.birthDate) await requestBirthdaySync([contactId])");
     expect(dataContext).toContain("currentContact.mortgageRenewalDate !== updated.mortgageRenewalDate");
   });
 });

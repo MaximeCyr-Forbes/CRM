@@ -100,10 +100,10 @@ describe("dashboard presentation preserves existing data and actions", () => {
     expect(doneButton(render()).disabled).toBe(false);
   });
   it.each(["france", "sandrine", "immoplus"])("does not request recommendations for %s", user => {
-    state.user = user; render(); state.effects[1](); expect(state.request).not.toHaveBeenCalled();
+    state.user = user; render(); state.effects[2](); expect(state.request).not.toHaveBeenCalled();
   });
   it("keeps the Maxime recommendations request and deep-link navigation", () => {
-    render(); state.effects[1](); expect(state.request).toHaveBeenCalledWith("/api/recommendations", { cache: "no-store" });
+    render(); state.effects[2](); expect(state.request).toHaveBeenCalledWith("/api/recommendations", { cache: "no-store" });
     const panel = nodes(render(), (_, type) => type === DailyNotificationsPanel)[0];
     (panel.onNavigate as (href: string) => void)("/settings?recommendation=example"); expect(state.push).toHaveBeenCalledWith("/settings?recommendation=example");
   });

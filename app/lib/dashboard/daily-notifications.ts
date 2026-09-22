@@ -82,6 +82,7 @@ export function getDailyNotifications({
   transactions,
   listings,
   recommendations = [],
+  resolvedBirthdayIds = [],
   broker,
   today,
 }: {
@@ -89,6 +90,7 @@ export function getDailyNotifications({
   transactions: ReadonlyArray<Transaction>;
   listings: ReadonlyArray<Listing>;
   recommendations?: ReadonlyArray<CRMRecommendation>;
+  resolvedBirthdayIds?: ReadonlyArray<string>;
   broker: Exclude<ContactBroker, "unassigned">;
   today: string;
 }) {
@@ -118,7 +120,7 @@ export function getDailyNotifications({
         entityId: contact.id,
       });
     }
-    if (birthdayMatchesDate(contact.birthDate, today)) {
+    if ((contact.broker === broker || contact.broker === "unassigned") && !resolvedBirthdayIds.includes(contact.id) && birthdayMatchesDate(contact.birthDate, today)) {
       notifications.push({
         id: `birthday:${contact.id}`,
         type: "birthday",

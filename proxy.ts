@@ -8,6 +8,8 @@ const PUBLIC_PATHS = new Set([
   "/api/access/logout",
   "/api/access/session",
   "/api/google-calendar/webhook",
+  // This exact endpoint authenticates the scheduler bearer secret itself.
+  "/api/cron/birthday-greetings",
 ]);
 
 export async function proxy(request: NextRequest) {

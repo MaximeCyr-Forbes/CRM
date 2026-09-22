@@ -13,6 +13,7 @@ export type AutomaticEmailExecutionMode = (typeof AUTOMATIC_EMAIL_EXECUTION_MODE
 export type AutomaticEmailDeliveryStatus = (typeof AUTOMATIC_EMAIL_DELIVERY_STATUSES)[number];
 export type AutomaticEmailTransactionType = (typeof AUTOMATIC_EMAIL_TRANSACTION_TYPES)[number];
 export type AutomaticEmailTriggerConfig = {
+  birthdayFallbackEnabled?: boolean;
   leadMonths?: number;
   delayDays?: number;
   googleReviewUrl?: string;
@@ -153,8 +154,9 @@ function triggerConfig(value: unknown, ruleType: AutomaticEmailRuleType): Automa
   const data = value as Record<string, unknown>;
   const allowed = ruleType === "mortgage_renewal" ? new Set(["leadMonths"])
     : ruleType === "google_review" ? new Set(["delayDays", "googleReviewUrl", "transactionTypes"])
-      : new Set<string>();
+      : ruleType === "birthday" ? new Set(["birthdayFallbackEnabled"]) : new Set<string>();
   if (Object.keys(data).some((key) => !allowed.has(key))) return null;
+  if (data.birthdayFallbackEnabled !== undefined && typeof data.birthdayFallbackEnabled !== "boolean") return null;
   if (data.leadMonths !== undefined && (!Number.isInteger(data.leadMonths) || Number(data.leadMonths) < 1 || Number(data.leadMonths) > 24)) return null;
   if (data.delayDays !== undefined && (!Number.isInteger(data.delayDays) || Number(data.delayDays) < 0 || Number(data.delayDays) > 365)) return null;
   if (data.googleReviewUrl !== undefined && (typeof data.googleReviewUrl !== "string" || data.googleReviewUrl.length > 2000)) return null;
@@ -166,6 +168,7 @@ function triggerConfig(value: unknown, ruleType: AutomaticEmailRuleType): Automa
     || new Set(data.transactionTypes).size !== data.transactionTypes.length
   )) return null;
   return {
+    ...(data.birthdayFallbackEnabled !== undefined ? { birthdayFallbackEnabled: data.birthdayFallbackEnabled as boolean } : {}),
     ...(data.leadMonths !== undefined ? { leadMonths: Number(data.leadMonths) } : {}),
     ...(data.delayDays !== undefined ? { delayDays: Number(data.delayDays) } : {}),
     ...(data.googleReviewUrl !== undefined ? { googleReviewUrl: data.googleReviewUrl.trim() } : {}),
@@ -230,7 +233,7 @@ export function parseAutomaticEmailRuleDraft(value: unknown): AutomaticEmailRule
     timezone: "America/Toronto",
     triggerConfig: parsedTrigger,
   };
-  return result.status === "ready" && ruleConfigurationIssues(result).length > 0 ? null : result;
+  return (result.status === "ready" || result.triggerConfig.birthdayFallbackEnabled) && ruleConfigurationIssues(result).length > 0 ? null : result;
 }
 
 export function mapAutomaticEmailRuleRow(row: AutomaticEmailRuleRow): AutomaticEmailRule {

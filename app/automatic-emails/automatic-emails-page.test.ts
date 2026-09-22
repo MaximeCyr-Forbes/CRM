@@ -57,7 +57,7 @@ describe("module Courriels Auto verrouillé", () => {
       "BLOQUÉ",
       "PRÊT",
     ]) expect(page).toContain(text);
-    expect(page).toContain("Ce choix sera utilisé seulement lorsque les envois automatiques seront activés dans une phase future.");
+    expect(page).toContain("Ce choix est réservé à une activation future. Cette règle reste verrouillée.");
     expect(page).toContain("Aucun courriel ne sera envoyé.");
   });
 });

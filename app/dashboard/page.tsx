@@ -1,5 +1,7 @@
 "use client";
 
+import { BirthdayGreetingModal } from "../components/birthday-greeting-modal";
+import { birthdayClock, resolvedBirthdayStatuses } from "../lib/birthday-greetings/model";
 import { workspaceRequest } from "../lib/workspace-request";
 
 import { useRouter } from "next/navigation";
@@ -45,7 +47,26 @@ export default function Dashboard() {
   const [followUpNotice, setFollowUpNotice] = useState<FollowUpNotice | null>(null);
   const [recommendations, setRecommendations] = useState<CRMRecommendation[]>([]);
   const [recommendationsUnavailable, setRecommendationsUnavailable] = useState(false);
-  const today = toLocalISODate(new Date());
+  const [birthdayContactId, setBirthdayContactId] = useState<string | null>(null);
+  const [resolvedBirthdayIds, setResolvedBirthdayIds] = useState<string[]>([]);
+  const [birthdayError, setBirthdayError] = useState(false);
+  const [birthdayRevision, setBirthdayRevision] = useState(0);
+  const today = birthdayClock().today;
+  useEffect(() => {
+    let current = true;
+    async function refresh() {
+      try {
+        const r = await fetch("/api/birthday-greetings", { cache: "no-store" });
+        const data = await r.json();
+        if (!r.ok) throw new Error();
+        if (current) { setResolvedBirthdayIds(data.states.filter((s: { status: string }) => resolvedBirthdayStatuses.has(s.status)).map((s: { contactId: string }) => s.contactId)); setBirthdayError(false); }
+      } catch { if (current) setBirthdayError(true); }
+    }
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 30000);
+    window.addEventListener("focus", refresh);
+    return () => { current = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [today, birthdayRevision]);
   const brokerKey = selectedBroker?.toLowerCase() as ContactBroker | undefined;
   const brokerContacts = brokerKey
     ? contacts.filter((contact) => contact.broker === brokerKey)
@@ -61,9 +82,9 @@ export default function Dashboard() {
     : [];
   const dailyNotifications = useMemo(
     () => brokerKey && brokerKey !== "unassigned"
-      ? getDailyNotifications({ contacts, transactions, listings, recommendations, broker: brokerKey, today })
+      ? getDailyNotifications({ contacts, transactions, listings, recommendations, broker: brokerKey, today, resolvedBirthdayIds })
       : [],
-    [brokerKey, contacts, listings, recommendations, today, transactions],
+    [brokerKey, contacts, listings, recommendations, today, transactions, resolvedBirthdayIds],
   );
   const metrics = [
     { label: "Relances aujourd’hui", value: todaysClients.length, tone: "today", href: todaysClients[0] ? `/contacts/${todaysClients[0].id}?mode=followups` : "/contacts" },
@@ -177,6 +198,7 @@ export default function Dashboard() {
 
   return (
     <main className="dashboard-page dashboard-premium">
+      {birthdayContactId && <BirthdayGreetingModal contactId={birthdayContactId} onClose={() => setBirthdayContactId(null)} onResolved={() => { setResolvedBirthdayIds(ids => [...ids, birthdayContactId]); setBirthdayContactId(null); setBirthdayRevision(v => v + 1); }} />}
       <div className="dashboard-shell">
         <header className="dashboard-header">
           <div className="dashboard-identity">
@@ -300,7 +322,9 @@ export default function Dashboard() {
 
           <DashboardTransactions transactions={activeTransactions} contacts={contacts} loading={areTransactionsLoading} error={transactionsError} onNavigate={href => router.push(href)} />
 
+          {birthdayError && <p role="status">État des anniversaires temporairement indisponible. L’état sera vérifié avant toute action.</p>}
           <DailyNotificationsPanel
+            onBirthday={setBirthdayContactId}
             listingsUnavailable={areListingsLoading || Boolean(listingsError)}
             notifications={dailyNotifications}
             onNavigate={(href) => router.push(href)}

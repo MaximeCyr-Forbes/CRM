@@ -1042,14 +1042,29 @@ async function upsertBirthdayGoogleEvent(
   });
   let activeEventId = eventId;
   let response = eventExists ? await updateEvent() : await insertEvent();
-  if (eventExists && (response.status === 404 || response.status === 410)) {
-    activeEventId = createGoogleEventId();
+  if (response.status === 404) response = await insertEvent();
+  if (response.status === 409) response = await updateEvent();
+  if (response.status === 410) {
+    // A deleted Google ID cannot be reused. Reserve its replacement atomically
+    // before POST so a lost response or concurrent sync reuses the same ID.
+    const proposed = createGoogleEventId();
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from("contact_birthday_calendar_events").update({ google_calendar_event_id: proposed })
+      .eq("contact_id", contact.id).eq("broker", broker).eq("google_calendar_event_id", eventId).select("google_calendar_event_id");
+    if (error) throw error;
+    if (data?.length) activeEventId = proposed;
+    else {
+      const { data: current, error: readError } = await admin.from("contact_birthday_calendar_events").select("google_calendar_event_id").eq("contact_id", contact.id).eq("broker", broker).single();
+      if (readError || !current?.google_calendar_event_id) throw readError ?? new Error("Événement à resynchroniser.");
+      activeEventId = current.google_calendar_event_id;
+    }
     response = await googleCalendarRequest(connection, `/calendars/${calendarId}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildBirthdayEventPayload(contact, broker, activeEventId)),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildBirthdayEventPayload(contact, broker, activeEventId)),
     });
-  } else if (!eventExists && response.status === 409) response = await updateEvent();
+    if (response.status === 409) response = await googleCalendarRequest(connection, `/calendars/${calendarId}/events/${encodeURIComponent(activeEventId)}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildBirthdayEventPayload(contact, broker)),
+    });
+  }
   if (!response.ok) throw new Error(`Synchronisation anniversaire Google refusée (${response.status}).`);
   return activeEventId;
 }
@@ -1060,26 +1075,36 @@ async function processBirthdayRow(
   connection: GoogleConnectionRow | undefined,
 ): Promise<"synced" | "pending" | "error"> {
   const admin = getSupabaseAdmin();
-  if (!contact) {
-    await admin.from("contact_birthday_calendar_events").delete().eq("contact_id", row.contact_id).eq("broker", row.broker);
-    return "synced";
-  }
-  if (!connection) {
-    await admin.from("contact_birthday_calendar_events").update({ sync_status: "pending", last_error: "Google Agenda non connecté." }).eq("contact_id", row.contact_id).eq("broker", row.broker);
-    return "pending";
-  }
   try {
-    if (!contact.birth_date) {
-      if (row.google_calendar_event_id) await deleteGoogleEvent(connection, row.google_calendar_event_id);
+    if (!contact?.birth_date || contact.broker !== row.broker) {
+      if (row.google_calendar_event_id) {
+        if (!connection) throw new Error("Ancien Google Agenda non connecté : suppression à réessayer.");
+        await deleteGoogleEvent(connection, row.google_calendar_event_id);
+      }
       const { error } = await admin.from("contact_birthday_calendar_events").delete().eq("contact_id", row.contact_id).eq("broker", row.broker);
       if (error) throw error;
       return "synced";
     }
+    if (!connection) {
+      await admin.from("contact_birthday_calendar_events").update({ sync_status: "pending", last_error: "Google Agenda non connecté." }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+      return "pending";
+    }
+    const { data: oldRows, error: oldError } = await admin.from("contact_birthday_calendar_events").select("broker").eq("contact_id", row.contact_id).neq("broker", row.broker);
+    if (oldError) throw oldError;
+    if (oldRows?.length) throw new Error("Suppression de l’ancien agenda à terminer avant le transfert.");
     const eventExists = Boolean(row.google_calendar_event_id);
-    const eventId = row.google_calendar_event_id ?? createGoogleEventId();
+    let eventId = row.google_calendar_event_id ?? createGoogleEventId();
     if (!eventExists) {
-      const { error } = await admin.from("contact_birthday_calendar_events").update({ google_calendar_event_id: eventId, sync_status: "pending", last_error: null }).eq("contact_id", row.contact_id).eq("broker", row.broker);
+      const { data: claimed, error } = await admin.from("contact_birthday_calendar_events")
+        .update({ google_calendar_event_id: eventId, sync_status: "pending", last_error: null })
+        .eq("contact_id", row.contact_id).eq("broker", row.broker).is("google_calendar_event_id", null).select("google_calendar_event_id");
       if (error) throw error;
+      if (!claimed?.length) {
+        const { data: current, error: readError } = await admin.from("contact_birthday_calendar_events").select("google_calendar_event_id")
+          .eq("contact_id", row.contact_id).eq("broker", row.broker).single();
+        if (readError || !current?.google_calendar_event_id) throw readError ?? new Error("Synchronisation concurrente à réessayer.");
+        eventId = current.google_calendar_event_id;
+      }
     }
     const activeEventId = await upsertBirthdayGoogleEvent(connection, contact, row.broker, eventId, eventExists);
     const { error } = await admin.from("contact_birthday_calendar_events").update({
@@ -1127,13 +1152,10 @@ export async function syncContactBirthdays(options: {
   const contactMap = new Map(((contacts ?? []) as ServerContactRow[]).map((contact) => [contact.id, contact]));
   const connectionMap = new Map(connectionRows.map((connection) => [connection.broker, connection]));
   const results: Array<"synced" | "pending" | "error"> = [];
-  let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(4, rows.length) }, async () => {
-    while (cursor < rows.length) {
-      const row = rows[cursor++];
-      results.push(await processBirthdayRow(row, contactMap.get(row.contact_id), connectionMap.get(row.broker)));
-    }
-  }));
+  rows.sort((a, b) => Number(contactMap.get(a.contact_id)?.broker === a.broker) - Number(contactMap.get(b.contact_id)?.broker === b.broker));
+  for (const row of rows) {
+    results.push(await processBirthdayRow(row, contactMap.get(row.contact_id), connectionMap.get(row.broker)));
+  }
   return {
     synced: results.filter((status) => status === "synced").length,
     pending: results.filter((status) => status === "pending").length,
@@ -1513,6 +1535,7 @@ export async function saveGoogleConnection(
   await syncContactsFollowUps(
     ((contacts ?? []) as Array<{ id: string }>).map((contact) => contact.id),
   );
+  await getSupabaseAdmin().from("contact_birthday_calendar_events").update({ sync_status: "pending" }).eq("broker", broker).eq("sync_status", "error");
   for (;;) {
     const result = await syncContactBirthdays({ broker, limit: 50, retryErrors: false });
     if (result.processed < 50 || result.synced + result.error === 0) break;

@@ -137,3 +137,13 @@ export async function requireWorkspaceAdmin(request: Request) {
   } catch { /* An invalid token never grants administration. */ }
   return Response.json({ error: "Cet espace ne possède pas les droits d’administration." }, { status: 403 });
 }
+
+export async function birthdayWorkspaceActor(request: Request): Promise<WorkspaceUser | null> {
+  try {
+    const [user, expiresText, signature, extra] = (request.headers.get("X-CRM-Workspace") ?? "").split(".");
+    const expires = Number(expiresText);
+    if (!extra && isWorkspaceUser(user) && expires > Date.now() && expires <= Date.now() + 60 * 60 * 1000
+      && await crypto.subtle.verify("HMAC", await getSessionKey(["verify"]), base64UrlToBytes(signature), new TextEncoder().encode(`workspace:v1:${user}:${expires}`))) return user;
+  } catch { /* Invalid workspace claims cannot supply audit identity. */ }
+  return null;
+}

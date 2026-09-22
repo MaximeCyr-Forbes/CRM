@@ -14,12 +14,14 @@ const TYPE_LABELS: Record<DailyNotificationType, string> = {
 export function DailyNotificationsPanel({
   notifications,
   onNavigate,
+  onBirthday,
   listingsUnavailable = false,
   recommendationsUnavailable = false,
   transactionsUnavailable = false,
 }: {
   notifications: ReadonlyArray<DailyNotification>;
   onNavigate: (href: string) => void;
+  onBirthday?: (contactId: string) => void;
   listingsUnavailable?: boolean;
   recommendationsUnavailable?: boolean;
   transactionsUnavailable?: boolean;
@@ -38,7 +40,13 @@ export function DailyNotificationsPanel({
 
       {notifications.length > 0 ? (
         <div className="daily-notifications-list">
-          {notifications.map((notification) => (
+          {notifications.map((notification) => notification.type === "birthday" && onBirthday ? (
+            <div className="daily-notification-row daily-notification-birthday" key={notification.id}>
+              <span className="daily-notification-type">ANNIVERSAIRE</span>
+              <span className="daily-notification-main"><strong>{notification.title}</strong><span>{notification.detail}</span></span>
+              <div className="birthday-row-actions"><button type="button" onClick={() => onNavigate(notification.href)}>OUVRIR</button><button type="button" onClick={() => onBirthday(notification.entityId)}>SOUHAITER BONNE FÊTE</button></div>
+            </div>
+          ) : (
             <button
               aria-label={`Ouvrir ${notification.title}`}
               className={`daily-notification-row daily-notification-${notification.type}`}
