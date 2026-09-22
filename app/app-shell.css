@@ -109,6 +109,7 @@
 .crm-app-shell [role="dialog"] { border-radius: var(--crm-radius-lg); background-color: var(--crm-surface); box-shadow: var(--crm-shadow-md); }
 .crm-app-shell .global-search-panel { border-radius: var(--crm-radius-lg); background: white; box-shadow: var(--crm-shadow-md); }
 .crm-app-shell .global-search-input { border-radius: var(--crm-radius-sm); border-color: var(--crm-border); }
+.crm-app-shell .global-search-panel > header > button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .crm-app-shell .global-search-backdrop { background: rgb(24 40 60 / 30%); backdrop-filter: none; }
 
 @media (max-width: 1279px) {
@@ -125,16 +126,31 @@
   .crm-topbar { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 }
 @media (max-width: 600px) {
-  .crm-app-shell { --crm-topbar-height: 112px; }
-  .crm-topbar { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px 12px; padding-block: calc(10px + env(safe-area-inset-top)) 10px; }
-  .crm-topbar .global-search-trigger { width: 100%; max-width: none; min-width: 0; height: 40px; }
+  .crm-app-shell { --crm-topbar-height: 120px; }
+  .crm-topbar { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px 12px; padding-block: calc(10px + env(safe-area-inset-top)) 10px; }
+  .crm-topbar .global-search-trigger { width: 100%; max-width: none; min-width: 0; height: 44px; }
   .crm-topbar .global-search-trigger > span:last-child { display: inline; }
   .crm-topbar-tools { grid-column: 1 / -1; width: 100%; justify-content: space-between; gap: 10px; }
-  .crm-topbar .account-menu-trigger { min-height: 34px; height: 34px; width: 34px; }
-  .crm-change-user { min-height: 34px; font-size: 9px; }
+  .crm-topbar .account-menu-trigger { min-height: 44px; height: 44px; width: 44px; }
+  .crm-topbar .crm-icon-button { width: 44px; height: 44px; }
+  .crm-change-user { min-height: 44px; font-size: 10px; }
   .crm-content > main { padding: 20px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   .crm-workspace-identity span { font-size: 9px; }
-  .crm-working-broker select { font-size: 10px; min-height: 28px; }
+  .crm-working-broker select { font-size: 16px; min-height: 44px; max-width: 112px; }
+}
+
+/* The pre-workspace header also serves the Immoplus broker chooser. Its long
+   identity must wrap inside the viewport, rather than widen the whole page. */
+@media (max-width: 849px) {
+  .app-header { grid-template-columns: minmax(0, 1fr); padding-top: max(10px, env(safe-area-inset-top)); }
+  .app-header-brand { grid-row: 1; justify-self: start; }
+  .app-header-tools { grid-column: 1; grid-row: 2; width: 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .app-header-links { grid-column: 1; grid-row: 3; min-width: 0; }
+  .app-header .app-broker-state { flex: 1 1 100px; min-width: 0; }
+  .app-header .app-assistant-state span { font-size: 10px; letter-spacing: .025em; }
+  .app-header .app-change-broker { max-width: 120px; white-space: normal; font-size: 10px; }
+  .app-header :is(button, select) { min-height: 44px; }
+  .app-header select { font-size: 16px; max-width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .crm-app-shell *, .crm-app-shell *::before, .crm-app-shell *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }

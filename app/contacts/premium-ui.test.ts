@@ -44,6 +44,18 @@ beforeEach(() => {
 });
 
 describe("Contacts premium retains existing workflows", () => {
+  it("names the new-contact dialog and closes it with Escape without saving", () => {
+    button(render(), "Ajouter un contact").onClick();
+    const dialog = nodes(render(), p => p.role === "dialog")[0];
+    expect(dialog["aria-labelledby"]).toBe("manual-contact-title");
+    const stopPropagation = vi.fn();
+    dialog.onKeyDown({ key: "Enter", stopPropagation });
+    expect(nodes(render(), p => p.role === "dialog")).toHaveLength(1);
+    dialog.onKeyDown({ key: "Escape", stopPropagation });
+    expect(nodes(render(), p => p.role === "dialog")).toHaveLength(0);
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(state.create).not.toHaveBeenCalled();
+  });
   it("does not replace a restored page with stale profile params during Browser Back", () => {
     state.contacts = Array.from({ length: 151 }, (_, i) => contact(String(i)));
     state.query = "returnTo=%2Fcontacts%3Fpage%3D3";

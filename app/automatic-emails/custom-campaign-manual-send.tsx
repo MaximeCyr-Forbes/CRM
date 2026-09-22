@@ -92,8 +92,8 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
     } finally { sending.current = false; setBusy(false); }
   }
 
-  return <div className="automatic-email-modal-backdrop" role="presentation"><section className="automatic-email-modal custom-campaign-preview" role="dialog" aria-modal="true" aria-labelledby="manual-send-title">
-    <header><div><p className="section-kicker">Aucun envoi automatique</p><h2 id="manual-send-title">{preview?.campaignName ?? "ENVOI MANUEL"}</h2></div><button disabled={busy} aria-label="Fermer" onClick={onClose} type="button">×</button></header>
+  return <div className="automatic-email-modal-backdrop" role="presentation"><section className="automatic-email-modal custom-campaign-preview" role="dialog" aria-modal="true" onKeyDown={(event) => { if (event.key === "Escape" && !busy) { event.stopPropagation(); onClose(); } }} aria-labelledby="manual-send-title">
+    <header><div><p className="section-kicker">Aucun envoi automatique</p><h2 id="manual-send-title">{preview?.campaignName ?? "ENVOI MANUEL"}</h2></div><button autoFocus disabled={busy} aria-label="Fermer" onClick={onClose} type="button">×</button></header>
     <div className="custom-campaign-editor-body">
       {error && <p role="alert">{error}</p>}
       <label>Étape à envoyer<select disabled={busy || confirm} value={stepId} onChange={(event) => { setStepId(event.target.value); setRetry(false); void load(event.target.value); }}>{steps.map((step) => <option key={step.id} value={step.id}>Courriel {step.stepOrder} — {step.subjectTemplate}</option>)}</select></label>

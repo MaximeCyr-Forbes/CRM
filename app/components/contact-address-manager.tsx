@@ -42,8 +42,8 @@ export function ContactAddressManager({ contact, isSaving, onCancel, onSave }: {
 
   return (
     <div className="contact-modal-backdrop contact-modal-top" role="presentation">
-      <section aria-modal="true" className="contact-modal address-manager-modal" role="dialog">
-        <header className="contact-modal-header"><div><p className="section-kicker">HISTORIQUE RÉSIDENTIEL</p><h2>Adresses de {contact.firstName || "ce contact"}</h2></div><button aria-label="Fermer" onClick={onCancel} type="button">×</button></header>
+      <section aria-labelledby="contact-address-title" aria-modal="true" className="contact-modal address-manager-modal" role="dialog">
+        <header className="contact-modal-header"><div><p className="section-kicker">HISTORIQUE RÉSIDENTIEL</p><h2 id="contact-address-title">Adresses de {contact.firstName || "ce contact"}</h2></div><button aria-label="Fermer" onClick={onCancel} type="button">×</button></header>
         <div className="address-manager-list">
           {addresses.map((address, index) => <article key={`${normalizeAddressKey(address)}:${index}`}>
             <div><strong>{address.isPrimary ? "PRINCIPALE" : address.label.toLocaleUpperCase("fr-CA")}</strong>{getContactAddressLines(address).map((line) => <span key={line}>{line}</span>)}</div>
