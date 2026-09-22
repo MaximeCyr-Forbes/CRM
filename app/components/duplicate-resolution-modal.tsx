@@ -105,14 +105,14 @@ export function DuplicateResolutionModal({
 
   return (
     <div className="contact-modal-backdrop contact-modal-top" onMouseDown={(event) => event.target === event.currentTarget && onCancel()} role="presentation">
-      <section aria-modal="true" className="contact-modal duplicate-modal" role="dialog">
+      <section aria-labelledby="duplicate-contact-title" aria-modal="true" className="contact-modal duplicate-modal" role="dialog">
         <header className="contact-modal-header">
           <div>
             <p className="section-kicker">DOUBLON POSSIBLE</p>
-            <h2>{phase === "compare" ? "Vérifier avant l’ajout" : "Choisir les informations à conserver"}</h2>
+            <h2 id="duplicate-contact-title">{phase === "compare" ? "Vérifier avant l’ajout" : "Choisir les informations à conserver"}</h2>
             <small>{reasons.map((reason) => reasonLabels[reason]).join(" · ")} · {reasons.includes("email") || reasons.includes("phone") ? "DOUBLON FORT" : "VÉRIFICATION HUMAINE REQUISE"}</small>
           </div>
-          <button aria-label="Fermer" onClick={onCancel} type="button">×</button>
+          <button autoFocus aria-label="Fermer" onClick={onCancel} type="button">×</button>
         </header>
 
         {phase === "compare" ? (

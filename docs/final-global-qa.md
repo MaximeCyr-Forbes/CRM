@@ -10,7 +10,9 @@ Sauvegarde immuable : `pre-final-global-qa-2026-09-21`, commit
 - Les commandes principales de la barre mobile et la fermeture de la recherche
   globale ont une cible de 44 px. Le sélecteur de courtier utilise 16 px.
 - La création Contact reçoit un nom accessible, le focus initial et une
-  fermeture Escape. Le gestionnaire d'adresses reçoit un nom accessible.
+  fermeture Escape. Les dialogues d'import CSV/vCard et d'attribution reçoivent
+  les mêmes corrections. Le gestionnaire d'adresses et la comparaison de doublon
+  reçoivent un nom accessible ; la comparaison reçoit aussi le focus initial.
 - Les éditeurs et aperçus de courriels/campagnes, la simulation des envois et
   l'écran manuel répondent à Escape. Les actions existantes sont réutilisées ;
   Escape est neutralisé pendant les opérations en cours.
@@ -47,7 +49,7 @@ par Git. La classification des couleurs sémantiques/identitaires de
 
 ## Validation et limites
 
-- 1 348 tests réussis, zéro échoué, six ignorés ; TypeScript et build réussis.
+- 1 351 tests réussis, zéro échoué, six ignorés ; TypeScript et build réussis.
 - Lint non configuré : script présent, mais ESLint et sa configuration absents.
 - Les formats Mac/iPhone sont simulés ; aucun appareil Mac/Safari/iPhone physique
   n'était disponible. La tentative d'émulation `display-mode: standalone` n'a

@@ -44,6 +44,23 @@ beforeEach(() => {
 });
 
 describe("Contacts premium retains existing workflows", () => {
+  it.each(["Importer CSV", "Importer vCard"])("closes %s with Escape without importing", label => {
+    button(render(), label).onClick();
+    const dialog = nodes(render(), p => p.role === "dialog")[0];
+    expect(dialog["aria-labelledby"]).toBe("contact-import-title");
+    dialog.onKeyDown({ key: "Escape", stopPropagation() {} });
+    expect(nodes(render(), p => p.role === "dialog")).toHaveLength(0);
+    expect(state.importContacts).not.toHaveBeenCalled();
+  });
+  it("closes broker assignment with Escape without assigning", () => {
+    state.contacts = [contact("A")];
+    button(render(), "Changer le courtier").onClick();
+    const dialog = nodes(render(), p => p.role === "dialog")[0];
+    expect(dialog["aria-labelledby"]).toBe("contact-assignment-title");
+    dialog.onKeyDown({ key: "Escape", stopPropagation() {} });
+    expect(nodes(render(), p => p.role === "dialog")).toHaveLength(0);
+    expect(state.assign).not.toHaveBeenCalled();
+  });
   it("names the new-contact dialog and closes it with Escape without saving", () => {
     button(render(), "Ajouter un contact").onClick();
     const dialog = nodes(render(), p => p.role === "dialog")[0];
