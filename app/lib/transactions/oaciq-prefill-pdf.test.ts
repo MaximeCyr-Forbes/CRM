@@ -18,7 +18,7 @@ async function pdf(fixture: OaciqExtractedDocument) {
 }
 function appendix(kind: "BO" | "CP") {
   const bo = ["BONIFICATIONS AVANT ACCEPTATION", "B1. IDENTIFICATION DU FORMULAIRE PRINCIPAL", "Promesse d'achat PA 10001", "B2. BONIFICATION", "B2.1 PRIX D'ACHAT augmenté à (475000 $)", "B2.2 AUTRES", "B3. Signatures", "Signé le 2026-09-02 10:00:00", "BO 60006"];
-  const words = kind === "BO" ? bo.map((t, i) => word(t, 40, 40 + i * 20)) : [word("CONTRE-PROPOSITION CP 20002", 40, 40), word("P2.1", 40, 200), word("Promesse d'achat PA 10001", 200, 220), word("P2.2", 40, 240), word("P2.3.1", 40, 265), word("PRIX D'ACHAT (500000 $)", 150, 285), word("P2.3.2", 40, 310), word("P2.3.3", 40, 345), word("P2.3.4", 40, 380), word("P2.4", 40, 430), word("RÉPONSE DU RÉPONDANT", 320, 520), word("Signé le 2026-09-12 10:00:00", 320, 550), word("ACCUSÉ DE RÉCEPTION", 40, 610)];
+  const words = kind === "BO" ? bo.map((t, i) => word(t, 40, 40 + i * 20)) : [word("CONTRE-PROPOSITION CP 20002", 40, 40), word("P2.1", 40, 200), word("Promesse d'achat PA 10001", 200, 220), word("P2.2", 40, 240), word("P2.3.1", 40, 265), word("PRIX D'ACHAT (500000 $)", 150, 285), word("P2.3.2", 40, 310), word("P2.3.3", 40, 345), word("P2.3.4", 40, 380), word("P2.4", 40, 430), word("RÉPONSE DU RÉPONDANT", 320, 520), word("Il déclare accepter", 320, 535), word("Signé le 2026-09-12 10:00:00", 320, 550), word("ACCUSÉ DE RÉCEPTION", 40, 610)];
   return document(`${kind}.pdf`, words.map((w) => w.text).join("\n"), words);
 }
 

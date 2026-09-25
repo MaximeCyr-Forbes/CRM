@@ -3,11 +3,13 @@ import {
   documentKind,
   extractActualClause,
   extractResponseAction,
+  extractParties,
   formNumber,
   pagesText,
   parseCounterProposal,
   wordMatchesClause,
 } from "./forms";
+import { counterClauses } from "./counter-clauses";
 import { resolveCounterProposalPath } from "./chain";
 import type { OaciqAnalysis, OaciqExtractedDocument as Doc } from "./types";
 
@@ -103,6 +105,7 @@ export function resolveFinalPrice(
   documents: Doc[],
   main: Doc,
   acceptedAt: string | null,
+  acceptedPath?: ReturnType<typeof resolveCounterProposalPath>,
 ): PriceResult {
   const result: PriceResult = {
     finalPrice: null,
@@ -130,6 +133,10 @@ export function resolveFinalPrice(
   const allBO = documents
     .filter((d) => documentKind(pagesText(d)) === "bonification")
     .map((doc) => ({ doc, ...parseBonification(doc) }));
+  const sellers = extractParties(main)[1];
+  const laterBO = allBO.filter(b=>b.target===mainNumber && acceptedAt && b.signedAt && Date.parse(b.signedAt)>Date.parse(acceptedAt)
+    && extractResponseAction(b.doc).action==="accept" && b.doc.signatures.some(s=>s.signedAt)
+    && sellers.every(person=>b.doc.signatures.some(s=>s.signedAt && norm(`${s.name} ${s.contact}`).includes(norm(person)))));
   const related = allBO.filter(
     (b) =>
       b.target &&
@@ -145,7 +152,7 @@ export function resolveFinalPrice(
         (b.target === mainNumber &&
           b.signedAt &&
           acceptedAt &&
-          Date.parse(b.signedAt) > Date.parse(acceptedAt)),
+          Date.parse(b.signedAt) > Date.parse(acceptedAt) && !laterBO.includes(b)),
     )
   )
     result.priceWarnings.push(
@@ -183,7 +190,7 @@ export function resolveFinalPrice(
   const counters = documents
     .filter((d) => documentKind(pagesText(d)) === "counter_proposal")
     .map(parseCounterProposal);
-  const path = resolveCounterProposalPath(
+  const path = acceptedPath ?? resolveCounterProposalPath(
     mainNumber,
     extractResponseAction(main),
     counters,
@@ -201,11 +208,19 @@ export function resolveFinalPrice(
     )
       continue;
     const doc = documents.find((d) => d.name === counter.fileName)!;
-    const amount = clauseAmount(priceClause(doc, "P2.3.1", "P2.3.2"));
+    const amount = clauseAmount(priceClause(doc, "P2.3.1", "P2.3.2")) ?? clauseAmount(counterClauses(pagesText(doc))["P2.3.1"] || "");
     if (amount !== null) {
       apply(doc, "CP", "P2.3.1", amount);
       ambiguous = false;
     }
+  }
+  // Source 1474422: a later explicitly accepted/signed amendment may replace
+  // the accepted contract. Preserve the CRM's pre-acceptance BO path above.
+  if (laterBO.length) {
+    laterBO.sort((a,b)=>Date.parse(a.signedAt!) - Date.parse(b.signedAt!));
+    if (new Set(laterBO.map(b=>b.signedAt)).size === laterBO.length) {
+      for (const b of laterBO) if (b.amount !== null) { apply(b.doc,"BO","B2.1",b.amount); ambiguous=false; }
+    } else ambiguous=true;
   }
   if (ambiguous) {
     result.finalPrice = null;

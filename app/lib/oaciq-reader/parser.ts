@@ -1,3 +1,4 @@
+import { applyCounterContract } from "./final-contract";
 /** Faithful port of parse_files/parse_pa from App Courriel PA acceptée.
  * Human-readable deadlines and rule precedence are preserved. The CRM adapter
  * adds ISO dates and provenance at emission time, never by guessing a year from
@@ -10,6 +11,7 @@ import {
   formatDay,
   inToronto,
   norm,
+  latest,
   parseFrenchDate,
   timeToIso,
 } from "./dates";
@@ -39,7 +41,7 @@ import { resolveFinalPrice } from "./price";
 import { documentReference, formReferences, parseModifications } from "./modifications";
 import {
   calculateTransactionDates,
-  resolveCounterProposalChain,
+  resolveContractualChain,
   selectMainPromise,
 } from "./chain";
 import type {
@@ -94,6 +96,7 @@ export function analyzeExtractedOaciqDocuments(
     .map((doc) => ({ doc, value: readDocument(doc, parseAnnexWater) }))
     .filter((x) => x.value !== null);
   const counters = ofKind("counter_proposal").flatMap(doc => { const value=readDocument(doc,parseCounterProposal); return value ? [value] : []; });
+  warnings.push(...counters.flatMap(c=>c.warnings || []));
   const candidates = ofKind("promise_to_purchase");
   if (!candidates.length) {
     const unknown = ofKind("unknown").sort((a, b) =>
@@ -113,12 +116,17 @@ export function analyzeExtractedOaciqDocuments(
   const pages = pagesText(main),
     combined = pages.join("\n"),
     number = formNumber(main.name, pages);
-  const response = extractResponseAction(main),
-    counter = resolveCounterProposalChain(number, response, counters);
+  const response = extractResponseAction(main);
+  const [buyers, sellers] = extractParties(main);
+  const mainAccepted = ["counter", "refuse"].includes(response.action) ? null :
+    acceptanceFromResponseText(pages) || acceptanceFromSignatures(main.signatures, sellers, buyers);
+  const contract = resolveContractualChain(number, response, counters, mainAccepted);
+  const counter = contract.path.at(-1) ?? null;
+  warnings.push(...contract.warnings);
   let related = annexes.filter(
     (a) =>
       a.value!.targetFormNumber === number ||
-      counter?.annexNumbers.includes(a.value!.formNumber),
+      contract.path.some(c=>c.annexNumbers.includes(a.value!.formNumber)),
   );
   if (!related.length && annexes.length === 1) related = annexes;
   const rEntry =
@@ -136,15 +144,7 @@ export function analyzeExtractedOaciqDocuments(
   const r = rEntry?.value || null,
     f = fEntry?.value || null,
     w = wEntry?.value || null;
-  const counterDoc =
-    documents.find((d) => d.name === counter?.fileName) || main;
-  const [buyers, sellers] = extractParties(main);
-  const accepted =
-    counter?.acceptedAt ||
-    (["counter", "refuse"].includes(response.action)
-      ? null
-      : acceptanceFromResponseText(pages) ||
-        acceptanceFromSignatures(main.signatures, sellers, buyers));
+  const accepted = counter?.acceptedAt || mainAccepted;
   const modifications = ofKind("modification").flatMap(doc=>readDocument(doc,parseModifications) || []);
   const links = documents.flatMap(doc => {
     const own = documentReference(doc);
@@ -155,15 +155,35 @@ export function analyzeExtractedOaciqDocuments(
   const acceptanceDeadline = {date:parseFrenchDate(expiryText),time:timeToIso(extractTimeText(expiryText)),sourceDocument:main.name};
   // Conflicting replacements without an established chronology stay for review;
   // neither upload order nor a PDF generation timestamp establishes precedence.
-  const applicable = modifications.filter(m => {
+  const modificationMoment = (name: string) => latest(documents.find(d=>d.name===name)!.signatures.map(s=>s.visibleSignedAt || s.signedAt));
+  const eligible = modifications.filter(m => {
     const target = documents.find(doc => documentReference(doc) === m.targetForm);
-    const conflicts = modifications.filter(other => other.targetForm===m.targetForm && other.section===m.section);
-    if (!target || conflicts.some(other=>other.days!==m.days || other.date!==m.date || other.time!==m.time)) {
+    // Preserve the CRM's existing unsigned dossier review when there is no CP.
+    // Once an accepted CP establishes the contract, a MO must prove a later
+    // acceptance before it may replace that contract (source 1474422).
+    if (counter) {
+      const doc = documents.find(d=>d.name===m.document)!;
+      const action = extractResponseAction(doc);
+      const signed = latest(doc.signatures.map(s=>s.visibleSignedAt || s.signedAt));
+      const complete = sellers.every(person=>doc.signatures.some(s=>s.signedAt && norm(`${s.name} ${s.contact}`).includes(norm(person))));
+      if (action.action !== "accept" || !signed || !complete || Date.parse(signed) < Date.parse(accepted!)) {
+        warnings.push(`MO ${m.formNumber} : signatures et applicabilité après la CP à confirmer.`);
+        return false;
+      }
+    }
+    if (!target) return false;
+    return true;
+  });
+  const applicable = eligible.filter(m => {
+    const conflicts = eligible.filter(other => other.targetForm===m.targetForm && other.section===m.section);
+    const dated = conflicts.map(other=>modificationMoment(other.document));
+    const establishedOrder = dated.every(Boolean) && new Set(dated).size === dated.length;
+    if (!establishedOrder && conflicts.some(other=>other.days!==m.days || other.date!==m.date || other.time!==m.time)) {
       warnings.push(`MO ${m.formNumber} : cible absente ou modifications contradictoires pour ${m.targetForm}, clause ${m.section}; à vérifier.`);
       return false;
     }
     return true;
-  });
+  }).sort((a,b)=>(modificationMoment(a.document) || '').localeCompare(modificationMoment(b.document) || ''));
   for (const m of applicable) {
     if (m.targetForm===documentReference(main) && m.section==='14.1' && m.date) {
       Object.assign(acceptanceDeadline,{date:m.date,time:m.time,sourceDocument:m.document}); m.applied=true;
@@ -174,7 +194,7 @@ export function analyzeExtractedOaciqDocuments(
       "Date d'acceptation du vendeur non détectée; les délais concernés sont affichés en nombre de jours après l'acceptation.",
     );
   const acceptedDay = accepted?.slice(0, 10) || null;
-  const deferred = !!(r?.allDeadlinesDeferred || counter?.allDeadlinesDeferred);
+  const deferred = !!(r?.allDeadlinesDeferred || contract.path.some(c=>c.allDeadlinesDeferred));
   const base = deferred ? null : acceptedDay;
   const basis = deferred
     ? "la réception de l'avis écrit du vendeur"
@@ -198,7 +218,7 @@ export function analyzeExtractedOaciqDocuments(
     relativeRule?: OaciqDeadline["relativeRule"],
   ) {
     if (isExcludedDeadlineSection(src.section)) return;
-    const replacement = applicable.find(m=>m.targetForm===documentReference(src.document) && m.section===src.section);
+    const replacement = [...applicable].reverse().find(m=>m.targetForm===documentReference(src.document) && m.section===src.section && !(counter && ['notary','occupancy'].includes(src.type)));
     if (replacement && (replacement.date || (replacement.days!==null && relativeRule?.reference==='acceptance'))) {
       if (replacement.days!==null && relativeRule?.reference==='acceptance') {
         const derivedOffset = src.type==='inspection_report' ? 4 : src.type==='documents_review' ? (src.precedingDays ?? 0) : 0;
@@ -411,17 +431,9 @@ export function analyzeExtractedOaciqDocuments(
   }
   const notaryClause = textBetween(combined, "11.1", ["11.2"]);
   const notaryDate =
-    counter?.notaryDate ||
     parseFrenchDate(notaryClause) ||
     extractClauseDateTimeWords(main, "11.1", "11.2")[0];
-  const notarySource = counter?.notaryDate
-    ? origin(
-        "P2.3.2",
-        "notary",
-        annexText(counterDoc, "P2.3.2", "P2.3.3"),
-        counterDoc,
-      )
-    : origin("11.1", "notary", notaryClause);
+  const notarySource = origin("11.1", "notary", notaryClause);
   const notaryDays =
     !notaryDate && r?.deadlineDate ? relativeR2(notaryClause) : null;
   const notaryLabel = notaryDays ? r2Text(notaryDays) : "";
@@ -542,10 +554,6 @@ export function analyzeExtractedOaciqDocuments(
     occupationDate = parseFrenchDate(occupationText);
     occupationTime = extractTimeText(occupationText);
   }
-  if (counter?.occupationDate) {
-    occupationDate = counter.occupationDate;
-    occupationTime = counter.occupationTime;
-  }
   let occupationLabel = "";
   if (occupationDate)
     occupationLabel = `${formatDay(occupationDate)}${occupationTime ? ` à ${occupationTime}` : ""}`;
@@ -556,7 +564,7 @@ export function analyzeExtractedOaciqDocuments(
     occupationLabel = "Selon les baux";
   else if (
     notaryDate &&
-    /acte notarie|notarial deed/.test(norm(occupationText))
+    /acte notarie|notarial deed|signature.{0,40}acte/.test(norm(occupationText))
   ) {
     occupationDate = notaryDate;
     occupationLabel = formatDay(notaryDate);
@@ -570,14 +578,7 @@ export function analyzeExtractedOaciqDocuments(
         (notaryDate && occupationLabel === formatDay(notaryDate)
           ? notaryDate
           : null),
-      counter?.occupationDate
-        ? origin(
-            "P2.3.3",
-            "occupancy",
-            annexText(counterDoc, "P2.3.3", "P2.3.4"),
-            counterDoc,
-          )
-        : origin("11.2", "occupancy", occupationText),
+      origin("11.2", "occupancy", occupationText),
       timeToIso(occupationTime),
     );
 
@@ -717,6 +718,11 @@ export function analyzeExtractedOaciqDocuments(
         );
     }
   }
+  const price = resolveFinalPrice(documents, main, accepted, contract.path);
+  const finalContract = applyCounterContract(deadlines, contract.path, {
+    occupationAtNotary: /acte notarie|notarial deed|signature.{0,40}acte/.test(norm(occupationText)),
+    modifications: applicable, documents, main, price,
+  });
   const year = +(acceptedDay || inToronto(new Date()).slice(0, 10)).slice(0, 4);
   deadlines.sort((a, b) => {
     const x = deadlineSortValue(a.dateText, a.title, year),
@@ -729,8 +735,10 @@ export function analyzeExtractedOaciqDocuments(
   for (const doc of ofKind('modification').filter(doc=>!modifications.some(m=>m.document===doc.name))) warnings.push(`MO ${formNumber(doc.name,pagesText(doc))} : aucune modification temporelle interprétable; vérifiez le document.`);
   financingDays = deadlines.find(d=>d.type==='financing')?.days ?? financingDays;
   return {
+    contractRequiresReview: contract.warnings.length > 0 || counters.some(c=>c.warnings?.length),
     documentaryState: { links, modifications, acceptanceDeadline },
-    ...resolveFinalPrice(documents, main, accepted),
+    ...price,
+    finalContract,
     documents: documents.map((d) => ({
       name: d.name,
       pageCount: d.pages.length,
@@ -757,6 +765,12 @@ export function analyzeExtractedOaciqDocuments(
       occupationTime,
       counter,
     ),
+      inspection_deadline: deadlines.find(d => d.type === "inspection")?.dueDate ?? null,
+      inspection_report_deadline: deadlines.find(d => d.type === "inspection_report")?.dueDate ?? null,
+      financing_deadline: deadlines.find(d => d.type === "financing")?.dueDate ?? null,
+      deed_of_sale_date: deadlines.find(d => d.type === "notary")?.dueDate ?? null,
+      occupancy_date: deadlines.find(d => d.type === "occupancy")?.dueDate ?? null,
+      occupancy_time: extractTimeText(deadlines.find(d => d.type === "occupancy")?.dueTime || ""),
       documents_delivery_deadline: deadlines.find(d => d.type === "documents_delivery")?.dueDate ?? null,
       documents_review_deadline: deadlines.find(d => d.type === "documents_review")?.dueDate ?? null,
     },

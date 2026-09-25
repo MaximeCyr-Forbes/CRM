@@ -180,7 +180,7 @@ describe("règles métier demandées : 12.1 / 14.1 / acceptation / prix", () => 
     for (const list of [docs, [...docs].reverse(), [...docs.slice(1), docs[0]]])
       expect(analyze(list).finalPrice).toBe(expected);
   });
-  it("conserve le prix explicite d’une CP antérieure dans la chaîne acceptée", () => {
+  it("1474422 : une CP intermédiaire contre-proposée ne modifie pas le contrat accepté", () => {
     const pa = pricedPA(450000, true);
     pa.annotations[1].text = "20001";
     expect(
@@ -189,7 +189,7 @@ describe("règles métier demandées : 12.1 / 14.1 / acceptation / prix", () => 
         pricedCP(490000, { number: "20001", next: "20002" }),
         pricedCP(null, { target: "20001" }),
       ]).finalPrice,
-    ).toBe(490000);
+    ).toBe(450000);
   });
   it("la chronologie BO/CP compte, pas une priorité absolue CP > BO", () => {
     const pa = pricedPA(450000, true);

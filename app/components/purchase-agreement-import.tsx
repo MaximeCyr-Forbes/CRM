@@ -38,15 +38,15 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const analyze = async (file: File | undefined) => {
-    if (!file || state === "loading") return;
+  const analyze = async (files: File[]) => {
+    if (!files.length || state === "loading") return;
     setAnalysis(null);
     setError(null);
     setState("loading");
     submissionLock.current = false;
     try {
       const formData = new FormData();
-      formData.set("file", file);
+      for (const file of files) formData.append("file", file);
       const response = await fetch("/api/purchase-agreements/parse", {
         method: "POST",
         body: formData,
@@ -58,7 +58,7 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
       if (!response.ok || !payload?.data) {
         throw new Error(payload?.error ?? "La promesse d’achat n’a pas pu être analysée.");
       }
-      setAnalysis({ fileName: file.name, result: payload.data });
+      setAnalysis({ fileName: files.map(file => file.name).join(" + "), result: payload.data });
       setState("ready");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "La promesse d’achat n’a pas pu être analysée.");
@@ -75,7 +75,7 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
-    if (!disabled) void analyze(event.dataTransfer.files[0]);
+    if (!disabled) void analyze(Array.from(event.dataTransfer.files));
   };
 
   const onDropzoneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -134,7 +134,7 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
         <span>Lecture locale et sécurisée du formulaire PDF.</span>
       </> : <div>
         <strong>Glissez la Promesse d’achat ici</strong>
-        <span>ou sélectionnez un PDF</span>
+        <span>PA et CP : sélectionnez les PDF ensemble</span>
         <span className="transaction-centris-file-button">CHOISIR UN PDF</span>
       </div>}
     </div>}
@@ -143,8 +143,9 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
       aria-label="Sélectionner une Promesse d’achat PDF"
       disabled={disabled || state === "loading"}
       hidden
-      onChange={(event: ChangeEvent<HTMLInputElement>) => void analyze(event.target.files?.[0])}
+      onChange={(event: ChangeEvent<HTMLInputElement>) => void analyze(Array.from(event.target.files || []))}
       ref={inputRef}
+      multiple
       type="file"
     />
 
@@ -161,6 +162,11 @@ export function PurchaseAgreementImport({ listing, ownerNames, disabled, onCreat
         <div><dt>IMMEUBLE</dt><dd>{analysis.result.propertyAddress.fullAddress || "Non détecté"}</dd></div>
         <div><dt>PRIX OFFERT</dt><dd>{analysis.result.amount === null ? "Non détecté" : formatListingAmount(analysis.result.amount, "sale")}</dd></div>
       </dl>
+
+      {analysis.result.warnings.length > 0 && <details className="purchase-agreement-warning">
+        <summary>Vérifications du dossier</summary>
+        <ul>{analysis.result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
+      </details>}
 
       {analysis.result.recognized && validation.addressMatch && <p className="purchase-agreement-match">ADRESSE DU LISTING · CORRESPONDANCE ✓</p>}
       {analysis.result.recognized && !validation.addressMatch && <div className="purchase-agreement-warning is-blocking" role="alert"><strong>CETTE PA SEMBLE CONCERNER UN AUTRE IMMEUBLE</strong><p><b>PA :</b> {analysis.result.propertyAddress.fullAddress || "Adresse non détectée"}</p><p><b>Listing actuel :</b> {validation.listingAddress}</p></div>}

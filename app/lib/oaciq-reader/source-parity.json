@@ -1,0 +1,61 @@
+{
+  "source": "1474422e5f1e9b5e64464ba645cd4d7b3f188017",
+  "cases": {
+    "pa": {
+      "price": 450000,
+      "notary": "2027-03-15",
+      "occupancy": "2027-03-15",
+      "time": null,
+      "inspection": "2026-09-12",
+      "financing": "2026-09-18"
+    },
+    "price": {
+      "price": 475000,
+      "notary": "2027-03-15",
+      "occupancy": "2027-03-15",
+      "time": null,
+      "inspection": "2026-09-13",
+      "financing": "2026-09-19"
+    },
+    "notary": {
+      "price": 450000,
+      "notary": "2027-02-05",
+      "occupancy": "2027-02-05",
+      "time": null,
+      "inspection": "2026-09-13",
+      "financing": "2026-09-19"
+    },
+    "time": {
+      "price": 450000,
+      "notary": "2027-03-15",
+      "occupancy": "2027-03-15",
+      "time": "15:00",
+      "inspection": "2026-09-13",
+      "financing": "2026-09-19"
+    },
+    "successive": {
+      "price": 450000,
+      "notary": "2027-02-05",
+      "occupancy": "2027-02-07",
+      "time": null,
+      "inspection": "2026-09-14",
+      "financing": "2026-09-20"
+    },
+    "refused": {
+      "price": 450000,
+      "notary": "2027-03-15",
+      "occupancy": "2027-03-15",
+      "time": null,
+      "inspection": "2026-09-12",
+      "financing": "2026-09-18"
+    },
+    "cancel": {
+      "price": 450000,
+      "notary": "2027-03-15",
+      "occupancy": "2027-03-15",
+      "time": null,
+      "inspection": null,
+      "financing": "2026-09-19"
+    }
+  }
+}

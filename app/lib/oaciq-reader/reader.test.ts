@@ -49,7 +49,15 @@ describe("OACIQ golden outputs from the current unmodified Python reader", () =>
   for (const s of scenarios)
     it(s.name, () => {
       expect(comparable(analyzeExtractedOaciqDocuments(s.documents))).toEqual(
-        goldens[s.name as keyof typeof goldens],
+        {
+          ...goldens[s.name as keyof typeof goldens],
+          // 1474422 adds chain diagnostics; historical dates stay unchanged.
+          warnings: [
+            ...(s.name === "missing-cp" ? ["Chaîne de CP manquante ou ambiguë; contrat établi conservé."] : []),
+            ...(s.name === "refused-cp" ? ["Acceptation complète et valide non établie."] : []),
+            ...goldens[s.name as keyof typeof goldens].warnings,
+          ],
+        },
       );
     });
 });

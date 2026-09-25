@@ -1,4 +1,5 @@
 import { extractPAPropertyAddress } from "./property-address";
+import { counterClauses, cancelledCounterClauses, counterTime } from "./counter-clauses";
 // Port of the current Python reader's textual and positioned-field rules.
 import {
   cleanSpaces,
@@ -7,6 +8,7 @@ import {
   norm,
   parseFrenchDate,
   torontoDateTime,
+  timeToIso,
 } from "./dates";
 import type {
   OaciqAnnotation,
@@ -534,37 +536,39 @@ export function extractResponseAction(
     ),
   );
   if (index < 0) return { action: "unknown", counterProposalNumber: "" };
-  const annotations = doc.annotations.filter((a) => a.pageIndex === index);
-  for (const a of annotations) {
-    const text = norm(a.text);
-    if (text.includes("accepter") || text === "accept")
-      return { action: "accept", counterProposalNumber: "" };
-    if (text.includes("refuser") || text === "refuse")
-      return { action: "refuse", counterProposalNumber: "" };
-  }
   const page = doc.pages[index];
-  for (const w of page.words.filter(
-    (w) =>
-      /contre-proposition|counter-proposal/.test(norm(w.text)) &&
-      (counter ? w.x0 >= page.width / 2 : w.x0 < page.width / 2),
-  )) {
-    if (
-      annotations.some(
-        (a) =>
-          ["x", "8", "✓", "☒"].includes(norm(a.text)) &&
-          (counter ? a.x0 >= page.width / 2 : a.x0 < page.width / 2) &&
-          Math.abs(a.top - w.top) <= 20,
-      )
-    )
-      return {
-        action: "counter",
-        counterProposalNumber:
-          /\b(\d{5,6})\b/.exec(annotations.map((a) => a.text).join(" "))?.[1] ||
-          "",
-      };
+  const rows = new Map<number, Word[]>();
+  for (const w of page.words) {
+    const key = Math.round(w.top / 3) * 3;
+    rows.set(key, [...(rows.get(key) || []), w]);
   }
-  return { action: "unknown", counterProposalNumber: "" };
+  const lines = [...rows].sort(([a],[b])=>a-b).map(([top, words])=>({top, words, text:norm(words.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(" "))}));
+  const start = lines.find(line => (counter ? responseMarkers.slice(3) : responseMarkers.slice(0,3)).some(marker=>line.text.includes(marker)))?.top;
+  const end = lines.find(line => start !== undefined && line.top > start && /accuse de reception|acknowledgment|intervention du conjoint/.test(line.text))?.top ?? Infinity;
+  const inZone = (top: number) => (start === undefined || top >= start - 3) && top < end;
+  const annotations = [...doc.annotations, ...doc.signatureWidgets].filter(a=>a.pageIndex===index && inZone(a.top) && (!counter || a.x0 >= page.width/2));
+  const decisions: OaciqResponse["action"][] = [];
+  let nextNumber = "";
+  for (const a of annotations) {
+    const value = norm(a.text);
+    if (["accepter","accepte","accept","accepted"].includes(value)) decisions.push("accept");
+    if (["refuser","refuse","refused"].includes(value)) decisions.push("refuse");
+  }
+  for (const w of page.words.filter(w=>inZone(w.top) && /contre-proposition|counter-proposal/.test(norm(w.text)) && (counter ? w.x0>=page.width/2 : w.x0<page.width/2))) {
+    if (annotations.some(a=>["x","8","\u2713","\u2612"].includes(norm(a.text)) && Math.abs(a.top-w.top)<=20)) {
+      decisions.push("counter");
+      nextNumber = annotations.find(a=>/^\d{5,6}$/.test(a.text.trim()))?.text.trim() || "";
+    }
+  }
+  // A filled declaration in the response zone is evidence; printed unfilled
+  // choices and contradictory decisions are not an acceptance.
+  for (const line of lines.filter(line=>start!==undefined && line.top>start && line.top<end)) {
+    const text = norm(line.words.filter(w=>!counter || w.x0>=page.width/2).map(w=>w.text).join(" "));
+    for (const m of text.matchAll(/(?:il declare|declares)\s+(accepter|refuser|accept|refuse)\b/g)) decisions.push(/accept/.test(m[1]) ? "accept" : "refuse");
+  }
+  return {action:decisions.length && new Set(decisions).size===1 ? decisions[0] : "unknown",counterProposalNumber:nextNumber};
 }
+
 function counterTarget(doc: Doc): string {
   const words = doc.pages[0].words,
     starts = words
@@ -628,7 +632,8 @@ function signatureTime(
 }
 export function parseCounterProposal(doc: Doc): OaciqCounterProposal {
   const pages = pagesText(doc),
-    [counterProposers, respondents] = extractParties(doc),
+    clauses = counterClauses(pages),
+    [counterProposers, respondents] = extractParties(doc).map(names=>names.filter(name=>!/reponse|repondant|accuse de reception|il declare|accepter|refuser/.test(norm(name)))),
     response = extractResponseAction(doc, true);
   const index = pages.findIndex((p) =>
     responseMarkers.slice(3).some((m) => norm(p).includes(m)),
@@ -661,21 +666,41 @@ export function parseCounterProposal(doc: Doc): OaciqCounterProposal {
     // same response-section reader as the source PA reader, never a BO date.
     responseSignedAt ||= acceptanceFromResponseText(pages);
   }
-  if (response.action === "unknown" && responseSignedAt)
-    response.action = "accept";
-  const [notaryDate] = extractClauseDateTimeWords(doc, "P2.3.2", "P2.3.3"),
-    [occupationDate, occupationTime] = extractClauseDateTimeWords(
+  const [positionedNotary] = extractClauseDateTimeWords(doc, "P2.3.2", "P2.3.3"),
+    [positionedOccupation, positionedTime] = extractClauseDateTimeWords(
       doc,
       "P2.3.3",
       "P2.3.4",
     );
+  // Source merge_visual: a filled native CP field survives blank/conflicting
+  // OCR/visual facts. Canonical clause keys support spaced P 2.3.2 labels.
+  const native = counterClauses(doc.pages.map(p=>p.text));
+  const nativeNotary = positionedNotary || parseFrenchDate(native['P2.3.2'] || '');
+  const nativeOccupation = positionedOccupation || parseFrenchDate(native['P2.3.3'] || '');
+  const visualNotary = parseFrenchDate(clauses['P2.3.2'] || '');
+  const visualOccupation = parseFrenchDate(clauses['P2.3.3'] || '');
+  const warnings = [nativeNotary && visualNotary && nativeNotary !== visualNotary ? 'P2.3.2' : '', nativeOccupation && visualOccupation && nativeOccupation !== visualOccupation ? 'P2.3.3' : '']
+    .filter(Boolean).map(section=>`${doc.name} : lecture native et visuelle contradictoires pour ${section}; valeur native conservée, à vérifier.`);
+  const notaryDate = nativeNotary || visualNotary;
+  const occupationDate = nativeOccupation || visualOccupation;
+  const occupationTime = positionedTime || counterTime(native['P2.3.3'] || '') || counterTime(clauses['P2.3.3'] || '');
+  const expiryDate = parseFrenchDate(native['P2.7'] || '') || parseFrenchDate(clauses['P2.7'] || '');
+  const expiryTime = timeToIso(counterTime(native['P2.7'] || clauses['P2.7'] || ''));
+  const signaturesComplete = !!responseSignedAt && (!respondents.length || respondents.every(person =>
+    doc.signatures.some(s => s.signedAt && s.pageIndex === index && (s.x0 ?? 0) >= doc.pages[index].width / 2 && norm(`${s.name} ${s.contact} ${s.text || ''}`).includes(norm(person)))));
   return {
+    warnings,
+    clauses,
+    expiresAt: expiryDate ? expiryDate + (expiryTime ? `T${expiryTime}` : '') : null,
+    signaturesComplete,
+    occupationAtNotary: /signature.{0,40}acte|acte notari/.test(norm(clauses['P2.3.3'] || '')),
+    cancelledClauses: [...new Set([...cancelledCounterClauses(native['P2.3.4'] || ''), ...cancelledCounterClauses(clauses['P2.3.4'] || '')])],
     fileName: doc.name,
     formNumber: formNumber(doc.name, pages),
-    targetFormNumber: counterTarget(doc),
+    targetFormNumber: counterTarget(doc) || /\b(?:PA|PAD|PP|CP)\s*[- ]?\s*(\d{5,6})\b/.exec(clauses['P2.1'] || '')?.[1] || '',
     responseAction: response.action,
     nextCounterProposalNumber: response.counterProposalNumber,
-    acceptedAt: response.action === "accept" ? responseSignedAt : null,
+    acceptedAt: response.action === "accept" && signaturesComplete ? responseSignedAt : null,
     responseSignedAt,
     proposerSignedAt,
     notaryDate,

@@ -1,10 +1,10 @@
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
-  extractPositionedTextFromPDF,
   PositionedPDFError,
 } from "../../../lib/pdf/extract-positioned-text";
-import { parsePurchaseAgreement } from "../../../lib/purchase-agreement/parse";
+import { analyzePurchaseAgreementBundle } from "../../../lib/purchase-agreement/bundle";
+import { OACIQ_LIMITS } from "../../../lib/oaciq-reader/pdf";
 import { validatePurchaseAgreementPDFUpload } from "../../../lib/purchase-agreement/validate-upload";
 
 export const dynamic = "force-dynamic";
@@ -28,22 +28,17 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const files = [...formData.values()].filter((value): value is File => value instanceof File);
-    const file = formData.get("file");
-    if (!(file instanceof File) || files.length !== 1) {
-      return noStoreJSON({ error: "Un seul fichier PDF est requis dans le champ file." }, 400);
+    if (!files.length || files.length > OACIQ_LIMITS.files || files.reduce((n,f)=>n+f.size,0) > OACIQ_LIMITS.bytes) {
+      return noStoreJSON({ error: "Nombre ou volume des documents PDF invalide." }, 400);
     }
-
-    size = file.size;
-    const validation = validatePurchaseAgreementPDFUpload(file);
-    if (!validation.valid) {
-      return noStoreJSON({ error: validation.error, code: "invalid_pdf" }, validation.status);
+    for (const file of files) {
+      size += file.size;
+      const validation = validatePurchaseAgreementPDFUpload(file);
+      if (!validation.valid) return noStoreJSON({ error: validation.error, code: "invalid_pdf" }, validation.status);
     }
-
     stage = "extraction";
-    const extracted = await extractPositionedTextFromPDF(new Uint8Array(await file.arrayBuffer()));
-    pageCount = extracted.pageCount;
-    stage = "parsing";
-    return noStoreJSON({ data: parsePurchaseAgreement(extracted) });
+    const inputs = await Promise.all(files.map(async file => ({name:file.name,data:new Uint8Array(await file.arrayBuffer())})));
+    return noStoreJSON({ data: await analyzePurchaseAgreementBundle(inputs) });
   } catch (error) {
     const failure = error instanceof PositionedPDFError ? error : null;
     console.error("Analyse de la promesse d’achat PDF impossible", {

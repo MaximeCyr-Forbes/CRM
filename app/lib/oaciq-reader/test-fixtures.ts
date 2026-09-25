@@ -129,7 +129,7 @@ export function counter(
   if (options.deferred) words.push(word("X", 25, 430));
   const doc = document(
     `CP-${number}.pdf`,
-    `CONTRE-PROPOSITION CP ${number}\nP2.1 promesse d'achat ${target}\nAR 30003\nP2.3.2 20 novembre 2026\nP2.3.3 30 novembre 2026 11h\nP2.3.4\nRÉPONSE DU RÉPONDANT\nACCUSÉ DE RÉCEPTION`,
+    `CONTRE-PROPOSITION CP ${number}\nP2.1 promesse d'achat ${target}\nAR 30003\nP2.3.2 ${options.notary === false ? "" : "20 novembre 2026"}\nP2.3.3 ${options.occupation === false ? "" : "30 novembre 2026 11h"}\nP2.3.4\nRÉPONSE DU RÉPONDANT\nACCUSÉ DE RÉCEPTION`,
     words,
   );
   if (options.next) {

@@ -60,6 +60,12 @@ export type OaciqResponse = {
   counterProposalNumber: string;
 };
 export type OaciqCounterProposal = {
+  warnings?: string[];
+  expiresAt?: string | null;
+  signaturesComplete?: boolean;
+  occupationAtNotary?: boolean;
+  cancelledClauses?: string[];
+  clauses?: Record<string, string>;
   fileName: string;
   formNumber: string;
   targetFormNumber: string;
@@ -124,6 +130,8 @@ export type OaciqDeadline = {
   };
 };
 export type OaciqAnalysis = {
+  contractRequiresReview?: boolean;
+  finalContract?: Record<string, { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null; overrides: { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null }[] }>;
   documentaryState?: {
     links: { document: string; targetForm: string; section?: string }[];
     modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean }[];

@@ -36,7 +36,7 @@ export function validateOaciqFiles(files: ReadonlyArray<{ name: string; size: nu
 
 export function proposalsFromAnalysis(analysis: OaciqAnalysis & { requiresReview?: boolean }): DeadlineProposal[] {
   const seen = new Set<string>();
-  const hasUnresolvedDocument = analysis.requiresReview || analysis.forms.some((form) => form.kind === "unknown" || (form.kind==='modification' && !analysis.documentaryState?.modifications.some(m=>m.document===form.document && m.applied))) || analysis.documentaryState?.modifications.some(m=>!m.applied);
+  const hasUnresolvedDocument = analysis.requiresReview || analysis.contractRequiresReview || analysis.forms.some((form) => form.kind === "unknown" || (form.kind==='modification' && !analysis.documentaryState?.modifications.some(m=>m.document===form.document && m.applied))) || analysis.documentaryState?.modifications.some(m=>!m.applied);
   return analysis.deadlines.flatMap((d: OaciqDeadline, index) => {
     if (isExcludedDeadlineSection(d.sourceSection)) return [];
     // Conservative: different clauses/documents are never collapsed by date alone.

@@ -138,6 +138,8 @@ function parsePrice(extracted: PositionedPDFText) {
   return null;
 }
 
+/** Legacy single-PA compatibility utility. Production imports use bundle.ts
+ * and the shared OACIQ contractual engine; never use this to resolve PA/CP. */
 export function parsePurchaseAgreement(extracted: PositionedPDFText): PurchaseAgreementParseResult {
   const recognized = isStrongOACIQPurchaseAgreement(extracted);
   const { buyers, sellers } = recognized ? parseParties(extracted) : { buyers: [], sellers: [] };
