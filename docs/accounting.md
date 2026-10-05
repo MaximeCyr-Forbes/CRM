@@ -4,7 +4,7 @@ La route `/accounting` reprend le shell privé et les identités workspace exist
 
 ## Stockage et sécurité
 
-Migration : `20261005164219_create_accounting_expenses.sql`. Les deux tables ont RLS activé et aucun grant anon/authenticated. L'accès passe exclusivement par les routes CRM authentifiées et le client serveur service role. Les mutations exigent la même origine et une identité workspace valide. Le diagnostic Supabase « RLS enabled no policy » est intentionnel pour ces tables serveur uniquement.
+Migration : `20261005165057_create_accounting_expenses.sql`. Les deux tables ont RLS activé et aucun grant anon/authenticated. L'accès passe exclusivement par les routes CRM authentifiées et le client serveur service role. Les mutations exigent la même origine et une identité workspace valide. Le diagnostic Supabase « RLS enabled no policy » est intentionnel pour ces tables serveur uniquement.
 
 `accounting-invoices` est privé, sans policy publique, limité à 15 Mio et aux MIME PDF/JPEG/PNG/WEBP. Les noms utilisateurs restent des métadonnées. Les chemins sont générés par le serveur avec deux UUID.
 
@@ -23,3 +23,7 @@ Table desktop, cartes sous 768 px, modal native avec Escape et retour du focus, 
 Validation QA réelle : création Immoplus avec facture PDF, ouverture dans le lecteur navigateur, modification par France, remplacement PNG par drop simulé CDP ; Supabase confirme l'ancien PDF absent, une facture active et audit inchangé à la création. Les viewports 1512×982, 1440×900, 1280×800, 1100×760, 900×700, 390×844, 393×852, 414×896 et 430×932 ne débordent pas. Vérifications simulées Chrome, pas un appareil Safari physique.
 
 Sauvegarde immuable : `pre-accounting-module-2026-10-05` → `58e58b1484054391b8ee7ed3fc12103ea61dd610`.
+
+Production : 38 contrôles API réussis, dont un upload réel de 15 Mio, PDF et PNG, refus >15 Mio/exécutable, refus sans session et d'une autre origine, signature de lecture, remplacement, retrait de facture, audit Immoplus et total 350/300/50. Le navigateur confirme les filtres catégorie/période/année/recherche, la modification de date et notes, le retrait de facture et la suppression d'une dépense avec image. Navigation vers les neuf modules existants, liens Logiciels et Back/Forward validés ; aucune erreur console observée. Données QA nettoyées après vérification.
+
+Le CLI a initialement généré la migration à 16:42:19 UTC ; Supabase MCP l'a enregistrée à 16:50:57 UTC. Le fichier est renommé pour correspondre à la version réellement appliquée, sans réécriture de l'historique de production.
