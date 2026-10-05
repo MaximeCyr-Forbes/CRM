@@ -9,4 +9,4 @@ export async function POST(request:Request, context:Context) { return accounting
   if(body.action==="complete" && typeof body.documentId==="string") return Response.json({data:await completeInvoice(id,body.documentId,actor!)});
   throw new AccountingError("Action de facture invalide.");
 }); }
-export async function DELETE(request:Request, context:Context) { return accountingRoute(request,async actor=>Response.json({data:await deleteInvoice((await context.params).expenseId,actor!)})); }
+export async function DELETE(request:Request, context:Context) { return accountingRoute(request,async actor=>{if((await accountingBody(request)).save_without_invoice!==true)throw new AccountingError("Confirmez l’enregistrement sans facture.",409);return Response.json({data:await deleteInvoice((await context.params).expenseId,actor!)});}); }

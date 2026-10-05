@@ -3978,3 +3978,17 @@ grant execute on function public.accounting_promote_invoice(uuid,uuid,uuid,text)
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('accounting-invoices','accounting-invoices',false,15728640,array['application/pdf','image/jpeg','image/png','image/webp'])
 on conflict(id) do update set public=false, file_size_limit=excluded.file_size_limit, allowed_mime_types=excluded.allowed_mime_types;
+
+-- Preserve the private invoice workflow; incomplete expenses are a supported inbox state.
+alter table public.accounting_expenses
+  add column is_paid boolean not null default false,
+  add column paid_at timestamptz,
+  add column renewal_date date,
+  alter column category drop not null,
+  alter column expense_date drop not null,
+  alter column vendor drop not null,
+  alter column description drop not null,
+  alter column amount drop not null,
+  add constraint accounting_expenses_payment_consistent check (
+    (is_paid and paid_at is not null) or (not is_paid and paid_at is null)
+  );

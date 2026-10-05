@@ -4,12 +4,12 @@ import type { WorkspaceUser } from "../workspace";
 
 export const INVOICE_BUCKET = "accounting-invoices";
 type Document = { id: string; expense_id: string | null; storage_path: string; file_name: string; mime_type: string; size: number; state: "pending" | "current" | "retired"; upload_expires_at: string; uploaded_at: string };
-const columns = "id,category,expense_date,vendor,description,amount,notes,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
+const columns = "id,category,expense_date,vendor,description,amount,notes,is_paid,paid_at,renewal_date,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
 function checked<T>(result: { data: T | null; error: unknown }): T { if (result.error) throw result.error; return result.data as T; }
 function view(row: Record<string, unknown>): Expense {
   const { accounting_expense_documents, ...fields } = row;
   const invoice = (accounting_expense_documents as Document[] ?? []).find(d => d.state === "current");
-  return { ...fields, amount: Number(fields.amount), invoice: invoice ? { id: invoice.id, file_name: invoice.file_name, mime_type: invoice.mime_type, size: invoice.size, uploaded_at: invoice.uploaded_at } : null } as Expense;
+  return { ...fields, amount: fields.amount == null ? null : Number(fields.amount), invoice: invoice ? { id: invoice.id, file_name: invoice.file_name, mime_type: invoice.mime_type, size: invoice.size, uploaded_at: invoice.uploaded_at } : null } as Expense;
 }
 export async function getExpense(id: string) {
   const row = checked(await getSupabaseAdmin().from("accounting_expenses").select(columns).eq("id", validId(id)).maybeSingle());
@@ -24,8 +24,16 @@ export async function listExpenses() {
     if (page.length<500) return rows;
   }
 }
+function requireInvoiceIntent(body: unknown, hasInvoice=false) {
+  const input=body as Record<string,unknown>;
+  if(hasInvoice || input?.save_without_invoice === true)return;
+  if(input?.invoice && typeof input.invoice === "object") {invoiceFields(input.invoice as Parameters<typeof invoiceFields>[0]);return;}
+  throw new AccountingError("Confirmez l’enregistrement sans facture.",409);
+}
 export async function createExpense(body: unknown, actor: WorkspaceUser) {
-  return view(checked(await getSupabaseAdmin().from("accounting_expenses").insert({ ...expenseFields(body), created_by: actor, updated_by: actor }).select(columns).single()));
+  const fields=expenseFields(body);
+  requireInvoiceIntent(body);
+  return view(checked(await getSupabaseAdmin().from("accounting_expenses").insert({ ...fields, created_by: actor, updated_by: actor }).select(columns).single()));
 }
 // Cross-instance lease: do not let simultaneous invoice replacement/deletion lose paths.
 async function locked<T>(id: string, action: (token: string) => Promise<T>) {
@@ -51,9 +59,18 @@ export async function cleanupInvoices() {
   for(const doc of expired) await removeObject(doc);
 }
 async function cleanupRetired(id: string) { for(const doc of await documents(id)) if(doc.state==="retired") await removeObject(doc); }
+export async function setExpensePayment(id: string, isPaid: unknown, actor: WorkspaceUser) {
+  if (typeof isPaid !== "boolean") throw new AccountingError("Statut de paiement invalide.");
+  return locked(id, async token => {
+    const row = await getExpense(id);
+    if (row.is_paid === isPaid) return row;
+    return view(checked(await getSupabaseAdmin().from("accounting_expenses").update({is_paid:isPaid,paid_at:isPaid ? new Date().toISOString() : null,updated_by:actor,updated_at:new Date().toISOString()}).eq("id",id).eq("operation_token",token).select(columns).single()));
+  });
+}
 export async function updateExpense(id: string, body: unknown, actor: WorkspaceUser) {
   const fields=expenseFields(body);
   return locked(id,async token=> {
+    requireInvoiceIntent(body,(await documents(id)).some(d=>d.state==="current"));
     await cleanupRetired(id);
     return view(checked(await getSupabaseAdmin().from("accounting_expenses").update({...fields,updated_by:actor,updated_at:new Date().toISOString()}).eq("id",id).eq("operation_token",token).select(columns).single()));
   });

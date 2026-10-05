@@ -1,0 +1,29 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Children, isValidElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { Expense } from "../lib/accounting/model";
+const state=vi.hoisted(()=>({slots:[] as unknown[],index:0,request:vi.fn(),upload:vi.fn()}));
+vi.mock("react",async original=>({...await original<typeof import("react")>(),useEffect:()=>{},useRef:()=>({current:null}),useState:(initial:unknown)=>{const i=state.index++;if(!(i in state.slots))state.slots[i]=initial;return[state.slots[i],(value:unknown)=>{state.slots[i]=value;}];}}));
+vi.mock("../lib/accounting/client",()=>({accountingRequest:state.request,uploadInvoice:state.upload,expenseUrl:(id:string)=>`/api/accounting/expenses/${id}`}));
+import { ExpenseModal } from "./expense-modal";
+const row={id:"qa",category:null,expense_date:null,vendor:null,description:null,amount:null,notes:"",is_paid:false,paid_at:null,renewal_date:null,invoice:null} as Expense;
+const close=vi.fn(),saved=vi.fn();
+function render(expense:Expense|null=null){state.index=0;return ExpenseModal({expense,onClose:close,onSaved:saved});}
+function find(tree:ReactNode,predicate:(props:Record<string,unknown>,type:unknown)=>boolean){let result:Record<string,unknown>|undefined;function walk(node:ReactNode){if(!isValidElement<Record<string,unknown>>(node))return;if(predicate(node.props,node.type))result=node.props;Children.forEach(node.props.children as ReactNode,walk);}walk(tree);if(!result)throw new Error("Missing element");return result;}
+function click(tree:ReactNode,text:string){const props=find(tree,(p,t)=>t==="button"&&p.children===text);(props.onClick as ()=>void)();}
+function submit(tree:ReactNode,fields:Record<string,string>={}){const props=find(tree,(_,t)=>t==="form");(props.onSubmit as (e:unknown)=>void)({preventDefault:()=>{},currentTarget:fields});}
+function drop(tree:ReactNode){const props=find(tree,p=>String(p.className).includes("accounting-dropzone"));(props.onDrop as (e:unknown)=>void)({preventDefault:()=>{},dataTransfer:{files:[new File(["%PDF-1.7 QA"],"qa.pdf",{type:"application/pdf"})]}});}
+beforeEach(()=>{vi.clearAllMocks();state.slots=[];state.index=0;state.request.mockResolvedValue({data:row});state.upload.mockResolvedValue({data:{...row,invoice:{file_name:"qa.pdf"}}});vi.stubGlobal("FormData",class{constructor(private fields:Record<string,string>){} entries(){return Object.entries(this.fields);}});});
+describe("Accounting modal invoice consent",()=>{
+  it("has no required business fields and no default date or amount",()=>{const tree=render();expect(renderToStaticMarkup(tree)).not.toContain("required=");for(const name of ["category","expense_date","amount","renewal_date"])expect(find(tree,p=>p.name===name).defaultValue).toBe("");});
+  it.each([{}, {vendor:"QA",amount:"125",category:"marketing",expense_date:"2026-10-05",description:"QA"}])("asks before saving without invoice %j",fields=>{submit(render(),fields as Record<string,string>);expect(state.request).not.toHaveBeenCalled();expect(state.slots[0]).toEqual(fields);expect(renderToStaticMarkup(render())).toContain("AUCUNE FACTURE");});
+  it("return closes only confirmation and retains the mounted form",()=>{submit(render(),{vendor:"Keep me"});click(render(),"RETOUR");expect(state.slots[0]).toBeNull();expect(close).not.toHaveBeenCalled();expect(state.request).not.toHaveBeenCalled();expect(find(render(),p=>p.name==="vendor")).toBeTruthy();});
+  it("explicit consent saves the captured fields",async()=>{submit(render(),{vendor:"Keep me"});click(render(),"ENREGISTRER SANS FACTURE");await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.request).toHaveBeenCalledWith("/api/accounting/expenses","POST",expect.objectContaining({vendor:"Keep me",save_without_invoice:true}));});
+  it("drop and abandon creates no expense or storage upload",()=>{drop(render());expect(renderToStaticMarkup(render())).toContain("qa.pdf");click(render(),"Annuler");expect(close).toHaveBeenCalledOnce();expect(state.request).not.toHaveBeenCalled();expect(state.upload).not.toHaveBeenCalled();});
+  it("invoice only saves immediately and uploads after row creation",async()=>{drop(render());submit(render());await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.slots[0]).toBeNull();expect(state.request).toHaveBeenCalledWith("/api/accounting/expenses","POST",expect.objectContaining({invoice:{name:"qa.pdf",type:"application/pdf",size:11}}));expect(state.upload).toHaveBeenCalledOnce();});
+  it("existing invoice does not ask for consent",async()=>{const expense={...row,invoice:{id:"doc",file_name:"qa.pdf",mime_type:"application/pdf",size:10,uploaded_at:"2026-10-05"}};submit(render(expense));await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.slots[0]).toBeNull();});
+  it("removing an existing invoice requires consent and deletion follows it",async()=>{const expense={...row,invoice:{id:"doc",file_name:"qa.pdf",mime_type:"application/pdf",size:10,uploaded_at:"2026-10-05"}};click(render(expense),"Retirer");submit(render(expense));expect(state.request).not.toHaveBeenCalled();expect(renderToStaticMarkup(render(expense))).toContain("conserver cette dépense sans facture");click(render(expense),"ENREGISTRER SANS FACTURE");await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.request).toHaveBeenCalledWith("/api/accounting/expenses/qa/invoice","DELETE",{save_without_invoice:true});});
+  it("failed upload keeps the saved expense and offers retry without a second POST",async()=>{state.upload.mockRejectedValueOnce(new Error("offline"));drop(render());submit(render());await vi.waitFor(()=>expect(saved).toHaveBeenCalledOnce());expect(close).not.toHaveBeenCalled();submit(render());await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.request.mock.calls.map(c=>c[1])).toEqual(["POST","PATCH"]);});
+});
+
+
