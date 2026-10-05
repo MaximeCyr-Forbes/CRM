@@ -13,6 +13,7 @@ export const shellLinks = [
   { label: "Calendrier", href: "/calendar" },
   { label: "Drive", href: "/drive" },
   { label: "Statistiques", href: "/statistics" },
+  { label: "Comptabilité", href: "/accounting" },
   { label: "Courriels Auto", href: "/automatic-emails" },
   { label: "Paramètres", href: "/settings" },
 ] as const;

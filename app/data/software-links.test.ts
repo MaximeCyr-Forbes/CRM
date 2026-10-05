@@ -11,6 +11,7 @@ describe("navigation des logiciels", () => {
       "Calendrier",
       "Drive",
       "Statistiques",
+  "Comptabilité",
       "Courriels Auto",
       "Logiciels",
       "Paramètres",

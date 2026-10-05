@@ -33,7 +33,7 @@ describe("premium shell preserves the CRM navigation contract", () => {
     const html = renderToStaticMarkup(sidebar());
     let previous = -1;
     for (const label of appNavigationOrder) { const position = html.indexOf(`<span>${label}</span>`); expect(position).toBeGreaterThan(previous); previous = position; }
-    expect(shellLinks.map(link => link.href)).toEqual(["/dashboard", "/contacts", "/listings", "/transactions", "/mortgage-referrals", "/calendar", "/drive", "/statistics", "/automatic-emails", "/settings"]);
+    expect(shellLinks.map(link => link.href)).toEqual(["/dashboard", "/contacts", "/listings", "/transactions", "/mortgage-referrals", "/calendar", "/drive", "/statistics", "/accounting", "/automatic-emails", "/settings"]);
   });
   it.each(shellLinks)("keeps the $label destination and active state on details", link => {
     state.pathname = `${link.href}/example`;
