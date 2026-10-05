@@ -25,5 +25,3 @@ describe("Accounting modal invoice consent",()=>{
   it("removing an existing invoice requires consent and deletion follows it",async()=>{const expense={...row,invoice:{id:"doc",file_name:"qa.pdf",mime_type:"application/pdf",size:10,uploaded_at:"2026-10-05"}};click(render(expense),"Retirer");submit(render(expense));expect(state.request).not.toHaveBeenCalled();expect(renderToStaticMarkup(render(expense))).toContain("conserver cette dépense sans facture");click(render(expense),"ENREGISTRER SANS FACTURE");await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.request).toHaveBeenCalledWith("/api/accounting/expenses/qa/invoice","DELETE",{save_without_invoice:true});});
   it("failed upload keeps the saved expense and offers retry without a second POST",async()=>{state.upload.mockRejectedValueOnce(new Error("offline"));drop(render());submit(render());await vi.waitFor(()=>expect(saved).toHaveBeenCalledOnce());expect(close).not.toHaveBeenCalled();submit(render());await vi.waitFor(()=>expect(close).toHaveBeenCalledOnce());expect(state.request.mock.calls.map(c=>c[1])).toEqual(["POST","PATCH"]);});
 });
-
-
