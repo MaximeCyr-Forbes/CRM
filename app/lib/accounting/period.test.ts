@@ -1,0 +1,21 @@
+import { describe,it,expect } from "vitest";
+import { readAccountingFilters,accountingFilterQuery,accountingPeriodLabel,adjacentYear,MONTHS } from "./period";
+import { expenseFields,expenseTotals,filterExpenses,monthlyIntent,MONTH_DATE_REQUIRED,type Expense } from "./model";
+const today="2026-10-08";
+describe("Accounting monthly navigation",()=>{
+ it("opens Toronto current month by default",()=>expect(readAccountingFilters("",today)).toMatchObject({year:"2026",month:"10",period:"month"}));
+ it.each(["2026-09","2026-10","2027-01"])("restores %s from URL",value=>{const [year,month]=value.split("-");expect(readAccountingFilters(`year=${year}&month=${month}`,today)).toMatchObject({year,month,period:"month"});});
+ it("sanitizes malformed URL fields",()=>expect(readAccountingFilters("year=bad&month=99&category=other&payment=no&view=no",today)).toMatchObject({year:"2026",month:"10",category:"all",payment:"all",period:"month"}));
+ it.each(["month","year","all","undated"] as const)("roundtrips %s and every filter",period=>{const fields={...readAccountingFilters("",today),period,category:"marketing" as const,payment:"unpaid" as const,search:"Facture & électricité"};expect(readAccountingFilters(accountingFilterQuery(fields),today)).toEqual(fields);});
+ it("allows an empty adjacent year and keeps selected month",()=>expect(adjacentYear(readAccountingFilters("",today),1)).toMatchObject({year:"2027",month:"10",period:"month"}));
+ it("returns from all years to an explicit adjacent year",()=>expect(adjacentYear({...readAccountingFilters("",today),period:"all"},-1)).toMatchObject({year:"2025",period:"month"}));
+ it("labels all 12 months without a day grid",()=>{expect(MONTHS).toHaveLength(12);expect(accountingPeriodLabel(readAccountingFilters("year=2027&month=1",today))).toBe("janvier 2027");});
+ const rows=[{...expenseFields({category:"marketing",amount:100,expense_date:"2026-10-08",vendor:"Alpha"}),is_paid:false},{...expenseFields({category:"operation",amount:50,expense_date:"2026-10-09",vendor:"Beta"}),is_paid:true},{...expenseFields({category:"marketing",amount:200,expense_date:"2026-11-08",vendor:"Alpha"}),is_paid:false},{...expenseFields({}),is_paid:false}].map((r,i)=>({...r,id:String(i),created_at:"2026-10-08",invoice:null})) as Expense[];
+ it("October and November totals stay isolated",()=>{expect(expenseTotals(filterExpenses(rows,readAccountingFilters("month=10",today))).total).toBe(150);expect(expenseTotals(filterExpenses(rows,readAccountingFilters("month=11",today))).total).toBe(200);});
+ it("combines month category payment and search",()=>expect(filterExpenses(rows,readAccountingFilters("month=10&category=marketing&payment=unpaid&q=Alpha",today)).map(r=>r.id)).toEqual(["0"]));
+ it("full year excludes undated expenses",()=>expect(filterExpenses(rows,readAccountingFilters("view=year",today))).toHaveLength(3));
+ it("all years and undated preserve the incomplete inbox",()=>{expect(filterExpenses(rows,readAccountingFilters("view=all",today))).toHaveLength(4);expect(filterExpenses(rows,readAccountingFilters("view=undated",today))).toHaveLength(1);});
+ it("accepts no date for a normal expense",()=>expect(monthlyIntent({is_monthly:false},null)).toBe(false));
+ it("requires the first date only for monthly",()=>expect(()=>monthlyIntent({is_monthly:true},null)).toThrow(MONTH_DATE_REQUIRED));
+ it("rejects string booleans",()=>expect(()=>monthlyIntent({is_monthly:"false"},null)).toThrow());
+});

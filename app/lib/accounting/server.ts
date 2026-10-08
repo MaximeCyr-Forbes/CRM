@@ -1,10 +1,10 @@
 import { getSupabaseAdmin } from "../supabase/server";
-import { AccountingError, expenseFields, invoiceFields, matchesSignature, validId, type Expense } from "./model";
+import { AccountingError, monthlyIntent, expenseFields, invoiceFields, matchesSignature, validId, type Expense } from "./model";
 import type { WorkspaceUser } from "../workspace";
 
 export const INVOICE_BUCKET = "accounting-invoices";
 type Document = { id: string; expense_id: string | null; storage_path: string; file_name: string; mime_type: string; size: number; state: "pending" | "current" | "retired"; upload_expires_at: string; uploaded_at: string };
-const columns = "id,category,expense_date,vendor,description,amount,notes,is_paid,paid_at,renewal_date,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
+const columns = "id,recurring_rule_id,recurring_period,recurring_rule:accounting_recurring_expenses(active,day_of_month,next_due_date),category,expense_date,vendor,description,amount,notes,is_paid,paid_at,renewal_date,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
 function checked<T>(result: { data: T | null; error: unknown }): T { if (result.error) throw result.error; return result.data as T; }
 function view(row: Record<string, unknown>): Expense {
   const { accounting_expense_documents, ...fields } = row;
@@ -17,6 +17,7 @@ export async function getExpense(id: string) {
   return view(row);
 }
 export async function listExpenses() {
+  checked(await getSupabaseAdmin().rpc("accounting_materialize_recurring_expenses",{}));
   const rows: Expense[] = [];
   for (let offset=0; ; offset+=500) {
     const page = checked(await getSupabaseAdmin().from("accounting_expenses").select(columns).order("expense_date",{ascending:false}).order("created_at",{ascending:false}).order("id").range(offset,offset+499));
@@ -33,6 +34,11 @@ function requireInvoiceIntent(body: unknown, hasInvoice=false) {
 export async function createExpense(body: unknown, actor: WorkspaceUser) {
   const fields=expenseFields(body);
   requireInvoiceIntent(body);
+  const monthly=monthlyIntent(body as Record<string,unknown>,fields.expense_date);
+  if(monthly) {
+    const id=checked(await getSupabaseAdmin().rpc("accounting_save_recurring_expense",{p_expense:null,p_fields:fields,p_monthly:true,p_stop_confirmed:false,p_actor:actor,p_token:null}));
+    return getExpense(id);
+  }
   return view(checked(await getSupabaseAdmin().from("accounting_expenses").insert({ ...fields, created_by: actor, updated_by: actor }).select(columns).single()));
 }
 // Cross-instance lease: do not let simultaneous invoice replacement/deletion lose paths.
@@ -69,9 +75,17 @@ export async function setExpensePayment(id: string, isPaid: unknown, actor: Work
 }
 export async function updateExpense(id: string, body: unknown, actor: WorkspaceUser) {
   const fields=expenseFields(body);
+  const monthly=monthlyIntent(body as Record<string,unknown>,fields.expense_date);
   return locked(id,async token=> {
     requireInvoiceIntent(body,(await documents(id)).some(d=>d.state==="current"));
     await cleanupRetired(id);
+    const current=await getExpense(id), stopped=(body as Record<string,unknown>).confirm_stop === true;
+    if(current.recurring_rule?.active && monthly===false && !stopped) throw new AccountingError("Confirmez l’arrêt de la récurrence.",409);
+    if((monthly ?? current.recurring_rule?.active) && !fields.expense_date) throw new AccountingError("Choisissez la date de la première occurrence pour activer la récurrence mensuelle.");
+    if(current.recurring_rule_id || monthly) {
+      checked(await getSupabaseAdmin().rpc("accounting_save_recurring_expense",{p_expense:id,p_fields:fields,p_monthly:monthly,p_stop_confirmed:stopped,p_actor:actor,p_token:token}));
+      return getExpense(id);
+    }
     return view(checked(await getSupabaseAdmin().from("accounting_expenses").update({...fields,updated_by:actor,updated_at:new Date().toISOString()}).eq("id",id).eq("operation_token",token).select(columns).single()));
   });
 }
