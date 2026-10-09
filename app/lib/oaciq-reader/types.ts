@@ -53,6 +53,7 @@ export type OaciqExtractedDocument = {
 export type OaciqPdfInput = {
   name: string;
   data: Uint8Array | ArrayBuffer;
+  ocrWords?: OaciqWord[][];
   ocrPages?: string[];
 };
 export type OaciqResponse = {

@@ -33,6 +33,21 @@ describe("preview OACIQ protégée et sans écriture", () => {
     expect((await POST(request(names as string[]))).status).toBe(400);
     expect(mocks.analyze).not.toHaveBeenCalled();
   });
+  it("transmet l’OCR indexé au bon document sans créer de transaction", async () => {
+    const form = new FormData();
+    for (const name of ["document.pdf", "annexe.pdf"]) form.append("files", new File(["%PDF-synthetic"], name, {type:"application/pdf"}));
+    form.append("ocr", JSON.stringify([{index:1,pages:["ANNEXE R AR 30003"],words:[[["AR",10,20,30,8]]]}]));
+    mocks.analyze.mockResolvedValue({deadlines:[]});
+    expect((await POST(new Request("https://crm.example/api/oaciq/analyze",{method:"POST",body:form}))).status).toBe(200);
+    expect(mocks.analyze.mock.calls[0][0][0].ocrPages).toBeUndefined();
+    expect(mocks.analyze.mock.calls[0][0][1]).toMatchObject({ocrPages:["ANNEXE R AR 30003"],ocrWords:[[{text:"AR",x0:10,top:20,x1:40,bottom:28}]]});
+  });
+  it("refuse un index OCR étranger au dossier avant analyse", async () => {
+    const form=new FormData();form.append("files",new File(["%PDF-synthetic"],"document.pdf",{type:"application/pdf"}));
+    form.append("ocr",JSON.stringify([{index:4,pages:["PA"]}]));
+    expect((await POST(new Request("https://crm.example/api/oaciq/analyze",{method:"POST",body:form}))).status).toBe(400);
+    expect(mocks.analyze).not.toHaveBeenCalled();
+  });
   it("masque tout contenu privé en cas d’erreur PDF et permet un retry", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.analyze.mockRejectedValueOnce(new Error("PRIVATE CLAUSE AND SIGNATURE"));

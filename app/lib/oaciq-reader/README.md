@@ -48,11 +48,16 @@ Le portage TypeScript est nécessaire au runtime Node/Vinext existant : aucune
 dépendance Python ni appel au déploiement de l'autre application en production.
 Le générateur de courriel et son interface ne sont pas copiés.
 
-L'OCR de l'application source était exécuté dans son interface Tesseract/canvas.
-Le moteur accepte les mêmes pages OCR (et marqueurs d'inspection/lecture ciblée)
-via `ocrPages`. Un scan sans OCR échoue explicitement : il n'est pas considéré
-comme un formulaire sans condition. La prochaine interface devra fournir l'OCR
-si elle accepte les scans. Aucun moteur OCR navigateur n'est ajouté ici.
+Le workflow Transaction réutilise maintenant le Tesseract français gratuit et
+PDF.js du Générateur, hébergés dans `public/oaciq-reader`. Le navigateur ne lit
+visuellement que les PDF sans couche texte; les pages et positions OCR bornées
+sont transmises à `/api/oaciq/analyze`. Classification, clauses et calculs restent
+sur le moteur serveur existant. Aucune clé API, aucun envoi externe, aucun PDF
+persisté. Les originaux restent inchangés. Les propositions issues d’un dossier
+OCR exigent une révision explicite, notamment les cases et signatures. Une
+signature seule ne devient pas une acceptation lorsque le choix OCR est inconnu.
+Les erreurs par document sont isolées; les logs ne contiennent que des codes,
+index et tailles, jamais les noms de fichiers ou le contenu des clients.
 
 La classification source porte sur la première page de chaque fichier. PA/PAD/PP,
 CP, R, F et EAU sont pris en charge. BO est ignoré. Le moteur source n'implémente

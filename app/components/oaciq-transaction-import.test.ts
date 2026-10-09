@@ -7,7 +7,7 @@ const styles = readFileSync("app/globals.css", "utf8");
 describe("saisie unique de l’acceptation manquante", () => {
   it("permet au dossier multipart de plus de 1 Mo d’atteindre la validation OACIQ existante", () => {
     expect(readFileSync("next.config.ts", "utf8")).toContain('serverActions: { bodySizeLimit: "4mb" }');
-    expect(readFileSync("app/api/oaciq/analyze/route.ts", "utf8")).toContain('OACIQ_UPLOAD_LIMITS.bytes + 100_000');
+    expect(readFileSync("app/api/oaciq/analyze/route.ts", "utf8")).toContain('OACIQ_UPLOAD_LIMITS.bytes + OACIQ_OCR_LIMITS.bytes + 50_000');
   });
   it("présente un champ accessible seulement sans acceptation détectée et avec des délais concernés", () => {
     expect(importer).toContain('analysis && !detectedAcceptanceDate');

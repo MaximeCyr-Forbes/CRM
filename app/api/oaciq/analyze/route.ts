@@ -3,6 +3,8 @@ import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { analyzeOaciqTransaction } from "../../../lib/transactions/oaciq-analysis";
 import { OACIQ_UPLOAD_LIMITS, validateOaciqFiles } from "../../../lib/transactions/oaciq-agenda";
 
+import { OACIQ_OCR_LIMITS, parseOaciqOcr } from "../../../lib/transactions/oaciq-ocr";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -12,21 +14,27 @@ export async function POST(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json({ error: "Origine refusée." }, 403);
-  if (Number(request.headers.get("content-length")) > OACIQ_UPLOAD_LIMITS.bytes + 100_000) return json({ error: "Le dossier dépasse 4 Mo au total." }, 413);
+  if (Number(request.headers.get("content-length")) > OACIQ_UPLOAD_LIMITS.bytes + OACIQ_OCR_LIMITS.bytes + 50_000) return json({ error: "Le dossier dépasse 4 Mo au total." }, 413);
   try {
     const form = await request.formData();
     const files = form.getAll("files");
     if (!files.every((f): f is File => f instanceof File)) return json({ error: "Documents PDF invalides." }, 400);
     const error = validateOaciqFiles(files);
     if (error) return json({ error }, 400);
+    let ocr;
+    try { ocr = parseOaciqOcr(form.get("ocr"), files.length); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "Lecture visuelle invalide." }, 400); }
     const inputs = [];
-    for (const file of files) inputs.push({ name: file.name.replace(/[\u0000-\u001f/\\]/g, "_").slice(0, 255), data: new Uint8Array(await file.arrayBuffer()) });
+    for (const [index, file] of files.entries()) {
+      const visual = ocr.find(d => d.index === index);
+      inputs.push({ ocrPages: visual?.pages, ocrWords: visual?.words?.map(words => words.map(([text,x0,top,width,height])=>({text,x0,top,x1:x0+width,bottom:top+height}))), name: file.name.replace(/[\u0000-\u001f/\\]/g, "_").slice(0, 255), data: new Uint8Array(await file.arrayBuffer()) });
+    }
     // One consolidated dossier, no insert, no Google request, no PDF persisted.
     const data = await analyzeOaciqTransaction(inputs);
     return json({ data });
   } catch (error) {
     // Never log parser errors, filenames, text, parties, signatures or clauses.
     const scan = error instanceof Error && /OCR/.test(error.message);
-    return json({ error: scan ? "Ce PDF est un scan sans texte exploitable. Utilisez une version PDF texte ou saisissez les échéances manuellement." : "Analyse OACIQ impossible. Vérifiez les PDF (lisibles, non protégés par mot de passe) puis réessayez, ou ajoutez les échéances manuellement." }, 422);
+    return json({ error: scan ? "La lecture visuelle des PDF numérisés n’a pas abouti. Réessayez l’analyse ou fournissez une version PDF texte." : "Analyse OACIQ impossible. Vérifiez les PDF (lisibles, non protégés par mot de passe) puis réessayez, ou ajoutez les échéances manuellement." }, 422);
   }
 }

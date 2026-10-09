@@ -256,14 +256,17 @@ describe("CRM adapter provenance and ambiguity safeguards", () => {
     ]);
     expect(a.acceptanceDateTime).toBeNull();
   });
-  it("accepts OCR supplied by server extraction without a browser dependency", async () => {
-    const text = promise().pages[0].text;
+  it("accepts OCR without inventing acceptance from a signature alone", async () => {
     const doc = document("PA-10001.pdf", "");
-    doc.ocrPages = [text];
+    doc.ocrPages = [promise().pages[0].text];
     const a = await analyzeOaciqDocuments([doc]);
     expect(a.documents[0].ocrUsed).toBe(true);
-    expect(a.transactionDates.financing_deadline).toBe("2026-08-31");
+    expect(a.acceptanceDateTime).toBeNull();
+    expect(a.deadlines.find(d=>d.type==="financing")).toMatchObject({days:15,dueDate:null});
     expect(a).not.toHaveProperty("email");
+    doc.annotations.push({pageIndex:0,text:"accepter",x0:40,x1:100,top:600,bottom:612});
+    const confirmed = await analyzeOaciqDocuments([doc]);
+    expect(confirmed.transactionDates.financing_deadline).toBe("2026-08-31");
   });
   it("distinguishes PAD private inspection initials from waiver initials", () => {
     const d = promise({ pad: true });

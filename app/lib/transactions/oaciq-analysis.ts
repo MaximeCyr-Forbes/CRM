@@ -1,3 +1,4 @@
+import { logOaciqFailure, oaciqFailureMessage } from "../oaciq-reader/diagnostics";
 import { analyzeOaciqDocuments } from "../oaciq-reader";
 import { extractOaciqPdf } from "../oaciq-reader/pdf";
 import { documentKind, pagesText } from "../oaciq-reader/forms";
@@ -10,11 +11,11 @@ import type { OaciqTransactionPreview } from "./oaciq-agenda";
 export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<OaciqTransactionPreview> {
   const documents = [];
   const extractionWarnings: string[] = [];
-  for (const input of inputs) {
+  for (const [index, input] of inputs.entries()) {
     try { documents.push(await extractOaciqPdf(input)); }
-    catch { extractionWarnings.push(`${input.name} : PDF impossible à interpréter; les autres documents ont été analysés.`); }
+    catch (error) { logOaciqFailure("extraction", error, { index, bytes: input.data.byteLength }); extractionWarnings.push(`${input.name} : ${oaciqFailureMessage(error)}`); }
   }
-  if (!documents.length) throw new Error("Aucun document OACIQ exploitable.");
+  if (!documents.length) throw new Error(extractionWarnings.some(w => /lecture visuelle/.test(w)) ? "OCR requis : lecture visuelle indisponible." : "Aucun document OACIQ exploitable.");
   const data = await analyzeOaciqDocuments(documents);
   data.warnings.push(...extractionWarnings);
   data.warnings.push(...data.priceWarnings);
@@ -27,7 +28,9 @@ export async function analyzeOaciqTransaction(inputs: OaciqPdfInput[]): Promise<
     const kinds = new Set(headings.map(line => documentKind([line])).filter(kind => kind !== "unknown"));
     return kinds.size > 1;
   });
-  const requiresReview = !data.mainDocument || merged || extractionWarnings.length > 0 || data.forms.some((f) => f.kind === "unknown") || !!data.documentaryState?.modifications.some(m=>!m.applied) || data.forms.some(f=>f.kind==='modification' && !data.documentaryState?.modifications.some(m=>m.document===f.document));
+  const hasOcr = documents.some(doc => !!doc.ocrPages);
+  if (hasOcr) data.warnings.push("Lecture visuelle utilisée pour un PDF numérisé. Vérifiez les valeurs, les cases cochées et les signatures dans les originaux avant de sélectionner les échéances.");
+  const requiresReview = hasOcr || !data.mainDocument || merged || extractionWarnings.length > 0 || data.forms.some((f) => f.kind === "unknown") || !!data.documentaryState?.modifications.some(m=>!m.applied) || data.forms.some(f=>f.kind==='modification' && !data.documentaryState?.modifications.some(m=>m.document===f.document));
   if (merged) data.warnings.push("À vérifier : ce PDF semble regrouper plusieurs formulaires. Le lecteur source ne les sépare pas automatiquement. Fournissez des PDF séparés, ou vérifiez et corrigez toutes les échéances.");
   if (data.forms.some((f) => f.kind === "unknown")) data.warnings.push("À vérifier : un formulaire non pris en charge peut modifier les dates. Vérifiez les documents et corrigez les propositions; aucune échéance n’est cochée automatiquement.");
   const details = extractTransactionDetails(documents.find((doc) => doc.name === data.mainDocument));

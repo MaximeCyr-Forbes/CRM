@@ -1,5 +1,7 @@
 "use client";
 
+import { prepareOaciqOcr } from "../lib/transactions/oaciq-ocr-browser";
+import { OACIQ_OCR_LIMITS } from "../lib/transactions/oaciq-ocr";
 import { useEffect, useRef, useState } from "react";
 import type { OaciqTransactionPreview } from "../lib/transactions/oaciq-agenda";
 const FORM_LABELS = {promise_to_purchase:'PA',counter_proposal:'CP',annex_f:'AF',annex_r:'AR',modification:'MO',bonification:'BO',annex_water:'EAU',unknown:'Formulaire à vérifier'};
@@ -15,6 +17,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
   const [analysis, setAnalysis] = useState<OaciqTransactionPreview | null>(null);
   const [manualAcceptanceDate, setManualAcceptanceDate] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,10 +52,20 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
   async function analyze() {
     if (disabled || request.current || !files.length) return;
     const controller = new AbortController(); request.current = controller;
-    const timer = setTimeout(() => controller.abort(), OACIQ_UPLOAD_LIMITS.timeoutMs);
+    let timer = setTimeout(() => controller.abort(), 10 * 60_000);
     setBusy(true); onBusyChange(true); setError(null);
     try {
-      const form = new FormData(); files.forEach((file) => form.append("files", file));
+      setProgress("Lecture des documents…");
+      const ocr = await prepareOaciqOcr(files, { signal: controller.signal, onProgress: setProgress });
+      const visual = JSON.stringify(ocr);
+      if (new TextEncoder().encode(visual).length > OACIQ_OCR_LIMITS.bytes) throw new Error("Lecture visuelle trop volumineuse. Analysez un dossier plus petit.");
+      clearTimeout(timer);
+      controller.signal.throwIfAborted();
+      timer = setTimeout(() => controller.abort(), OACIQ_UPLOAD_LIMITS.timeoutMs);
+      setProgress("Analyse des formulaires et des délais…");
+      const form = new FormData();
+      if (ocr.length) form.append("ocr", visual);
+      files.forEach((file) => form.append("files", file));
       const response = await fetch("/api/oaciq/analyze", { method: "POST", body: form, signal: controller.signal });
       const result = await response.json().catch(() => null) as { data?: OaciqTransactionPreview; error?: string } | null;
       if (!response.ok || !result?.data) throw new Error(result?.error ?? "Analyse impossible. Réessayez avec des PDF de moins de 4 Mo au total.");
@@ -64,7 +77,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
       onAnalyzed(result.data);
       onChange([...proposals.filter((p) => p.source.type === "manual"), ...proposalsFromAnalysis(result.data)]);
     } catch (caught) {
-      setError(controller.signal.aborted ? "L’analyse a dépassé le délai prévu. Réessayez ou saisissez les échéances manuellement." : caught instanceof Error ? caught.message : "Analyse impossible.");
+      setError(controller.signal.aborted ? "L’analyse a été annulée ou a dépassé le délai prévu. Vous pouvez réessayer." : caught instanceof Error ? caught.message : "Analyse impossible.");
     } finally { clearTimeout(timer); request.current = null; setBusy(false); onBusyChange(false); }
   }
   return <section className="oaciq-import transaction-field-wide" aria-labelledby="oaciq-import-title" aria-busy={busy}>
@@ -90,6 +103,7 @@ export function OaciqTransactionImport({ proposals, onChange, disabled, onBusyCh
     </button>
     {files.length > 0 && <ul className="oaciq-files">{files.map((file, i) => <li key={`${file.name}-${i}`}><span>{file.name}</span><button type="button" disabled={disabled || busy} aria-label={`Retirer ${file.name}`} onClick={() => setDocuments(files.filter((_, index) => index !== i))}>Retirer</button></li>)}</ul>}
     <button className="transaction-add-deadline" type="button" disabled={!files.length || disabled || busy} onClick={() => void analyze()}>{busy ? "ANALYSE DES DOCUMENTS…" : "ANALYSER LES DOCUMENTS"}</button>
+    {busy && <><p className="oaciq-notice" role="status">{progress}</p><button type="button" className="transaction-add-deadline" onClick={() => request.current?.abort()}>Annuler l’analyse</button></>}
     {error && <p className="transaction-form-error" role="alert">{error}</p>}
     {files.length > 0 && !analysis && !busy && <p className="oaciq-notice">Aucune échéance de ces documents ne sera enregistrée sans analyse et révision.</p>}
     {analysis && <div className="oaciq-analysis-summary"><h4>FORMULAIRES DÉTECTÉS</h4><ul>{analysis.forms.map((f, i) => <li key={i}>{FORM_LABELS[f.kind]} {f.number} · {f.document}</li>)}</ul>

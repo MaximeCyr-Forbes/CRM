@@ -1,3 +1,4 @@
+import { logOaciqFailure } from "./diagnostics";
 import { analyzeExtractedOaciqDocuments } from "./parser";
 import { documentKind, formNumber, pagesText } from "./forms";
 import type {
@@ -46,7 +47,8 @@ export async function analyzeOaciqDocuments(
     const result = analyzeExtractedOaciqDocuments(documents);
     result.warnings.push(...warnings);
     return result;
-  } catch {
+  } catch (error) {
+    logOaciqFailure("consolidation", error, { documents: documents.length });
     // Preserve recognized forms when the chain is ambiguous. Do not choose an
     // arbitrary PA or manufacture transaction values to hide the ambiguity.
     return {

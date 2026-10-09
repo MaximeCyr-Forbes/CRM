@@ -163,6 +163,15 @@ export async function extractOaciqPdf(
     throw new Error(
       "PDF OACIQ numérisé : une extraction OCR est requise avant l'analyse.",
     );
+  if (input.ocrWords) {
+    if (!input.ocrPages || input.ocrWords.length !== result.pages.length) throw new Error("Les positions OCR ne correspondent pas au PDF OACIQ.");
+    result.pages.forEach((page, i) => {
+      // Native text geometry remains authoritative where it exists.
+      if (page.text.replace(/\s/g, "").length < 20) {
+        page.words = input.ocrWords![i]; page.wordsLoose = page.words;
+      }
+    });
+  }
   // Never flatten/save the caller's PDF. All following changes are memory-only.
   const original = await PDFDocument.load(bytes, {
     updateMetadata: false,

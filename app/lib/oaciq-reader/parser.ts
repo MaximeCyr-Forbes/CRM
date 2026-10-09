@@ -98,12 +98,6 @@ export function analyzeExtractedOaciqDocuments(
   const counters = ofKind("counter_proposal").flatMap(doc => { const value=readDocument(doc,parseCounterProposal); return value ? [value] : []; });
   warnings.push(...counters.flatMap(c=>c.warnings || []));
   const candidates = ofKind("promise_to_purchase");
-  if (!candidates.length) {
-    const unknown = ofKind("unknown").sort((a, b) =>
-      a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
-    );
-    if (unknown[0]) candidates.push(unknown[0]);
-  }
   if (!candidates.length)
     throw new Error(
       "Dépose aussi la promesse d'achat PA, PAD ou PP liée à la contre-proposition.",
@@ -118,11 +112,17 @@ export function analyzeExtractedOaciqDocuments(
     number = formNumber(main.name, pages);
   const response = extractResponseAction(main);
   const [buyers, sellers] = extractParties(main);
-  const mainAccepted = ["counter", "refuse"].includes(response.action) ? null :
+  // An OCR signature timestamp alone does not establish a response choice.
+  const uncertainOcrAcceptance = !!main.ocrPages && response.action === "unknown";
+  if (uncertainOcrAcceptance) warnings.push("PA numérisée : choix d’acceptation non établi. Confirmez la date réelle d’acceptation; les signatures seules ne suffisent pas.");
+  const mainAccepted = uncertainOcrAcceptance || ["counter", "refuse"].includes(response.action) ? null :
     acceptanceFromResponseText(pages) || acceptanceFromSignatures(main.signatures, sellers, buyers);
   const contract = resolveContractualChain(number, response, counters, mainAccepted);
   const counter = contract.path.at(-1) ?? null;
   warnings.push(...contract.warnings);
+  for (const cp of counters.filter(cp => documents.find(d => d.name === cp.fileName)?.ocrPages && !contract.path.includes(cp))) {
+    warnings.push(`CP ${cp.formNumber} reconnue : réponse, signatures et validité à confirmer avant d’appliquer ses modifications.`);
+  }
   let related = annexes.filter(
     (a) =>
       a.value!.targetFormNumber === number ||
@@ -543,7 +543,7 @@ export function analyzeExtractedOaciqDocuments(
   let occupationText = textBetween(combined, "11.2", ["11.3"]);
   for (const page of pages) {
     const m = /LECTURE\s+CIBL[EÉ]E\s+11[\.,]?2([\s\S]*)/i.exec(page);
-    if (m) occupationText += ` ${m[1]}`;
+    if (m) occupationText += ` ${m[1].split(/\b11\s*[.,]\s*3\b/)[0]}`;
   }
   let [occupationDate, occupationTime] = extractClauseDateTimeWords(
     main,
@@ -554,6 +554,7 @@ export function analyzeExtractedOaciqDocuments(
     occupationDate = parseFrenchDate(occupationText);
     occupationTime = extractTimeText(occupationText);
   }
+  const occupationAtNotary = !occupationDate && /acte notarie|notarial deed|signature.{0,40}acte/.test(norm(occupationText));
   let occupationLabel = "";
   if (occupationDate)
     occupationLabel = `${formatDay(occupationDate)}${occupationTime ? ` à ${occupationTime}` : ""}`;
@@ -563,8 +564,7 @@ export function analyzeExtractedOaciqDocuments(
   } else if (/selon les baux|selon baux/.test(norm(occupationText)))
     occupationLabel = "Selon les baux";
   else if (
-    notaryDate &&
-    /acte notarie|notarial deed|signature.{0,40}acte/.test(norm(occupationText))
+    notaryDate && occupationAtNotary
   ) {
     occupationDate = notaryDate;
     occupationLabel = formatDay(notaryDate);
@@ -720,7 +720,7 @@ export function analyzeExtractedOaciqDocuments(
   }
   const price = resolveFinalPrice(documents, main, accepted, contract.path);
   const finalContract = applyCounterContract(deadlines, contract.path, {
-    occupationAtNotary: /acte notarie|notarial deed|signature.{0,40}acte/.test(norm(occupationText)),
+    occupationAtNotary,
     modifications: applicable, documents, main, price,
   });
   const year = +(acceptedDay || inToronto(new Date()).slice(0, 10)).slice(0, 4);
