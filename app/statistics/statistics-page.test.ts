@@ -17,7 +17,7 @@ describe("onglet Statistiques", () => {
       "Calendrier",
       "Drive",
       "Statistiques",
-  "Comptabilité",
+  "Comptabilité", "Pancartes / BAC",
       "Courriels Auto",
       "Logiciels",
       "Paramètres",

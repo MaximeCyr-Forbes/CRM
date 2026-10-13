@@ -14,7 +14,7 @@ describe("onglet Google Drive", () => {
       "Calendrier",
       "Drive",
       "Statistiques",
-  "Comptabilité",
+  "Comptabilité", "Pancartes / BAC",
       "Courriels Auto",
       "Logiciels",
       "Paramètres",
