@@ -29,9 +29,9 @@ const topbar = () => AppTopbar({ onOpenMenu: vi.fn(), menuOpen: state.open, menu
 beforeEach(() => { vi.clearAllMocks(); Object.assign(state, { pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France", open: false }); });
 
 describe("premium shell preserves the CRM navigation contract", () => {
-  it("opens inventory inside the CRM through Logiciels", () => {
-    state.open=true;state.pathname='/sign-inventory';const navigate=vi.fn();
-    const link=find(sidebar(navigate),props=>props.href==='/sign-inventory');
+  it("opens inventory as a primary item even when Logiciels is closed", () => {
+    state.open=false;state.pathname='/sign-inventory';const navigate=vi.fn();
+    const link=find(sidebar(navigate),props=>props['aria-current']==='page');
     expect(link.target).toBeUndefined();expect(link['aria-current']).toBe('page');
     (link.onClick as (e:unknown)=>void)({preventDefault:vi.fn()});expect(navigate).toHaveBeenCalledWith('/sign-inventory');
     expect(readFileSync('app/sign-inventory/layout.tsx','utf8')).toContain('<PrivateRouteLayout>');
@@ -40,7 +40,7 @@ describe("premium shell preserves the CRM navigation contract", () => {
     const html = renderToStaticMarkup(sidebar());
     let previous = -1;
     for (const label of appNavigationOrder) { const position = html.indexOf(`<span>${label}</span>`); expect(position).toBeGreaterThan(previous); previous = position; }
-    expect(shellLinks.map(link => link.href)).toEqual(["/dashboard", "/contacts", "/listings", "/transactions", "/mortgage-referrals", "/calendar", "/drive", "/statistics", "/accounting", "/automatic-emails", "/settings"]);
+    expect(shellLinks.map(link => link.href)).toEqual(["/dashboard", "/contacts", "/listings", "/transactions", "/mortgage-referrals", "/calendar", "/drive", "/statistics", "/accounting", "/sign-inventory", "/automatic-emails", "/settings"]);
   });
   it.each(shellLinks)("keeps the $label destination and active state on details", link => {
     state.pathname = `${link.href}/example`;
@@ -52,6 +52,7 @@ describe("premium shell preserves the CRM navigation contract", () => {
   it("keeps all software URLs and safely closes the mobile drawer after an external link", () => {
     state.open = true; const close = vi.fn(); const tree = sidebar(vi.fn(), close);
     const html = renderToStaticMarkup(tree);
+    expect(html).not.toContain('href="/sign-inventory"');
     for (const link of softwareLinks) expect(html).toContain(`href="${link.href}"`);
     const link = find(tree, (props, type) => type === "a" && props.href === softwareLinks[0].href);
     expect(link.target).toBe("_blank"); expect(link.rel).toBe("noopener noreferrer");

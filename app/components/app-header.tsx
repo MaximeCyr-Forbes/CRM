@@ -17,6 +17,7 @@ const links = [
   { label: "Drive", href: "/drive", match: "/drive" },
   { label: "Statistiques", href: "/statistics", match: "/statistics" },
   { label: "Comptabilité", href: "/accounting", match: "/accounting" },
+  { label: "Pancartes / BAC", href: "/sign-inventory", match: "/sign-inventory" },
   { label: "Courriels Auto", href: "/automatic-emails", match: "/automatic-emails" },
   { label: "Paramètres", href: "/settings", match: "/settings" },
 ] as const;

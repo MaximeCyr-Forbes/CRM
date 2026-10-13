@@ -14,6 +14,7 @@ export const shellLinks = [
   { label: "Drive", href: "/drive" },
   { label: "Statistiques", href: "/statistics" },
   { label: "Comptabilité", href: "/accounting" },
+  { label: "Pancartes / BAC", href: "/sign-inventory" },
   { label: "Courriels Auto", href: "/automatic-emails" },
   { label: "Paramètres", href: "/settings" },
 ] as const;
@@ -22,7 +23,7 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
   pathname: string; workspaceUser: string | null; selectedBroker: string | null;
   navigate: (href: string) => void; onClose?: () => void;
 }) {
-  const [softwareOpen, setSoftwareOpen] = useState(() => pathname.startsWith('/sign-inventory'));
+  const [softwareOpen, setSoftwareOpen] = useState(false);
   const softwareId = useId();
   const softwareButton = useRef<HTMLButtonElement>(null);
   const isAssistant = workspaceUser === "immoplus";
@@ -46,7 +47,6 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
             <ShellIcon name={label} /><span>{label}</span><span aria-hidden="true" className="crm-nav-chevron">{softwareOpen ? "−" : "+"}</span>
           </button>
           {softwareOpen && <div className="crm-software-links" id={softwareId}>
-            <a href="/sign-inventory" aria-current={pathname.startsWith('/sign-inventory')?'page':undefined} onClick={event=>{event.preventDefault();setSoftwareOpen(false);navigate('/sign-inventory');}}><span>Pancartes / BAC</span></a>
             {softwareLinks.map(software => <a key={software.href} href={software.href} target="_blank" rel="noopener noreferrer" onClick={() => { setSoftwareOpen(false); onClose?.(); }}>
               <span>{software.label}</span><span aria-hidden="true">↗</span>
             </a>)}
@@ -55,7 +55,7 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
         const link = shellLinks.find(item => item.label === label);
         if (!link) return null;
         return <button aria-current={pathname.startsWith(link.href) ? "page" : undefined} className="crm-nav-item" key={link.href} onClick={() => navigate(link.href)} type="button">
-          <ShellIcon name={label} /><span>{label}</span>
+          <ShellIcon name={label === "Pancartes / BAC" ? "inventory" : label} /><span>{label}</span>
         </button>;
       })}
     </nav>

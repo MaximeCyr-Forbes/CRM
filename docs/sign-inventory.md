@@ -1,6 +1,6 @@
 # Pancartes / BAC
 
-Accès : **Logiciels → Pancartes / BAC**, route `/sign-inventory`. Le module utilise le shell et la protection CRM existants.
+Accès : **Votre espace → Pancartes / BAC**, après Comptabilité, route `/sign-inventory`. Le module utilise le shell et la protection CRM existants.
 
 Les propriétés viennent de `public.listings`, liées par ID. La recherche propose d’abord les statuts actifs, avec 30 résultats maximum. Les autres statuts restent recherchables. Une adresse figée sur l’attribution sert uniquement à préserver l’historique après suppression du listing (`ON DELETE SET NULL`). Aucune modification du statut d’un listing ne retourne le matériel.
 

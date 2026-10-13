@@ -26,6 +26,7 @@ export const appNavigationOrder = [
   "Drive",
   "Statistiques",
   "Comptabilité",
+  "Pancartes / BAC",
   "Courriels Auto",
   "Logiciels",
   "Paramètres",

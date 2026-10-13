@@ -12,6 +12,7 @@ describe("navigation des logiciels", () => {
       "Drive",
       "Statistiques",
   "Comptabilité",
+  "Pancartes / BAC",
       "Courriels Auto",
       "Logiciels",
       "Paramètres",

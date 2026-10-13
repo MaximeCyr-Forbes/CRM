@@ -18,6 +18,7 @@ describe("header responsive du CRM", () => {
       "Drive",
       "Statistiques",
   "Comptabilité",
+  "Pancartes / BAC",
       "Courriels Auto",
       "Logiciels",
       "Paramètres",
