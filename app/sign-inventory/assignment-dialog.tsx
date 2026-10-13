@@ -4,6 +4,7 @@ import {InventoryDialog} from './dialog';
 import {inventoryRequest} from '../lib/sign-inventory/client';
 import type {Assignment,InventoryData,PropertyChoice} from '../lib/sign-inventory/model';
 import {LISTING_STATUS_LABELS,type ListingStatus} from '../data/listing-types';
+import {ShellIcon} from '../components/shell-icons';
 export function AssignmentDialog({row,data,onClose,onSaved}:{row:Assignment|null;data:InventoryData;onClose:()=>void;onSaved:()=>void}){
  const [id]=useState(()=>row?.id??crypto.randomUUID());
  const [property,setProperty]=useState<PropertyChoice|null>(row?.listing_id?{id:row.listing_id,address:row.address,broker:row.broker,status:''}:null);
@@ -32,9 +33,9 @@ export function AssignmentDialog({row,data,onClose,onSaved}:{row:Assignment|null
    {!property&&<div className="sign-property-choices" aria-label="Propriétés du CRM">{searching?<p role="status">Recherche…</p>:searchError?<p role="alert">{searchError}</p>:choices.length?choices.map(p=><button type="button" key={p.id} onClick={()=>choose(p)}><strong>{p.address}</strong><small>{LISTING_STATUS_LABELS[p.status as ListingStatus]??p.status}</small></button>):<p>Aucune propriété trouvée.</p>}</div>}
    <div className="sign-form-grid"><label>Courtier<select required value={broker} onChange={e=>setBroker(e.target.value)}><option value="">Choisir un courtier</option>{data.stock.filter(s=>s.kind==='sign').map(s=><option key={s.id} value={s.broker!}>{s.label}</option>)}</select></label>
    <label>Type de pancarte<select value={type} onChange={e=>setType(e.target.value)}><option value="">Aucune pancarte</option>{data.types.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label></div>
-   {broker&&type&&<p className="sign-hint">Pancartes disponibles : {available(`sign:${broker}`)}</p>}
+   {broker&&type&&<p className={`sign-hint ${available(`sign:${broker}`)<=0?'sign-stock-warning':''}`}>{available(`sign:${broker}`)<=0?`Aucune pancarte disponible pour ${data.stock.find(s=>s.broker===broker)?.label??broker}. Choisissez un autre courtier ou ajustez l’inventaire.`:`${available(`sign:${broker}`)} pancarte(s) disponible(s)`}</p>}
    <div className="sign-options"><p>Ajouts</p>{data.stock.filter(s=>s.kind==='addon').map(s=><label key={s.id}><input type="checkbox" checked={addons.includes(s.id)} disabled={!addons.includes(s.id)&&available(s.id)<=0} onChange={e=>setAddons(a=>e.target.checked?[...a,s.id]:a.filter(id=>id!==s.id))}/><span>{s.label}</span><small>{available(s.id)} disponible(s)</small></label>)}</div>
-   <label className="sign-bac"><input type="checkbox" checked={bac} disabled={!bac&&available('bac')<=0} onChange={e=>setBac(e.target.checked)}/> Boîte à clés <small>{available('bac')} disponible(s)</small></label>
+   <label className="sign-bac"><input type="checkbox" checked={bac} disabled={!bac&&available('bac')<=0} onChange={e=>setBac(e.target.checked)}/><ShellIcon name="key"/> Boîte à clés <small>{available('bac')} disponible(s)</small></label>
   </fieldset>
   {error&&<p role="alert" className="sign-error">{error}</p>}
   <footer><button type="button" disabled={busy} onClick={onClose}>Annuler</button><button className="sign-primary" disabled={busy||!property||!broker||(!!type&&available(`sign:${broker}`)<=0)} type="submit">{busy?'Enregistrement…':row?'Enregistrer':'Attribuer'}</button></footer>

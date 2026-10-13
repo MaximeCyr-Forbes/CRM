@@ -17,3 +17,11 @@ Les attributions conservent les dates et acteurs de création, modification et r
 ## Vérification
 
 Tests Vitest : validation et permissions de l’API, séparation des ajouts, navigation. `supabase/tests/sign_inventory.sql` vérifie le cycle complet, transferts, conflits, quantités, histoire et privilèges dans une transaction annulée, sur une base isolée. Les courses réelles sur dernière pancarte, dernier ajout et dernière BAC sont aussi vérifiées avec les API en production et des données QA dédiées, supprimées après contrôle. Aucun import Sheets, aucune nouvelle dépendance payante, aucun service supplémentaire.
+
+## Interface V2
+
+Les trois actions permanentes du header ouvrent des dialogues. Le retour global recherche toutes les attributions actives, indépendamment des filtres de la page, et confirme chaque ensemble séparément. Les disponibilités restent regroupées dans une seule carte ; la circulation et les retours utilisent une table sur ordinateur et des cartes sur mobile.
+
+Gérer l’inventaire valide tous les totaux avant de les envoyer, puis réutilise séquentiellement la RPC existante. En cas d’échec partiel, les quantités déjà enregistrées sont conservées ; un rechargement explicite des quantités est requis avant de réessayer. Chaque mutation recharge la vue et affiche une confirmation brève. Aucun changement de schéma, de permissions ou de logique de stock.
+
+La vérification V2 utilise des données isolées pour les mutations et des lectures de production pour contrôler le rendu et l’intégrité des données existantes.

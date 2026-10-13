@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 
 const paths: Record<string, ReactNode> = {
+  plus: <path d="M12 5v14M5 12h14" />,
+  search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
+  return: <><path d="m8 4-5 5 5 5M3 9h11a6 6 0 0 1 0 12h-3" /></>,
+  inventory: <><path d="m3 7 9-4 9 4v13H3ZM3 7l9 4 9-4M12 11v9M8 5l9 4" /></>,
+  history: <><path d="M3 10a9 9 0 1 1 1 7M3 4v6h6M12 7v5l3 2" /></>,
+  key: <><circle cx="8" cy="8" r="4" /><path d="m11 11 9 9M16 16l3-3M19 19l3-3" /></>,
+  check: <path d="m5 12 4 4L19 6" />,
   Accueil: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
   Contacts: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m3 10v-3a6 6 0 0 0-2-4" /></>,
   Listings: <><path d="M4 21V3h11v18M15 9h5v12M2 21h20M8 7h3M8 11h3M8 15h3M8 21v-3h3v3" /></>,

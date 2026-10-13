@@ -1,0 +1,10 @@
+import {it,expect} from 'vitest';
+import {stockChanges} from './stock-draft';
+import type {Stock} from '../lib/sign-inventory/model';
+const stock:Stock[]=[{id:'sign:broker_a',kind:'sign',broker:'broker_a',label:'Courtier A',total:5,used:3,available:2,version:8},{id:'bac',kind:'bac',broker:null,label:'BAC',total:4,used:1,available:3,version:2}];
+it('saves only changed totals with their original concurrency versions',()=>expect(stockChanges(stock,{'sign:broker_a':'6',bac:'4'})).toEqual([{id:'sign:broker_a',total:6,version:8}]));
+it('keeps unchanged stock untouched',()=>expect(stockChanges(stock,{'sign:broker_a':'5',bac:'4'})).toEqual([]));
+it('validates all rows before any request can be sent',()=>expect(()=>stockChanges(stock,{'sign:broker_a':'6',bac:'0'})).toThrow('en circulation'));
+it.each(['',' ','-1','2','3.5','100001','NaN'])('rejects impossible stock %s',value=>expect(()=>stockChanges(stock,{'sign:broker_a':value,bac:'4'})).toThrow());
+it('allows reducing total exactly to active usage',()=>expect(stockChanges(stock,{'sign:broker_a':'3',bac:'1'})).toEqual([{id:'sign:broker_a',total:3,version:8},{id:'bac',total:1,version:2}]));
+it('retains successful versions on partial retry and does not save them twice',()=>{const successful=[{...stock[0],total:6,version:9},stock[1]];expect(stockChanges(successful,{'sign:broker_a':'6',bac:'5'})).toEqual([{id:'bac',total:5,version:2}]);});
