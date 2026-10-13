@@ -94,7 +94,7 @@ function BrokerReferrals({ broker, label }: { broker: TransactionBroker; label: 
         <td data-label="CONTACT(S)"><Contacts transaction={row.transactions} /></td>
         <td data-label="RESPONSABLE HYPOTHÉCAIRE">{row.mortgage_advisor_name}</td>
         <td data-label="BANQUE / INSTITUTION">{row.institution_name}</td>
-        <td data-label={view==='paid'?"PAYÉ LE":"DATE DE CRÉATION"}>{formatDate(row.paid_at ? `${row.paid_at}T12:00:00` : row.created_at)}</td>
+        <td data-label={view==='paid'?"PAYÉ LE":"DATE DE CRÉATION"}>{formatDate(row.paid_at ? `${row.paid_at}T12:00:00Z` : row.created_at)}</td>
         <td data-label={view==='paid'?"MONTANT":"SUIVI"}>{view==='paid'?<strong className="referral-payment-amount">{paymentMoney(row.paid_amount!)}</strong>:<div className="referral-actions">{row.follow_up_at && <time dateTime={row.follow_up_at}>{formatDate(row.follow_up_at, true)}</time>}<button onClick={() => open(() => setFollowUp(row))}>{row.follow_up_at ? "MODIFIER SUIVI" : "PLANIFIER"}</button></div>}</td>
         <td data-label="ACTIONS"><div className="referral-actions">{row.paid_at?<><button className="referral-pay" onClick={()=>open(()=>setPayment(row))}>Modifier le paiement</button><button onClick={()=>open(()=>setCancelling(row))}>Remettre à venir</button>{row.follow_up_at&&<button onClick={()=>open(()=>setFollowUp(row))}>MODIFIER SUIVI</button>}</>:<button className="referral-pay" onClick={()=>open(()=>setPayment(row))}>Payé</button>}<button onClick={() => open(() => setEditor(row))}>MODIFIER</button><button className="referral-delete" onClick={() => open(() => setDeleting(row))}>SUPPRIMER</button></div></td>
       </tr>)}
