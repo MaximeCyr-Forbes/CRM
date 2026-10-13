@@ -1,0 +1,15 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+const mocks=vi.hoisted(()=>({access:vi.fn(),actor:vi.fn(),rpc:vi.fn()}));
+vi.mock('../../lib/crm-access',()=>({requireApiAccess:mocks.access,birthdayWorkspaceActor:mocks.actor}));
+vi.mock('../../lib/supabase/server',()=>({getSupabaseAdmin:()=>({rpc:mocks.rpc})}));
+import {POST,GET} from './route';
+beforeEach(()=>{vi.clearAllMocks();mocks.access.mockResolvedValue({response:null});mocks.actor.mockResolvedValue('immoplus');mocks.rpc.mockResolvedValue({data:{id:'bac'},error:null});});
+const request=(body:unknown,origin='https://crm.example')=>new Request('https://crm.example/api/sign-inventory',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+const stock={action:'stock',id:'bac',total:5,version:0};
+it('protects unauthenticated reads',async()=>{mocks.access.mockResolvedValue({response:Response.json({}, {status:401})});expect((await GET(new Request('https://crm.example/api/sign-inventory'))).status).toBe(401);expect(mocks.rpc).not.toHaveBeenCalled();});
+it('protects unauthenticated writes',async()=>{mocks.access.mockResolvedValue({response:Response.json({}, {status:401})});expect((await POST(request(stock))).status).toBe(401);expect(mocks.rpc).not.toHaveBeenCalled();});
+it('rejects cross-origin writes',async()=>{expect((await POST(request(stock,'https://other.example'))).status).toBe(403);expect(mocks.rpc).not.toHaveBeenCalled();});
+it('requires a signed operational actor',async()=>{mocks.actor.mockResolvedValue(null);expect((await POST(request(stock))).status).toBe(403);expect(mocks.rpc).not.toHaveBeenCalled();});
+it('denies stock adjustments to a broker',async()=>{mocks.actor.mockResolvedValue('france');expect((await POST(request(stock))).status).toBe(403);expect(mocks.rpc).not.toHaveBeenCalled();});
+it('passes only the verified actor and returns uncached response',async()=>{const r=await POST(request({...stock,actor:'forged'}));expect(r.status).toBe(200);expect(r.headers.get('Cache-Control')).toBe('private, no-store');expect(mocks.rpc).toHaveBeenCalledWith('sign_inventory_write',{p_action:'stock',p_actor:'immoplus',p_data:{id:'bac',total:5,version:0}});});
+it('preserves business conflict messages',async()=>{mocks.rpc.mockResolvedValue({error:{code:'P0001',message:'Stock insuffisant : BAC.'}});const r=await POST(request(stock));expect(r.status).toBe(409);expect(await r.json()).toEqual({error:'Stock insuffisant : BAC.'});});

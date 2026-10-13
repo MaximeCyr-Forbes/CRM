@@ -29,6 +29,13 @@ const topbar = () => AppTopbar({ onOpenMenu: vi.fn(), menuOpen: state.open, menu
 beforeEach(() => { vi.clearAllMocks(); Object.assign(state, { pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France", open: false }); });
 
 describe("premium shell preserves the CRM navigation contract", () => {
+  it("opens inventory inside the CRM through Logiciels", () => {
+    state.open=true;state.pathname='/sign-inventory';const navigate=vi.fn();
+    const link=find(sidebar(navigate),props=>props.href==='/sign-inventory');
+    expect(link.target).toBeUndefined();expect(link['aria-current']).toBe('page');
+    (link.onClick as (e:unknown)=>void)({preventDefault:vi.fn()});expect(navigate).toHaveBeenCalledWith('/sign-inventory');
+    expect(readFileSync('app/sign-inventory/layout.tsx','utf8')).toContain('<PrivateRouteLayout>');
+  });
   it("renders every existing destination in the existing order", () => {
     const html = renderToStaticMarkup(sidebar());
     let previous = -1;

@@ -22,7 +22,7 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
   pathname: string; workspaceUser: string | null; selectedBroker: string | null;
   navigate: (href: string) => void; onClose?: () => void;
 }) {
-  const [softwareOpen, setSoftwareOpen] = useState(false);
+  const [softwareOpen, setSoftwareOpen] = useState(() => pathname.startsWith('/sign-inventory'));
   const softwareId = useId();
   const softwareButton = useRef<HTMLButtonElement>(null);
   const isAssistant = workspaceUser === "immoplus";
@@ -46,6 +46,7 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
             <ShellIcon name={label} /><span>{label}</span><span aria-hidden="true" className="crm-nav-chevron">{softwareOpen ? "−" : "+"}</span>
           </button>
           {softwareOpen && <div className="crm-software-links" id={softwareId}>
+            <a href="/sign-inventory" aria-current={pathname.startsWith('/sign-inventory')?'page':undefined} onClick={event=>{event.preventDefault();setSoftwareOpen(false);navigate('/sign-inventory');}}><span>Pancartes / BAC</span></a>
             {softwareLinks.map(software => <a key={software.href} href={software.href} target="_blank" rel="noopener noreferrer" onClick={() => { setSoftwareOpen(false); onClose?.(); }}>
               <span>{software.label}</span><span aria-hidden="true">↗</span>
             </a>)}
