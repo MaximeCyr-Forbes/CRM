@@ -10,5 +10,6 @@ describe('Balance server',()=>{
  it('rejects cross-broker modification',async()=>{await expect(setBrokerBalance({broker:'sandrine',balance:'5',version:0},'france')).rejects.toMatchObject({status:403});expect(mock.rpc).toHaveBeenCalledTimes(1);});
  it('rejects unknown broker',async()=>{await expect(setBrokerBalance({broker:'unknown',balance:'5',version:0},'maxime')).rejects.toMatchObject({status:400});expect(mock.rpc).toHaveBeenCalledTimes(1);});
  it('rejects invalid amount before database calls',async()=>{await expect(setBrokerBalance({broker:'france',balance:'5.555',version:0},'france')).rejects.toThrow();expect(mock.rpc).not.toHaveBeenCalled();});
+ it('maps an empty compare-and-save result to 409',async()=>{mock.rpc.mockResolvedValueOnce({data:rows,error:null}).mockResolvedValueOnce({data:[],error:null});await expect(setBrokerBalance({broker:'france',balance:'5',version:0},'france')).rejects.toMatchObject({status:409});});
  it('surfaces stale version as conflict instead of overwriting',async()=>{mock.rpc.mockResolvedValueOnce({data:rows,error:null}).mockResolvedValueOnce({data:null,error:{code:'40001'}});await expect(setBrokerBalance({broker:'france',balance:'5',version:0},'france')).rejects.toMatchObject({status:409});});
 });

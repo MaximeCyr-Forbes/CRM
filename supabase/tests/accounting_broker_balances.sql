@@ -15,8 +15,8 @@ begin
  assert (select balance::numeric=0 and version=0 from accounting_list_broker_balances() where broker=b),'Other broker untouched';
  assert (select count(*)=3 from accounting_broker_balance_history where broker::text=a),'One audit per save';
  assert exists(select 1 from accounting_broker_balance_history where broker::text=a and old_balance=500 and new_balance=850.25 and version=2 and updated_by='immoplus'),'Audit old/new/actor';
- begin perform accounting_set_broker_balance(a::broker_assignment,999,'immoplus',2); raise exception 'Expected conflict'; exception when serialization_failure then null; end;
- begin perform accounting_set_broker_balance(a::broker_assignment,999,'immoplus',0); raise exception 'Expected insert conflict'; exception when serialization_failure then null; end;
+ assert not exists(select 1 from accounting_set_broker_balance(a::broker_assignment,999,'immoplus',2)),'Expected update conflict';
+ assert not exists(select 1 from accounting_set_broker_balance(a::broker_assignment,999,'immoplus',0)),'Expected insert conflict';
  assert (select count(*)=3 from accounting_broker_balance_history where broker::text=a),'Failed saves never create audit entries';
  begin perform accounting_set_broker_balance(a::broker_assignment,1.005,'immoplus',3); raise exception 'Expected invalid decimals'; exception when invalid_parameter_value then null; end;
  begin perform accounting_set_broker_balance('unassigned',10,'immoplus',0); raise exception 'Expected invalid broker'; exception when invalid_parameter_value then null; end;

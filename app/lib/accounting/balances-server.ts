@@ -17,7 +17,7 @@ export async function setBrokerBalance(body: Record<string,unknown>, actor: Work
   const {data,error}=await getSupabaseAdmin().rpc('accounting_set_broker_balance',{
     p_broker:broker.broker,p_balance:balance,p_actor:actor,p_expected_version:version,
   });
-  if(error?.code==='40001') throw new AccountingError('Ce solde a été modifié entre-temps. Annulez puis actualisez le panneau avant de réessayer.',409);
+  if(error?.code==='40001' || (!error && !data?.length)) throw new AccountingError('Ce solde a été modifié entre-temps. Annulez puis actualisez le panneau avant de réessayer.',409);
   if(error) throw error;
   return {...data[0],label:broker.label} as BrokerBalance;
 }
