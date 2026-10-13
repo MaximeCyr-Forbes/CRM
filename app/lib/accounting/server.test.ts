@@ -14,7 +14,7 @@ vi.mock("../supabase/server",()=>({getSupabaseAdmin:()=>({
     }};return q;
   },
   storage:{from:()=>({remove:async(paths:string[])=>{if(mock.failRemove)return{error:new Error("storage")};paths.forEach(p=>mock.storage.delete(p));return{error:null};},download:async(p:string)=>({data:mock.storage.get(p),error:!mock.storage.has(p)}),createSignedUrl:async(p:string,ttl:number)=>({data:{signedUrl:`https://storage.test/${p}?ttl=${ttl}`},error:null}),createSignedUploadUrl:async(p:string)=>({data:{signedUrl:`https://upload.test/${p}`},error:null})})},
-  rpc:async(_name:string,p:Record<string,string>)=>{for(const d of mock.tables.accounting_expense_documents??[])if(d.expense_id===p.p_expense){if(d.state==="current")d.state="retired";if(d.id===p.p_document)d.state="current";}return{data:null,error:null};}
+  rpc:async(_name:string,p:Record<string,string>)=>{if(_name==="accounting_brokers")return{data:[{id:"broker_a",label:"Broker A"},{id:"broker_b",label:"Broker B"}],error:null};for(const d of mock.tables.accounting_expense_documents??[])if(d.expense_id===p.p_expense){if(d.state==="current")d.state="retired";if(d.id===p.p_document)d.state="current";}return{data:null,error:null};}
 })}));
 import { completeInvoice,createExpense,deleteExpense,deleteInvoice,getExpense,listExpenses,openInvoice,prepareInvoice,updateExpense,setExpensePayment } from "./server";
 const fields={save_without_invoice:true,category:"marketing",expense_date:"2026-10-05",vendor:"QA",description:"Fictive",amount:100};
@@ -44,4 +44,11 @@ describe("Accounting payment and incomplete entries",()=>{
   it("editing business fields preserves payment status",async()=>{const row=await createExpense(fields,"maxime");await setExpensePayment(row.id,true,"maxime");expect((await updateExpense(row.id,{...fields,is_paid:false,renewal_date:"2027-10-15"},"maxime")).is_paid).toBe(true);});
   it("saves, changes and clears renewal date",async()=>{const row=await createExpense({...fields,renewal_date:"2027-10-15"},"maxime");expect(row.renewal_date).toBe("2027-10-15");expect((await updateExpense(row.id,{...fields,renewal_date:"2028-01-01"},"maxime")).renewal_date).toBe("2028-01-01");expect((await updateExpense(row.id,fields,"maxime")).renewal_date).toBeNull();});
   it("requires consent when editing an entry without invoice",async()=>{const row=await createExpense(fields,"maxime");await expect(updateExpense(row.id,{},"maxime")).rejects.toThrow("sans facture");await completeInvoice(row.id,await upload(row.id),"maxime");expect((await updateExpense(row.id,{},"maxime")).invoice).not.toBeNull();await deleteInvoice(row.id,"maxime");await expect(updateExpense(row.id,{},"maxime")).rejects.toThrow("sans facture");});
+});
+
+describe("Broker expense server validation",()=>{
+ it("uses requested attribution independently of actor",async()=>{const row=await createExpense({...fields,assigned_broker:"broker_b"},"maxime");expect(row).toMatchObject({assigned_broker:"broker_b",created_by:"maxime"});});
+ it.each(["immoplus","unassigned","missing"])("rejects non-broker %s",async assigned_broker=>{await expect(createExpense({...fields,assigned_broker},"maxime")).rejects.toThrow("courtier du CRM");expect(await listExpenses()).toHaveLength(0);});
+ it("legacy update keeps existing attribution",async()=>{const row=await createExpense({...fields,assigned_broker:"broker_a"},"immoplus");expect(await updateExpense(row.id,fields,"france")).toMatchObject({assigned_broker:"broker_a"});});
+ it("edits only the selected expense and preserves invoice and payment",async()=>{const a=await createExpense({...fields,assigned_broker:"broker_a"},"maxime"),b=await createExpense({...fields,assigned_broker:"broker_b"},"maxime");await completeInvoice(a.id,await upload(a.id),"maxime");await setExpensePayment(a.id,true,"maxime");const result=await updateExpense(a.id,{...fields,assigned_broker:"broker_b",amount:150},"maxime");expect(result).toMatchObject({assigned_broker:"broker_b",is_paid:true,amount:150});expect(result.invoice).not.toBeNull();expect((await getExpense(b.id)).amount).toBe(100);await deleteExpense(a.id);expect((await listExpenses()).map(r=>r.id)).toEqual([b.id]);});
 });

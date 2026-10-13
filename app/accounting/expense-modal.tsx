@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CATEGORY_LABELS, invoiceFields, expenseFields, monthlyIntent, type Expense } from "../lib/accounting/model";
+import { CATEGORY_LABELS, invoiceFields, expenseFields, monthlyIntent, type AccountingBroker, type Expense } from "../lib/accounting/model";
 import { accountingRequest, expenseUrl, uploadInvoice } from "../lib/accounting/client";
-export function ExpenseModal({expense,onClose,onSaved}:{expense:Expense|null;onClose:()=>void;onSaved:(row:Expense)=>void}) {
+export function ExpenseModal({expense,brokers=[],brokerView=false,defaultBroker,onClose,onSaved}:{expense:Expense|null;brokers?:AccountingBroker[];brokerView?:boolean;defaultBroker?:string;onClose:()=>void;onSaved:(row:Expense)=>void}) {
   const confirmation=useRef<HTMLDialogElement>(null);
   const [pending,setPending]=useState<Record<string,FormDataEntryValue>|null>(null);
   const dialog=useRef<HTMLDialogElement>(null),fileInput=useRef<HTMLInputElement>(null);
@@ -13,11 +13,12 @@ export function ExpenseModal({expense,onClose,onSaved}:{expense:Expense|null;onC
   useEffect(()=>{if(!stopPending)return;const el=stopDialog.current!;el.showModal();return()=>el.close();},[stopPending]);
   useEffect(()=>{const el=dialog.current!, previous=document.activeElement as HTMLElement|null, overflow=document.body.style.overflow; document.body.style.overflow="hidden";el.showModal();return()=>{el.close();document.body.style.overflow=overflow;previous?.focus();};},[]);
   useEffect(()=>{if(!pending)return;const el=confirmation.current!;el.showModal();return()=>el.close();},[pending]);
+  const individual=expense?!!expense.assigned_broker:brokerView;
   function choose(candidate:File|undefined) { if(!candidate)return;try{invoiceFields(candidate);setFile(candidate);setRemoveInvoice(false);setError("");}catch(e){setError((e as Error).message);} }
   function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(busy)return;setError("");
     const fields=Object.fromEntries(new FormData(event.currentTarget).entries());
-    try {const validated=expenseFields(fields);monthlyIntent({...fields,is_monthly:monthly},validated.expense_date);}catch(e){setError((e as Error).message);return;}
+    try {if(individual&&!fields.assigned_broker)throw new Error("Choisissez un courtier.");const validated=expenseFields(fields);monthlyIntent({...fields,is_monthly:monthly},validated.expense_date);}catch(e){setError((e as Error).message);return;}
     if(saved?.recurring_rule?.active && !monthly && !stopConfirmed) {setStopPending(fields);return;}
     continueSave(fields,stopConfirmed);
   }
@@ -50,7 +51,8 @@ export function ExpenseModal({expense,onClose,onSaved}:{expense:Expense|null;onC
           {(file||saved?.invoice&&!removeInvoice)&&<div className="accounting-selected-file"><div><strong>{file?.name??saved?.invoice?.file_name}</strong><small>{((file?.size??saved?.invoice?.size??0)/1024).toLocaleString("fr-CA",{maximumFractionDigits:1})} Ko · {file?.type??saved?.invoice?.mime_type}</small></div><button type="button" onClick={()=>{setFile(null);setRemoveInvoice(true);}}>Retirer</button></div>}
           {removeInvoice&&saved?.invoice&&<p className="accounting-muted">La facture sera retirée à l’enregistrement. <button type="button" onClick={()=>setRemoveInvoice(false)}>Annuler</button></p>}
         </div>
-        <div className="accounting-form-row"><label>Catégorie<select name="category" defaultValue={expense?.category??""}><option value="">À classer</option>{Object.entries(CATEGORY_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label>Date<input name="expense_date" type="date" defaultValue={expense?.expense_date??""}/></label></div>
+        {individual?<label>Courtier<select name="assigned_broker" required defaultValue={expense?.assigned_broker??defaultBroker??""}><option value="">Choisir un courtier</option>{brokers.map(b=><option key={b.id} value={b.id}>{b.label}</option>)}{expense?.assigned_broker&&!brokers.some(b=>b.id===expense.assigned_broker)&&<option value={expense.assigned_broker}>{expense.assigned_broker} · historique</option>}</select></label>:<input type="hidden" name="assigned_broker" value=""/>}
+        <div className="accounting-form-row">{individual?<input type="hidden" name="category" value={expense?.category??""}/>:<label>Catégorie<select name="category" defaultValue={expense?.category??""}><option value="">À classer</option>{Object.entries(CATEGORY_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>}<label>Date<input name="expense_date" type="date" defaultValue={expense?.expense_date??""}/></label></div>
         <label>Fournisseur<input name="vendor" maxLength={200} defaultValue={expense?.vendor??""} placeholder="Ex. : Photographe"/></label>
         <label>Description<input name="description" maxLength={1000} defaultValue={expense?.description??""} placeholder="À quoi correspond cette dépense ?"/></label>
         <label>Montant total (CAD)<input name="amount" inputMode="decimal" defaultValue={expense?.amount!=null?String(expense.amount).replace(".",","):""} placeholder="0,00"/></label>

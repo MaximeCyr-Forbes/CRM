@@ -27,3 +27,14 @@ Sauvegarde immuable : `pre-accounting-module-2026-10-05` → `58e58b1484054391b8
 Production : 38 contrôles API réussis, dont un upload réel de 15 Mio, PDF et PNG, refus >15 Mio/exécutable, refus sans session et d'une autre origine, signature de lecture, remplacement, retrait de facture, audit Immoplus et total 350/300/50. Le navigateur confirme les filtres catégorie/période/année/recherche, la modification de date et notes, le retrait de facture et la suppression d'une dépense avec image. Navigation vers les neuf modules existants, liens Logiciels et Back/Forward validés ; aucune erreur console observée. Données QA nettoyées après vérification.
 
 Le CLI a initialement généré la migration à 16:42:19 UTC ; Supabase MCP l'a enregistrée à 16:50:57 UTC. Le fichier est renommé pour correspondre à la version réellement appliquée, sans réécriture de l'historique de production.
+
+
+## Dépenses individuelles par courtier
+
+`assigned_broker` nullable dans `accounting_expenses` et `accounting_recurring_expenses` réutilise le type PostgreSQL `broker_assignment` déjà canonique dans le CRM. Il n'existe pas de table membres/courtiers à référencer : aucune FK artificielle ni deuxième registre d'identités. Le RPC serveur `accounting_brokers()` alimente les sélecteurs depuis cet enum, sans noms codés dans Comptabilité. `unassigned` est interdit ; Immoplus reste uniquement un acteur d'audit. Les clés existantes doivent être conservées si un courtier quitte l'équipe, comme pour les autres dossiers CRM, afin de conserver son historique.
+
+NULL = dépenses d'équipe ; non NULL = dépenses individuelles. Les onglets Marketing/Opération et Toutes · équipe excluent toujours les dépenses attribuées. Dépenses par courtier propose Tous les courtiers et un identifiant stable dans `category=broker&broker=...`, combinable avec les paramètres de période, recherche et paiement existants. Aujourd'hui conserve ce contexte. Les totaux individuels affichent dépenses, à payer et payées ; aucun solde, commission ou remboursement n'est calculé.
+
+Le formulaire et les factures privées sont réutilisés. La catégorie est discrètement conservée lors d'une édition individuelle, sans imposer Marketing ou Opération. Le modèle mensuel transmet le courtier aux nouvelles occurrences, sans facture et avec le statut à payer existant. Modifier le modèle n'altère pas les occurrences antérieures. Les requêtes anciennes qui omettent `assigned_broker` conservent l'association. Les accès serveur et RLS restent identiques.
+
+Migration additive : `20261013155307_accounting_broker_expenses.sql`. Tests SQL transactionnels : `supabase/tests/accounting_broker_expenses.sql`, à exécuter après migration (rollback de toutes les données synthétiques).

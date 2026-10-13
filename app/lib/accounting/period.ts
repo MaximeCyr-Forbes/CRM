@@ -3,13 +3,14 @@ export const MONTHS = ["JAN","FÉV","MAR","AVR","MAI","JUN","JUL","AOÛ","SEP","
 const NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 export function readAccountingFilters(search: string, today=todayToronto()): Filters {
   const q=new URLSearchParams(search), y=q.get("year"), m=q.get("month"), p=q.get("view"), c=q.get("category"), payment=q.get("payment");
-  return {year:y&&/^\d{4}$/.test(y)&&Number(y)>=1?y:today.slice(0,4),month:m&&/^(0?[1-9]|1[0-2])$/.test(m)?m.padStart(2,"0"):today.slice(5,7),period:p==="year"||p==="all"||p==="undated"?p:"month",category:c==="marketing"||c==="operation"?c:"all",payment:payment==="paid"||payment==="unpaid"?payment:"all",search:q.get("q")??""};
+  return {year:y&&/^\d{4}$/.test(y)&&Number(y)>=1?y:today.slice(0,4),month:m&&/^(0?[1-9]|1[0-2])$/.test(m)?m.padStart(2,"0"):today.slice(5,7),period:p==="year"||p==="all"||p==="undated"?p:"month",category:c==="marketing"||c==="operation"||c==="broker"?c:"all",...(c==="broker"&&/^[a-z][a-z0-9_-]{0,62}$/.test(q.get("broker")??"")?{broker:q.get("broker")!}:{}),payment:payment==="paid"||payment==="unpaid"?payment:"all",search:q.get("q")??""};
 }
 export function accountingFilterQuery(filters: Filters) {
   const q=new URLSearchParams({year:filters.year,month:filters.month??todayToronto().slice(5,7)});
   if(filters.period!=="month")q.set("view",filters.period);
   if(filters.category!=="all")q.set("category",filters.category);
   if(filters.payment&&filters.payment!=="all")q.set("payment",filters.payment);
+  if(filters.category==="broker"&&filters.broker)q.set("broker",filters.broker);
   if(filters.search)q.set("q",filters.search);
   return q.toString();
 }

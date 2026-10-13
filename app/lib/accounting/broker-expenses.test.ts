@@ -1,0 +1,24 @@
+import {describe,it,expect} from 'vitest';
+import {expenseFields,expenseTotals,filterExpenses,type Expense} from './model';
+import {readAccountingFilters,accountingFilterQuery,adjacentYear} from './period';
+const base={...expenseFields({amount:100,expense_date:'2026-10-13',category:'marketing'}),created_at:'2026-10-13',invoice:null,is_paid:false};
+const rows=[{...base,id:'team'}, {...base,id:'a',assigned_broker:'broker_a',vendor:'Phone'}, {...base,id:'b',assigned_broker:'broker_b',amount:200,is_paid:true}, {...base,id:'nov',assigned_broker:'broker_a',expense_date:'2026-11-13',amount:200}, {...base,id:'old',assigned_broker:'broker_a',expense_date:'2025-10-13',amount:50}] as Expense[];
+const filters=readAccountingFilters('category=broker&year=2026&month=10');
+describe('Broker expense scopes',()=>{
+ it('never mixes individual expenses into the team ledger',()=>expect(filterExpenses(rows,{...filters,category:'all'}).map(r=>r.id)).toEqual(['team']));
+ it('excludes attributed historical marketing from common marketing',()=>expect(filterExpenses(rows,{...filters,category:'marketing'}).map(r=>r.id)).toEqual(['team']));
+ it('all brokers totals only individuals',()=>expect(expenseTotals(filterExpenses(rows,filters)).total).toBe(300));
+ it('isolates A from B',()=>expect(filterExpenses(rows,{...filters,broker:'broker_a'}).map(r=>r.id)).toEqual(['a']));
+ it('combines November with broker',()=>expect(filterExpenses(rows,{...filters,broker:'broker_a',month:'11'}).map(r=>r.id)).toEqual(['nov']));
+ it('full year keeps broker',()=>expect(expenseTotals(filterExpenses(rows,{...filters,broker:'broker_a',period:'year'})).total).toBe(300));
+ it('keeps prior years history',()=>expect(filterExpenses(rows,{...filters,broker:'broker_a',year:'2025'}).map(r=>r.id)).toEqual(['old']));
+ it('combines search and broker',()=>expect(filterExpenses(rows,{...filters,broker:'broker_b',search:'phone'})).toHaveLength(0));
+ it('combines payment and broker',()=>expect(filterExpenses(rows,{...filters,broker:'broker_a',payment:'paid'})).toHaveLength(0));
+ it('returns paid individuals',()=>expect(filterExpenses(rows,{...filters,payment:'paid'}).map(r=>r.id)).toEqual(['b']));
+ it('roundtrips stable broker key with all filters',()=>{const f={...filters,broker:'broker_a',search:'phone',payment:'unpaid' as const,period:'year' as const};expect(readAccountingFilters(accountingFilterQuery(f))).toEqual(f);});
+ it('adjacent year preserves broker',()=>expect(adjacentYear({...filters,broker:'broker_a'},-1)).toMatchObject({year:'2025',broker:'broker_a'}));
+ it('ignores broker on team URLs',()=>expect(readAccountingFilters('category=marketing&broker=broker_a')).not.toHaveProperty('broker'));
+ it('does not clear attribution on legacy partial fields',()=>expect(expenseFields({vendor:'New'})).not.toHaveProperty('assigned_broker'));
+ it('normalizes team association',()=>expect(expenseFields({assigned_broker:''})).toMatchObject({assigned_broker:null}));
+ it.each([42,{},'A name','../broker'])('rejects malformed broker %j',assigned_broker=>expect(()=>expenseFields({assigned_broker})).toThrow());
+});

@@ -1,10 +1,10 @@
 import { getSupabaseAdmin } from "../supabase/server";
-import { AccountingError, monthlyIntent, expenseFields, invoiceFields, matchesSignature, validId, type Expense } from "./model";
+import { AccountingError, monthlyIntent, expenseFields, invoiceFields, matchesSignature, validId, type AccountingBroker, type Expense } from "./model";
 import type { WorkspaceUser } from "../workspace";
 
 export const INVOICE_BUCKET = "accounting-invoices";
 type Document = { id: string; expense_id: string | null; storage_path: string; file_name: string; mime_type: string; size: number; state: "pending" | "current" | "retired"; upload_expires_at: string; uploaded_at: string };
-const columns = "id,recurring_rule_id,recurring_period,recurring_rule:accounting_recurring_expenses(active,day_of_month,next_due_date),category,expense_date,vendor,description,amount,notes,is_paid,paid_at,renewal_date,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
+const columns = "id,assigned_broker,recurring_rule_id,recurring_period,recurring_rule:accounting_recurring_expenses(active,day_of_month,next_due_date),category,expense_date,vendor,description,amount,notes,is_paid,paid_at,renewal_date,created_by,updated_by,created_at,updated_at,accounting_expense_documents(id,file_name,mime_type,size,uploaded_at,state)";
 function checked<T>(result: { data: T | null; error: unknown }): T { if (result.error) throw result.error; return result.data as T; }
 function view(row: Record<string, unknown>): Expense {
   const { accounting_expense_documents, ...fields } = row;
@@ -15,6 +15,12 @@ export async function getExpense(id: string) {
   const row = checked(await getSupabaseAdmin().from("accounting_expenses").select(columns).eq("id", validId(id)).maybeSingle());
   if (!row) throw new AccountingError("Dépense introuvable.",404);
   return view(row);
+}
+export async function listAccountingBrokers(): Promise<AccountingBroker[]> {
+  return checked(await getSupabaseAdmin().rpc("accounting_brokers", {}));
+}
+async function validateAssignedBroker(fields: { assigned_broker?: string | null }) {
+  if (fields.assigned_broker && !(await listAccountingBrokers()).some(b => b.id === fields.assigned_broker)) throw new AccountingError("Choisissez un courtier du CRM.");
 }
 export async function listExpenses() {
   checked(await getSupabaseAdmin().rpc("accounting_materialize_recurring_expenses",{}));
@@ -33,6 +39,7 @@ function requireInvoiceIntent(body: unknown, hasInvoice=false) {
 }
 export async function createExpense(body: unknown, actor: WorkspaceUser) {
   const fields=expenseFields(body);
+  await validateAssignedBroker(fields);
   requireInvoiceIntent(body);
   const monthly=monthlyIntent(body as Record<string,unknown>,fields.expense_date);
   if(monthly) {
@@ -75,6 +82,7 @@ export async function setExpensePayment(id: string, isPaid: unknown, actor: Work
 }
 export async function updateExpense(id: string, body: unknown, actor: WorkspaceUser) {
   const fields=expenseFields(body);
+  await validateAssignedBroker(fields);
   const monthly=monthlyIntent(body as Record<string,unknown>,fields.expense_date);
   return locked(id,async token=> {
     requireInvoiceIntent(body,(await documents(id)).some(d=>d.state==="current"));
