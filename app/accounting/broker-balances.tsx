@@ -35,7 +35,10 @@ export function BrokerBalances({onClose}:{onClose:()=>void}) {
     }catch(e){setError((e as Error).message);}finally{saving.current=false;setBusy(false);}
   }
   const ordered=[...rows].sort((a,b)=>Number(b.broker===workspaceUser)-Number(a.broker===workspaceUser));
-  return <dialog ref={dialog} className="accounting-modal accounting-balances" aria-labelledby="balances-title" onCancel={event=>{
+  return <dialog ref={dialog} className="accounting-modal accounting-balances" aria-labelledby="balances-title" onKeyDown={event=>{
+    if(event.key!=="Escape")return;event.preventDefault();event.stopPropagation();
+    if(busy)return;if(editing){setEditing(null);setError('');}else onClose();
+  }} onCancel={event=>{
     if(busy){event.preventDefault();return;}if(editing){event.preventDefault();setEditing(null);setError('');}else onClose();
   }}>
     <header><div><h2 id="balances-title">Soldes courtiers</h2><p>Fonds marketing · contribution de 5 % des revenus bruts</p><small>Solde actuel saisi manuellement.</small></div><button aria-label="Fermer les soldes" disabled={busy} onClick={onClose}>×</button></header>
