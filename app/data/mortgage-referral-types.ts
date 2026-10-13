@@ -8,6 +8,11 @@ export type ReferralTransaction = {
   transaction_contacts: { contacts: { id: string; first_name: string; last_name: string } | null }[];
 };
 export type MortgageReferral = {
+  paid_amount: number | string | null;
+  paid_at: string | null;
+  payment_updated_at: string | null;
+  payment_updated_by: string | null;
+  payment_version: number;
   id: string;
   broker: TransactionBroker;
   transaction_id: string;

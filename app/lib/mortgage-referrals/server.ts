@@ -4,7 +4,7 @@ import { referralContactName, type MortgageReferral, type ReferralTransaction } 
 import { ReferralError, referralBroker, referralFields, referralFollowUp, referralId } from "./validation";
 
 const transactionSelect = "id,address,centris_number,broker,transaction_contacts(contacts(id,first_name,last_name))";
-const referralSelect = `id,broker,transaction_id,mortgage_advisor_name,institution_name,follow_up_at,follow_up_note,google_event_id,google_calendar_id,google_event_link,created_at,updated_at,transactions!inner(${transactionSelect})`;
+const referralSelect = `id,broker,transaction_id,paid_amount,paid_at,payment_updated_at,payment_updated_by,payment_version,mortgage_advisor_name,institution_name,follow_up_at,follow_up_note,google_event_id,google_calendar_id,google_event_link,created_at,updated_at,transactions!inner(${transactionSelect})`;
 type LockedReferral = MortgageReferral & { event_key: string };
 function checked<T>({ data, error }: { data: T; error: unknown }): T {
   if (error) throw error;

@@ -76,3 +76,19 @@
   .referral-modal footer button { flex: 1 1 120px; min-height: 48px; }
   .referral-date-time { gap: 10px; }
 }
+/* Payment state is independent of follow-up and referral creation. */
+.referral-payment-summary{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+.referral-payment-tabs{display:flex;gap:4px;background:#edf1f5;padding:4px;border-radius:12px}
+.referral-payment-tabs button{background:transparent;border-color:transparent;min-width:108px;font-size:13px;color:var(--crm-text-muted)}
+.referral-payment-tabs button[aria-pressed=true]{background:white;box-shadow:var(--crm-shadow-sm);color:var(--crm-text)}
+.referral-payment-tabs span{margin-left:8px;font-size:11px;color:var(--crm-text-muted)}
+.referral-annual{display:flex;align-items:center;gap:30px;background:white;border:1px solid var(--crm-border);border-radius:14px;padding:18px 22px;min-width:330px}
+.referral-annual p{margin:0 0 7px;font-size:12px;color:var(--crm-text-muted)}
+.referral-annual strong{font-size:25px;font-weight:550;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.referral-annual small{display:block;margin-top:6px;font-size:11px;color:var(--crm-text-muted)}
+.referral-year{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px}.referral-year button{padding:6px;min-width:32px;border-color:transparent;font-size:20px;background:transparent}
+.referral-page .referral-pay{color:#3d7052;background:#f0f7f2;border-color:#dbe9df}
+.referral-payment-amount{display:block;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.referral-payment-context{padding:14px;background:#f7f9fb;border-radius:10px;margin-bottom:20px;font-size:14px}.referral-payment-context p{margin:5px 0 0;color:var(--crm-text-muted)}
+@media(max-width:1280px){.referral-payment-amount{text-align:left}}
+@media(max-width:767px){.referral-payment-summary{gap:14px}.referral-payment-tabs{width:100%}.referral-payment-tabs button{flex:1}.referral-annual{width:100%;min-width:0;padding:16px;gap:10px}.referral-annual strong{font-size:24px}.referral-year{gap:4px}.referral-year button{min-width:36px}}
