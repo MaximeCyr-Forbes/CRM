@@ -1,4 +1,5 @@
 import { AccountingError } from './model';
+export type BalanceHistoryEntry = {id:string;old_balance:number;new_balance:number;updated_at:string;updated_by:string;version:number};
 import { workspaceCapabilities, type WorkspaceUser } from '../workspace';
 
 export type BrokerBalance = { broker: string; label: string; balance: string; version: number; updated_at: string | null; updated_by: string | null };

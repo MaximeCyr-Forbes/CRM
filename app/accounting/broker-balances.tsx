@@ -4,6 +4,7 @@ import { useBroker } from '../broker-context';
 import { accountingRequest } from '../lib/accounting/client';
 import { balanceAmount, canEditBalance, type BrokerBalance } from '../lib/accounting/balances';
 import { money } from '../lib/accounting/model';
+import { BalanceHistory } from './balance-history';
 
 export function BrokerBalances({onClose}:{onClose:()=>void}) {
   const {workspaceUser}=useBroker();
@@ -11,6 +12,7 @@ export function BrokerBalances({onClose}:{onClose:()=>void}) {
   const [rows,setRows]=useState<BrokerBalance[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
   const [editing,setEditing]=useState<string|null>(null),[amount,setAmount]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [reload,setReload]=useState(0);
+  const [history,setHistory]=useState<string|null>(null);
   useEffect(()=>{
     const el=dialog.current!,previous=document.activeElement as HTMLElement|null,overflow=document.body.style.overflow;
     document.body.style.overflow='hidden';el.showModal();
@@ -48,6 +50,8 @@ export function BrokerBalances({onClose}:{onClose:()=>void}) {
       <div className="accounting-balance-summary"><span className="accounting-balance-avatar" aria-hidden="true">{row.label.slice(0,1)}</span><div><h3>{row.label}</h3><strong>{money(Number(row.balance))}</strong><small>{row.updated_at?`Mis à jour le ${new Intl.DateTimeFormat('fr-CA',{day:'numeric',month:'short',year:'numeric',timeZone:'America/Toronto'}).format(new Date(row.updated_at))}`:'À définir'}</small></div>
         {editing!==row.broker&&canEditBalance(workspaceUser,row.broker)&&<button disabled={busy||editing!==null} onClick={()=>edit(row)} aria-label={`${row.version?'Modifier':'Définir'} le solde de ${row.label}`}>{row.version?'Modifier':'Définir le solde'}</button>}
       </div>
+      <button className="accounting-history-toggle" aria-label={`Historique de ${row.label}`} aria-expanded={history===row.broker} aria-controls={`balance-history-${row.broker}`} onClick={()=>setHistory(current=>current===row.broker?null:row.broker)}>Historique</button>
+      {history===row.broker&&<BalanceHistory key={`${row.broker}-${row.version}`} broker={row.broker} brokers={rows}/>}
       {editing===row.broker&&<form onSubmit={event=>void save(event,row)}><label htmlFor="marketing-fund-amount">Solde du fonds marketing</label><div className="accounting-balance-input"><input ref={input} id="marketing-fund-amount" name="balance" type="text" inputMode="decimal" autoComplete="off" value={amount} disabled={busy} onChange={e=>setAmount(e.target.value)} aria-describedby="balance-currency"/><span id="balance-currency">CAD</span><button type="button" disabled={busy} aria-label="Changer le signe du montant" onClick={()=>setAmount(v=>v.trim().startsWith('-')?v.trim().slice(1):`-${v.trim()}`)}>±</button></div><div className="accounting-balance-actions"><button type="button" disabled={busy} onClick={()=>{setEditing(null);setError('');}}>Annuler</button><button type="submit" className="accounting-primary" disabled={busy}>{busy?'Enregistrement…':'Enregistrer'}</button></div></form>}
     </article>)}</div>}
   </dialog>;
