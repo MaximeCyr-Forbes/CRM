@@ -6,10 +6,13 @@ import { readAccountingFilters, accountingFilterQuery, accountingPeriodLabel } f
 import { PeriodNavigation } from "./period-navigation";
 import { ExpenseModal } from "./expense-modal";
 import "./accounting.css";
+import { BrokerBalances } from "./broker-balances";
+import { ShellIcon } from "../components/shell-icons";
 
 function displayDate(value:string|null) { if(!value)return "À compléter"; return new Intl.DateTimeFormat("fr-CA",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${value}T12:00:00Z`)); }
 export default function AccountingPage() {
   const [rows,setRows]=useState<Expense[]>([]), [loading,setLoading]=useState(true),[error,setError]=useState("");
+  const [showBalances,setShowBalances]=useState(false);
   const [brokers,setBrokers]=useState<AccountingBroker[]>([]);
   const [filters,setFilters]=useState<Filters>(()=>readAccountingFilters(""));
   const [editing,setEditing]=useState<Expense|null|undefined>(undefined),[notice,setNotice]=useState("");
@@ -54,7 +57,7 @@ export default function AccountingPage() {
   const invoice=(row:Expense)=>row.invoice ? <a className="accounting-invoice-link" title={row.invoice.file_name} href={`${expenseUrl(row.id)}/invoice`} target="_blank" rel="noopener noreferrer">Ouvrir la facture ↗</a> : <span className="accounting-muted">—</span>;
   return <main className="accounting-page">
     <header className="accounting-header"><div><p className="accounting-eyebrow">REGISTRE PARTAGÉ · ÉQUIPE FORBES</p><h1>Comptabilité</h1><p>Suivi des dépenses de l’Équipe Forbes.</p></div><button className="accounting-primary" onClick={()=>setEditing(null)}>+ Ajouter une dépense</button></header>
-    <div className="accounting-tabs" aria-label="Volets comptables">{(["all","marketing","operation","broker"] as const).map(c=><button key={c} aria-pressed={filters.category===c} onClick={()=>filter("category",c)}>{c==="all"?"Toutes · équipe":c==="broker"?"Dépenses par courtier":CATEGORY_LABELS[c]}</button>)}</div>
+    <div className="accounting-toolbar"><div className="accounting-tabs" aria-label="Volets comptables">{(["all","marketing","operation","broker"] as const).map(c=><button key={c} aria-pressed={filters.category===c} onClick={()=>filter("category",c)}>{c==="all"?"Toutes · équipe":c==="broker"?"Dépenses par courtier":CATEGORY_LABELS[c]}</button>)}</div><button className="accounting-balances-button" onClick={()=>setShowBalances(true)}><ShellIcon name="Comptabilité"/>Soldes courtiers</button></div>
     {brokerView&&<label className="accounting-broker-selector">Courtier<select aria-label="Filtrer par courtier" value={filters.broker??""} onChange={e=>filter("broker",e.target.value)}><option value="">Tous les courtiers</option>{brokers.map(b=><option key={b.id} value={b.id}>{b.label}</option>)}</select></label>}
     <PeriodNavigation filters={filters} onChange={navigate}/>
     <section className="accounting-totals" aria-label="Totaux des dépenses filtrées">{totalCards.map(([label,total])=><article key={label}><span>{label}</span><strong>{loading?"—":money(Number(total))}</strong><small>Filtres sélectionnés</small></article>)}</section>
@@ -68,6 +71,7 @@ export default function AccountingPage() {
         <div className="accounting-cards">{visible.map(row=><article key={row.id}><div className="accounting-card-top">{attribution(row)}<time dateTime={row.expense_date??undefined}>{displayDate(row.expense_date)}</time></div>{recurring(row)}<h2>{row.vendor??"À compléter"}</h2><p>{row.description??"À compléter"}</p><strong className="accounting-card-amount">{money(row.amount)}</strong><div className="accounting-card-status">{status(row)}</div>{row.renewal_date&&<p>Renouvellement : <time dateTime={row.renewal_date}>{displayDate(row.renewal_date)}</time></p>}<div>{invoice(row)}</div>{actions(row)}</article>)}</div>
       </>}
     </section>
+    {showBalances&&<BrokerBalances onClose={()=>setShowBalances(false)}/>}
     {editing!==undefined&&<ExpenseModal expense={editing} brokers={brokers} brokerView={brokerView} defaultBroker={filters.broker} onClose={()=>setEditing(undefined)} onSaved={row=>{setRows(r=>[row,...r.filter(e=>e.id!==row.id)]);setNotice(row.expense_date?"Dépense enregistrée.":"Dépense enregistrée. Retrouvez-la dans la vue Sans date.");if(row.recurring_rule_id)void load();}}/>}
     <dialog className="accounting-modal accounting-confirm" ref={deleteDialog} aria-labelledby="delete-expense-title" onCancel={e=>{if(busy)e.preventDefault();else setDeleting(null);}}>{deleting&&<><h2 id="delete-expense-title">{deleting.recurring_rule_id?"Supprimer cette dépense mensuelle ?":"Supprimer cette dépense ?"}</h2><p>{deleting.vendor} · {money(deleting.amount)}</p><p>La dépense et sa facture seront supprimées définitivement.</p>{deleting.recurring_rule_id&&<p>Seule cette occurrence sera supprimée. La récurrence continue pour les prochains mois.</p>}{error&&<p role="alert" className="accounting-error">{error}</p>}<div className="accounting-modal-actions"><button disabled={busy} onClick={()=>setDeleting(null)}>Annuler</button><button className="accounting-primary" disabled={busy} onClick={()=>void remove()}>{busy?"Suppression…":"Confirmer la suppression"}</button></div></>}</dialog>
   </main>;

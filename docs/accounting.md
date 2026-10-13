@@ -38,3 +38,14 @@ NULL = dépenses d'équipe ; non NULL = dépenses individuelles. Les onglets Mar
 Le formulaire et les factures privées sont réutilisés. La catégorie est discrètement conservée lors d'une édition individuelle, sans imposer Marketing ou Opération. Le modèle mensuel transmet le courtier aux nouvelles occurrences, sans facture et avec le statut à payer existant. Modifier le modèle n'altère pas les occurrences antérieures. Les requêtes anciennes qui omettent `assigned_broker` conservent l'association. Les accès serveur et RLS restent identiques.
 
 Migration additive : `20261013155307_accounting_broker_expenses.sql`. Tests SQL transactionnels : `supabase/tests/accounting_broker_expenses.sql`, à exécuter après migration (rollback de toutes les données synthétiques).
+
+
+## Soldes manuels du fonds marketing
+
+Le panneau Soldes courtiers utilise `accounting_brokers()` et le type canonique `broker_assignment`. Aucune autre identité n’est créée. Sans ligne, le solde affiché est zéro ; la première sauvegarde crée la ligne. Aucun calcul de 5 %, aucune lecture des commissions et aucune déduction des dépenses.
+
+`accounting_broker_balances` contient une ligne par courtier (clé primaire), en `numeric(12,2)`. Les valeurs transitent comme chaînes décimales, sans calcul monétaire flottant. `accounting_broker_balance_history` conserve ancien/nouveau montant, acteur, heure et version ; le trigger AFTER et la sauvegarde sont atomiques. L’application ne dispose pas de UPDATE/DELETE sur cet historique. Une version obsolète retourne 409, sans écrasement silencieux ni audit fantôme.
+
+L’accès reprend le cookie CRM partagé et le jeton d’espace signé existants. `updated_by` vient exclusivement de la vérification serveur du jeton, jamais du corps JSON. Un espace courtier modifie son solde ; les rôles existants admin et assistant peuvent modifier les autres. Limite existante : la sélection d’espace est opérationnelle, pas une authentification personnelle distincte. Cette fonctionnalité ne renforce ni ne remplace ce système d’identité.
+
+Les deux tables ont RLS activé, sans accès direct anon/authenticated. Les RPC sont réservées au service serveur ; les permissions métier sont contrôlées dans l’API avec les conventions Comptabilité existantes. Les droits ne dépendent jamais du courtier de travail affiché dans l’interface. Les autres courtiers restent consultables.

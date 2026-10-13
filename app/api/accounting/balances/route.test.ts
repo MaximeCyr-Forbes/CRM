@@ -1,0 +1,12 @@
+import {beforeEach,it,expect,vi} from 'vitest';
+const mock=vi.hoisted(()=>({access:vi.fn(),actor:vi.fn(),list:vi.fn(),save:vi.fn()}));
+vi.mock('../../../lib/crm-access',()=>({requireApiAccess:mock.access,birthdayWorkspaceActor:mock.actor}));
+vi.mock('../../../lib/accounting/balances-server',()=>({listBrokerBalances:mock.list,setBrokerBalance:mock.save}));
+import {GET,PATCH} from './route';
+beforeEach(()=>{vi.clearAllMocks();mock.access.mockResolvedValue({response:null});mock.actor.mockResolvedValue('immoplus');mock.list.mockResolvedValue([]);mock.save.mockResolvedValue({balance:'12.00'});});
+const request=(body:unknown={},origin='https://crm.example')=>new Request('https://crm.example/api/accounting/balances',{method:'PATCH',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+it('requires CRM authentication',async()=>{mock.access.mockResolvedValue({response:Response.json({}, {status:401})});expect((await GET(new Request('https://crm.example/api/accounting/balances'))).status).toBe(401);expect(mock.list).not.toHaveBeenCalled();});
+it('GET is private and read-only',async()=>{const r=await GET(new Request('https://crm.example/api/accounting/balances'));expect(r.headers.get('Cache-Control')).toBe('private, no-store');expect(mock.save).not.toHaveBeenCalled();});
+it('rejects foreign origin',async()=>{expect((await PATCH(request({},'https://other.example'))).status).toBe(403);expect(mock.save).not.toHaveBeenCalled();});
+it('requires verified workspace actor',async()=>{mock.actor.mockResolvedValue(null);expect((await PATCH(request())).status).toBe(403);expect(mock.save).not.toHaveBeenCalled();});
+it('passes verified actor independently of browser fields',async()=>{const body={broker:'broker_a',balance:'12.00',version:0,updated_by:'forged'};expect((await PATCH(request(body))).status).toBe(200);expect(mock.save).toHaveBeenCalledWith(body,'immoplus');});
