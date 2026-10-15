@@ -286,3 +286,21 @@
   .direct-capture-drop { flex-direction: column; padding: 16px; }
   .direct-clients-heading .direct-clients-actions { width: 100%; }
 }
+
+.direct-email-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.direct-email-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.direct-email-selection { display:flex; gap:12px; align-items:center; padding:12px 0; font-size:12px; color:var(--crm-text-muted); }
+.direct-email-selection button { border:0; background:none; color:var(--crm-accent); min-height:44px; cursor:pointer; }
+.direct-client-entry { position:relative; }
+.direct-client-entry:has(.direct-email-checkbox) { padding-left:32px; }
+.direct-email-checkbox { position:absolute; left:0; top:20px; width:18px; height:18px; accent-color:var(--crm-accent); }
+.direct-client-entry.is-email-selected { background:var(--crm-bg); border-radius:8px; }
+.direct-email-dialog { width:min(720px,calc(100% - 32px)); }
+.direct-email-help { font-size:13px; line-height:1.6; color:var(--crm-text-muted); }
+.direct-email-recipients { display:grid; gap:8px; max-height:200px; overflow-y:auto; }
+.direct-email-recipients>div { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px 12px; background:var(--crm-bg); border-radius:8px; font-size:13px; }
+.direct-email-recipients span { min-width:0; overflow-wrap:anywhere; }
+.direct-email-recipients small { display:block; color:var(--crm-text-muted); }
+.direct-email-recipients button { min-width:44px; min-height:44px; border:0; background:none; cursor:pointer; }
+.direct-email-result { font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+@media(max-width:600px) { .direct-email-trigger { flex:1 1 100%; } }
