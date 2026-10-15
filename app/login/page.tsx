@@ -38,15 +38,15 @@ export default function LoginPage() {
     <main className="login-page">
       <div className="login-ambient login-ambient-one" aria-hidden="true" />
       <div className="login-ambient login-ambient-two" aria-hidden="true" />
-      <section className="login-card" aria-labelledby="login-title">
+      <section className="login-panel" aria-labelledby="login-title">
         <header className="login-brand">
           <p>ÉQUIPE FORBES</p>
           <h1 id="login-title">CRM</h1>
         </header>
         <form className="login-form" onSubmit={submit}>
-          <label>
+          <label htmlFor="password">
             <span>Mot de passe</span>
-            <input autoComplete="current-password" autoFocus onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+            <input id="password" name="password" autoComplete="current-password" autoFocus onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
           </label>
           {error && <p className="auth-message auth-message-error" role="alert">{error}</p>}
           <button className="login-submit" disabled={isSubmitting} type="submit">

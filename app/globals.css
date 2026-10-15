@@ -9481,7 +9481,7 @@ button.destructive-button:disabled {
   background: var(--crm-surface-muted);
 }
 
-.login-card {
+.login-panel {
   position: relative;
   z-index: 1;
   width: min(100%, 31rem);
