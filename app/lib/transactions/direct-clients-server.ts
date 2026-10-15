@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "../supabase/server";
 import { listAllSupabaseRows, type SupabaseOrderedRangeQuery } from "../supabase/pagination";
 import type { WorkspaceUser } from "../workspace";
-import { DirectClientError, directClientDuplicates, directClientId, parseDirectClient, type DirectClient } from "./direct-clients";
+import { DirectClientError, directClientDuplicates, directClientId, normalizedDirectPhone, parseDirectClient, type DirectClient } from "./direct-clients";
 
 async function transactionExists(transactionId: string) {
   const { data, error } = await getSupabaseAdmin().from("transactions").select("id").eq("id", directClientId(transactionId)).maybeSingle();
@@ -18,7 +18,10 @@ export async function saveDirectClient(transactionId: string, body: Record<strin
   const id = edit ? directClientId(body.id) : undefined;
   const rows = await listDirectClients(transactionId);
   if (edit && !rows.some(row => row.id === id)) throw new DirectClientError("Client introuvable dans cette transaction.", 404);
-  const duplicates = directClientDuplicates(rows, draft, id);
+  const original = rows.find(row => row.id === id);
+  const sameCoordinates = original && (original.email ?? "").trim().toLowerCase() === (draft.email ?? "").trim().toLowerCase()
+    && normalizedDirectPhone(original.phone) === normalizedDirectPhone(draft.phone);
+  const duplicates = sameCoordinates ? [] : directClientDuplicates(rows, draft, id);
   if (duplicates.length && body.allowDuplicate !== true) throw new DirectClientError("Ce client semble déjà être dans la liste.", 409, duplicates);
   const db = getSupabaseAdmin();
   const query = edit
@@ -35,4 +38,3 @@ export async function deleteDirectClient(transactionId: string, id: unknown) {
   if (error) throw error;
   if (!data) throw new DirectClientError("Client introuvable dans cette transaction.", 404);
 }
-

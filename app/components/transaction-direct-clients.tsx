@@ -69,7 +69,7 @@ function ClientDialog({ initial, removing, endpoint, onClose, onSaved, onDeleted
       {duplicates.length > 0 && <div className="direct-client-warning" role="alert"><strong>Ce client semble déjà être dans la liste.</strong>{duplicates.slice(0, 3).map(client => <p key={client.id}>{client.name}<br />{client.email || client.phone}</p>)}</div>}
       <div className="transaction-form-actions">
         <button type="button" disabled={saving} onClick={close}>Annuler</button>
-        {duplicates.length > 0 ? <button className="transaction-submit" type="button" disabled={saving} onClick={() => void save(continueAfterSave, true)}>Ajouter quand même</button> : <>
+        {duplicates.length > 0 ? <button className="transaction-submit" type="button" disabled={saving} onClick={() => void save(continueAfterSave, true)}>{initial ? "Enregistrer quand même" : "Ajouter quand même"}</button> : <>
           {!initial && <button type="submit" data-next="true" disabled={saving}>Ajouter et suivant</button>}
           <button className={removing ? "destructive-button" : "transaction-submit"} disabled={saving} type="submit">{saving ? "Enregistrement…" : removing ? "Supprimer" : initial ? "Enregistrer" : "Ajouter"}</button>
         </>}
@@ -122,4 +122,3 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
       onDeleted={id => { setClients(rows => rows.filter(row => row.id !== id)); setNotice("Client supprimé"); setEditor(null); }} />}
   </section>;
 }
-

@@ -37,6 +37,12 @@ describe("transaction scoped direct client persistence", () => {
     await saveDirectClient(a, { ...values, allowDuplicate: true }, "france");
     expect(await listDirectClients(a)).toHaveLength(2);
   });
+  it("edits notes without warning again about an accepted duplicate", async () => {
+    const first = await saveDirectClient(a, { name: "Example", phone: "514-555-0101" }, "france");
+    await saveDirectClient(a, { name: "Other", phone: "(514) 555-0101", allowDuplicate: true }, "france");
+    const updated = await saveDirectClient(a, { ...first, request_note: "Changed note" }, "france", true);
+    expect(updated.request_note).toBe("Changed note");
+  });
   it("uses the signed actor and preserves creator on edit", async () => {
     const first = await saveDirectClient(a, { name: "Example", created_by: "maxime", transaction_id: b }, "immoplus");
     expect(first).toMatchObject({ created_by: "immoplus", transaction_id: a });
