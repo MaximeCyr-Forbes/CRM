@@ -1,7 +1,7 @@
 import {birthdayWorkspaceActor,requireApiAccess} from '../../../../../lib/crm-access';
 import {isSameOriginRequest} from '../../../../../lib/google-calendar/config';
 import {DirectClientError} from '../../../../../lib/transactions/direct-clients';
-import {sendDirectClientEmail} from '../../../../../lib/transactions/direct-client-email-server';
+import {directClientEmailHistory,sendDirectClientEmail} from '../../../../../lib/transactions/direct-client-email-server';
 import {GmailNotEnabledError,GmailSignatureAuthorizationRequiredError,GmailAuthorizationRequiredError,GmailSendError} from '../../../../../lib/google-gmail/service';
 export const dynamic='force-dynamic';
 export const maxDuration=300;
@@ -17,4 +17,10 @@ export async function POST(request:Request,context:{params:Promise<{transactionI
  if(error instanceof GmailNotEnabledError||error instanceof GmailSignatureAuthorizationRequiredError||error instanceof GmailAuthorizationRequiredError||error instanceof GmailSendError)return Response.json({error:error.message},{status:409});
  return Response.json({error:'Résultat non confirmé. Vérifiez le résultat avec la même demande avant tout nouvel envoi.'},{status:502});
  }
+}
+
+export async function GET(request:Request,context:{params:Promise<{transactionId:string}>}){
+ const access=await requireApiAccess();if(access.response)return access.response;
+ try{return Response.json(await directClientEmailHistory((await context.params).transactionId,Number(new URL(request.url).searchParams.get('offset')??0)),{headers:{'Cache-Control':'private, no-store'}});}
+ catch(error){if(error instanceof DirectClientError)return Response.json({error:error.message},{status:error.status});return Response.json({error:'Impossible de charger l’historique.'},{status:502});}
 }

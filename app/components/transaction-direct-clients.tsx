@@ -7,6 +7,7 @@ import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
 import { ShellIcon } from './shell-icons';
 import { directClientEmailValid } from '../lib/transactions/direct-client-email';
+const EmailHistory = lazy(() => import('./direct-client-email-history'));
 const EmailModal = lazy(() => import('./direct-client-email-modal'));
 const CaptureModal = lazy(() => import("./direct-client-capture-modal"));
 const emptyDraft = (): DirectClientDraft => ({ name: "", phone: null, email: null, source: "Centris", request_date: directClientToday(), request_note: null });
@@ -93,6 +94,7 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
   const [dragging, setDragging] = useState(false);
   const [selectedIds,setSelectedIds]=useState<string[]>([]);
   const [emailOpen,setEmailOpen]=useState(false);
+  const [historyOpen,setHistoryOpen]=useState(false);
   const eligible=clients.filter(c=>directClientEmailValid(c.email));
   const emailSelected=eligible.filter(c=>selectedIds.includes(c.id));
   const [showAll, setShowAll] = useState(false);
@@ -116,7 +118,7 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
     onDrop={event => { event.preventDefault(); setDragging(false); if (!loading && !error && event.dataTransfer.files.length === 1) setCapture({ file: event.dataTransfer.files[0] }); }}>
     {dragging && <p className="direct-client-feedback">Déposez la capture ChatGPT</p>}
     <div className="direct-clients-heading"><div><h2 id="direct-clients-title">CLIENTS DIRECTS <span aria-label="Nombre de clients">{loading || error ? "—" : clients.length}</span></h2><p>{!loading && !error && clients.length === 0 ? "Aucun client direct enregistré." : "Demandes reçues directement pour cette propriété."}</p></div>
-      <div className="direct-clients-actions"><button type="button" className="direct-email-trigger" disabled={!emailSelected.length} title={!emailSelected.length?'Sélectionnez au moins un client avec une adresse courriel.':undefined} onClick={()=>setEmailOpen(true)}><ShellIcon name="Courriels Auto"/>Envoyer un courriel{emailSelected.length?' · '+emailSelected.length:''}</button><button className="direct-capture-trigger" type="button" disabled={loading || Boolean(error)} onClick={() => setCapture({ file: null })}>Importer une capture</button><button type="button" aria-expanded={open} aria-controls="direct-clients-list" onClick={() => setOpen(!open)}>{open ? "Replier" : "Voir la liste"}</button><button type="button" disabled={loading || Boolean(error)} onClick={() => setEditor({ removing: false })}>+ Ajouter</button></div>
+      <div className="direct-clients-actions"><button type="button" className="direct-email-trigger" disabled={!emailSelected.length} title={!emailSelected.length?'Sélectionnez au moins un client avec une adresse courriel.':undefined} onClick={()=>setEmailOpen(true)}><ShellIcon name="Courriels Auto"/>Envoyer un courriel{emailSelected.length?' · '+emailSelected.length:''}</button><button className="direct-capture-trigger" type="button" disabled={loading || Boolean(error)} onClick={() => setCapture({ file: null })}>Importer une capture</button><button type="button" onClick={()=>setHistoryOpen(true)}><ShellIcon name="history"/>Historique</button><button type="button" aria-expanded={open} aria-controls="direct-clients-list" onClick={() => setOpen(!open)}>{open ? "Replier" : "Voir la liste"}</button><button type="button" disabled={loading || Boolean(error)} onClick={() => setEditor({ removing: false })}>+ Ajouter</button></div>
     </div>
     {notice && <p className="direct-client-feedback" role="status">{notice}</p>}
     {error && <p role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Réessayer</button></p>}
@@ -133,6 +135,7 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
       </article>)}
       {clients.length > 6 && <button type="button" className="direct-client-more" onClick={() => setShowAll(!showAll)}>{showAll ? "Voir moins" : `Voir les ${clients.length} clients`}</button>}
     </div>
+    {historyOpen&&<Suspense fallback={<p role="status">Ouverture de l’historique…</p>}><EmailHistory endpoint={endpoint} onClose={()=>setHistoryOpen(false)}/></Suspense>}
     {emailOpen&&<Suspense fallback={<p role="status">Ouverture du courriel…</p>}><EmailModal recipients={emailSelected.map(({id,name,email})=>({id,name,email}))} endpoint={endpoint} onClose={()=>setEmailOpen(false)} onComplete={ids=>{setSelectedIds(ids);setEmailOpen(false);}}/></Suspense>}
     {capture && <Suspense fallback={<p role="status">Ouverture de l’import…</p>}><CaptureModal initialFile={capture.file} existing={clients} endpoint={endpoint} onClose={() => setCapture(null)} onImported={imported => { setClients(current => [...imported, ...current.filter(row => !imported.some(item => item.id === row.id))]); setCapture(null); setOpen(true); setNotice(`${imported.length} clients ajoutés`); }} /></Suspense>}
     {editor && <ClientDialog initial={editor.client} removing={editor.removing} endpoint={endpoint} onClose={() => setEditor(null)}

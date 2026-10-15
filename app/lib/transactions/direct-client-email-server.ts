@@ -46,3 +46,15 @@ export async function sendDirectClientEmail(transactionId:string,body:Record<str
  for(let i=0;i<pending.length;i+=4)await Promise.allSettled(pending.slice(i,i+4).map(deliver));
  return directEmailSummary(await receipts(batchId));
 }
+
+/** Sent receipts survive removal of the direct-client card. No Gmail call is needed. */
+export async function directClientEmailHistory(transactionId:string,offset=0){
+ await listDirectClients(transactionId);
+ if(!Number.isInteger(offset)||offset<0||offset>1000000)throw new DirectClientError('Page invalide.');
+ const {data,error}=await getSupabaseAdmin().from(table)
+  .select('id,recipient_name,recipient_email,subject,sender_broker,updated_at')
+  .eq('transaction_id',transactionId).eq('status','sent')
+  .order('updated_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+50);
+ if(error)throw error;
+ return {entries:data.slice(0,50),hasMore:data.length>50};
+}

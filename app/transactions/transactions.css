@@ -304,3 +304,9 @@
 .direct-email-recipients button { min-width:44px; min-height:44px; border:0; background:none; cursor:pointer; }
 .direct-email-result { font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
 @media(max-width:600px) { .direct-email-trigger { flex:1 1 100%; } }
+
+.direct-clients-heading .direct-clients-actions button:has(svg) { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.direct-email-history-body { padding-top:14px; }
+.direct-email-history-entry { display:grid; gap:4px; padding:16px 0; border-bottom:1px solid var(--crm-border); overflow-wrap:anywhere; font-size:14px; }
+.direct-email-history-entry small { color:var(--crm-text-muted); }
+.direct-email-history-entry>div { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:6px; color:var(--crm-text-muted); font-size:12px; }
