@@ -310,3 +310,6 @@
 .direct-email-history-entry { display:grid; gap:4px; padding:16px 0; border-bottom:1px solid var(--crm-border); overflow-wrap:anywhere; font-size:14px; }
 .direct-email-history-entry small { color:var(--crm-text-muted); }
 .direct-email-history-entry>div { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:6px; color:var(--crm-text-muted); font-size:12px; }
+.direct-capture-files { list-style:none; padding:0; display:grid; gap:6px; }
+.direct-capture-files li { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.direct-capture-files button { flex-shrink:0; padding:4px 8px; font-size:12px; }

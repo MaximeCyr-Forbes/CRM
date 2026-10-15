@@ -1,7 +1,7 @@
 import { directClientDuplicates, normalizedDirectPhone, parseDirectClient, type DirectClient, type DirectClientDraft } from "./direct-clients";
 
-export type ImportClient = DirectClientDraft & { warnings: string[] };
-export type CaptureResult = { clients: ImportClient[]; warnings: string[] };
+export type ImportClient = DirectClientDraft & { warnings: string[]; sourceFormat?: "ChatGPT"|"Centris"; properties?: {address?:string|null;listingNumber?:string|null}[] };
+export type CaptureResult = { clients: ImportClient[]; format?: "ChatGPT"|"Centris"; warnings: string[] };
 export type CaptureWord = { text: string; x: number; y: number; width: number; height: number; confidence: number };
 export const normalizedCaptureName = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").replace(/-\s+/g,"-").trim();
 const missing = (s: string) => /^(?:non fourni[es]?|pas fourni[es]?|n\/?a|aucun[e]?|[-—–]*)$/i.test(s.trim());
@@ -28,7 +28,7 @@ export function captureDates(raw: string, today: string) {
 export function captureClientWarnings(draft: DirectClientDraft) {
   const warnings: string[] = [];
   try { parseDirectClient(draft); } catch (e) { warnings.push(e instanceof Error ? e.message : "Coordonnées à vérifier."); }
-  if (draft.phone && !/^\+?[\d () .-]{7,30}$/.test(draft.phone)) warnings.push("Téléphone à vérifier.");
+  if (draft.phone && (normalizedDirectPhone(draft.phone).length !== 10 || !/^\+?[\d () .-]{7,30}$/.test(draft.phone))) warnings.push("Téléphone à vérifier.");
   if (draft.email && /(?:hotrnail|grnail|gmai1|out1ook|outiook)\./i.test(draft.email)) warnings.push("Courriel potentiellement mal lu : à vérifier.");
   return warnings;
 }
@@ -41,15 +41,17 @@ export function deduplicateCapture(clients: ImportClient[]) {
        (!row.email || !client.email || row.email.toLowerCase() === client.email.toLowerCase()) &&
        (!row.phone || !client.phone || normalizedDirectPhone(row.phone) === normalizedDirectPhone(client.phone))));
     if (!found) { result.push({ ...client, warnings: [...client.warnings] }); continue; }
-    const conflict = (["email","phone","source"] as const).some(key => found[key] && client[key] &&
+    const conflict = (["email","phone"] as const).some(key => found[key] && client[key] &&
       (key === "phone" ? normalizedDirectPhone(found[key]) !== normalizedDirectPhone(client[key]) : found[key]!.toLowerCase() !== client[key]!.toLowerCase()));
     if (conflict || normalizedCaptureName(found.name) !== normalizedCaptureName(client.name)) {
       // Shared family coordinates are not enough to silently discard a person.
       client.warnings.push("Coordonnées partagées : doublon possible dans la capture."); result.push(client); continue;
     }
-    found.phone ||= client.phone; found.email ||= client.email; found.source ||= client.source;
+    found.phone ||= client.phone; found.email ||= client.email; found.source = mergeNotes(found.source,client.source);
+    if(found.request_date&&client.request_date&&found.request_date!==client.request_date)found.request_note=mergeNotes(found.request_note,'Dates des demandes : '+[found.request_date,client.request_date].sort().join(', '));
     found.request_date = [found.request_date,client.request_date].filter(Boolean).sort().at(-1) ?? null;
     found.request_note = mergeNotes(found.request_note, client.request_note);
+    found.properties=[...(found.properties??[]),...(client.properties??[])].filter((p,i,all)=>all.findIndex(other=>other.address===p.address&&other.listingNumber===p.listingNumber)===i);
     found.warnings = [...new Set([...found.warnings,...client.warnings])];
   }
   return result;

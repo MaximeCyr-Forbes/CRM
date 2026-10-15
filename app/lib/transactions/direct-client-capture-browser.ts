@@ -1,4 +1,5 @@
-import { captureClientWarnings, captureTableText, captureWordsFromTsv, normalizedCaptureName, parseCaptureText, type CaptureResult } from "./direct-client-capture";
+import { parseScreenshot } from './direct-client-capture-formats';
+import { captureClientWarnings, captureWordsFromTsv, normalizedCaptureName, type CaptureResult } from "./direct-client-capture";
 export const CAPTURE_MAX_BYTES = 12 * 1024 * 1024;
 export async function validateCaptureFile(file: File) {
   if (file.size > CAPTURE_MAX_BYTES) throw new Error("Capture trop volumineuse. Maximum : 12 Mo.");
@@ -21,8 +22,7 @@ export async function readClientCapture(file: File, today: string, options: {sig
   options.signal.throwIfAborted();
   options.onProgress('Extraction des clients…');
   const words=captureWordsFromTsv(result.tsv);
-  const text=captureTableText(words);
-  const parsed=parseCaptureText(text,today);
+  const parsed=parseScreenshot(result.text,words,today);
   const uncertain=words.filter(word=>word.confidence>=0&&word.confidence<55).map(word=>normalizedCaptureName(word.text));
   for(const client of parsed.clients){
     if(result.confidence<65 || uncertain.some(word=>word.length>2&&(normalizedCaptureName(client.name).includes(word)||normalizedCaptureName(client.email??'').includes(word))))client.warnings.push('Lecture incertaine : vérifiez les coordonnées.');
