@@ -3,7 +3,7 @@ import { directClientDuplicates, normalizedDirectPhone, parseDirectClient, type 
 export type ImportClient = DirectClientDraft & { warnings: string[] };
 export type CaptureResult = { clients: ImportClient[]; warnings: string[] };
 export type CaptureWord = { text: string; x: number; y: number; width: number; height: number; confidence: number };
-export const normalizedCaptureName = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+export const normalizedCaptureName = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").replace(/-\s+/g,"-").trim();
 const missing = (s: string) => /^(?:non fourni[es]?|pas fourni[es]?|n\/?a|aucun[e]?|[-—–]*)$/i.test(s.trim());
 const clean = (s = "") => missing(s) ? null : s.trim() || null;
 const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
@@ -29,7 +29,7 @@ export function captureClientWarnings(draft: DirectClientDraft) {
   const warnings: string[] = [];
   try { parseDirectClient(draft); } catch (e) { warnings.push(e instanceof Error ? e.message : "Coordonnées à vérifier."); }
   if (draft.phone && !/^\+?[\d () .-]{7,30}$/.test(draft.phone)) warnings.push("Téléphone à vérifier.");
-  if (draft.email && /(?:hotrnail|grnail|gmai1|out1ook)\./i.test(draft.email)) warnings.push("Courriel potentiellement mal lu : à vérifier.");
+  if (draft.email && /(?:hotrnail|grnail|gmai1|out1ook|outiook)\./i.test(draft.email)) warnings.push("Courriel potentiellement mal lu : à vérifier.");
   return warnings;
 }
 function mergeNotes(a: string | null, b: string | null) { return [...new Set([a,b].filter(Boolean))].join(" · ") || null; }
@@ -102,7 +102,14 @@ export function captureWordsFromTsv(tsv: string): CaptureWord[] {
 }
 /** Spatial columns prevent OCR block order from mixing clients or swapping details. */
 export function captureTableText(words: CaptureWord[]) {
-  const sorted = [...words].sort((a,b)=>a.y+a.height/2-b.y-b.height/2);
+  // Find the actual table header before grouping lines: surrounding browser/sidebar
+  // text must not become the vertical anchor or the first data column.
+  const token=(w:CaptureWord)=>normalizedCaptureName(w.text).replace(/[^a-z]/g,"");
+  const header=words.find(w=>token(w)==="nom"&&["telephone","courriel","provenance"].every(label=>words.some(other=>token(other)===label&&other.x>w.x&&Math.abs((other.y+other.height/2)-(w.y+w.height/2))<Math.max(other.height,w.height)*.8)));
+  const detailHeader=words.find(w=>token(w)==="client"&&words.some(other=>token(other)==="date"&&other.x>w.x&&Math.abs(other.y+other.height/2-w.y-w.height/2)<Math.max(other.height,w.height)*.8));
+  const start=header??detailHeader;
+  const tableWords=start?words.filter(w=>w.x>=start.x-10&&w.y+w.height>=start.y):words;
+  const sorted = [...tableWords].sort((a,b)=>a.y+a.height/2-b.y-b.height/2);
   const lines: CaptureWord[][] = [];
   for(const word of sorted) {
     const line=lines.at(-1); const anchor=line?.[0];
@@ -110,22 +117,25 @@ export function captureTableText(words: CaptureWord[]) {
     else lines.push([word]);
   }
   lines.forEach(line=>line.sort((a,b)=>a.x-b.x));
-  const output:string[]=[]; let columns:number[]=[]; let type=""; let current:string[]|null=null; let previousY=0;
+  const output:string[]=[]; let columns:number[]=[]; let type=""; let current:string[]|null=null; let previousY=0; let headerHeight=0;
   const flush=()=>{if(current)output.push(current.join(" | "));current=null;};
   for(const line of lines) {
     const tokens=line.map(w=>normalizedCaptureName(w.text).replace(/[^a-z]/g,""));
     const nominal=tokens.findIndex(t=>t==="nom"), telephone=tokens.findIndex(t=>t==="telephone"), email=tokens.findIndex(t=>t==="courriel"||t==="email"), source=tokens.findIndex(t=>t==="provenance"||t==="source");
     const client=tokens.findIndex(t=>t==="client"), date=tokens.findIndex(t=>t==="date"), nature=tokens.findIndex(t=>t==="nature");
-    if(nominal>=0&&telephone>=0&&email>=0&&source>=0) { flush(); columns=[nominal,telephone,email,source].map(i=>line[i].x);type="clients";output.push("Nom | Téléphone | Courriel | Provenance");continue; }
-    if(client>=0&&date>=0&&nature>=0){flush();columns=[client,date,nature].map(i=>line[i].x);type="details";output.push("Client | Date | Nature de la demande");continue;}
+    if(nominal>=0&&telephone>=0&&email>=0&&source>=0) { flush(); columns=[nominal,telephone,email,source].map(i=>line[i].x);type="clients";headerHeight=Math.min(...[nominal,telephone,email,source].map(i=>line[i].height));output.push("Nom | Téléphone | Courriel | Provenance");continue; }
+    if(client>=0&&date>=0&&nature>=0){flush();columns=[client,date,nature].map(i=>line[i].x);type="details";headerHeight=Math.min(...[client,date,nature].map(i=>line[i].height));output.push("Client | Date | Nature de la demande");continue;}
     const text=normalizedCaptureName(line.map(w=>w.text).join(" "));
     if(/details des demandes|liste des clients|clients potentiels|^(?:resume|conclusion|remarque|note\s*:)/.test(text)){flush();columns=[];continue;}
     if(!columns.length)continue;
+    const heights=line.map(w=>w.height).sort((a,b)=>a-b);
+    if(heights[Math.floor(heights.length/2)]<headerHeight*.8){flush();columns=[];continue;}
+    if(current&&line[0].y-previousY>headerHeight*4.5){flush();columns=[];continue;}
     const cells=columns.map(()=>"");
     for(const word of line){let col=0;for(let i=1;i<columns.length;i++)if(word.x+word.width*.15>=columns[i]-Math.max(4,word.height*.35))col=i;cells[col]+=(cells[col]?" ":"")+word.text;}
     const y=line[0].y;
-    const continuation=current && (!cells[0] || (cells.slice(1).every(c=>!c) && y-previousY<line[0].height*1.9));
-    if(continuation){cells.forEach((cell,i)=>{if(cell)current![i]+=(current![i]?" ":"")+cell;});}
+    const continuation=current && (!cells[0] || (type==="details"&&/-$/.test(current[0])&&y-previousY<line[0].height*2.5) || (cells.slice(1).every(c=>!c) && y-previousY<line[0].height*1.9));
+    if(continuation){cells.forEach((cell,i)=>{if(cell)current![i]+=(current![i]&&!(i===0&&/-$/.test(current![i]))?" ":"")+cell;});}
     else {flush();current=cells;}
     previousY=y;
     if(type==="clients" && current?.[0] && current[0].length>200){flush();columns=[];}

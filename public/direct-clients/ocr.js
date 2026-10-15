@@ -20,7 +20,7 @@ export async function recognizeCapture(file,{signal,onProgress}) {
     signal.throwIfAborted();
     bitmap=await createImageBitmap(file);signal.throwIfAborted();
     if(bitmap.width<100||bitmap.height<50||bitmap.width*bitmap.height>80000000)throw new Error('Dimensions de capture non prises en charge. Choisissez une capture plus petite et lisible.');
-    const scale=Math.min(Math.max(1,Math.min(2,2200/bitmap.width)),Math.sqrt(12000000/(bitmap.width*bitmap.height)),12000/Math.max(bitmap.width,bitmap.height));
+    const scale=Math.min(2,Math.sqrt(12000000/(bitmap.width*bitmap.height)),12000/Math.max(bitmap.width,bitmap.height));
     canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
     const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();bitmap=null;
     onProgress('Préparation de la lecture locale…');
@@ -30,7 +30,7 @@ export async function recognizeCapture(file,{signal,onProgress}) {
       if(!signal.aborted&&m.status==='recognizing text')onProgress('Lecture de la capture… '+Math.round(m.progress*100)+' %');
     },errorHandler:()=>{}});
     signal.throwIfAborted();
-    await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1',user_defined_dpi:'150'});
+    await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1',user_defined_dpi:'150'});
     const {data}=await worker.recognize(canvas,{}, {text:true,tsv:true});
     signal.throwIfAborted();
     return {text:data.text||'',tsv:data.tsv||'',confidence:data.confidence};
@@ -40,3 +40,4 @@ export async function recognizeCapture(file,{signal,onProgress}) {
     bitmap?.close();if(canvas){canvas.width=0;canvas.height=0;}
   }
 }
+
