@@ -35,7 +35,7 @@ export function normalizedDirectPhone(value: string | null) {
   const digits = (value ?? "").replace(/\D/g, "");
   return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
 }
-export function directClientDuplicates(rows: DirectClient[], draft: DirectClientDraft, excludeId?: string) {
+export function directClientDuplicates<T extends Pick<DirectClient, "id" | "email" | "phone">>(rows: T[], draft: DirectClientDraft, excludeId?: string) {
   const email = draft.email?.trim().toLowerCase();
   const phone = normalizedDirectPhone(draft.phone);
   return rows.filter(row => row.id !== excludeId && (

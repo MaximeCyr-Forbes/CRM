@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { DIRECT_CLIENT_SOURCES, directClientToday, type DirectClient, type DirectClientDraft } from "../lib/transactions/direct-clients";
 import { workspaceRequest } from "../lib/workspace-request";
 import { useDialogLifecycle } from "../lib/use-dialog-lifecycle";
 
+const CaptureModal = lazy(() => import("./direct-client-capture-modal"));
 const emptyDraft = (): DirectClientDraft => ({ name: "", phone: null, email: null, source: "Centris", request_date: directClientToday(), request_note: null });
 function displayDate(value: string) {
   return new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));
@@ -85,6 +86,8 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [open, setOpen] = useState(false);
+  const [capture, setCapture] = useState<{ file: File | null } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState("");
   const [editor, setEditor] = useState<{ client?: DirectClient; removing: boolean } | null>(null);
@@ -100,9 +103,13 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
     return () => controller.abort();
   }, [endpoint, retry]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 4500); return () => window.clearTimeout(timer); }, [notice]);
-  return <section className="transaction-detail-section direct-clients" aria-labelledby="direct-clients-title">
+  return <section className={`transaction-detail-section direct-clients ${dragging ? "direct-capture-target" : ""}`} aria-labelledby="direct-clients-title"
+    onDragOver={event => { if (!loading && !error && event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } }}
+    onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }}
+    onDrop={event => { event.preventDefault(); setDragging(false); if (!loading && !error && event.dataTransfer.files.length === 1) setCapture({ file: event.dataTransfer.files[0] }); }}>
+    {dragging && <p className="direct-client-feedback">Déposez la capture ChatGPT</p>}
     <div className="direct-clients-heading"><div><h2 id="direct-clients-title">CLIENTS DIRECTS <span aria-label="Nombre de clients">{loading || error ? "—" : clients.length}</span></h2><p>{!loading && !error && clients.length === 0 ? "Aucun client direct enregistré." : "Demandes reçues directement pour cette propriété."}</p></div>
-      <div className="direct-clients-actions"><button type="button" aria-expanded={open} aria-controls="direct-clients-list" onClick={() => setOpen(!open)}>{open ? "Replier" : "Voir la liste"}</button><button type="button" disabled={loading || Boolean(error)} onClick={() => setEditor({ removing: false })}>+ Ajouter</button></div>
+      <div className="direct-clients-actions"><button className="direct-capture-trigger" type="button" disabled={loading || Boolean(error)} onClick={() => setCapture({ file: null })}>Importer une capture</button><button type="button" aria-expanded={open} aria-controls="direct-clients-list" onClick={() => setOpen(!open)}>{open ? "Replier" : "Voir la liste"}</button><button type="button" disabled={loading || Boolean(error)} onClick={() => setEditor({ removing: false })}>+ Ajouter</button></div>
     </div>
     {notice && <p className="direct-client-feedback" role="status">{notice}</p>}
     {error && <p role="alert">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Réessayer</button></p>}
@@ -117,6 +124,7 @@ export function TransactionDirectClients({ transactionId }: { transactionId: str
       </article>)}
       {clients.length > 6 && <button type="button" className="direct-client-more" onClick={() => setShowAll(!showAll)}>{showAll ? "Voir moins" : `Voir les ${clients.length} clients`}</button>}
     </div>
+    {capture && <Suspense fallback={<p role="status">Ouverture de l’import…</p>}><CaptureModal initialFile={capture.file} existing={clients} endpoint={endpoint} onClose={() => setCapture(null)} onImported={imported => { setClients(current => [...imported, ...current.filter(row => !imported.some(item => item.id === row.id))]); setCapture(null); setOpen(true); setNotice(`${imported.length} clients ajoutés`); }} /></Suspense>}
     {editor && <ClientDialog initial={editor.client} removing={editor.removing} endpoint={endpoint} onClose={() => setEditor(null)}
       onSaved={(client, next) => { setClients(rows => editor.client ? rows.map(row => row.id === client.id ? client : row) : [client, ...rows]); setNotice(editor.client ? "Client mis à jour" : "Client ajouté"); if (!next) setEditor(null); }}
       onDeleted={id => { setClients(rows => rows.filter(row => row.id !== id)); setNotice("Client supprimé"); setEditor(null); }} />}

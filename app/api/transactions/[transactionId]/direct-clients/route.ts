@@ -1,7 +1,7 @@
 import { birthdayWorkspaceActor, requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { DirectClientError } from "../../../../lib/transactions/direct-clients";
-import { deleteDirectClient, listDirectClients, saveDirectClient } from "../../../../lib/transactions/direct-clients-server";
+import { deleteDirectClient, importDirectClients, listDirectClients, saveDirectClient } from "../../../../lib/transactions/direct-clients-server";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ transactionId: string }> };
 function failure(error: unknown) {
@@ -25,6 +25,7 @@ async function mutate(request: Request, context: Context, action: "create" | "ed
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new DirectClientError("Requête invalide.");
     const { transactionId } = await context.params;
+    if (action === "create" && body.action === "import") return Response.json({ data: await importDirectClients(transactionId, body, actor) }, { status: 201 });
     if (action === "delete") {
       if (body.confirm !== true) throw new DirectClientError("Confirmez la suppression.");
       await deleteDirectClient(transactionId, body.id);
