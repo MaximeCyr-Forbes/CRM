@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { TransactionEditorModal } from "../../components/transaction-editor-modal";
 import { TransactionAgenda } from "../../components/transaction-agenda";
+import { TransactionDirectClients } from "../../components/transaction-direct-clients";
 import { DriveDocumentsSection } from "../../components/drive-documents-section";
 import { SaleCompletionModal } from "../../components/sale-completion-modal";
 import { PurchaseCompletionModal } from "../../components/purchase-completion-modal";
@@ -224,6 +225,8 @@ export default function TransactionDetailPage() {
     <TransactionAgenda onSync={async () => { const result = await syncDeadlines(transaction.id); setConfirmation(result.message ?? "Synchronisation terminée."); }} deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
 
     <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />
+
+    <TransactionDirectClients key={transaction.id} transactionId={transaction.id} />
 
     <section className="transaction-detail-section" aria-labelledby="transaction-notes-title"><div className="transaction-section-heading"><div><p className="section-kicker">Dossier</p><h2 id="transaction-notes-title">NOTES DE TRANSACTION</h2></div></div>{transaction.generalNotes && <article className="transaction-general-note"><span>Notes générales</span><p>{transaction.generalNotes}</p></article>}<form className="transaction-note-form" onSubmit={saveNote}><label><span>Ajouter une note</span><textarea onChange={(event) => setNote(event.target.value)} placeholder="Écrivez une note liée à cette transaction…" rows={4} value={note} /></label><button disabled={isSaving || !note.trim()} type="submit">Enregistrer la note</button></form><div className="transaction-notes-list">{transaction.notes.map((item) => <article key={item.id}><time>{formatDateTime(item.createdAt)}</time><p>{item.content}</p></article>)}{transaction.notes.length === 0 && <p>Aucune note de transaction pour le moment.</p>}</div></section>
   </div>
