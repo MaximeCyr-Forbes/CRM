@@ -48,3 +48,5 @@
 .accounting-view-description{margin:0;padding:12px 22px;background:#f8fafb;color:var(--ink-soft);font-size:12px;line-height:1.6}
 .accounting-filters label:has(select){min-width:160px}
 @media(max-width:767px){.accounting-filters label:has(select){min-width:0}}
+@media(max-width:767px){.accounting-filters{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}}
+@media(max-width:359px){.accounting-filters{grid-template-columns:minmax(0,1fr)}}
