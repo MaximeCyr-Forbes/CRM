@@ -52,3 +52,8 @@ describe("Broker expense server validation",()=>{
  it("legacy update keeps existing attribution",async()=>{const row=await createExpense({...fields,assigned_broker:"broker_a"},"immoplus");expect(await updateExpense(row.id,fields,"france")).toMatchObject({assigned_broker:"broker_a"});});
  it("edits only the selected expense and preserves invoice and payment",async()=>{const a=await createExpense({...fields,assigned_broker:"broker_a"},"maxime"),b=await createExpense({...fields,assigned_broker:"broker_b"},"maxime");await completeInvoice(a.id,await upload(a.id),"maxime");await setExpensePayment(a.id,true,"maxime");const result=await updateExpense(a.id,{...fields,assigned_broker:"broker_b",amount:150},"maxime");expect(result).toMatchObject({assigned_broker:"broker_b",is_paid:true,amount:150});expect(result.invoice).not.toBeNull();expect((await getExpense(b.id)).amount).toBe(100);await deleteExpense(a.id);expect((await listExpenses()).map(r=>r.id)).toEqual([b.id]);});
 });
+
+it('loads every persisted expense beyond Supabase default row limit, including future, undated and no invoice',async()=>{
+ mock.tables.accounting_expenses=Array.from({length:1501},(_,i)=>({id:String(i),expense_date:i%3===0?null:i%3===1?'2025-01-01':'2027-01-08',amount:1}));
+ const result=await listExpenses();expect(result).toHaveLength(1501);expect(new Set(result.map(r=>r.id)).size).toBe(1501);expect(result.some(r=>r.expense_date===null)).toBe(true);expect(result.every(r=>r.invoice===null)).toBe(true);
+});

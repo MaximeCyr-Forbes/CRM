@@ -6,7 +6,8 @@ export function readAccountingFilters(search: string, today=todayToronto()): Fil
   return {year:y&&/^\d{4}$/.test(y)&&Number(y)>=1?y:today.slice(0,4),month:m&&/^(0?[1-9]|1[0-2])$/.test(m)?m.padStart(2,"0"):today.slice(5,7),period:p==="year"||p==="all"||p==="undated"?p:"month",category:c==="marketing"||c==="operation"||c==="broker"?c:"all",...(c==="broker"&&/^[a-z][a-z0-9_-]{0,62}$/.test(q.get("broker")??"")?{broker:q.get("broker")!}:{}),payment:payment==="paid"||payment==="unpaid"?payment:"all",search:q.get("q")??""};
 }
 export function accountingFilterQuery(filters: Filters) {
-  const q=new URLSearchParams({year:filters.year,month:filters.month??todayToronto().slice(5,7)});
+  const q=new URLSearchParams();
+  if(filters.period!=="all"){q.set("year",filters.year);q.set("month",filters.month??todayToronto().slice(5,7));}
   if(filters.period!=="month")q.set("view",filters.period);
   if(filters.category!=="all")q.set("category",filters.category);
   if(filters.payment&&filters.payment!=="all")q.set("payment",filters.payment);
@@ -15,7 +16,7 @@ export function accountingFilterQuery(filters: Filters) {
   return q.toString();
 }
 export function accountingPeriodLabel(filters: Filters) {
-  return filters.period==="all"?"Toutes les années":filters.period==="undated"?"Sans date":filters.period==="year"?`Année ${filters.year}`:`${NAMES[Number(filters.month??todayToronto().slice(5,7))-1]} ${filters.year}`;
+  return filters.period==="all"?"Toutes les factures":filters.period==="undated"?"Sans date":filters.period==="year"?`Année ${filters.year}`:`${NAMES[Number(filters.month??todayToronto().slice(5,7))-1]} ${filters.year}`;
 }
 export function adjacentYear(filters: Filters,delta:number): Filters {
   return {...filters,year:String(Math.max(1,Math.min(9999,Number(filters.year)+delta))).padStart(4,"0"),period:filters.period==="all"||filters.period==="undated"?"month":filters.period};

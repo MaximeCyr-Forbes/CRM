@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CATEGORY_LABELS, expenseTotals, filterExpenses, money, type AccountingBroker, type Expense, type Filters } from "../lib/accounting/model";
+import { CATEGORY_LABELS, expenseTotals, filterExpenses, isFutureExpense, todayToronto, money, type AccountingBroker, type Expense, type Filters } from "../lib/accounting/model";
 import { accountingRequest, expenseUrl } from "../lib/accounting/client";
 import { readAccountingFilters, accountingFilterQuery, accountingPeriodLabel } from "../lib/accounting/period";
 import { PeriodNavigation } from "./period-navigation";
@@ -9,7 +9,7 @@ import "./accounting.css";
 import { BrokerBalances } from "./broker-balances";
 import { ShellIcon } from "../components/shell-icons";
 
-function displayDate(value:string|null) { if(!value)return "À compléter"; return new Intl.DateTimeFormat("fr-CA",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${value}T12:00:00Z`)); }
+function displayDate(value:string|null) { if(!value)return "Sans date"; return new Intl.DateTimeFormat("fr-CA",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${value}T12:00:00Z`)); }
 export default function AccountingPage() {
   const [rows,setRows]=useState<Expense[]>([]), [loading,setLoading]=useState(true),[error,setError]=useState("");
   const [showBalances,setShowBalances]=useState(false);
@@ -21,10 +21,14 @@ export default function AccountingPage() {
   const load=useCallback(async()=>{ setLoading(true); setError(""); try {const result=await accountingRequest("/api/accounting/expenses");setRows(result.data);setBrokers(result.brokers); void accountingRequest("/api/accounting/expenses","PATCH").catch(e=>setNotice(`Nettoyage des anciens uploads à réessayer : ${(e as Error).message}`));} catch(e) {setError((e as Error).message);} finally {setLoading(false);} },[]);
   useEffect(()=>{void load();},[load]);
   useEffect(()=>{ if(!deleting)return; const dialog=deleteDialog.current!; dialog.showModal(); return ()=>dialog.close(); },[deleting]);
-  const visible=useMemo(()=>filterExpenses(rows,filters),[rows,filters]);
+  const today=todayToronto();
+  const visible=useMemo(()=>filterExpenses(rows,filters,today),[rows,filters,today]);
   const totals=expenseTotals(visible);
   useEffect(()=>{
-    const restore=()=>setFilters(readAccountingFilters(window.location.search));
+    const restore=()=>{
+      const restored=readAccountingFilters(window.location.search);setFilters(restored);
+      if(restored.period==="all")window.history.replaceState(window.history.state,"","/accounting?"+accountingFilterQuery(restored));
+    };
     restore();window.addEventListener("popstate",restore);return()=>window.removeEventListener("popstate",restore);
   },[]);
   function navigate(next:Filters,replace=false) {
@@ -53,6 +57,7 @@ export default function AccountingPage() {
   }
   const status=(row:Expense)=><span className={`accounting-payment ${row.is_paid?"paid":"unpaid"}`}>{row.is_paid?"PAYÉ ✓":"À PAYER"}</span>;
   const actions=(row:Expense)=><div className="accounting-actions"><button disabled={busy} onClick={()=>void payment(row)}>{row.is_paid?"Marquer à payer":"Marquer payé"}</button><button onClick={()=>setEditing(row)}>Modifier<span className="accounting-sr"> {row.vendor}</span></button><button className="accounting-danger" onClick={()=>{setError("");setDeleting(row);}}>Supprimer<span className="accounting-sr"> {row.vendor}</span></button></div>;
+  const future=(row:Expense)=>isFutureExpense(row,today)?<span className="accounting-future">À VENIR</span>:null;
   const recurring=(row:Expense)=>row.recurring_rule_id?<span className="accounting-recurring" title={row.recurring_rule?.active?"Série mensuelle active":"Série mensuelle arrêtée"}>MENSUELLE{row.recurring_rule?.active?"":" · arrêtée"}</span>:null;
   const invoice=(row:Expense)=>row.invoice ? <a className="accounting-invoice-link" title={row.invoice.file_name} href={`${expenseUrl(row.id)}/invoice`} target="_blank" rel="noopener noreferrer">Ouvrir la facture ↗</a> : <span className="accounting-muted">—</span>;
   return <main className="accounting-page">
@@ -60,15 +65,16 @@ export default function AccountingPage() {
     <div className="accounting-toolbar"><div className="accounting-tabs" aria-label="Volets comptables">{(["all","marketing","operation","broker"] as const).map(c=><button key={c} aria-pressed={filters.category===c} onClick={()=>filter("category",c)}>{c==="all"?"Toutes · équipe":c==="broker"?"Dépenses par courtier":CATEGORY_LABELS[c]}</button>)}</div><button className="accounting-balances-button" onClick={()=>setShowBalances(true)}><ShellIcon name="Comptabilité"/>Soldes courtiers</button></div>
     {brokerView&&<label className="accounting-broker-selector">Courtier<select aria-label="Filtrer par courtier" value={filters.broker??""} onChange={e=>filter("broker",e.target.value)}><option value="">Tous les courtiers</option>{brokers.map(b=><option key={b.id} value={b.id}>{b.label}</option>)}</select></label>}
     <PeriodNavigation filters={filters} onChange={navigate}/>
-    <section className="accounting-totals" aria-label="Totaux des dépenses filtrées">{totalCards.map(([label,total])=><article key={label}><span>{label}</span><strong>{loading?"—":money(Number(total))}</strong><small>Filtres sélectionnés</small></article>)}</section>
+    <section className="accounting-totals" aria-label="Totaux des dépenses filtrées">{totalCards.map(([label,total])=><article key={label}><span>{label}</span><strong>{loading?"—":money(Number(total))}</strong><small>{periodLabel}</small></article>)}</section>
     <section className="accounting-ledger" aria-label="Dépenses">
-      <div className="accounting-filters"><label className="accounting-search">Rechercher<input type="search" placeholder="Fournisseur, description, facture…" value={filters.search} onChange={e=>filter("search",e.target.value)}/></label><label>Statut<select value={filters.payment} onChange={e=>filter("payment",e.target.value as Filters["payment"])}><option value="all">Toutes</option><option value="unpaid">À payer</option><option value="paid">Payées</option></select></label><label>Vue<select value={filters.period} onChange={e=>filter("period",e.target.value as Filters["period"])}><option value="month">Mois sélectionné</option><option value="year">Année complète</option><option value="all">Tout</option><option value="undated">Sans date ({undated})</option></select></label></div>
+      <div className="accounting-filters"><label className="accounting-search">Rechercher<input type="search" placeholder="Fournisseur, description, facture…" value={filters.search} onChange={e=>filter("search",e.target.value)}/></label><label>Statut<select value={filters.payment} onChange={e=>filter("payment",e.target.value as Filters["payment"])}><option value="all">Toutes</option><option value="unpaid">À payer</option><option value="paid">Payées</option></select></label><label>Vue<select value={filters.period} onChange={e=>filter("period",e.target.value as Filters["period"])}><option value="month">Mois sélectionné</option><option value="year">Année complète</option><option value="all">Toutes les factures</option><option value="undated">Sans date ({undated})</option></select></label></div>
+      {filters.period==="all"&&<p className="accounting-view-description">Toutes les périodes · {brokerView?(filters.broker?`Dépenses de ${brokerLabel(filters.broker)}`:"Tous les courtiers"):"Dépenses d’équipe"}. Les autres filtres restent appliqués.</p>}
       {notice&&<p className="accounting-notice" role="status">{notice}</p>}
       {error&&!deleting&&<div className="accounting-error" role="alert">{error} <button onClick={()=>void load()}>Réessayer</button></div>}
       {loading ? <div className="accounting-empty" role="status">Chargement des dépenses…</div> : !error&&visible.length===0 ? <div className="accounting-empty"><span aria-hidden="true">◇</span><h2>Aucune dépense {filters.period==="month"?`en ${periodLabel}`:filters.period==="year"?`en ${filters.year}`:filters.period==="undated"?"sans date":"enregistrée"}.</h2><p>Centralisez les factures et les dépenses de votre équipe.</p><button onClick={()=>setEditing(null)}>+ Ajouter une dépense</button></div> : <>
         <p className="accounting-count"><strong>{periodLabel.toLocaleUpperCase("fr-CA")}</strong> · {visible.length} dépense{visible.length>1?"s":""} · {money(expenseTotals(visible).total)}</p>
-        <div className="accounting-table"><table><thead><tr>{["Date",brokerView?"Courtier":"Catégorie","Fournisseur","Description","Montant","Statut","Renouvellement","Facture","Actions"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{visible.map(row=><tr key={row.id}><td>{displayDate(row.expense_date)}</td><td>{attribution(row)}</td><td><strong>{row.vendor??"À compléter"}</strong></td><td>{row.description??"À compléter"}{recurring(row)}</td><td className="accounting-amount">{money(row.amount)}</td><td>{status(row)}</td><td>{row.renewal_date?displayDate(row.renewal_date):"—"}</td><td>{invoice(row)}</td><td>{actions(row)}</td></tr>)}</tbody></table></div>
-        <div className="accounting-cards">{visible.map(row=><article key={row.id}><div className="accounting-card-top">{attribution(row)}<time dateTime={row.expense_date??undefined}>{displayDate(row.expense_date)}</time></div>{recurring(row)}<h2>{row.vendor??"À compléter"}</h2><p>{row.description??"À compléter"}</p><strong className="accounting-card-amount">{money(row.amount)}</strong><div className="accounting-card-status">{status(row)}</div>{row.renewal_date&&<p>Renouvellement : <time dateTime={row.renewal_date}>{displayDate(row.renewal_date)}</time></p>}<div>{invoice(row)}</div>{actions(row)}</article>)}</div>
+        <div className="accounting-table"><table><thead><tr>{["Date",brokerView?"Courtier":"Catégorie","Fournisseur","Description","Montant","Statut","Renouvellement","Facture","Actions"].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{visible.map(row=><tr key={row.id}><td>{displayDate(row.expense_date)}{future(row)}</td><td>{attribution(row)}</td><td><strong>{row.vendor??"À compléter"}</strong></td><td>{row.description??"À compléter"}{recurring(row)}</td><td className="accounting-amount">{money(row.amount)}</td><td>{status(row)}</td><td>{row.renewal_date?displayDate(row.renewal_date):"—"}</td><td>{invoice(row)}</td><td>{actions(row)}</td></tr>)}</tbody></table></div>
+        <div className="accounting-cards">{visible.map(row=><article key={row.id}><div className="accounting-card-top">{attribution(row)}<time dateTime={row.expense_date??undefined}>{displayDate(row.expense_date)}{future(row)}</time></div>{recurring(row)}<h2>{row.vendor??"À compléter"}</h2><p>{row.description??"À compléter"}</p><strong className="accounting-card-amount">{money(row.amount)}</strong><div className="accounting-card-status">{status(row)}</div>{row.renewal_date&&<p>Renouvellement : <time dateTime={row.renewal_date}>{displayDate(row.renewal_date)}</time></p>}<div>{invoice(row)}</div>{actions(row)}</article>)}</div>
       </>}
     </section>
     {showBalances&&<BrokerBalances onClose={()=>setShowBalances(false)}/>}

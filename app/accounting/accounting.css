@@ -44,3 +44,7 @@
 .accounting-balance-history small{display:block;margin-top:5px;color:#64748b;font-size:11px}
 .accounting-balance-history>button{margin-top:10px;font-size:12px}
 @media(max-width:767px){.accounting-history-toggle{min-height:44px}.accounting-balance-history li>div{flex-direction:column}}
+.accounting-future{display:block;width:fit-content;margin-top:5px;padding:3px 6px;border-radius:5px;background:#edf3f8;color:#52687b;font-size:10px;font-weight:600;letter-spacing:.3px}
+.accounting-view-description{margin:0;padding:12px 22px;background:#f8fafb;color:var(--ink-soft);font-size:12px;line-height:1.6}
+.accounting-filters label:has(select){min-width:160px}
+@media(max-width:767px){.accounting-filters label:has(select){min-width:0}}

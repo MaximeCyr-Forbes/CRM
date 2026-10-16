@@ -43,13 +43,21 @@ export function matchesSignature(bytes: Uint8Array, mime: string) {
 }
 export function validId(value: string) { if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) throw new AccountingError("Identifiant invalide."); return value; }
 export type Filters = { category: Category | "all" | "broker"; broker?: string; period: "month" | "year" | "all" | "undated"; month?: string; year: string; search: string; payment?: "all" | "paid" | "unpaid" };
+export function isFutureExpense(row:Pick<Expense,"expense_date">,today=todayToronto()) { return !!row.expense_date && row.expense_date>today; }
 export function filterExpenses(rows: Expense[], filters: Filters, today = todayToronto()) {
   const needle = filters.search.trim().toLocaleLowerCase("fr-CA");
   return rows.filter(row => (filters.category === "broker" ? !!row.assigned_broker && (!filters.broker || row.assigned_broker === filters.broker) : !row.assigned_broker && (filters.category === "all" || row.category === filters.category))
     && (filters.period === "month" ? row.expense_date?.slice(0,7) === `${filters.year}-${filters.month ?? today.slice(5,7)}` : filters.period === "year" ? row.expense_date?.startsWith(filters.year + "-") : filters.period === "undated" ? !row.expense_date : true)
     && (!filters.payment || filters.payment === "all" || (filters.payment === "paid" ? row.is_paid : !row.is_paid))
     && (!needle || [row.vendor, row.description, row.notes, row.invoice?.file_name].some(text => text?.toLocaleLowerCase("fr-CA").includes(needle))))
-    .sort((a,b) => (b.expense_date ?? "").localeCompare(a.expense_date ?? "") || b.created_at.localeCompare(a.created_at));
+    .sort((a,b) => {
+      if(filters.period==="all"){
+        const af=isFutureExpense(a,today),bf=isFutureExpense(b,today);
+        if(af!==bf)return af?-1:1;
+        if(af&&bf)return a.expense_date!.localeCompare(b.expense_date!)||a.id.localeCompare(b.id);
+      }
+      return (b.expense_date??"").localeCompare(a.expense_date??"")||b.created_at.localeCompare(a.created_at)||a.id.localeCompare(b.id);
+    });
 }
 export function expenseTotals(rows: Expense[]) {
   const marketing = rows.filter(r => r.category === "marketing").reduce((n,r) => n + Math.round(Number(r.amount)*100),0);
