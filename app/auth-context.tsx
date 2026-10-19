@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const response = await fetch("/api/access/logout", { method: "POST" });
     if (!response.ok) throw new Error("Déconnexion impossible.");
+    setMember(null);
     setStatus("unauthenticated");
   }, []);
 

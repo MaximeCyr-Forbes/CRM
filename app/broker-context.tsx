@@ -27,7 +27,7 @@ export function BrokerProvider({ children }: { children: ReactNode }) {
     persistWorkspace(window.sessionStorage, restored);
     setSession(restored);
     setIsBrokerReady(true);
-  }, []);
+  }, [member, status]);
   const changeSession = useCallback((next: WorkspaceSession) => {
     persistWorkspace(window.sessionStorage, next);
     setSession(next);
@@ -38,7 +38,7 @@ export function BrokerProvider({ children }: { children: ReactNode }) {
       return;
     }
     changeSession({ workspaceUser: user, workingBroker: user === "immoplus" ? null : user });
-  }, [changeSession]);
+  }, [changeSession, member]);
   const selectBroker = useCallback((broker: Broker) => {
     const key = broker.toLowerCase() as WorkingBroker;
     if (member) {

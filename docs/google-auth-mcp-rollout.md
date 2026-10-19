@@ -2,13 +2,13 @@
 
 ## Identity boundary
 
-Three CRM members retain the existing broker keys. Six exact, lowercase Google emails are authorized in `crm_member_auth_identities`; each member has two aliases. No domain-wide permission. Provider-owned Google identity data with a verified email, a live OAuth session, and an active member/identity binding are required. User metadata and client-selected broker are never identity evidence. Automatic/manual account linking must remain disabled.
+Three CRM members retain the existing broker keys. Six exact, lowercase Google emails are authorized in `crm_member_auth_identities`; each member has two aliases. No domain-wide permission. Provider-owned Google identity data with a verified email, a live OAuth session, and an active member/identity binding are required. User metadata and client-selected broker are never identity evidence. Manual account linking must remain disabled. The resolver rejects ambiguous or unverified provider identities.
 
 Every individual CRM API request has its own AsyncLocalStorage actor and Supabase user client. RLS enforces ownership even when a caller changes request fields. Admin viewing another broker does not change audit authorship. Private immutable audit rows record member, Google identity, user, operation, entity, and CRM/MCP source. Integration refresh tokens remain server-only, accessed through a broker-permission bridge.
 
 ## Current rollout gate
 
-Google provider configuration and real production OAuth validation are still required. Keep `CRM_GOOGLE_LOGIN_ENABLED=false` and `LEGACY_SHARED_LOGIN_ENABLED=true` until provider configuration is complete. MCP never accepts the legacy cookie or workspace token.
+Google provider and exact production redirects are configured. `CRM_GOOGLE_LOGIN_ENABLED=true` and `LEGACY_SHARED_LOGIN_ENABLED=true`. Real Google login with the Maxime RE/MAX alias successfully bound the existing Maxime admin member. End-to-end dashboard/logout/relogin validation and the France/Sandrine transition remain rollout gates. MCP never accepts the legacy cookie or workspace token. Supabase OAuth server is enabled with dynamic registration disabled; a real ChatGPT client still needs registration and validation.
 
 1. Configure Google OAuth web client with redirect `https://nabczucyxmfqlnouvcwo.supabase.co/auth/v1/callback`, retaining existing integration callbacks.
 2. Enable Google provider in Supabase with that client ID/secret. Leave Skip nonce checks and Allow users without email OFF. Disable email/password provider; keep manual identity linking OFF. OAuth signups must allow the six aliases to establish their first session; CRM RLS denies unknown identities even if Supabase creates an Auth user.
