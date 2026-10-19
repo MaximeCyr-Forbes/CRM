@@ -2,14 +2,16 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '../../auth-context';
+import { useBroker } from '../../broker-context';
 export default function OAuthConsentPage() {
  const { status, member } = useAuth();
+ const { isBrokerReady } = useBroker();
  const id = useSearchParams().get('authorization_id') ?? '';
  const [details,setDetails] = useState<{clientName:string;clientUri:string;broker:string;role:string}|null>(null);
  const [error,setError] = useState('');
  const [busy,setBusy] = useState(false);
  useEffect(()=>{
-  if(status==='loading') return;
+  if(status==='loading' || !isBrokerReady) return;
   if(!member) { window.location.replace(`/login?returnTo=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(id)}`)}`); return; }
   let active=true;
   void fetch(`/api/access/consent?authorization_id=${encodeURIComponent(id)}`,{cache:'no-store'})
@@ -17,7 +19,7 @@ export default function OAuthConsentPage() {
    .then(result=>{if(!active)return;if(result.redirect)window.location.assign(result.redirect);else setDetails(result);})
    .catch(err=>{if(active)setError(err instanceof Error?err.message:'Demande indisponible.');});
   return ()=>{active=false;};
- },[status,member,id]);
+ },[status,member,id,isBrokerReady]);
  async function decide(decision:'approve'|'deny') {
   setBusy(true);setError('');
   try {
