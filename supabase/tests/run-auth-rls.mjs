@@ -50,4 +50,3 @@ try {
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
 } catch(e) { console.error('FAIL phase:',phase,'code:',e.code,'message:',e.message);process.exitCode=1; }
 finally { await db.close(); }
-
