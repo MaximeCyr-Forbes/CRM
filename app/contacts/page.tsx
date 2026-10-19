@@ -688,7 +688,7 @@ export default function ContactsPage() {
       <div className="contacts-shell">
         <DataStatus />
         <header className="contacts-header">
-          <div><p className="section-kicker">Répertoire de l’équipe · {contacts.length} contacts</p><h1>Contacts</h1><p>Votre base clients et vos suivis.</p></div>
+          <div><p className="section-kicker">Répertoire de l’équipe · {isLoading ? "…" : contacts.length} contacts</p><h1>Contacts</h1><p>Votre base clients et vos suivis.</p></div>
           <div className="contacts-main-actions">
             <button className="contact-action contact-action-primary" disabled={isSaving} onClick={openManualModal} type="button">Ajouter un contact</button>
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("csv")} type="button">Importer CSV</button>
@@ -698,7 +698,7 @@ export default function ContactsPage() {
         {unassignedCount > 0 && <button className="unassigned-alert" onClick={() => changeContactFilter("unassigned")} type="button"><span className="unassigned-alert-count">{unassignedCount}</span><span><strong>NON ATTRIBUÉS</strong><small>{unassignedCount} contact{unassignedCount > 1 ? "s" : ""} à classer</small></span><span aria-hidden="true">→</span></button>}
         <section className="contacts-directory">
           <div className="contacts-tools">
-            <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => changeContactFilter(option.value)} type="button">{option.label} <span>{option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
+            <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => changeContactFilter(option.value)} type="button">{option.label} <span>{isLoading ? "…" : option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
             <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => changeContactSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
             <label className="contacts-sort">TRIER PAR<select value={sort} onChange={event => router.replace(contactsListHref(currentQuery, { sort: event.target.value, page: "1" }), { scroll: false })}><option value="created">DATE D’AJOUT</option><option value="name">A À Z</option></select></label>
           </div>

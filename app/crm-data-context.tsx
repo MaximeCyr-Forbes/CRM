@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -241,7 +242,8 @@ async function crmDataRequest<T>(body: Record<string, unknown>): Promise<T> {
 
 export function CRMDataProvider({ children }: { children: ReactNode }) {
   const { status: authStatus } = useAuth();
-  const { selectedBroker } = useBroker();
+  const { selectedBroker, isBrokerReady } = useBroker();
+  const contactsRequest = useRef<AbortController | null>(null);
   const [contacts, setContacts] = useState<ReadonlyArray<Contact>>([]);
   const [notes, setNotes] = useState<ReadonlyArray<ClientNote>>([]);
   const [loadedNoteContacts, setLoadedNoteContacts] = useState<ReadonlySet<string>>(
@@ -269,22 +271,33 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadContacts = useCallback(async () => {
+    contactsRequest.current?.abort();
+    const controller = new AbortController();
+    contactsRequest.current = controller;
+    const timeout = setTimeout(() => controller.abort(new Error("Chargement trop long.")), 20_000);
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/crm/data?resource=contacts", { cache: "no-store" });
+      const response = await fetch("/api/crm/data?resource=contacts", { cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error("Chargement impossible.");
       const { data } = (await response.json()) as { data: ContactRow[] };
-      setContacts((data ?? []).map(mapContact));
+      if (contactsRequest.current === controller && !controller.signal.aborted) setContacts((data ?? []).map(mapContact));
     } catch (caughtError) {
-      logDevelopmentWarning(caughtError);
-      setError("Impossible de charger les contacts.");
+      if (contactsRequest.current === controller) {
+        logDevelopmentWarning(caughtError);
+        setError("Impossible de charger les contacts. Réessayez.");
+      }
     } finally {
-      setIsLoading(false);
+      clearTimeout(timeout);
+      if (contactsRequest.current === controller) {
+        contactsRequest.current = null;
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    if (!isBrokerReady) return;
     if (authStatus === "authenticated") {
       void loadContacts();
       void fetch("/api/google-calendar/birthdays/sync", {
@@ -297,13 +310,17 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 40, retryErrors: false }),
       }).catch(() => undefined);
-      return;
+      return () => {
+        const request = contactsRequest.current;
+        contactsRequest.current = null;
+        request?.abort();
+      };
     }
     setContacts([]);
     setNotes([]);
     setLoadedNoteContacts(new Set());
     setIsLoading(authStatus === "loading");
-  }, [authStatus, loadContacts]);
+  }, [authStatus, isBrokerReady, loadContacts]);
 
   const loadNotesForContact = useCallback(
     async (contactId: string) => {
