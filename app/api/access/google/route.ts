@@ -3,6 +3,8 @@ import { CRM_ACCESS_COOKIE } from '../../../lib/crm-access';
 import { createCRMAuthClient, googleLoginEnabled } from '../../../lib/auth/server';
 import { safeReturnPath } from '../../../lib/auth/identity';
 import { isSameOriginRequest } from '../../../lib/google-calendar/config';
+import { clearGoogleSession } from '../../../lib/auth/google-session';
+import { authEvent } from '../../../lib/auth/events';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return Response.json({ error: 'Origine refusée.' }, { status: 403 });
@@ -13,6 +15,8 @@ export async function POST(request: Request) {
   const store = await cookies();
   store.set('crm_auth_return', safeReturnPath(body?.returnTo), { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 600 });
   try {
+    await clearGoogleSession();
+    authEvent('GOOGLE_AUTH_START');
     const client = await createCRMAuthClient();
     const { data, error } = await client.auth.signInWithOAuth({ provider: 'google', options: {
       redirectTo: `${origin}/api/access/callback`, scopes: 'openid email profile',

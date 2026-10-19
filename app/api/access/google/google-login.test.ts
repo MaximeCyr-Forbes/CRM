@@ -1,0 +1,31 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+const m=vi.hoisted(()=>({ rpc:vi.fn(), service:vi.fn(), verify:vi.fn(), getUser:vi.fn(), exchange:vi.fn(), start:vi.fn(), signOut:vi.fn(), set:vi.fn(), del:vi.fn(), same:true,
+ cookies:[] as {name:string;value:string}[] }));
+vi.mock('next/headers',()=>({cookies:async()=>({getAll:()=>m.cookies,get:(name:string)=>m.cookies.find(x=>x.name===name),set:m.set,delete:m.del})}));
+vi.mock('../../../lib/auth/server',()=>({googleLoginEnabled:()=>true,createCRMAuthClient:async()=>({rpc:m.rpc,auth:{getUser:m.getUser,exchangeCodeForSession:m.exchange,signInWithOAuth:m.start,signOut:m.signOut}})}));
+vi.mock('../../../lib/crm-access',()=>({CRM_ACCESS_COOKIE:'ef_crm_access',verifyCRMPassword:m.verify}));
+vi.mock('../../../lib/supabase/server',()=>({getSupabaseServiceClient:()=>({rpc:m.service})}));
+vi.mock('../../../lib/google-calendar/config',()=>({isSameOriginRequest:()=>m.same}));
+import {POST as start} from './route';
+import {GET as callback} from '../callback/route';
+import {GET as linkState,POST as link} from './link/route';
+import {POST as reset} from './reset/route';
+const member={member_id:'member',identity_id:'identity',auth_user_id:'user',broker:'sandrine',role:'broker',brokers:['france','maxime','sandrine']};
+const pending={status:'link_required',auth_user_id:'user',google_identity_id:'provider-identity',session_id:'session',members:[{id:'member',name:'Synthetic Member'}]};
+beforeEach(()=>{vi.clearAllMocks();m.same=true;m.cookies=[];process.env.NEXT_PUBLIC_APP_URL='https://crm.test';m.getUser.mockResolvedValue({data:{user:{id:'user'}}});m.rpc.mockResolvedValue({data:pending});m.service.mockResolvedValue({data:true});m.verify.mockResolvedValue(true);m.signOut.mockResolvedValue({error:null});m.exchange.mockResolvedValue({error:null});m.start.mockResolvedValue({data:{url:'https://accounts.google.com/qa'}});});
+const request=(path:string,body:unknown={})=>new Request('https://crm.test'+path,{method:'POST',body:JSON.stringify(body)});
+describe('Google login recovery and linking',()=>{
+ it('selects an account with minimal scopes and the stable production callback',async()=>{expect((await start(request('/api/access/google'))).status).toBe(200);expect(m.start).toHaveBeenCalledWith({provider:'google',options:{redirectTo:'https://crm.test/api/access/callback',scopes:'openid email profile',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}}});expect(m.signOut).toHaveBeenCalledWith({scope:'local'});});
+ it('clears partial Google cookies but never the rescue session',async()=>{m.cookies=[{name:'sb-project-auth-token.0',value:'qa'},{name:'sb-project-auth-token-code-verifier',value:'qa'},{name:'ef_crm_access',value:'qa'},{name:'google-calendar-state',value:'qa'}];m.signOut.mockRejectedValue(new Error('expired'));expect((await reset(request('/api/access/google/reset'))).status).toBe(200);expect(m.set.mock.calls.map(x=>x[0])).toEqual(['sb-project-auth-token.0','sb-project-auth-token-code-verifier']);expect(m.del).not.toHaveBeenCalled();});
+ it('keeps a corporate session for one-time linking',async()=>{const r=await callback(new Request('https://crm.test/api/access/callback?code=qa'));expect(r.headers.get('location')).toContain('/login?link=1');expect(m.signOut).not.toHaveBeenCalled();});
+ it('redirects a resolved member directly to the requested page',async()=>{m.cookies=[{name:'crm_auth_return',value:'/sign-inventory'}];m.rpc.mockResolvedValue({data:{status:'ready',member,resolution:'sub'}});expect((await callback(new Request('https://crm.test/api/access/callback?code=qa'))).headers.get('location')).toBe('https://crm.test/sign-inventory');});
+ it.each(['domain_denied','blocked','invalid'])('cleans rejected identity %s',async status=>{m.rpc.mockResolvedValue({data:{status}});const r=await callback(new Request('https://crm.test/api/access/callback?code=qa'));expect(r.headers.get('location')).toContain('/login?authError=');expect(m.signOut).toHaveBeenCalled();});
+ it.each(['error=access_denied','','code=bad'])('recovers callback error %s',async query=>{m.exchange.mockResolvedValue({error:{message:'invalid_grant'}});const r=await callback(new Request('https://crm.test/api/access/callback?'+query));expect(r.headers.get('location')).toContain('/login?authError=');expect(r.headers.get('location')).not.toContain('invalid_grant');expect(m.signOut).toHaveBeenCalled();});
+ it('exposes only member choices, never internal session identifiers',async()=>{const data=await(await linkState()).json();expect(data).toEqual({status:'link_required',members:pending.members});});
+ it('confirms using the existing rescue validator and server-resolved identity',async()=>{expect((await link(request('/api/access/google/link',{memberId:'member',password:'qa-secret',auth_user_id:'forged'}))).status).toBe(200);expect(m.verify).toHaveBeenCalledWith('qa-secret');expect(m.service).toHaveBeenLastCalledWith('crm_confirm_google_link',{p_user:'user',p_identity:'provider-identity',p_session:'session',p_member:'member'});});
+ it('does not link on wrong rescue password',async()=>{m.verify.mockResolvedValue(false);expect((await link(request('/api/access/google/link',{memberId:'member',password:'wrong'}))).status).toBe(401);expect(m.service).not.toHaveBeenCalledWith('crm_confirm_google_link',expect.anything());});
+ it('bounds repeated confirmation attempts',async()=>{m.service.mockResolvedValue({data:false});expect((await link(request('/api/access/google/link',{memberId:'member',password:'qa'}))).status).toBe(429);expect(m.verify).not.toHaveBeenCalled();});
+ it('rejects a member absent from server choices',async()=>{expect((await link(request('/api/access/google/link',{memberId:'forged',password:'qa'}))).status).toBe(400);expect(m.service).not.toHaveBeenCalledWith('crm_confirm_google_link',expect.anything());});
+ it('rejects external origins before accessing session or password',async()=>{m.same=false;expect((await link(request('/api/access/google/link'))).status).toBe(403);expect(m.verify).not.toHaveBeenCalled();});
+ it('requires a live verified session',async()=>{m.getUser.mockResolvedValue({data:{user:null}});expect((await link(request('/api/access/google/link',{memberId:'member',password:'qa'}))).status).toBe(400);expect(m.verify).not.toHaveBeenCalled();});
+});

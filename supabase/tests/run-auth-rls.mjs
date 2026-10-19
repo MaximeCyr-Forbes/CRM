@@ -44,6 +44,10 @@ try {
  phase='full member access migration';await db.exec(await readFile(new URL('../migrations/20261019221354_full_member_functional_access.sql',root),'utf8'));
  phase='full member identity regression';await db.exec((await readFile(new URL('google_member_identity.sql',root),'utf8')).replace('begin;', 'begin; update public.crm_member_auth_identities set provider_subject=null,auth_user_id=null,active=true;'));
  phase='functional parity';const {testFunctionalParity}=await import('./functional-parity.mjs');await testFunctionalParity(db);
+ phase='Google login v3 migration';await db.exec(await readFile(new URL('../migrations/20261019223541_google_login_v3.sql',root),'utf8'));
+ phase='Google login v3';const {testGoogleLoginV3}=await import('./google-login-v3.mjs');await testGoogleLoginV3(db);
+ phase='Google v3 functional parity';await testFunctionalParity(db);
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
 } catch(e) { console.error('FAIL phase:',phase,'code:',e.code,'message:',e.message);process.exitCode=1; }
 finally { await db.close(); }
+

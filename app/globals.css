@@ -9541,7 +9541,8 @@ button.destructive-button:disabled {
   letter-spacing: 0.04em;
 }
 
-.login-form input {
+.login-form input,
+.login-form select {
   width: 100%;
   min-height: 3.25rem;
   padding: 0 1rem;
@@ -10451,6 +10452,11 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 
 /* Individual Google sign-in and temporary migration access. */
 .login-panel > .login-submit { width: 100%; padding: 0.75rem 1rem; letter-spacing: 0.025em; }
+.login-google-icon { display: inline-block; margin-right: .65rem; font-weight: 700; }
+.login-rescue { text-align: center; margin-top: 1.5rem; font-size: .85rem; color: #5b6b65; }
+.login-help { background: transparent; border: 0; color: #344d43; text-decoration: underline; padding: .6rem .25rem; cursor: pointer; font: inherit; }
+.login-help:focus-visible { outline: 2px solid #344d43; outline-offset: 3px; }
+.login-form > p { font-size: .9rem; line-height: 1.5; color: #465852; }
 .login-panel > details.login-form { margin-top: 1.25rem; display: block; }
 .login-panel > details.login-form > summary { cursor: pointer; color: #465852; font-size: 0.85rem; }
 .login-panel > details.login-form[open] > form { margin-top: 1rem; }
