@@ -6234,8 +6234,7 @@ button:disabled {
 }
 
 .app-header-links button,
-.global-search-trigger,
-.app-change-broker {
+.global-search-trigger {
   min-height: 2.75rem;
   padding: 0.6rem 0.72rem;
   color: var(--ink-soft);
@@ -6347,7 +6346,6 @@ button:disabled {
 .app-broker-state { display: grid; flex-shrink: 0; gap: 0.12rem; padding: 0 0.35rem; }
 .app-broker-state span { color: rgba(19, 35, 59, 0.48); font-size: 0.5rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 .app-broker-state strong { font-size: 0.72rem; letter-spacing: 0.08em; }
-.app-change-broker { min-height: 2.5rem; padding: 0.5rem 0.58rem; border-color: var(--line); }
 
 .global-search-backdrop {
   position: fixed;
@@ -6525,7 +6523,6 @@ textarea:focus-visible,
   .global-search-trigger > span:last-child,
   .app-broker-state span { display: none; }
   .app-broker-state { padding: 0 0.25rem; }
-  .app-change-broker { min-height: 2.75rem; }
   .app-header-links { justify-content: flex-start; gap: 0; padding: 0.2rem 0 0.15rem; }
   .app-header-links button { min-height: 2.75rem; font-size: 0.58rem; }
   .account-menu-trigger { width: 2.75rem; min-height: 2.75rem; justify-content: center; padding: 0; }

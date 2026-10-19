@@ -76,8 +76,6 @@
 .crm-working-broker { display: grid; gap: 3px; }
 .crm-working-broker > span { font-size: 9px; color: var(--crm-text-muted); }
 .crm-working-broker select { max-width: 120px; min-height: 30px; padding: 3px 22px 3px 7px; color: var(--crm-text); border: 1px solid var(--crm-border); border-radius: 6px; background: white; font-size: 11px; }
-.crm-change-user { min-height: 40px; max-width: 100px; padding: 6px 0; border: 0; background: transparent; color: var(--crm-text-muted); font-size: 10px; cursor: pointer; }
-.crm-change-user:hover { color: var(--crm-accent); text-decoration: underline; }
 .crm-topbar .account-menu { z-index: 1; }
 .crm-topbar .account-menu-trigger { min-height: 40px; padding: 0 12px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); box-shadow: none; color: var(--crm-text-muted); background: white; }
 .crm-topbar .account-menu-trigger strong { font-size: 11px; font-weight: 500; }
@@ -133,7 +131,6 @@
   .crm-topbar-tools { grid-column: 1 / -1; width: 100%; justify-content: space-between; gap: 10px; }
   .crm-topbar .account-menu-trigger { min-height: 44px; height: 44px; width: 44px; }
   .crm-topbar .crm-icon-button { width: 44px; height: 44px; }
-  .crm-change-user { min-height: 44px; font-size: 10px; }
   .crm-content > main { padding: 20px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   .crm-workspace-identity span { font-size: 9px; }
   .crm-working-broker select { font-size: 16px; min-height: 44px; max-width: 112px; }
@@ -148,7 +145,6 @@
   .app-header-links { grid-column: 1; grid-row: 3; min-width: 0; }
   .app-header .app-broker-state { flex: 1 1 100px; min-width: 0; }
   .app-header .app-assistant-state span { font-size: 10px; letter-spacing: .025em; }
-  .app-header .app-change-broker { max-width: 120px; white-space: normal; font-size: 10px; }
   .app-header :is(button, select) { min-height: 44px; }
   .app-header select { font-size: 16px; max-width: 100%; }
 }

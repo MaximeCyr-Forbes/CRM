@@ -28,7 +28,7 @@ export function AppHeader() {
   const isSelectionPage = pathname === "/";
   const isAssistantSelection = isSelectionPage && searchParams.get("workspace") === "immoplus";
   const router = useRouter();
-  const { selectedBroker, clearBroker, workspaceUser, selectBroker } = useBroker();
+  const { selectedBroker, workspaceUser, selectBroker } = useBroker();
   // The selection URL owns its presentation. Keep the business session intact
   // so Forward can restore the dashboard after Back / Back.
   const displayedWorkspace = isSelectionPage ? isAssistantSelection ? "immoplus" : null : workspaceUser;
@@ -84,11 +84,6 @@ export function AppHeader() {
     router.push(href === "/dashboard" && !selectedBroker ? "/" : href);
   }
 
-  function changeBroker() {
-    clearBroker();
-    router.push(pathname === "/mortgage-referrals" ? "/?returnTo=%2Fmortgage-referrals" : "/");
-  }
-
   return (
     <header className="app-header" ref={headerRef}>
       <button aria-label="Accueil — Équipe Forbes" className="app-header-brand" onClick={() => navigate("/dashboard")} type="button">
@@ -142,7 +137,6 @@ export function AppHeader() {
             <option value="" disabled>Choisir</option>{BROKERS.map((broker) => <option key={broker} value={broker}>{broker.toUpperCase()}</option>)}
           </select> : <strong>{displayedBroker?.toUpperCase() ?? "AUCUN"}</strong>}
         </div>
-        <button className="app-change-broker" onClick={changeBroker} type="button">{displayedWorkspace === "immoplus" ? "Changer d’utilisateur" : "Changer"}</button>
         <AccountMenu />
       </div>
       {isSoftwareOpen && (

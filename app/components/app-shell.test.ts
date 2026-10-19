@@ -83,10 +83,12 @@ describe("premium shell preserves the CRM navigation contract", () => {
   it("does not offer an assistant broker selector to a broker", () => {
     expect(renderToStaticMarkup(topbar())).not.toContain("<select");
   });
-  it("preserves explicit workspace reset and mortgage returnTo", () => {
-    state.pathname = "/mortgage-referrals";
-    const button = find(topbar(), props => props.className === "crm-change-user");
-    (button.onClick as () => void)(); expect(state.clearBroker).toHaveBeenCalledOnce(); expect(state.push).toHaveBeenCalledWith("/?returnTo=%2Fmortgage-referrals");
+  it.each(["maxime", "france", "immoplus"])("removes the obsolete global identity switch for %s", user => {
+    state.workspaceUser = user;
+    const html = renderToStaticMarkup(topbar());
+    expect(html).not.toContain("Changer");
+    expect(html).toContain('aria-label="Menu d’accès équipe"');
+    expect(state.clearBroker).not.toHaveBeenCalled();
   });
   it("closes the drawer before pushing an existing route", () => {
     state.open = true;
