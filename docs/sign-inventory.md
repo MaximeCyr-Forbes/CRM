@@ -25,3 +25,11 @@ Les trois actions permanentes du header ouvrent des dialogues. Le retour global 
 Gérer l’inventaire valide tous les totaux avant de les envoyer, puis réutilise séquentiellement la RPC existante. En cas d’échec partiel, les quantités déjà enregistrées sont conservées ; un rechargement explicite des quantités est requis avant de réessayer. Chaque mutation recharge la vue et affiche une confirmation brève. Aucun changement de schéma, de permissions ou de logique de stock.
 
 La vérification V2 utilise des données isolées pour les mutations et des lectures de production pour contrôler le rendu et l’intégrité des données existantes.
+
+## Ajout de stock par MCP
+
+`crm_add_sign_inventory_stock` reçoit une quantité entière positive, jamais un total absolu. Les pancartes exigent un courtier existant ; BAC et ajouts sont partagés. Pour un ajout, fournir son ID exact retourné par la lecture d’inventaire (par exemple `addon:sold`). Aucun type n’est créé. Les permissions Google/MCP actuelles réservent la gestion du stock aux membres administrateurs. L’auteur est toujours le membre authentifié.
+
+La RPC additive prend le verrou commun de l’inventaire, lit le total, puis appelle la mutation de stock existante avec sa version actuelle. La réservation action_id, la mutation, l’historique et le résultat MCP sont dans une même transaction. Un retry après perte de réponse renvoie le résultat enregistré ; une clé réutilisée avec d’autres paramètres est refusée. Aucun changement du workflow d’attribution ou de retour.
+
+Les tests SQL isolés couvrent les trois catégories, les refus, la disponibilité, les permissions, l’audit et les retries. PGlite sérialise les requêtes : son test d’ajouts parallèles contrôle le cumul, sans simuler deux connexions PostgreSQL concurrentes. Les stocks de production ne doivent pas être augmentés pour un test fictif.

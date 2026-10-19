@@ -25,7 +25,7 @@ async function executeAuthenticatedTool(tool:ToolDefinition,input:Record<string,
  if(tool.write)requireWrite(auth.identity);
  let claimed=false;
  try {
-  if(tool.write){
+  if(tool.write && !tool.atomicWrite){
    const hash=createHash('sha256').update(canonical(parsed)).digest('hex');
    const prior=await checked(auth.client.rpc('crm_mcp_begin_action',{p_action_id:parsed.action_id,p_tool:tool.name,p_hash:hash}));
    if(!prior.claimed){
@@ -35,7 +35,7 @@ async function executeAuthenticatedTool(tool:ToolDefinition,input:Record<string,
    claimed=true;
   }
   const result=await withSupabaseClient(auth.client,()=>tool.run(parsed,auth.client,auth.identity));
-  if(tool.write){
+  if(tool.write && !tool.atomicWrite){
    const record=result as {entity:string;id:string};
    await checked(getSupabaseServiceClient().rpc('crm_mcp_finish_action',{p_member_id:auth.identity.memberId,p_action_id:parsed.action_id,p_status:'succeeded',p_result:result}));
    if(tool.name==='crm_update_transaction_deadline'){
@@ -54,7 +54,7 @@ export function createMCPServer(auth:MCPAuth){
  const server=new McpServer({name:'forbes-crm',version:'1.0.0'},{maxToolInputElements:2000});
  for(const tool of tools){
   server.registerTool(tool.name,{description:tool.description,inputSchema:tool.schema,
-   annotations:{readOnlyHint:!tool.write,destructiveHint:tool.write,idempotentHint:true,openWorldHint:tool.name==='crm_update_transaction_deadline'},
+   annotations:{readOnlyHint:!tool.write,destructiveHint:tool.write && !tool.atomicWrite,idempotentHint:true,openWorldHint:tool.name==='crm_update_transaction_deadline'},
    _meta:{securitySchemes:[{type:'oauth2',scopes:['openid']}]},
   },async input=>{
    const requestId=crypto.randomUUID(),start=Date.now();

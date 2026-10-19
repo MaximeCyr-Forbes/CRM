@@ -107,5 +107,6 @@ export async function testBusinessPermissions(db) {
  await check('other broker remains connected after revocation',()=>act('sandrine',async tx=>assert.equal((await tx.query('select * from public.contacts')).rows.length,1)));
  await db.query('update public.crm_member_auth_identities set active=false where id=$1',[people.france.identity]);
  await check('disabled identity immediately loses row access',()=>act('france',async tx=>assert.equal((await tx.query('select * from public.contacts')).rows.length,0)));
+ const {testInventoryStock}=await import('./mcp-inventory-stock.mjs');await testInventoryStock(db,{act,people,check});
  console.log(`PASS: ${checks} business/RLS/MCP security scenarios on local PostgreSQL.`);
 }

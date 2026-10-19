@@ -8,7 +8,7 @@ export type MCPIdentity = {
   clientId: string; sessionId: string;
 };
 export class MCPAccessError extends Error {
-  constructor(public code: 'UNAUTHORIZED'|'FORBIDDEN'|'NOT_FOUND'|'INVALID_INPUT'|'RATE_LIMITED'|'CONFLICT', message: string) { super(message); }
+  constructor(public code: 'INVENTORY_ADDITION_MUST_BE_POSITIVE'|'UNAUTHORIZED'|'FORBIDDEN'|'NOT_FOUND'|'INVALID_INPUT'|'RATE_LIMITED'|'CONFLICT', message: string) { super(message); }
 }
 export const uuid = z.uuid();
 export const broker = z.enum(['maxime','france','sandrine']);

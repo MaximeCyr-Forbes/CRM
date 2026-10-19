@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {addInventoryStockTool} from './inventory-stock';
 import {getDeadlineRow,insertTransactionNote,updateDeadline} from '../transactions/server-service';
 import {saveDirectClient,importDirectClients} from '../transactions/direct-clients-server';
 import {createExpense,getExpense,updateExpense,setExpensePayment} from '../accounting/server';
@@ -18,6 +19,7 @@ const expense={assigned_broker:broker.nullable(),category:z.enum(['marketing','o
 const referral={mortgage_advisor_name:text(200).min(1),institution_name:text(200).min(1)};
 const result=(entity:string,id:string)=>({entity,id});
 export const writeTools:ToolDefinition[]=[
+ addInventoryStockTool,
  write('crm_create_contact','Créer un contact dans un courtier autorisé. Rechercher d’abord les doublons. Ne jamais déduire des coordonnées absentes. Aucun envoi de courriel.',{broker,values:z.strictObject(contact)},async(a,db,i)=>{
   requireBroker(i,a.broker);const row=await checked(db.rpc('create_manual_contact_with_addresses',{p_values:{...a.values,broker:a.broker},p_addresses:[],p_creation_key:a.action_id}));return result('contact',(Array.isArray(row)?row[0]:row).id);
  }),

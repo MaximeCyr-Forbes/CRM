@@ -56,3 +56,16 @@ describe('MCP durable action ledger',()=>{
   await expect(executeTool(tool,args,auth())).rejects.toThrow('database unavailable');expect(state.finish).toHaveBeenCalledWith('crm_mcp_finish_action',expect.objectContaining({p_status:'uncertain',p_member_id:'m'}));
  });
 });
+
+describe('atomic inventory MCP tool',()=>{
+ it('advertises additive inputs and commits without a separate ledger claim',async()=>{
+  const inventory=tools.find(t=>t.name==='crm_add_sign_inventory_stock')!;
+  state.claim.mockResolvedValue({data:{entity:'sign_inventory_stock',id:'bac',new_total:3},error:null});
+  const admin={...auth(),identity:{...identity,role:'admin' as const,actor:'maxime' as const}};
+  expect(await executeTool(inventory,{action_id:'00000000-0000-4000-8000-000000000001',inventory_type:'bac',quantity:3},admin)).toMatchObject({new_total:3});
+  expect(state.claim).toHaveBeenCalledOnce();expect(state.claim).toHaveBeenCalledWith('crm_mcp_add_inventory_stock',expect.anything());expect(state.finish).not.toHaveBeenCalled();
+  const payload=await (await handleMCP(request('tools/list'))).json();
+  const entry=payload.result.tools.find((t:any)=>t.name===inventory.name);
+  expect(entry.inputSchema.properties.quantity.minimum).toBe(1);expect(entry.annotations.destructiveHint).toBe(false);expect(entry.inputSchema.properties.total).toBeUndefined();
+ });
+});

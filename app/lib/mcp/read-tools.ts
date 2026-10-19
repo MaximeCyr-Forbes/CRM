@@ -9,7 +9,7 @@ import {listReferrals} from '../mortgage-referrals/server';
 import {paymentSummary} from '../mortgage-referrals/payments';
 import {MCPAccessError,broker,date,pagination,pageResult,requireBroker,search,searchNeedle,uuid,type MCPIdentity} from './access';
 
-export type ToolDefinition = {name:string;description:string;schema:z.ZodObject;write:boolean;run:(input:Record<string,any>,db:SupabaseClient,identity:MCPIdentity)=>Promise<unknown>};
+export type ToolDefinition = {name:string;description:string;schema:z.ZodObject;write:boolean;atomicWrite?:boolean;run:(input:Record<string,any>,db:SupabaseClient,identity:MCPIdentity)=>Promise<unknown>};
 const contactColumns='id,first_name,last_name,phone,email,broker,client_type,client_provenance,source,address,civic_number,city,postal_code,status';
 const transactionColumns='id,address,centris_number,broker,type,status,price,notary_date,promise_date';
 const listingColumns='id,civic_number,address,city,centris_number,broker,status,asking_price,monthly_rent';
