@@ -88,7 +88,10 @@ export async function testBusinessPermissions(db) {
  await db.query('insert into auth.oauth_clients(id) values($1)',[client]);
  await db.query('insert into auth.oauth_consents(user_id,client_id) values($1,$2)',[people.france.user,client]);
  await db.query('insert into auth.sessions(id,user_id,oauth_client_id) values($1,$2,$3)',[oauthSession,people.france.user,client]);
- const delegate={client_id:client,session_id:oauthSession};
+ const delegate={client_id:client,session_id:oauthSession,amr:[{method:'oauth_provider/authorization_code'}]};
+ await check('delegated AMR without delegated session is rejected',()=>act('france',async tx=>assert.equal((await tx.query('select public.crm_authenticated_member() m')).rows[0].m,null),{amr:delegate.amr}));
+ await check('delegated session requires delegated AMR',()=>act('france',async tx=>assert.equal((await tx.query('select public.crm_mcp_identity() m')).rows[0].m,null),{...delegate,amr:[{method:'oauth'}]}));
+ await check('delegated session rejects mismatched client',()=>act('france',async tx=>assert.equal((await tx.query('select public.crm_mcp_identity() m')).rows[0].m,null),{...delegate,client_id:randomUUID()}));
  await check('MCP maps same verified member',()=>act('france',async tx=>assert.equal((await tx.query('select public.crm_mcp_identity() m')).rows[0].m.member_id,people.france.member),delegate));
  const action=randomUUID(),hash='a'.repeat(64);
  await check('MCP idempotent claim',()=>act('france',async tx=>{

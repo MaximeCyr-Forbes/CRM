@@ -36,6 +36,7 @@ try {
  phase='RLS migration';await db.exec(await readFile(new URL('../migrations/20261019022103_crm_member_rls_and_audit.sql',root),'utf8'));
  phase='MCP migration';await db.exec(await readFile(new URL('../migrations/20261019022528_chatgpt_mcp_member_access.sql',root),'utf8'));
  phase='private helper migration';await db.exec(await readFile(new URL('../migrations/20261019023748_auth_private_security_helpers.sql',root),'utf8'));
+ phase='delegated session migration';await db.exec(await readFile(new URL('../migrations/20261019033500_verified_delegated_oauth_sessions.sql',root),'utf8'));
  phase='identity regression';await db.exec(await readFile(new URL('google_member_identity.sql',root),'utf8'));
  phase='business permission tests';const { testBusinessPermissions }=await import('./business-permissions.mjs');await testBusinessPermissions(db);
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
