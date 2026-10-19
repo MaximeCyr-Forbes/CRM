@@ -8,7 +8,7 @@ Every individual CRM API request has its own AsyncLocalStorage actor and Supabas
 
 ## Current rollout gate
 
-Google provider and exact production redirects are configured. `CRM_GOOGLE_LOGIN_ENABLED=true` and `LEGACY_SHARED_LOGIN_ENABLED=true`. Real Google login with the Maxime RE/MAX alias successfully bound the existing Maxime admin member. End-to-end dashboard/logout/relogin validation and the France/Sandrine transition remain rollout gates. MCP never accepts the legacy cookie or workspace token. Supabase OAuth server is enabled with dynamic registration disabled; a real ChatGPT client still needs registration and validation.
+Google provider and exact production redirects are configured. `CRM_GOOGLE_LOGIN_ENABLED=true` and `LEGACY_SHARED_LOGIN_ENABLED=true`. Real Google login with the Maxime RE/MAX alias successfully bound the existing Maxime admin member. Production dashboard, logout/relogin and admin viewing France while retaining the Maxime actor are verified. The France/Sandrine transition and remaining real aliases are still rollout gates. MCP never accepts the legacy cookie or workspace token. Supabase OAuth server is enabled with dynamic registration disabled; a public PKCE ChatGPT client is registered with its exact callback. Actual MCP consent and tool validation are in progress.
 
 1. Configure Google OAuth web client with redirect `https://nabczucyxmfqlnouvcwo.supabase.co/auth/v1/callback`, retaining existing integration callbacks.
 2. Enable Google provider in Supabase with that client ID/secret. Leave Skip nonce checks and Allow users without email OFF. Disable email/password provider; keep manual identity linking OFF. OAuth signups must allow the six aliases to establish their first session; CRM RLS denies unknown identities even if Supabase creates an Auth user.
@@ -18,7 +18,7 @@ Google provider and exact production redirects are configured. `CRM_GOOGLE_LOGIN
 6. Connect ChatGPT to `/api/mcp`, test initialize/list/read and one synthetic QA write, repeated action ID, revocation and audit. Never send client mail for tests.
 7. Disable legacy flag only after the production transition is verified.
 
-No production Google/MCP success is implied by synthetic regression tests.
+The consent boundary accepts only openid, email, profile and offline_access (refresh tokens). Gmail, Calendar, Drive, phone and arbitrary scopes remain rejected. No MCP production success is implied by synthetic regression tests.
 
 ## Revocation
 

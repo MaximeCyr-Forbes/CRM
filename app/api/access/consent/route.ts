@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const { data, error } = await auth.client.auth.oauth.getAuthorizationDetails(id);
     if (error || !data) throw new Error('Authorization unavailable');
     if ('redirect_url' in data) return Response.json({ redirect: safeOAuthRedirect(data.redirect_url) }, { headers });
-    if (data.user.id !== auth.member.authUserId || data.scope.split(' ').some(scope => !['openid','email','profile'].includes(scope))) throw new Error('Unexpected authorization');
+    if (data.user.id !== auth.member.authUserId || data.scope.split(' ').some(scope => !['openid','email','profile','offline_access'].includes(scope))) throw new Error('Unexpected authorization');
     return Response.json({ clientName: data.client.name, clientUri: data.client.uri, broker: auth.member.broker, role: auth.member.role }, { headers });
   } catch { return Response.json({ error: 'Cette demande a expiré ou ne peut pas être autorisée. Relancez la connexion depuis ChatGPT.' }, { status: 400, headers }); }
 }
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!validAuthorization(body?.authorization_id) || !['approve','deny'].includes(body?.decision)) throw new Error('Invalid request');
     const details = await auth.client.auth.oauth.getAuthorizationDetails(body.authorization_id);
     if (details.error || !details.data) throw new Error('Invalid authorization');
-    if ('authorization_id' in details.data && (details.data.user.id !== auth.member.authUserId || details.data.scope.split(' ').some(scope => !['openid','email','profile'].includes(scope)))) throw new Error('Unexpected authorization');
+    if ('authorization_id' in details.data && (details.data.user.id !== auth.member.authUserId || details.data.scope.split(' ').some(scope => !['openid','email','profile','offline_access'].includes(scope)))) throw new Error('Unexpected authorization');
     const result = body.decision === 'approve'
       ? await auth.client.auth.oauth.approveAuthorization(body.authorization_id, { skipBrowserRedirect: true })
       : await auth.client.auth.oauth.denyAuthorization(body.authorization_id, { skipBrowserRedirect: true });
