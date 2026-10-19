@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import { parseRecommendationDraft } from "../../data/recommendation-types";
 import { requireApiAccess, requireWorkspaceAdmin } from "../../lib/crm-access";
 import { isSameOriginRequest } from "../../lib/google-calendar/config";
@@ -19,7 +20,7 @@ function recommendationApiError(error: unknown, publicMessage: string) {
   );
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const denied = await requireWorkspaceAdmin(request);
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -51,3 +52,6 @@ export async function POST(request: Request) {
     return recommendationApiError(error, "Envoi de la recommandation impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

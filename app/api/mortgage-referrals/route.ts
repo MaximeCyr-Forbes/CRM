@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import { requireApiAccess } from "../../lib/crm-access";
 import { isSameOriginRequest } from "../../lib/google-calendar/config";
 import { GoogleCalendarNotConnectedError } from "../../lib/google-calendar/service";
@@ -10,7 +11,7 @@ export function referralResponseError(error: unknown) {
   console.error("Mortgage referral operation failed", { code: (error as { code?: string })?.code });
   return Response.json({ error: "Opération impossible. Réessayez pour terminer la synchronisation." }, { status: 502 });
 }
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try {
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     return Response.json({ data }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return referralResponseError(error); }
 }
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -31,3 +32,6 @@ export async function POST(request: Request) {
     return Response.json({ data: await createReferral(body) }, { status: 201 });
   } catch (error) { return referralResponseError(error); }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

@@ -10451,3 +10451,10 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .app-assistant-state, .app-assistant-state span { display: grid; }
 .app-assistant-state select { color: inherit; background: transparent; border: 1px solid #d3d7dc; border-radius: 4px; padding: 0.25rem; font: inherit; font-size: 0.72rem; }
 .broker-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* Individual Google sign-in and temporary migration access. */
+.login-panel > .login-submit { width: 100%; padding: 0.75rem 1rem; letter-spacing: 0.025em; }
+.login-panel > details.login-form { margin-top: 1.25rem; display: block; }
+.login-panel > details.login-form > summary { cursor: pointer; color: #465852; font-size: 0.85rem; }
+.login-panel > details.login-form[open] > form { margin-top: 1rem; }
+.login-panel > .auth-message { margin-bottom: 1rem; }

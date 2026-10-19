@@ -1,9 +1,10 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { listGoogleConnectionStatuses } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function GETHandler() {
   const access = await requireApiAccess();
   if (access.response) {
     return access.response;
@@ -20,3 +21,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

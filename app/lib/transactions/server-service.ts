@@ -503,9 +503,9 @@ export async function deleteDeadline(deadlineId: string) {
   if (error) throw error;
 }
 
-export async function insertTransactionNote(transactionId: string, content: string) {
+export async function insertTransactionNote(transactionId: string, content: string, audit?: { id: string; userId: string }) {
   const { error } = await getSupabaseAdmin()
     .from("transaction_notes")
-    .insert({ transaction_id: transactionId, content: content.trim() });
+    .insert({ transaction_id: transactionId, content: content.trim(), ...(audit ? { id: audit.id, created_by_user_id: audit.userId } : {}) });
   if (error) throw error;
 }

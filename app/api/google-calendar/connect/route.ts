@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import {
   getApplicationOrigin,
@@ -28,7 +29,7 @@ function capabilityFeedbackParameter(capability: GoogleOAuthCapability) {
   return "google";
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) {
     return access.response;
@@ -87,3 +88,5 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

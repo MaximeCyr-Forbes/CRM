@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { listingApiError } from "../../../../lib/listings/api-response";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ listingId: string }> };
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -36,3 +37,5 @@ export async function POST(request: Request, context: Context) {
     return listingApiError(error, "Création de la Transaction impossible.");
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

@@ -10,10 +10,14 @@ import {
   type ReactNode,
 } from "react";
 
+import type { CRMMember } from './lib/auth/identity';
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
   status: AuthStatus;
+  member: CRMMember | null;
+  googleEnabled: boolean;
+  legacyEnabled: boolean;
   signIn: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -21,14 +25,17 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [member, setMember] = useState<CRMMember | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [legacyEnabled, setLegacyEnabled] = useState(false);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
   useEffect(() => {
     let active = true;
     void fetch("/api/access/session", { cache: "no-store" })
-      .then(async (response) => response.json() as Promise<{ authenticated?: boolean }>)
+      .then(async (response) => response.json() as Promise<{ authenticated?: boolean; member?: CRMMember | null; googleEnabled?: boolean; legacyEnabled?: boolean }>)
       .then((result) => {
-        if (active) setStatus(result.authenticated ? "authenticated" : "unauthenticated");
+        if (active) { setStatus(result.authenticated ? "authenticated" : "unauthenticated"); setMember(result.member ?? null); setGoogleEnabled(Boolean(result.googleEnabled)); setLegacyEnabled(Boolean(result.legacyEnabled)); }
       })
       .catch(() => {
         if (active) setStatus("unauthenticated");
@@ -55,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
-  const value = useMemo(() => ({ status, signIn, signOut }), [signIn, signOut, status]);
+  const value = useMemo(() => ({ status, signIn, signOut, member, googleEnabled, legacyEnabled }), [signIn, signOut, status, member, googleEnabled, legacyEnabled]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

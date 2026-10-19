@@ -1,9 +1,10 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { listCustomEmailSelectableContacts } from "../../../../lib/automatic-emails/custom-campaign-persistence";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function GETHandler() {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try {
@@ -13,3 +14,5 @@ export async function GET() {
     return Response.json({ error: "Chargement des Contacts impossible." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

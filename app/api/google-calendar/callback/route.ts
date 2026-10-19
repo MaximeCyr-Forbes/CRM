@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { getApplicationOrigin, getGoogleRedirectUri } from "../../../lib/google-calendar/config";
 import { verifyOAuthState, type GoogleOAuthCapability } from "../../../lib/google-calendar/oauth-state";
 import {
@@ -17,7 +18,7 @@ function capabilityFeedbackParameter(capability: GoogleOAuthCapability) {
   return "google";
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
@@ -83,3 +84,5 @@ export async function GET(request: Request) {
 
   return Response.redirect(destinationUrl.toString(), 302);
 }
+
+export const GET = withCRMIdentity(GETHandler);

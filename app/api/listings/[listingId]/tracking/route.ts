@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { listingApiError } from "../../../../lib/listings/api-response";
@@ -20,7 +21,7 @@ function actorFrom(value: unknown) {
   return isListingBroker(value) ? value : undefined;
 }
 
-export async function GET(_request: Request, context: Context) {
+async function GETHandler(_request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const listingId = await listingIdFrom(context);
@@ -44,7 +45,7 @@ async function writable(request: Request, context: Context) {
   return { response: null, listingId, body, actor } as const;
 }
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   try {
@@ -58,7 +59,7 @@ export async function POST(request: Request, context: Context) {
   } catch (error) { return listingApiError(error, "Création du suivi impossible."); }
 }
 
-export async function PATCH(request: Request, context: Context) {
+async function PATCHHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   try {
@@ -75,7 +76,7 @@ export async function PATCH(request: Request, context: Context) {
   } catch (error) { return listingApiError(error, "Modification du suivi impossible."); }
 }
 
-export async function DELETE(request: Request, context: Context) {
+async function DELETEHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   try {
@@ -90,3 +91,8 @@ export async function DELETE(request: Request, context: Context) {
     return Response.json({ error: "Action de suppression invalide." }, { status: 400 });
   } catch (error) { return listingApiError(error, "Suppression du suivi impossible."); }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

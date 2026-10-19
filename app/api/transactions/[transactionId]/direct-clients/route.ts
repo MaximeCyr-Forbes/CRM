@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { birthdayWorkspaceActor, requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { DirectClientError } from "../../../../lib/transactions/direct-clients";
@@ -9,7 +10,7 @@ function failure(error: unknown) {
   console.error("Direct client operation failed", { code: (error as { code?: string })?.code });
   return Response.json({ error: "Impossible d’enregistrer ou de charger les clients directs. Réessayez." }, { status: 502 });
 }
-export async function GET(_request: Request, context: Context) {
+async function GETHandler(_request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try { return Response.json({ data: await listDirectClients((await context.params).transactionId) }, { headers: { "Cache-Control": "private, no-store" } }); }
@@ -37,3 +38,5 @@ async function mutate(request: Request, context: Context, action: "create" | "ed
 export const POST = (request: Request, context: Context) => mutate(request, context, "create");
 export const PATCH = (request: Request, context: Context) => mutate(request, context, "edit");
 export const DELETE = (request: Request, context: Context) => mutate(request, context, "delete");
+
+export const GET = withCRMIdentity(GETHandler);

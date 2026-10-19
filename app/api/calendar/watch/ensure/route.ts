@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { isCalendarBroker } from "../../../../data/calendar-types";
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
@@ -5,7 +6,7 @@ import { ensureGoogleCalendarWatch } from "../../../../lib/google-calendar/servi
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -30,3 +31,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

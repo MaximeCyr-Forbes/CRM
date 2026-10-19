@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { isAutomaticEmailRuleId, parseAutomaticEmailRuleDraft } from "../../../../data/automatic-email-types";
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
@@ -5,7 +6,7 @@ import { updateAutomaticEmailRule } from "../../../../lib/automatic-emails/persi
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(request: Request, context: { params: Promise<{ ruleId: string }> }) {
+async function PATCHHandler(request: Request, context: { params: Promise<{ ruleId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -23,3 +24,5 @@ export async function PATCH(request: Request, context: { params: Promise<{ ruleI
     return Response.json({ error: "Modification de la règle impossible." }, { status: 502 });
   }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);

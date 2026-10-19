@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { parseCustomEmailCampaignDraft } from "../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
@@ -11,7 +12,7 @@ function failure(error: unknown, message: string) {
   return Response.json({ error: message }, { status: 502, headers: { "Cache-Control": "private, no-store" } });
 }
 
-export async function GET() {
+async function GETHandler() {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try {
@@ -21,7 +22,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -33,3 +34,6 @@ export async function POST(request: Request) {
     return failure(error, "Création de la campagne impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

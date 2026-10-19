@@ -19,6 +19,7 @@ vi.mock("./broker-context", () => ({
     selectBroker: (broker: string) => { state.workingBroker = broker.toLowerCase() as WorkingBroker; },
   }),
 }));
+vi.mock("./auth-context", () => ({ useAuth: () => ({ member: null }) }));
 import { SelectionPage } from "./selection-page";
 function render() {
   const tree = SelectionPage();

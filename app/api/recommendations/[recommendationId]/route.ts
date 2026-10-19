@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isRecommendationId } from "../../../data/recommendation-types";
 import { requireApiAccess, requireWorkspaceAdmin } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
@@ -14,7 +15,7 @@ type RecommendationRouteContext = {
   params: Promise<{ recommendationId: string }>;
 };
 
-export async function PATCH(request: Request, context: RecommendationRouteContext) {
+async function PATCHHandler(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const denied = await requireWorkspaceAdmin(request);
@@ -75,7 +76,7 @@ export async function PATCH(request: Request, context: RecommendationRouteContex
   }
 }
 
-export async function DELETE(request: Request, context: RecommendationRouteContext) {
+async function DELETEHandler(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const denied = await requireWorkspaceAdmin(request);
@@ -116,3 +117,6 @@ export async function DELETE(request: Request, context: RecommendationRouteConte
     );
   }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

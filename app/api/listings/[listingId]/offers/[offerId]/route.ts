@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../../lib/google-calendar/config";
 import { listingApiError } from "../../../../../lib/listings/api-response";
@@ -23,7 +24,7 @@ async function writable(request: Request, context: Context) {
   return { response: null, listingId, offerId, body, actor } as const;
 }
 
-export async function PATCH(request: Request, context: Context) {
+async function PATCHHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   try {
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, context: Context) {
   }
 }
 
-export async function DELETE(request: Request, context: Context) {
+async function DELETEHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   try {
@@ -44,7 +45,7 @@ export async function DELETE(request: Request, context: Context) {
   }
 }
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const input = await writable(request, context);
   if (input.response) return input.response;
   if (input.body.action !== "createTransaction") {
@@ -56,3 +57,7 @@ export async function POST(request: Request, context: Context) {
     return listingApiError(error, "Création de la transaction impossible.");
   }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);
+export const POST = withCRMIdentity(POSTHandler);

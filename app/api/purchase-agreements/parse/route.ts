@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
@@ -16,7 +17,7 @@ function noStoreJSON(body: unknown, status = 200) {
   });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return noStoreJSON({ error: "Origine refusée." }, 403);
@@ -53,3 +54,5 @@ export async function POST(request: Request) {
     }, failure?.code === "invalid_pdf" || failure?.code === "no_text" ? 422 : 500);
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

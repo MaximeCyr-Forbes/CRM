@@ -22,8 +22,8 @@ export async function listAccountingBrokers(): Promise<AccountingBroker[]> {
 async function validateAssignedBroker(fields: { assigned_broker?: string | null }) {
   if (fields.assigned_broker && !(await listAccountingBrokers()).some(b => b.id === fields.assigned_broker)) throw new AccountingError("Choisissez un courtier du CRM.");
 }
-export async function listExpenses() {
-  checked(await getSupabaseAdmin().rpc("accounting_materialize_recurring_expenses",{}));
+export async function listExpenses(options: { materialize?: boolean } = {}) {
+  if (options.materialize !== false) checked(await getSupabaseAdmin().rpc("accounting_materialize_recurring_expenses",{}));
   const rows: Expense[] = [];
   for (let offset=0; ; offset+=500) {
     const page = checked(await getSupabaseAdmin().from("accounting_expenses").select(columns).order("expense_date",{ascending:false}).order("created_at",{ascending:false}).order("id").range(offset,offset+499));

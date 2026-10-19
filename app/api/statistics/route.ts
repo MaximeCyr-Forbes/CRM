@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import { requireApiAccess } from "../../lib/crm-access";
 import {
   STATISTICS_PERIODS,
@@ -27,7 +28,7 @@ function parseYear(value: string | null): StatisticsYear | null {
   return isStatisticsYear(year) ? year : null;
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
@@ -53,3 +54,5 @@ export async function GET(request: Request) {
     return Response.json({ error: "Les statistiques sont temporairement indisponibles." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

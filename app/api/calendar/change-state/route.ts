@@ -1,10 +1,11 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import { requireApiAccess } from "../../../lib/crm-access";
 import { getGoogleCalendarWatchState } from "../../../lib/google-calendar/service";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const broker = new URL(request.url).searchParams.get("broker");
@@ -22,3 +23,5 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

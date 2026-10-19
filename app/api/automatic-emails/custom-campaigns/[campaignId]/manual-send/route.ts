@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../../lib/auth/route';
 import { isCustomEmailId } from "../../../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../../lib/google-calendar/config";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
 type Context = { params: Promise<{ campaignId: string }> };
 
-export async function GET(request: Request, context: Context) {
+async function GETHandler(request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const { campaignId } = await context.params;
@@ -21,7 +22,7 @@ export async function GET(request: Request, context: Context) {
   }
 }
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -39,3 +40,6 @@ export async function POST(request: Request, context: Context) {
     return Response.json({ error: error instanceof TypeError ? error.message : "Envoi interrompu. Consultez l’historique avant toute nouvelle tentative." }, { status: error instanceof TypeError ? 409 : 502, headers });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

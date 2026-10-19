@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../auth-context";
 import { useBroker } from "../broker-context";
 
 export function AccountMenu() {
-  const { signOut } = useAuth();
-  const { clearBroker } = useBroker();
+  const { signOut, member } = useAuth();
+  const { clearBroker, selectBroker } = useBroker();
   const [isOpen, setIsOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -48,6 +49,8 @@ export function AccountMenu() {
       </button>
       {isOpen && (
         <div className="account-menu-panel">
+          {member && <><p>Connecté : {member.broker}</p><Link href="/oauth/connections">Applications autorisées</Link></>}
+          {member?.role === 'admin' && member.brokers.map(broker => <button key={broker} type="button" onClick={() => { selectBroker(broker === 'maxime' ? 'Maxime' : broker === 'france' ? 'France' : 'Sandrine'); setIsOpen(false); }}>Consulter {broker}</button>)}
           <button disabled={isSigningOut} onClick={() => void logout()} type="button">
             {isSigningOut ? "DÉCONNEXION…" : "DÉCONNEXION"}
           </button>

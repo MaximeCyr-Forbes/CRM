@@ -1,10 +1,11 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { syncContactsFollowUps } from "../../../lib/google-calendar/service";
 import { requireApiAccess } from "../../../lib/crm-access";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) {
     return access.response;
@@ -34,3 +35,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

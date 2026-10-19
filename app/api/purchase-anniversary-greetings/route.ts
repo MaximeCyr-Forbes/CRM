@@ -1,8 +1,9 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import { requireApiAccess } from "../../lib/crm-access";
 import { todayPurchaseCandidates, todayPurchaseGreetings } from "../../lib/purchase-anniversary/service";
 import { birthdayClock, resolvedBirthdayStatuses } from "../../lib/birthday-greetings/model";
 export const dynamic = "force-dynamic";
-export async function GET() {
+async function GETHandler() {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try {
@@ -16,3 +17,5 @@ export async function GET() {
     })) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch { return Response.json({ error: "Anniversaires d’achat temporairement indisponibles." }, { status: 502 }); }
 }
+
+export const GET = withCRMIdentity(GETHandler);

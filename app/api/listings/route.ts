@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import type { ListingFilters } from "../../lib/listings/server-service";
 import { requireApiAccess } from "../../lib/crm-access";
 import { isSameOriginRequest } from "../../lib/google-calendar/config";
@@ -26,7 +27,7 @@ function listingFilters(url: URL): ListingFilters | null {
   };
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const filters = listingFilters(new URL(request.url));
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -60,3 +61,6 @@ export async function POST(request: Request) {
     return listingApiError(error, "Création du Listing impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

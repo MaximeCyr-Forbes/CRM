@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isAutomaticEmailRuleId } from "../../../data/automatic-email-types";
 import { getAutomaticEmailOccurrences } from "../../../lib/automatic-emails/server-service";
@@ -16,7 +17,7 @@ function todayInQuebec() {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
@@ -39,3 +40,5 @@ export async function GET(request: Request) {
     return Response.json({ error: "Simulation temporairement indisponible." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

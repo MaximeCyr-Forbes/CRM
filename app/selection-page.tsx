@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "./auth-context";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BROKERS, type Broker, useBroker } from "./broker-context";
@@ -7,19 +8,22 @@ import { WORKSPACE_USERS, type WorkspaceUser } from "./lib/workspace";
 
 export function SelectionPage() {
   const router = useRouter();
+  const { member } = useAuth();
   const searchParams = useSearchParams();
   const { selectBroker, selectWorkspace, workspaceUser, isBrokerReady } = useBroker();
   const choosingBroker = searchParams.get("workspace") === "immoplus";
   const returnTo = searchParams.get("returnTo");
   const destination = returnTo === "/mortgage-referrals" ? returnTo : "/dashboard";
 
+  useEffect(() => { if (member && isBrokerReady) router.replace(destination); }, [member, isBrokerReady, router, destination]);
+
   // A direct URL/F5 may arrive without an assistant session. History traversal
   // only reads the URL; it never pushes another entry or erases a saved broker.
   useEffect(() => {
-    if (isBrokerReady && choosingBroker && workspaceUser !== "immoplus") {
+    if (!member && isBrokerReady && choosingBroker && workspaceUser !== "immoplus") {
       selectWorkspace("immoplus");
     }
-  }, [choosingBroker, isBrokerReady, selectWorkspace, workspaceUser]);
+  }, [member, choosingBroker, isBrokerReady, selectWorkspace, workspaceUser]);
   function handleWorkspaceSelection(user: WorkspaceUser) {
     selectWorkspace(user);
     if (user === "immoplus") {
@@ -35,6 +39,8 @@ export function SelectionPage() {
     selectBroker(broker);
     router.push(destination);
   }
+
+  if (member) return <main className="selection-page"><p role="status">Ouverture de votre espace…</p></main>;
 
   return (
     <main className="selection-page">

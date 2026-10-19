@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { normalizeClientProvenance, type ContactBroker } from "../../../data/contact-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
@@ -150,7 +151,7 @@ async function attachAddresses<T extends Record<string, unknown> & { id: unknown
   }
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const url = new URL(request.url);
@@ -273,7 +274,7 @@ export async function GET(request: Request) {
   return Response.json({ error: "Ressource invalide." }, { status: 400 });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -466,3 +467,6 @@ export async function POST(request: Request) {
     return crmErrorResponse(error);
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

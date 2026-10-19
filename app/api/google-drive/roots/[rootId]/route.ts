@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { isCalendarBroker } from "../../../../data/calendar-types";
 import { isGoogleDriveRootId } from "../../../../data/google-drive-types";
 import { requireApiAccess } from "../../../../lib/crm-access";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ rootId: string }> };
 
-export async function DELETE(request: Request, context: RouteContext) {
+async function DELETEHandler(request: Request, context: RouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -58,3 +59,5 @@ export async function DELETE(request: Request, context: RouteContext) {
     );
   }
 }
+
+export const DELETE = withCRMIdentity(DELETEHandler);

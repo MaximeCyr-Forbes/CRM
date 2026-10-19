@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { extractTextFromPDF } from "../../../lib/centris-pdf/extract-text";
 import { parseCentrisText } from "../../../lib/centris-pdf/parse";
@@ -18,7 +19,7 @@ function noStoreJSON(body: unknown, status = 200) {
   });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return noStoreJSON({ error: "Origine refusée." }, 403);
@@ -61,3 +62,5 @@ export async function POST(request: Request) {
     }, failure?.category === "invalid_pdf" || failure?.category === "no_text" ? 422 : 500);
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

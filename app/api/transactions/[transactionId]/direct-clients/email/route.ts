@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../../lib/auth/route';
 import {birthdayWorkspaceActor,requireApiAccess} from '../../../../../lib/crm-access';
 import {isSameOriginRequest} from '../../../../../lib/google-calendar/config';
 import {DirectClientError} from '../../../../../lib/transactions/direct-clients';
@@ -5,7 +6,7 @@ import {directClientEmailHistory,sendDirectClientEmail} from '../../../../../lib
 import {GmailNotEnabledError,GmailSignatureAuthorizationRequiredError,GmailAuthorizationRequiredError,GmailSendError} from '../../../../../lib/google-gmail/service';
 export const dynamic='force-dynamic';
 export const maxDuration=300;
-export async function POST(request:Request,context:{params:Promise<{transactionId:string}>}){
+async function POSTHandler(request:Request,context:{params:Promise<{transactionId:string}>}){
  const access=await requireApiAccess();if(access.response)return access.response;
  if(!isSameOriginRequest(request))return Response.json({error:'Origine refusée.'},{status:403});
  const actor=await birthdayWorkspaceActor(request);if(!actor)return Response.json({error:'Sélectionnez votre espace utilisateur.'},{status:403});
@@ -19,8 +20,11 @@ export async function POST(request:Request,context:{params:Promise<{transactionI
  }
 }
 
-export async function GET(request:Request,context:{params:Promise<{transactionId:string}>}){
+async function GETHandler(request:Request,context:{params:Promise<{transactionId:string}>}){
  const access=await requireApiAccess();if(access.response)return access.response;
  try{return Response.json(await directClientEmailHistory((await context.params).transactionId,Number(new URL(request.url).searchParams.get('offset')??0)),{headers:{'Cache-Control':'private, no-store'}});}
  catch(error){if(error instanceof DirectClientError)return Response.json({error:error.message},{status:error.status});return Response.json({error:'Impossible de charger l’historique.'},{status:502});}
 }
+
+export const POST = withCRMIdentity(POSTHandler);
+export const GET = withCRMIdentity(GETHandler);

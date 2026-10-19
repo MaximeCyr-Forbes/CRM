@@ -15,13 +15,17 @@
   "dependencies": {
     "@cantoo/pdf-lib": "2.9.1",
     "@fontsource-variable/inter": "^5.3.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.112.3",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "unpdf": "1.8.1"
+    "unpdf": "1.8.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
+    "@electric-sql/pglite": "0.5.10",
     "@openai/sites-vite-plugin": "0.1.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "22.19.19",

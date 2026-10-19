@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { isCalendarBroker } from "../../../../data/calendar-types";
 import { validateCalendarEventInput } from "../../../../lib/google-calendar/calendar-events";
 import {
@@ -36,7 +37,7 @@ function calendarError(error: unknown, action: "modifier" | "supprimer") {
   return json({ error: `Impossible de ${action} cet événement dans Google Agenda.` }, 502);
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
+async function PATCHHandler(request: Request, context: RouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json({ error: "Origine refusée." }, 403);
@@ -50,7 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+async function DELETEHandler(request: Request, context: RouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json({ error: "Origine refusée." }, 403);
@@ -64,3 +65,6 @@ export async function DELETE(request: Request, context: RouteContext) {
     return calendarError(error, "supprimer");
   }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

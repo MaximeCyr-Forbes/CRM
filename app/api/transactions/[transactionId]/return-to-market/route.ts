@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { isListingBroker } from "../../../../lib/listings/persistence";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ transactionId: string }> };
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -46,3 +47,5 @@ export async function POST(request: Request, context: Context) {
     return Response.json({ error: "Impossible de remettre le Listing sur le marché." }, { status: 502 });
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

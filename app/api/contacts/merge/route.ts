@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import {
   normalizeClientProvenance,
   type ContactAddressInput,
@@ -49,7 +50,7 @@ function parseValues(value: unknown): ContactUpdate | null {
   return { ...data, clientProvenance } as ContactUpdate;
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) {
@@ -114,3 +115,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

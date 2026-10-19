@@ -1,10 +1,11 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess, birthdayWorkspaceActor } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { purchaseRule } from "../../../lib/purchase-anniversary/service";
 import { ruleConfigurationIssues } from "../../../data/automatic-email-types";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
 export const dynamic = "force-dynamic";
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request) || !await birthdayWorkspaceActor(request)) return Response.json({ error: "Espace ou origine refusé." }, { status: 403 });
@@ -27,3 +28,5 @@ export async function PATCH(request: Request) {
     return Response.json({ enabled: body.enabled }, { headers: { "Cache-Control": "private, no-store" } });
   } catch { return Response.json({ error: "Modification du filet de sécurité impossible." }, { status: 502 }); }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);

@@ -1,5 +1,5 @@
 import type { CalendarBroker } from "../../data/calendar-types";
-import { getSupabaseAdmin } from "../supabase/server";
+import { googleConnectionDatabase } from "./credential-access";
 import { getGoogleConnection, type GoogleConnectionRow } from "./connection";
 import { decryptGoogleToken, encryptGoogleToken } from "../google-calendar/token-crypto";
 
@@ -77,7 +77,7 @@ export async function persistGoogleConnection(
     encryptGoogleToken(refreshToken),
   ]);
 
-  const { error } = await getSupabaseAdmin()
+  const { error } = await googleConnectionDatabase(broker)
     .from("google_calendar_connections")
     .upsert({
       broker,

@@ -1,3 +1,4 @@
+import { googleConnectionDatabase, listAuthorizedGoogleConnections } from '../google/credential-access';
 import type {
   CalendarBroker,
   CalendarConnectionStatus,
@@ -1129,7 +1130,7 @@ export async function syncContactBirthdays(options: {
 } = {}): Promise<BirthdaySyncSummary> {
   const admin = getSupabaseAdmin();
   const limit = Math.max(1, Math.min(options.limit ?? 40, 100));
-  const { data: connections, error: connectionsError } = await admin.from("google_calendar_connections").select("*");
+  const { data: connections, error: connectionsError } = await listAuthorizedGoogleConnections();
   if (connectionsError) throw connectionsError;
   const connectionRows = (connections ?? []) as GoogleConnectionRow[];
   let query = admin.from("contact_birthday_calendar_events").select("*").limit(limit);
@@ -1261,7 +1262,7 @@ export async function syncContactMortgageRenewals(options: {
 } = {}): Promise<MortgageRenewalSyncSummary> {
   const admin = getSupabaseAdmin();
   const limit = Math.max(1, Math.min(options.limit ?? 40, 100));
-  const { data: connections, error: connectionsError } = await admin.from("google_calendar_connections").select("*");
+  const { data: connections, error: connectionsError } = await listAuthorizedGoogleConnections();
   if (connectionsError) throw connectionsError;
   const connectionRows = (connections ?? []) as GoogleConnectionRow[];
   let query = admin.from("contact_mortgage_renewal_calendar_events").select("*").limit(limit);
@@ -1548,9 +1549,7 @@ export async function saveGoogleConnection(
 }
 
 export async function listGoogleConnectionStatuses(): Promise<CalendarConnectionStatus[]> {
-  const { data, error } = await getSupabaseAdmin()
-    .from("google_calendar_connections")
-    .select("*");
+  const { data, error } = await listAuthorizedGoogleConnections();
   if (error) {
     throw error;
   }
@@ -1694,7 +1693,7 @@ export async function disconnectGoogleCalendar(broker: CalendarBroker) {
   }
 
   const refreshToken = await decryptGoogleToken(connection.encrypted_refresh_token);
-  const { error: deleteError } = await getSupabaseAdmin()
+  const { error: deleteError } = await googleConnectionDatabase(broker)
     .from("google_calendar_connections")
     .delete()
     .eq("broker", broker);

@@ -1,5 +1,5 @@
 import type { CalendarBroker } from "../../data/calendar-types";
-import { getSupabaseAdmin } from "../supabase/server";
+import { googleConnectionDatabase } from "./credential-access";
 import { getGoogleOAuthConfig } from "../google-calendar/config";
 import { decryptGoogleToken, encryptGoogleToken } from "../google-calendar/token-crypto";
 
@@ -26,7 +26,7 @@ export class GoogleConnectionChangedError extends Error {
 }
 
 export async function getGoogleConnection(broker: CalendarBroker) {
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await googleConnectionDatabase(broker)
     .from("google_calendar_connections")
     .select("*")
     .eq("broker", broker)
@@ -51,7 +51,7 @@ export async function refreshGoogleAccessToken(connection: GoogleConnectionRow) 
   if (!response.ok) throw new Error(`Renouvellement Google refusé (${response.status}).`);
 
   const tokens = (await response.json()) as GoogleRefreshTokenResponse;
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await googleConnectionDatabase(connection.broker)
     .from("google_calendar_connections")
     .update({
       encrypted_access_token: await encryptGoogleToken(tokens.access_token),

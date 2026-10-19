@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import { validateCalendarEventInput } from "../../../lib/google-calendar/calendar-events";
 import {
@@ -14,7 +15,7 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json({ error: "Origine refusée." }, 403);
@@ -54,3 +55,6 @@ export async function POST(request: Request) {
     return json({ error: "L’événement n’a pas pu être créé dans Google Agenda." }, 502);
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

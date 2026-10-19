@@ -1,3 +1,5 @@
+import { crmMemberContext } from './auth/context';
+import { getAuthenticatedMember, googleLoginEnabled, legacyLoginEnabled } from './auth/server';
 import { isWorkspaceUser, workspaceCapabilities, type WorkspaceUser } from "./workspace";
 import { cookies } from "next/headers";
 
@@ -32,6 +34,7 @@ async function digest(value: string) {
 }
 
 export async function verifyCRMPassword(candidate: string) {
+  if (!legacyLoginEnabled()) return false;
   const [candidateDigest, expectedDigest] = await Promise.all([
     digest(candidate),
     digest(getConfiguredPassword()),
@@ -66,7 +69,7 @@ export async function createCRMAccessToken() {
 }
 
 export async function isValidCRMAccessToken(token: string | undefined) {
-  if (!token) return false;
+  if (!legacyLoginEnabled() || !token) return false;
   try {
     const [expiresAtText, signatureText] = token.split(".");
     const expiresAt = Number(expiresAtText);
@@ -83,7 +86,11 @@ export async function isValidCRMAccessToken(token: string | undefined) {
 }
 
 export async function hasCRMAccess() {
+  if (crmMemberContext.getStore()) return true;
   const cookieStore = await cookies();
+  if (googleLoginEnabled() && cookieStore.getAll().some(({ name }) => /^sb-.*-auth-token(?:\.\d+)?$/.test(name))) {
+    return Boolean(await getAuthenticatedMember(true));
+  }
   return isValidCRMAccessToken(cookieStore.get(CRM_ACCESS_COOKIE)?.value);
 }
 
@@ -128,6 +135,8 @@ export async function createWorkspaceToken(user: WorkspaceUser) {
   return `${user}.${expires}.${bytesToBase64Url(new Uint8Array(signature))}`;
 }
 export async function requireWorkspaceAdmin(request: Request) {
+  const member = crmMemberContext.getStore();
+  if (member) return member.role === "admin" ? null : Response.json({ error: "Droits d’administration requis." }, { status: 403 });
   try {
     const [user, expiresText, signature, extra] = (request.headers.get("X-CRM-Workspace") ?? "").split(".");
     const expires = Number(expiresText);
@@ -139,6 +148,8 @@ export async function requireWorkspaceAdmin(request: Request) {
 }
 
 export async function birthdayWorkspaceActor(request: Request): Promise<WorkspaceUser | null> {
+  const member = crmMemberContext.getStore();
+  if (member) return member.broker;
   try {
     const [user, expiresText, signature, extra] = (request.headers.get("X-CRM-Workspace") ?? "").split(".");
     const expires = Number(expiresText);

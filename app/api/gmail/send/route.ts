@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import { requireApiAccess } from "../../../lib/crm-access";
 import {
@@ -23,7 +24,7 @@ function json(error: string, status: number) {
   return Response.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json("Origine refusée.", 403);
@@ -60,3 +61,5 @@ export async function POST(request: Request) {
     return json("Le courriel n’a pas pu être envoyé.", 502);
   }
 }
+
+export const POST = withCRMIdentity(POSTHandler);

@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { birthdayWorkspaceActor, requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { mutateReferral } from "../../../lib/mortgage-referrals/server";
@@ -19,5 +20,8 @@ async function mutate(request: Request, context: Context, remove: boolean) {
     return Response.json({ data: await mutateReferral((await context.params).id, body, remove) });
   } catch (error) { return referralResponseError(error); }
 }
-export function PATCH(request: Request, context: Context) { return mutate(request, context, false); }
-export function DELETE(request: Request, context: Context) { return mutate(request, context, true); }
+function PATCHHandler(request: Request, context: Context) { return mutate(request, context, false); }
+function DELETEHandler(request: Request, context: Context) { return mutate(request, context, true); }
+
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

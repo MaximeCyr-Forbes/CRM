@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { listingApiError } from "../../../lib/listings/api-response";
@@ -17,7 +18,7 @@ async function listingIdFrom(context: ListingRouteContext) {
   return isUuid(listingId) ? listingId : null;
 }
 
-export async function GET(_request: Request, context: ListingRouteContext) {
+async function GETHandler(_request: Request, context: ListingRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const listingId = await listingIdFrom(context);
@@ -33,7 +34,7 @@ export async function GET(_request: Request, context: ListingRouteContext) {
   }
 }
 
-export async function PATCH(request: Request, context: ListingRouteContext) {
+async function PATCHHandler(request: Request, context: ListingRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -54,7 +55,7 @@ export async function PATCH(request: Request, context: ListingRouteContext) {
   }
 }
 
-export async function DELETE(request: Request, context: ListingRouteContext) {
+async function DELETEHandler(request: Request, context: ListingRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -68,3 +69,7 @@ export async function DELETE(request: Request, context: ListingRouteContext) {
     return listingApiError(error, "Suppression du Listing impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

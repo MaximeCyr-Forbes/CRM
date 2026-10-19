@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../../../lib/auth/route';
 import { isCustomEmailId, parseCustomEmailCampaignStepDraft } from "../../../../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../../../lib/google-calendar/config";
@@ -5,7 +6,7 @@ import { deleteCustomEmailCampaignStep, getCustomEmailCampaign, updateCustomEmai
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(request: Request, context: { params: Promise<{ campaignId: string; stepId: string }> }) {
+async function PATCHHandler(request: Request, context: { params: Promise<{ campaignId: string; stepId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -24,7 +25,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ campa
   }
 }
 
-export async function DELETE(request: Request, context: { params: Promise<{ campaignId: string; stepId: string }> }) {
+async function DELETEHandler(request: Request, context: { params: Promise<{ campaignId: string; stepId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -42,3 +43,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ camp
     return Response.json({ error: "Suppression du courriel impossible." }, { status: 502 });
   }
 }
+
+export const PATCH = withCRMIdentity(PATCHHandler);
+export const DELETE = withCRMIdentity(DELETEHandler);

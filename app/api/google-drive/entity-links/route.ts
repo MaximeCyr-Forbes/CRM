@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import {
   isGoogleDriveEntityId,
@@ -25,7 +26,7 @@ function json(error: string, status: number) {
   return Response.json({ error }, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return json("Origine refusée.", 403);
@@ -87,3 +88,6 @@ export async function POST(request: Request) {
     return json("Le dossier Drive n’a pas pu être lié.", 502);
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

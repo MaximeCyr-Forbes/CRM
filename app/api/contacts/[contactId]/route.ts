@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { deleteContactAndCalendar } from "../../../lib/contacts/server-service";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { requireApiAccess } from "../../../lib/crm-access";
@@ -5,7 +6,7 @@ import { contactDeleteDiagnostic } from "../../../lib/contacts/delete-error";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(
+async function DELETEHandler(
   request: Request,
   context: { params: Promise<{ contactId: string }> },
 ) {
@@ -28,3 +29,5 @@ export async function DELETE(
     );
   }
 }
+
+export const DELETE = withCRMIdentity(DELETEHandler);

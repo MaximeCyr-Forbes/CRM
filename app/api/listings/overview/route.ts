@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { listingApiError } from "../../../lib/listings/api-response";
 import { getListingsOverview } from "../../../lib/listings/overview";
@@ -5,7 +6,7 @@ import { isListingBroker, isListingPurpose } from "../../../lib/listings/persist
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const url = new URL(request.url);
@@ -22,3 +23,5 @@ export async function GET(request: Request) {
     return listingApiError(error, "Chargement de la vue d’ensemble impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

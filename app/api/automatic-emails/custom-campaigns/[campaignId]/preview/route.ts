@@ -1,10 +1,11 @@
+import { withCRMIdentity } from '../../../../../lib/auth/route';
 import { isCustomEmailId } from "../../../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../../../lib/crm-access";
 import { getCustomEmailCampaignPreview } from "../../../../../lib/automatic-emails/custom-campaign-service";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, context: { params: Promise<{ campaignId: string }> }) {
+async function GETHandler(_request: Request, context: { params: Promise<{ campaignId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const { campaignId } = await context.params;
@@ -19,3 +20,5 @@ export async function GET(_request: Request, context: { params: Promise<{ campai
     return Response.json({ error: "Prévisualisation temporairement indisponible." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

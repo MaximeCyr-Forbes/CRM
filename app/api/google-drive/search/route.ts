@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import { requireApiAccess } from "../../../lib/crm-access";
 import {
@@ -11,7 +12,7 @@ function json(error: string, status: number) {
   return Response.json({ error }, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const search = new URL(request.url).searchParams;
@@ -31,3 +32,5 @@ export async function GET(request: Request) {
     return json("La recherche Google Drive est temporairement indisponible.", 502);
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);

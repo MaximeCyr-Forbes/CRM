@@ -1,3 +1,4 @@
+import { crmMemberContext } from '../auth/context';
 import {getSupabaseAdmin} from '../supabase/server';
 import {birthdayWorkspaceActor,requireApiAccess} from '../crm-access';
 import {InventoryError,canManageStock,mutation} from './model';
@@ -22,21 +23,21 @@ export async function readInventory(params:URLSearchParams){
  const db=getSupabaseAdmin(),page=Number(params.get('page')??0);
  if(!Number.isInteger(page)||page<0||page>100000)throw new InventoryError('Page invalide.');
  const results=await Promise.all([
-  db.rpc('sign_inventory_availability'),db.from('sign_inventory_types').select('id,label').order('label'),
+  db.rpc(crmMemberContext.getStore()?'crm_inventory_availability':'sign_inventory_availability'),db.from('sign_inventory_types').select('id,label').order('label'),
   db.rpc('sign_inventory_assignments',{p_returned:params.get('view')==='history',p_search:(params.get('search')??'').slice(0,160),p_broker:params.get('broker')??'',p_page:page})
  ]);
  for(const r of results)if(r.error)throw r.error;
  return {stock:results[0].data,types:results[1].data,assignments:results[2].data};
 }
-export async function writeInventory(input:unknown,actor:WorkspaceUser){
+export async function writeInventory(input:unknown,actor:WorkspaceUser,options: {mcp?:boolean} = {}){
  const {action,data}=mutation(input);
  if(action==='stock'&&!canManageStock(actor))throw new InventoryError('Seuls les administrateurs et adjointes peuvent modifier le stock total.',403);
  const db=getSupabaseAdmin();
  if(action==='assign'||action==='edit'){
-  const {data:stocks,error}=await db.rpc('sign_inventory_availability');if(error)throw error;
+  const {data:stocks,error}=await db.rpc(options.mcp || crmMemberContext.getStore()?'crm_inventory_availability':'sign_inventory_availability');if(error)throw error;
   if(!stocks.some((s:{broker:string|null})=>s.broker===('broker' in data?data.broker:null)))throw new InventoryError('Courtier introuvable.');
  }
- const {data:result,error}=await db.rpc('sign_inventory_write',{p_action:action,p_data:data,p_actor:actor});if(error)throw error;
+ const {data:result,error}=await db.rpc(options.mcp || crmMemberContext.getStore()?'crm_inventory_write':'sign_inventory_write',{p_action:action,p_data:data,p_actor:actor});if(error)throw error;
  return result;
 }
 export async function searchProperties(search:string){

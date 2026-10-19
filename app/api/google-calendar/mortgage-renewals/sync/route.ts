@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { syncContactMortgageRenewals } from "../../../../lib/google-calendar/service";
@@ -5,7 +6,7 @@ import { getSupabaseAdmin } from "../../../../lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const contactId = new URL(request.url).searchParams.get("contactId");
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   return Response.json(counts);
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -49,3 +50,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Synchronisation des renouvellements hypothécaires impossible." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

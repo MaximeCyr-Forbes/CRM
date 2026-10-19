@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../lib/auth/route';
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
 import { listingApiError } from "../../../../lib/listings/api-response";
@@ -12,7 +13,7 @@ async function listingIdFrom(context: Context) {
   return isUuid(listingId) ? listingId : null;
 }
 
-export async function GET(_request: Request, context: Context) {
+async function GETHandler(_request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const listingId = await listingIdFrom(context);
@@ -27,7 +28,7 @@ export async function GET(_request: Request, context: Context) {
   }
 }
 
-export async function POST(request: Request, context: Context) {
+async function POSTHandler(request: Request, context: Context) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -43,3 +44,6 @@ export async function POST(request: Request, context: Context) {
     return listingApiError(error, "Création de l’offre impossible.");
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);

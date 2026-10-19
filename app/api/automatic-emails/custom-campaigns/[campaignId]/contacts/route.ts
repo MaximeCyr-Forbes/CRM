@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../../../../lib/auth/route';
 import { isCustomEmailId, parseCustomContactIds } from "../../../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../../lib/google-calendar/config";
@@ -5,7 +6,7 @@ import { getCustomEmailCampaign, listCustomEmailSelectableContacts, replaceCusto
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, context: { params: Promise<{ campaignId: string }> }) {
+async function GETHandler(_request: Request, context: { params: Promise<{ campaignId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   const { campaignId } = await context.params;
@@ -19,7 +20,7 @@ export async function GET(_request: Request, context: { params: Promise<{ campai
   }
 }
 
-export async function PUT(request: Request, context: { params: Promise<{ campaignId: string }> }) {
+async function PUTHandler(request: Request, context: { params: Promise<{ campaignId: string }> }) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -36,3 +37,6 @@ export async function PUT(request: Request, context: { params: Promise<{ campaig
     return Response.json({ error: "Enregistrement des destinataires impossible." }, { status: 502 });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const PUT = withCRMIdentity(PUTHandler);

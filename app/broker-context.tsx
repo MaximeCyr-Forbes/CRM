@@ -3,6 +3,8 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { persistWorkspace, restoreWorkspace, workspaceCapabilities, type WorkspaceSession, type WorkspaceUser, type WorkingBroker } from "./lib/workspace";
 
+import { useAuth } from "./auth-context";
+
 export const BROKERS = ["France", "Maxime", "Sandrine"] as const;
 export type Broker = typeof BROKERS[number];
 const LABELS: Record<WorkingBroker, Broker> = { france: "France", maxime: "Maxime", sandrine: "Sandrine" };
@@ -16,10 +18,12 @@ type BrokerContextValue = WorkspaceSession & {
 };
 const BrokerContext = createContext<BrokerContextValue | null>(null);
 export function BrokerProvider({ children }: { children: ReactNode }) {
+  const { member, status } = useAuth();
   const [session, setSession] = useState<WorkspaceSession>({ workspaceUser: null, workingBroker: null });
   const [isBrokerReady, setIsBrokerReady] = useState(false);
   useEffect(() => {
-    const restored = restoreWorkspace(window.sessionStorage);
+    if (status === "loading") return;
+    const restored = member ? { workspaceUser: member.broker, workingBroker: member.broker } : restoreWorkspace(window.sessionStorage);
     persistWorkspace(window.sessionStorage, restored);
     setSession(restored);
     setIsBrokerReady(true);
@@ -29,16 +33,24 @@ export function BrokerProvider({ children }: { children: ReactNode }) {
     setSession(next);
   }, []);
   const selectWorkspace = useCallback((user: WorkspaceUser) => {
+    if (member) {
+      if (user !== "immoplus" && member.brokers.includes(user)) changeSession({ workspaceUser: member.broker, workingBroker: user });
+      return;
+    }
     changeSession({ workspaceUser: user, workingBroker: user === "immoplus" ? null : user });
   }, [changeSession]);
   const selectBroker = useCallback((broker: Broker) => {
     const key = broker.toLowerCase() as WorkingBroker;
+    if (member) {
+      if (member.brokers.includes(key)) changeSession({ workspaceUser: member.broker, workingBroker: key });
+      return;
+    }
     changeSession({ workspaceUser: session.workspaceUser === "immoplus" ? "immoplus" : key, workingBroker: key });
-  }, [changeSession, session.workspaceUser]);
+  }, [changeSession, session.workspaceUser, member]);
   const clearBroker = useCallback(() => changeSession({ workspaceUser: null, workingBroker: null }), [changeSession]);
   const value = useMemo(() => ({ ...session, selectedBroker: session.workingBroker ? LABELS[session.workingBroker] : null,
-    capabilities: workspaceCapabilities(session.workspaceUser), isBrokerReady, selectWorkspace, selectBroker, clearBroker }),
-  [session, isBrokerReady, selectWorkspace, selectBroker, clearBroker]);
+    capabilities: member ? { role: member.role, administerRecommendations: member.role === "admin", switchWorkingBroker: member.role === "admin" } : workspaceCapabilities(session.workspaceUser), isBrokerReady, selectWorkspace, selectBroker, clearBroker }),
+  [session, isBrokerReady, selectWorkspace, selectBroker, clearBroker, member]);
   // Remount scoped providers/pages: late responses cannot populate the new broker's state.
   return <BrokerContext.Provider value={value}><Fragment key={`${session.workspaceUser}:${session.workingBroker}`}>{children}</Fragment></BrokerContext.Provider>;
 }

@@ -1,3 +1,4 @@
+import { withCRMIdentity } from '../../lib/auth/route';
 import type { Transaction, TransactionDraft, TransactionStatus, TransactionType } from "../../data/transaction-types";
 import { currentTorontoDateTime } from "../../lib/transactions/deadline-time";
 import { statusesForTransaction, validStatusForTransaction } from "../../data/transaction-types";
@@ -85,7 +86,7 @@ function parseDraft(value: unknown): TransactionDraft | null {
   return { ...data, centrisNumber: typeof data.centrisNumber === "string" ? data.centrisNumber : "" } as TransactionDraft;
 }
 
-export async function GET() {
+async function GETHandler() {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   try {
@@ -96,7 +97,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
   if (!isSameOriginRequest(request)) return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -266,3 +267,6 @@ export async function POST(request: Request) {
     return Response.json({ error: transactionApiErrorMessage(error, action) }, { status: transactionApiErrorStatus(error) });
   }
 }
+
+export const GET = withCRMIdentity(GETHandler);
+export const POST = withCRMIdentity(POSTHandler);
