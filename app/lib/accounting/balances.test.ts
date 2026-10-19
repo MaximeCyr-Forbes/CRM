@@ -8,7 +8,7 @@ describe('Manual balance input',()=>{
 });
 describe('Existing workspace permissions',()=>{
  it('broker can edit own balance',()=>expect(canEditBalance('france','france')).toBe(true));
- it('broker cannot edit another balance',()=>expect(canEditBalance('france','sandrine')).toBe(false));
+ it('broker can edit another balance',()=>expect(canEditBalance('france','sandrine')).toBe(true));
  it('administrator can edit another balance',()=>expect(canEditBalance('maxime','france')).toBe(true));
  it('accounting assistant can edit balances independently of working broker',()=>expect(canEditBalance('immoplus','sandrine')).toBe(true));
  it('missing actor cannot edit',()=>expect(canEditBalance(null,'france')).toBe(false));

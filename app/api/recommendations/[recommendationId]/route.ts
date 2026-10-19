@@ -1,6 +1,6 @@
 import { withCRMIdentity } from '../../../lib/auth/route';
 import { isRecommendationId } from "../../../data/recommendation-types";
-import { requireApiAccess, requireWorkspaceAdmin } from "../../../lib/crm-access";
+import { birthdayWorkspaceActor, requireApiAccess, requireWorkspaceMember } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import {
   deleteRecommendation,
@@ -18,7 +18,7 @@ type RecommendationRouteContext = {
 async function PATCHHandler(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
-  const denied = await requireWorkspaceAdmin(request);
+  const denied = await requireWorkspaceMember(request);
   if (denied) return denied;
   if (!isSameOriginRequest(request)) {
     return Response.json({ error: "Origine refusée." }, { status: 403 });
@@ -28,6 +28,8 @@ async function PATCHHandler(request: Request, context: RecommendationRouteContex
     return Response.json({ error: "Recommandation invalide." }, { status: 400 });
   }
 
+  const actor=await birthdayWorkspaceActor(request);
+  if (!actor) return Response.json({error:"Membre CRM requis."},{status:403});
   let action: "read" | "complete" | "reopen" = "read";
   const requestBody = await request.text();
   if (requestBody.trim()) {
@@ -47,10 +49,10 @@ async function PATCHHandler(request: Request, context: RecommendationRouteContex
 
   try {
     const recommendation = action === "complete"
-      ? await markRecommendationCompleted(recommendationId)
+      ? await markRecommendationCompleted(recommendationId, actor)
       : action === "reopen"
         ? await markRecommendationPending(recommendationId)
-        : await markRecommendationRead(recommendationId);
+        : await markRecommendationRead(recommendationId, actor);
     if (!recommendation) {
       return Response.json({ error: "Recommandation introuvable." }, { status: 404 });
     }
@@ -79,7 +81,7 @@ async function PATCHHandler(request: Request, context: RecommendationRouteContex
 async function DELETEHandler(request: Request, context: RecommendationRouteContext) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
-  const denied = await requireWorkspaceAdmin(request);
+  const denied = await requireWorkspaceMember(request);
   if (denied) return denied;
   if (!isSameOriginRequest(request)) {
     return Response.json(

@@ -41,6 +41,9 @@ try {
  phase='additive inventory migration';await db.exec(await readFile(new URL('../migrations/20261019135401_mcp_add_inventory_stock.sql',root),'utf8'));
  phase='identity regression';await db.exec(await readFile(new URL('google_member_identity.sql',root),'utf8'));
  phase='business permission tests';const { testBusinessPermissions }=await import('./business-permissions.mjs');await testBusinessPermissions(db);
+ phase='full member access migration';await db.exec(await readFile(new URL('../migrations/20261019221354_full_member_functional_access.sql',root),'utf8'));
+ phase='full member identity regression';await db.exec((await readFile(new URL('google_member_identity.sql',root),'utf8')).replace('begin;', 'begin; update public.crm_member_auth_identities set provider_subject=null,auth_user_id=null,active=true;'));
+ phase='functional parity';const {testFunctionalParity}=await import('./functional-parity.mjs');await testFunctionalParity(db);
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
 } catch(e) { console.error('FAIL phase:',phase,'code:',e.code,'message:',e.message);process.exitCode=1; }
 finally { await db.close(); }

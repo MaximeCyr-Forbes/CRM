@@ -11,7 +11,8 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/crm-access", () => ({
-  requireWorkspaceAdmin: vi.fn(async () => state.adminDenied ? Response.json({ error: "Interdit" }, { status: 403 }) : null),
+  birthdayWorkspaceActor: vi.fn(async()=>"maxime"),
+  requireWorkspaceMember: vi.fn(async () => state.adminDenied ? Response.json({ error: "Interdit" }, { status: 403 }) : null),
   requireApiAccess: vi.fn(async () => ({
     response: state.accessDenied
       ? Response.json({ error: "Accès CRM requis." }, { status: 401 })

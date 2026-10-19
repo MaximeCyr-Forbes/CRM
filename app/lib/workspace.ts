@@ -9,9 +9,11 @@ export function isWorkspaceUser(value: unknown): value is WorkspaceUser {
 export function isWorkingBroker(value: unknown): value is WorkingBroker {
   return BUSINESS_BROKERS.some((item) => item === value);
 }
+/** Presentation capabilities only. Server access still requires verified active membership. */
+export function hasCRMFunctionalAccess(user: WorkspaceUser | null) { return isWorkspaceUser(user); }
 export function workspaceCapabilities(user: WorkspaceUser | null) {
   return { role: user === "maxime" ? "admin" : user === "immoplus" ? "assistant" : "broker",
-    administerRecommendations: user === "maxime", switchWorkingBroker: user === "immoplus" } as const;
+    administerRecommendations: hasCRMFunctionalAccess(user), switchWorkingBroker: hasCRMFunctionalAccess(user) } as const;
 }
 export function restoreWorkspace(storage: Pick<Storage, "getItem">): WorkspaceSession {
   const workspace = storage.getItem("selected-workspace");

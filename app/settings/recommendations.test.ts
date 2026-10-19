@@ -171,7 +171,7 @@ describe("interface des recommandations dans Paramètres", () => {
   it("persiste le traitement de façon idempotente dans Supabase", () => {
     const persistence = source("app/lib/recommendations/persistence.ts");
     expect(persistence).toContain("export async function markRecommendationCompleted");
-    expect(persistence).toContain('.update({ is_completed: true, completed_at: completedAt, completed_by: "maxime" })');
+    expect(persistence).toContain('.update({ is_completed: true, completed_at: completedAt, completed_by: actor })');
     expect(persistence).toContain('.eq("is_completed", false)');
     expect(persistence).toContain("export async function markRecommendationPending");
     expect(persistence).toContain(".update({ is_completed: false, completed_at: null, completed_by: null })");

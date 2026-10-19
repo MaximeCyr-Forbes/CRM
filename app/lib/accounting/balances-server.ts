@@ -25,7 +25,7 @@ export async function setBrokerBalance(body: Record<string,unknown>, actor: Work
   const rows=await listBrokerBalances();
   const broker=rows.find(b=>b.broker===body.broker);
   if(!broker) throw new AccountingError('Courtier introuvable.');
-  if(!canEditBalance(actor,broker.broker)) throw new AccountingError('Vous pouvez modifier uniquement votre propre solde.',403);
+  if(!canEditBalance(actor,broker.broker)) throw new AccountingError('Un membre CRM autorisé et un courtier valide sont requis.',403);
   const {data,error}=await getSupabaseAdmin().rpc('accounting_set_broker_balance',{
     p_broker:broker.broker,p_balance:balance,p_actor:actor,p_expected_version:version,
   });

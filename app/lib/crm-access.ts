@@ -1,6 +1,6 @@
 import { crmMemberContext } from './auth/context';
 import { getAuthenticatedMember, googleLoginEnabled, legacyLoginEnabled } from './auth/server';
-import { isWorkspaceUser, workspaceCapabilities, type WorkspaceUser } from "./workspace";
+import { isWorkspaceUser, type WorkspaceUser } from "./workspace";
 import { cookies } from "next/headers";
 
 export const CRM_ACCESS_COOKIE = "ef_crm_access";
@@ -134,17 +134,17 @@ export async function createWorkspaceToken(user: WorkspaceUser) {
   const signature = await crypto.subtle.sign("HMAC", await getSessionKey(["sign"]), new TextEncoder().encode(payload));
   return `${user}.${expires}.${bytesToBase64Url(new Uint8Array(signature))}`;
 }
-export async function requireWorkspaceAdmin(request: Request) {
+export async function requireWorkspaceMember(request: Request) {
   const member = crmMemberContext.getStore();
-  if (member) return member.role === "admin" ? null : Response.json({ error: "Droits d’administration requis." }, { status: 403 });
+  if (member) return null;
   try {
     const [user, expiresText, signature, extra] = (request.headers.get("X-CRM-Workspace") ?? "").split(".");
     const expires = Number(expiresText);
-    if (!extra && isWorkspaceUser(user) && workspaceCapabilities(user).administerRecommendations
+    if (!extra && isWorkspaceUser(user)
       && expires > Date.now() && expires <= Date.now() + 60 * 60 * 1000
       && await crypto.subtle.verify("HMAC", await getSessionKey(["verify"]), base64UrlToBytes(signature), new TextEncoder().encode(`workspace:v1:${user}:${expires}`))) return null;
-  } catch { /* An invalid token never grants administration. */ }
-  return Response.json({ error: "Cet espace ne possède pas les droits d’administration." }, { status: 403 });
+  } catch { /* An invalid token never grants business access. */ }
+  return Response.json({ error: "Un membre CRM autorisé est requis." }, { status: 403 });
 }
 
 export async function birthdayWorkspaceActor(request: Request): Promise<WorkspaceUser | null> {

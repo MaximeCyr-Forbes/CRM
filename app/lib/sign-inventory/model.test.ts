@@ -10,4 +10,4 @@ it('rejects empty material',()=>expect(()=>mutation({...base,sign_type:null,addo
 it('rejects an address in place of a listing id',()=>expect(()=>mutation({...base,listing_id:'Synthetic street'})).toThrow());
 it.each([null,[],{}, {action:'delete'}])('rejects malformed request',input=>expect(()=>mutation(input)).toThrow());
 it('requires a version for editing',()=>expect(()=>mutation({...base,action:'edit'})).toThrow());
-it('reuses existing admin and assistant roles for stock editing',()=>{expect(canManageStock(null)).toBe(false);expect(canManageStock('france')).toBe(false);expect(canManageStock('immoplus')).toBe(true);expect(canManageStock('maxime')).toBe(true);});
+it('allows all signed workspace members to edit stock',()=>{expect(canManageStock(null)).toBe(false);expect(canManageStock('france')).toBe(true);expect(canManageStock('immoplus')).toBe(true);expect(canManageStock('maxime')).toBe(true);});

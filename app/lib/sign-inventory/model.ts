@@ -1,11 +1,11 @@
-import {workspaceCapabilities,type WorkspaceUser} from '../workspace';
+import {hasCRMFunctionalAccess,type WorkspaceUser} from '../workspace';
 export type Stock={id:string;kind:'sign'|'addon'|'bac';broker:string|null;label:string;total:number;used:number;available:number;version:number};
 export type SignType={id:string;label:string};
 export type PropertyChoice={id:string;address:string;broker:string;status:string};
 export type Assignment={id:string;listing_id:string|null;address:string;address_snapshot:string;broker:string;broker_label:string;sign_type:string|null;sign_label:string|null;has_bac:boolean;addons:SignType[];version:number;created_at:string;created_by:string;updated_at:string;updated_by:string;returned_at:string|null;returned_by:string|null};
 export type InventoryData={stock:Stock[];types:SignType[];assignments:{data:Assignment[];count:number}};
 export class InventoryError extends Error {constructor(message:string,public status=400){super(message);}}
-export function canManageStock(actor:WorkspaceUser|null){return !!actor&&['admin','assistant'].includes(workspaceCapabilities(actor).role);}
+export function canManageStock(actor:WorkspaceUser|null){return hasCRMFunctionalAccess(actor);}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function integer(value:unknown,max=2147483646){if(typeof value!=='number'||!Number.isInteger(value)||value<0||value>max)throw new InventoryError('Quantité ou version invalide.');return value;}
 export function mutation(input:unknown){

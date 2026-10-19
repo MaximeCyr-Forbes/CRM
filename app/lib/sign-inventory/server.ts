@@ -31,7 +31,7 @@ export async function readInventory(params:URLSearchParams){
 }
 export async function writeInventory(input:unknown,actor:WorkspaceUser,options: {mcp?:boolean} = {}){
  const {action,data}=mutation(input);
- if(action==='stock'&&!canManageStock(actor))throw new InventoryError('Seuls les administrateurs et adjointes peuvent modifier le stock total.',403);
+ if(action==='stock'&&!canManageStock(actor))throw new InventoryError('Un membre CRM autorisé est requis pour modifier le stock.',403);
  const db=getSupabaseAdmin();
  if(action==='assign'||action==='edit'){
   const {data:stocks,error}=await db.rpc(options.mcp || crmMemberContext.getStore()?'crm_inventory_availability':'sign_inventory_availability');if(error)throw error;

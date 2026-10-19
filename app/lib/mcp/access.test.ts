@@ -9,7 +9,7 @@ describe('MCP access boundary',()=>{
  it('rejects team accounting without a grant',()=>expect(()=>requireBroker(identity(),null)).toThrow());
  it('rejects writes for read-only identity',()=>expect(()=>requireWrite(identity())).toThrow('lecture'));
  it.each([{...membership,active:false},{...membership,actor:'admin'},{...membership,brokers:['other']}])('rejects invalid membership %#',m=>expect(()=>identityFromMembership('verified-user','c','s',m)).toThrow());
- it('does not infer admin from a claimed grant',()=>expect(identityFromMembership('verified-user','c','s',{...membership,can_manage_recommendations:true}).canManageRecommendations).toBe(false));
+ it('uses verified database capability independently of role',()=>expect(identityFromMembership('verified-user','c','s',{...membership,can_manage_recommendations:true}).canManageRecommendations).toBe(true));
  it.each(['2026-02-30','2026-13-01','October 18, 2026','2026-10-18T00:00:00Z'])('rejects invalid date %s',v=>expect(date.safeParse(v).success).toBe(false));
  it('accepts leap day',()=>expect(date.parse('2028-02-29')).toBe('2028-02-29'));
  it.each([{limit:20000},{page:-1},{page:1001},{user_id:'other'},{workspace_id:'other'}])('rejects unbounded or identity inputs %#',input=>expect(z.strictObject(pagination).safeParse(input).success).toBe(false));

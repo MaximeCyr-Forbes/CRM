@@ -27,7 +27,7 @@ export function requireBroker(identity:MCPIdentity,target:string|null) {
 }
 export function identityFromMembership(userId:string,clientId:string,sessionId:string,m:Record<string,unknown>):MCPIdentity {
   if(typeof m.member_id!=='string' || typeof m.identity_id!=='string' || m.auth_user_id!==userId || (m.role!=='admin' && m.role!=='broker') || m.active!==true || !isWorkspaceUser(m.actor) || typeof m.team_id!=='string' || !Array.isArray(m.brokers) || !m.brokers.every(b=>broker.safeParse(b).success)) throw new MCPAccessError('FORBIDDEN','Aucun accès CRM n’est attribué à ce compte.');
-  return {userId,memberId:m.member_id as string,identityId:m.identity_id as string,role:m.role as "admin" | "broker",clientId,sessionId,teamId:m.team_id,actor:m.actor,brokers:[...m.brokers] as string[],canWrite:m.can_write===true,canReadTeamAccounting:m.can_read_team_accounting===true,canManageRecommendations:m.role==='admin'&&m.can_manage_recommendations===true};
+  return {userId,memberId:m.member_id as string,identityId:m.identity_id as string,role:m.role as "admin" | "broker",clientId,sessionId,teamId:m.team_id,actor:m.actor,brokers:[...m.brokers] as string[],canWrite:m.can_write===true,canReadTeamAccounting:m.can_read_team_accounting===true,canManageRecommendations:m.can_manage_recommendations===true};
 }
 export function searchNeedle(value:string) { return value.replace(/[%,()._\\"']/g,' ').trim().slice(0,160); }
 export function pageResult<T>(rows:T[],page:number,limit:number) { return {data:rows.slice(0,limit),nextPage:rows.length>limit?page+1:null}; }

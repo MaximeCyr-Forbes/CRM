@@ -1,6 +1,6 @@
 import { withCRMIdentity } from '../../lib/auth/route';
 import { parseRecommendationDraft } from "../../data/recommendation-types";
-import { requireApiAccess, requireWorkspaceAdmin } from "../../lib/crm-access";
+import { requireApiAccess, requireWorkspaceMember } from "../../lib/crm-access";
 import { isSameOriginRequest } from "../../lib/google-calendar/config";
 import {
   createRecommendation,
@@ -23,7 +23,7 @@ function recommendationApiError(error: unknown, publicMessage: string) {
 async function GETHandler(request: Request) {
   const access = await requireApiAccess();
   if (access.response) return access.response;
-  const denied = await requireWorkspaceAdmin(request);
+  const denied = await requireWorkspaceMember(request);
   if (denied) return denied;
   try {
     return Response.json(

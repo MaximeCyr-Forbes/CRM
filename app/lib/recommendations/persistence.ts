@@ -5,6 +5,7 @@ import {
   type CRMRecommendationDraft,
   type CRMRecommendationRow,
 } from "../../data/recommendation-types";
+import type {WorkspaceUser} from "../workspace";
 import { getSupabaseAdmin } from "../supabase/server";
 
 const recommendationColumns = "id, title, content, submitted_by, status, is_completed, completed_at, completed_by, created_at, opened_at, opened_by";
@@ -32,12 +33,12 @@ export async function createRecommendation(draft: CRMRecommendationDraft): Promi
   return mapRecommendationRow(data as CRMRecommendationRow);
 }
 
-export async function markRecommendationRead(recommendationId: string): Promise<CRMRecommendation | null> {
+export async function markRecommendationRead(recommendationId: string, actor: WorkspaceUser): Promise<CRMRecommendation | null> {
   const admin = getSupabaseAdmin();
   const openedAt = new Date().toISOString();
   const { data, error } = await admin
     .from("crm_recommendations")
-    .update({ status: "read", opened_at: openedAt, opened_by: "maxime" })
+    .update({ status: "read", opened_at: openedAt, opened_by: actor })
     .eq("id", recommendationId)
     .eq("status", "unread")
     .select(recommendationColumns)
@@ -54,12 +55,12 @@ export async function markRecommendationRead(recommendationId: string): Promise<
   return existing ? mapRecommendationRow(existing as CRMRecommendationRow) : null;
 }
 
-export async function markRecommendationCompleted(recommendationId: string): Promise<CRMRecommendation | null> {
+export async function markRecommendationCompleted(recommendationId: string, actor: WorkspaceUser): Promise<CRMRecommendation | null> {
   const admin = getSupabaseAdmin();
   const completedAt = new Date().toISOString();
   const { data, error } = await admin
     .from("crm_recommendations")
-    .update({ is_completed: true, completed_at: completedAt, completed_by: "maxime" })
+    .update({ is_completed: true, completed_at: completedAt, completed_by: actor })
     .eq("id", recommendationId)
     .eq("is_completed", false)
     .select(recommendationColumns)

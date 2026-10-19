@@ -50,7 +50,7 @@ export function AccountMenu() {
       {isOpen && (
         <div className="account-menu-panel">
           {member && <><p>Connecté : {member.broker}</p><Link href="/oauth/connections">Applications autorisées</Link></>}
-          {member?.role === 'admin' && member.brokers.map(broker => <button key={broker} type="button" onClick={() => { selectBroker(broker === 'maxime' ? 'Maxime' : broker === 'france' ? 'France' : 'Sandrine'); setIsOpen(false); }}>Consulter {broker}</button>)}
+          {member && member.brokers.map(broker => <button key={broker} type="button" onClick={() => { selectBroker(broker === 'maxime' ? 'Maxime' : broker === 'france' ? 'France' : 'Sandrine'); setIsOpen(false); }}>Consulter {broker}</button>)}
           <button disabled={isSigningOut} onClick={() => void logout()} type="button">
             {isSigningOut ? "DÉCONNEXION…" : "DÉCONNEXION"}
           </button>

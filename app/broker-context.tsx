@@ -49,7 +49,7 @@ export function BrokerProvider({ children }: { children: ReactNode }) {
   }, [changeSession, session.workspaceUser, member]);
   const clearBroker = useCallback(() => changeSession({ workspaceUser: null, workingBroker: null }), [changeSession]);
   const value = useMemo(() => ({ ...session, selectedBroker: session.workingBroker ? LABELS[session.workingBroker] : null,
-    capabilities: member ? { role: member.role, administerRecommendations: member.role === "admin", switchWorkingBroker: member.role === "admin" } : workspaceCapabilities(session.workspaceUser), isBrokerReady, selectWorkspace, selectBroker, clearBroker }),
+    capabilities: member ? { role: member.role, administerRecommendations: true, switchWorkingBroker: true } : workspaceCapabilities(session.workspaceUser), isBrokerReady, selectWorkspace, selectBroker, clearBroker }),
   [session, isBrokerReady, selectWorkspace, selectBroker, clearBroker, member]);
   // Remount scoped providers/pages: late responses cannot populate the new broker's state.
   return <BrokerContext.Provider value={value}><Fragment key={`${session.workspaceUser}:${session.workingBroker}`}>{children}</Fragment></BrokerContext.Provider>;

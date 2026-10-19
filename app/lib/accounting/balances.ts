@@ -1,12 +1,10 @@
 import { AccountingError } from './model';
 export type BalanceHistoryEntry = {id:string;old_balance:number;new_balance:number;updated_at:string;updated_by:string;version:number};
-import { workspaceCapabilities, type WorkspaceUser } from '../workspace';
+import { hasCRMFunctionalAccess, isWorkingBroker, type WorkspaceUser } from '../workspace';
 
 export type BrokerBalance = { broker: string; label: string; balance: string; version: number; updated_at: string | null; updated_by: string | null };
 export function canEditBalance(actor: WorkspaceUser | null, broker: string) {
-  if (!actor) return false;
-  const role=workspaceCapabilities(actor).role;
-  return actor===broker || role==='admin' || role==='assistant';
+  return hasCRMFunctionalAccess(actor) && isWorkingBroker(broker);
 }
 // Decimal string throughout validation/storage; Number is used only for CAD display.
 export function balanceAmount(input: unknown): string {
