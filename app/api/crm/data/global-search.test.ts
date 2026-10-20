@@ -5,7 +5,7 @@ const rows = vi.hoisted(() => ({
     id: "contact-1", first_name: "Laurier", last_name: "Tremblay", phone: "", email: "",
     civic_number: "", address: "", apartment: "", city: "", province: "", postal_code: "", country: "", broker: "maxime",
   }],
-  transactions: [{ id: "transaction-1", address: "12 avenue Laurier", broker: "france", status: "active" }],
+  transactions: [{ id: "transaction-1", address: "12 avenue Laurier", broker: "france", status: "conditions_met" }],
   listings: [{
     id: "listing-1", civic_number: "1010", address: "avenue Laurier", apartment: "", city: "Montréal",
     province: "QC", postal_code: "H2J 1G8", country: "Canada", centris_number: "12345678",
@@ -60,5 +60,8 @@ describe("recherche globale des Listings", () => {
       href: "/listings/listing-1",
     });
     expect(payload.data.find((result) => result.kind === "listing")?.detail).toContain("Centris 12345678");
+    expect(payload.data.find((result) => result.kind === "listing")?.detail).toContain("Courtier · Sandrine");
+    expect(payload.data.find((result) => result.kind === "contact")?.detail).toBe("Courtier · Maxime");
+    expect(payload.data.find((result) => result.kind === "transaction")?.detail).toBe("Courtier · France · Conditions réalisées");
   });
 });

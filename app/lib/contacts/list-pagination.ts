@@ -58,6 +58,14 @@ export function contactsListHref(currentQuery: string, updates: Record<string, s
   return query ? `/contacts?${query}` : "/contacts";
 }
 
+export function contactsNavigationQuery(currentQuery: string, search: string) {
+  const params = new URLSearchParams(currentQuery);
+  // Search updates optimistically while the router can still expose the prior URL.
+  if (search) params.set("q", search);
+  else params.delete("q");
+  return params.toString();
+}
+
 export function buildContactReturnTo(currentQuery: string, currentPage: number, contactId: string) {
   const listHref = contactsListHref(currentQuery, { page: String(currentPage) });
   return `${listHref}#contact-${encodeURIComponent(contactId)}`;

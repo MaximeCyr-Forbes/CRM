@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '../../auth-context';
 type Connection = { id: string; name: string; grantedAt: string };
 export default function OAuthConnectionsPage() {
@@ -33,6 +32,6 @@ export default function OAuthConnectionsPage() {
   {!connections && !error && <p role="status">Chargement…</p>}
   {connections?.length === 0 && <p>Aucune application autorisée avec ce compte.</p>}
   {connections?.map(connection => <div className="login-form" key={connection.id}><strong>{connection.name}</strong><p>Autorisée le {new Date(connection.grantedAt).toLocaleDateString('fr-CA')}</p><button type="button" disabled={busy !== null} onClick={() => void revoke(connection.id)}>{busy === connection.id ? 'Retrait…' : 'Retirer l’accès'}</button></div>)}
-  <Link href="/">Retour au CRM</Link>
+  <a href="/">Retour au CRM</a>
  </section></main>;
 }

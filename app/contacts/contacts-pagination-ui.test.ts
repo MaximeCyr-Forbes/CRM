@@ -29,7 +29,7 @@ describe("pagination et retour dans la liste Contacts", () => {
   });
 
   it("ouvre la fiche avec un returnTo et prépare l’historique pour le bouton Retour du navigateur", () => {
-    expect(listPage).toContain("buildContactReturnTo(currentQuery, currentPage, contactId)");
+    expect(listPage).toContain("buildContactReturnTo(navigationQuery, currentPage, contactId)");
     expect(listPage).toContain("window.history.replaceState(window.history.state, \"\", returnTo)");
     expect(listPage).toContain("buildContactProfileHref(contactId, returnTo)");
     expect(listPage).toContain('id={`contact-${contact.id}`}');

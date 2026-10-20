@@ -59,6 +59,7 @@ import {
   buildContactProfileHref,
   buildContactReturnTo,
   contactsListHref,
+  contactsNavigationQuery,
   getContactsPaginationItems,
   paginateContacts,
   parseContactsPage,
@@ -241,6 +242,7 @@ export default function ContactsPage() {
   const queryFollowUp = searchParams.get("followUp");
   const querySearch = searchParams.get("q") ?? "";
   const currentQuery = searchParams.toString();
+  const navigationQuery = contactsNavigationQuery(currentQuery, search);
   const sort = parseContactSort(searchParams.get("sort"));
   const activeFilter = filterOptions.some((option) => option.value === queryBroker)
     ? queryBroker as ContactFilter
@@ -283,7 +285,7 @@ export default function ContactsPage() {
   const reviewedImportExisting = reviewedImportCandidate?.duplicateMatches[0]?.contact ?? (reviewedBatchCandidate ? syntheticContact(reviewedBatchCandidate, pendingImport?.addresses[reviewedBatchCandidate.id]) : null);
 
   function changeContactFilter(filter: ContactFilter) {
-    router.replace(contactsListHref(currentQuery, {
+    router.replace(contactsListHref(navigationQuery, {
       broker: filter === "all" && workspaceUser !== "immoplus" ? null : filter,
       page: "1",
     }), { scroll: false });
@@ -301,11 +303,11 @@ export default function ContactsPage() {
     const nextPage = Math.min(Math.max(1, page), totalPages);
     if (nextPage === currentPage) return;
     pendingPageScrollRef.current = true;
-    router.push(contactsListHref(currentQuery, { page: String(nextPage) }), { scroll: false });
+    router.push(contactsListHref(navigationQuery, { page: String(nextPage) }), { scroll: false });
   }
 
   function openContact(contactId: string) {
-    const returnTo = buildContactReturnTo(currentQuery, currentPage, contactId);
+    const returnTo = buildContactReturnTo(navigationQuery, currentPage, contactId);
     window.history.replaceState(window.history.state, "", returnTo);
     router.push(buildContactProfileHref(contactId, returnTo));
   }
@@ -700,7 +702,7 @@ export default function ContactsPage() {
           <div className="contacts-tools">
             <div className="contact-filters">{filterOptions.map((option) => <button aria-pressed={activeFilter === option.value} className={activeFilter === option.value ? "contact-filter-active" : ""} key={option.value} onClick={() => changeContactFilter(option.value)} type="button">{option.label} <span>{isLoading ? "…" : option.value === "all" ? contacts.length : contacts.filter((contact) => contact.broker === option.value).length}</span></button>)}</div>
             <label className="contacts-search"><span className="sr-only">Rechercher</span><span aria-hidden="true">⌕</span><input onChange={(event) => changeContactSearch(event.target.value)} placeholder="Nom, téléphone, email ou adresse" type="search" value={search} /></label>
-            <label className="contacts-sort">TRIER PAR<select value={sort} onChange={event => router.replace(contactsListHref(currentQuery, { sort: event.target.value, page: "1" }), { scroll: false })}><option value="created">DATE D’AJOUT</option><option value="name">A À Z</option></select></label>
+            <label className="contacts-sort">TRIER PAR<select value={sort} onChange={event => router.replace(contactsListHref(navigationQuery, { sort: event.target.value, page: "1" }), { scroll: false })}><option value="created">DATE D’AJOUT</option><option value="name">A À Z</option></select></label>
           </div>
           {activeFilter === "unassigned" && <div className={`contacts-bulk-actions${selectedContactIds.size > 0 ? " contacts-bulk-actions-active" : ""}`}>
             <label className="contacts-select-all"><input aria-label="Sélectionner tous les contacts visibles" checked={areAllVisibleSelected} disabled={isBulkDeleting || pagedContacts.length === 0} onChange={() => setSelectedContactIds((current) => toggleVisibleContactSelection(current, pagedContactIds))} ref={selectAllCheckboxRef} type="checkbox" /><span>Tout sélectionner</span></label>

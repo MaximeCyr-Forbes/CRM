@@ -5,6 +5,7 @@ import {
   buildContactReturnTo,
   clampContactsPage,
   contactsListHref,
+  contactsNavigationQuery,
   getContactsPaginationItems,
   getContactsTotalPages,
   paginateContacts,
@@ -13,6 +14,21 @@ import {
 } from "./list-pagination";
 
 describe("pagination de la liste Contacts", () => {
+  it("ne restaure pas une recherche effacée quand le tri précède la mise à jour du routeur", () => {
+    const pending = contactsNavigationQuery("page=1&q=obsolete&broker=france", "");
+    const sorted = contactsListHref(pending, { sort: "name", page: "1" });
+    expect(sorted).toBe("/contacts?page=1&broker=france&sort=name");
+    expect(buildContactReturnTo(pending, 3, "qa")).toBe("/contacts?page=3&broker=france#contact-qa");
+  });
+
+  it("conserve la nouvelle recherche pour une pagination ou un changement de courtier immédiat", () => {
+    const pending = contactsNavigationQuery("q=ancien&followUp=overdue", "nouveau");
+    expect(contactsListHref(pending, { broker: "sandrine", page: "1" }))
+      .toBe("/contacts?q=nouveau&followUp=overdue&broker=sandrine&page=1");
+    expect(contactsListHref(pending, { page: "2" }))
+      .toBe("/contacts?q=nouveau&followUp=overdue&page=2");
+  });
+
   const contacts = Array.from({ length: 702 }, (_, index) => index + 1);
 
   it("affiche exactement 50 Contacts par page", () => {

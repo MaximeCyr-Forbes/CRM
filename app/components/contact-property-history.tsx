@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Listing } from "../data/listing-types";
 import { BROKER_LABELS } from "../data/contact-types";
 import type { Transaction } from "../data/transaction-types";
@@ -67,8 +66,8 @@ function TransactionCard({ transaction, listingsById }: { transaction: Transacti
       </dl>
 
       <div className="contact-property-history-actions">
-        <Link href={`/transactions/${transaction.id}`}>OUVRIR LE DOSSIER <span aria-hidden="true">→</span></Link>
-        {sourceListingLink && <Link href={`/listings/${sourceListingLink.listingId}`}>VOIR LE LISTING</Link>}
+        <a href={`/transactions/${transaction.id}`}>OUVRIR LE DOSSIER <span aria-hidden="true">→</span></a>
+        {sourceListingLink && <a href={`/listings/${sourceListingLink.listingId}`}>VOIR LE LISTING</a>}
       </div>
     </article>
   );

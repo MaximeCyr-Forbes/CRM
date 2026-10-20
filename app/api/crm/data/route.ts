@@ -1,6 +1,7 @@
 import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
-import { normalizeClientProvenance, type ContactBroker } from "../../../data/contact-types";
+import { BROKER_LABELS, normalizeClientProvenance, type ContactBroker } from "../../../data/contact-types";
+import { TRANSACTION_STATUS_LABELS, type TransactionStatus } from "../../../data/transaction-types";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 import { getSupabaseAdmin } from "../../../lib/supabase/server";
 import { isAddressHistoryUnavailableError } from "../../../lib/contact-addresses";
@@ -238,14 +239,14 @@ async function GETHandler(request: Request) {
       id: contact.id as string,
       kind: "contact" as const,
       title: [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact sans nom",
-      detail: [contact.phone, contact.email, [[contact.civic_number, contact.address].filter(Boolean).join(" "), contact.city, contact.postal_code].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || `Courtier · ${contact.broker}`,
+      detail: [contact.phone, contact.email, [[contact.civic_number, contact.address].filter(Boolean).join(" "), contact.city, contact.postal_code].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || `Courtier · ${BROKER_LABELS[contact.broker as ContactBroker] ?? contact.broker}`,
       href: `/contacts/${contact.id}`,
     }));
     const transactionResults = transactionsResult.error ? [] : (transactionsResult.data ?? []).map((transaction) => ({
       id: transaction.id as string,
       kind: "transaction" as const,
       title: transaction.address as string,
-      detail: `Courtier · ${transaction.broker} · ${transaction.status}`,
+      detail: `Courtier · ${BROKER_LABELS[transaction.broker as ContactBroker] ?? transaction.broker} · ${TRANSACTION_STATUS_LABELS[transaction.status as TransactionStatus] ?? transaction.status}`,
       href: `/transactions/${transaction.id}`,
     }));
     const listingResults = listingsResult.error ? [] : ((listingsResult.data ?? []) as ListingRow[]).map((row) => {
@@ -255,7 +256,7 @@ async function GETHandler(request: Request) {
         id: listing.id,
         kind: "listing" as const,
         title: listingAddressLines(listing)[0] || "Listing sans adresse",
-        detail: [listing.city, listing.centrisNumber ? `Centris ${listing.centrisNumber}` : null, `Courtier · ${listing.broker}`].filter(Boolean).join(" · ") || address,
+        detail: [listing.city, listing.centrisNumber ? `Centris ${listing.centrisNumber}` : null, `Courtier · ${BROKER_LABELS[listing.broker]}`].filter(Boolean).join(" · ") || address,
         href: `/listings/${listing.id}`,
       };
     });
