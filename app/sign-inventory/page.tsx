@@ -10,6 +10,7 @@ import {ReturnDialog} from './return-dialog';
 import {StockDialog} from './stock-dialog';
 import {MaterialBadges,BacBadge,InventorySearch,inventoryDate} from './presentation';
 import './sign-inventory.css';
+import {SignStockSummary} from './sign-stock-summary';
 
 export default function SignInventoryPage(){
  const {workspaceUser}=useBroker();
@@ -36,7 +37,7 @@ export default function SignInventoryPage(){
   {notice&&<div className="sign-notice" role="status"><ShellIcon name="check"/>{notice}</div>}
   {error&&<p className="sign-error" role="alert">{error} <button onClick={()=>setRevision(n=>n+1)}>Réessayer</button></p>}
   <section className="sign-availability" aria-label="Disponibilités" aria-busy={loading}><div className="sign-availability-heading"><ShellIcon name="inventory"/><h2>Disponibilités</h2><span>Prêt à repartir</span></div>
-   {data?<div className="sign-availability-groups">{([['sign','Pancartes'],['addon','Ajouts'],['bac','Boîtes à clés']] as const).map(([kind,label])=><div className={`sign-availability-group ${kind}`} key={kind}><h3>{label}</h3><dl>{data.stock.filter(s=>s.kind===kind).map(s=><div key={s.id} className={`sign-stock-chip ${Number(s.available)>0?'available':'empty'}`}><dt>{kind==='bac'?<><ShellIcon name="key"/>BAC</>:s.label}</dt><dd>{s.available}<span className="sign-sr"> disponible(s)</span></dd></div>)}</dl></div>)}</div>:<p className="sign-hint" role="status">Chargement des disponibilités…</p>}
+   {data?<div className="sign-availability-groups">{([['sign','Pancartes · stock total'],['addon','Ajouts'],['bac','Boîtes à clés']] as const).map(([kind,label])=><div className={`sign-availability-group ${kind}`} key={kind}><h3>{label}</h3>{kind==='sign'?<SignStockSummary stock={data.stock}/>:<dl>{data.stock.filter(s=>s.kind===kind).map(s=><div key={s.id} className={`sign-stock-chip ${Number(s.available)>0?'available':'empty'}`}><dt>{kind==='bac'?<><ShellIcon name="key"/>BAC</>:s.label}</dt><dd>{s.available}<span className="sign-sr"> disponible(s)</span></dd></div>)}</dl>}</div>)}</div>:<p className="sign-hint" role="status">Chargement des disponibilités…</p>}
   </section>
   <section className="sign-ledger" aria-busy={loading}>
    <div className="sign-ledger-heading"><h2>{view==='history'?'Historique du matériel':'Matériel en circulation'}{data&&<span className="sign-count">{data.assignments.count}</span>}</h2><nav aria-label="Vue du matériel">{([['active','En circulation'],['history','Historique']] as const).map(([id,label])=><button key={id} aria-pressed={view===id} onClick={()=>{setView(id);setPage(0);}}>{id==='history'&&<ShellIcon name="history"/>}{label}</button>)}</nav></div>

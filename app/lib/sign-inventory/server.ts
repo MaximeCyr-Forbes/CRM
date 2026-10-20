@@ -1,7 +1,7 @@
 import { crmMemberContext } from '../auth/context';
 import {getSupabaseAdmin} from '../supabase/server';
 import {birthdayWorkspaceActor,requireApiAccess} from '../crm-access';
-import {InventoryError,canManageStock,mutation} from './model';
+import {InventoryError,canManageStock,mutation,type Stock} from './model';
 import type {WorkspaceUser} from '../workspace';
 export async function inventoryRoute(request:Request,action:(actor:WorkspaceUser|null)=>Promise<unknown>){
  const access=await requireApiAccess();if(access.response)return access.response;
@@ -27,6 +27,11 @@ export async function readInventory(params:URLSearchParams){
   db.rpc('sign_inventory_assignments',{p_returned:params.get('view')==='history',p_search:(params.get('search')??'').slice(0,160),p_broker:params.get('broker')??'',p_page:page})
  ]);
  for(const r of results)if(r.error)throw r.error;
+ for(const stock of (results[0].data ?? []) as Stock[]){
+  if(stock.kind==='sign'&&(stock.available<0||stock.available!==stock.total-stock.used)){
+   console.warn('Sign inventory availability inconsistency',{id:stock.id,total:stock.total,used:stock.used,available:stock.available});
+  }
+ }
  return {stock:results[0].data,types:results[1].data,assignments:results[2].data};
 }
 export async function writeInventory(input:unknown,actor:WorkspaceUser,options: {mcp?:boolean} = {}){
