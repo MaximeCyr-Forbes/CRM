@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useBroker } from "../broker-context";
-import { AppHeader } from "./app-header";
+import { useAuth } from "../auth-context";
+import { StartupLoading } from "./startup-loading";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { selectedBroker, workspaceUser } = useBroker();
+  const { status, member } = useAuth();
+  const { selectedBroker, workspaceUser, isBrokerReady } = useBroker();
   const [menuOpen, setMenuOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const selection = pathname === "/" || !selectedBroker;
+  const selection = (pathname === "/" && !member) || !selectedBroker;
 
   useEffect(() => { setMenuOpen(false); }, [pathname]);
   useEffect(() => {
@@ -36,7 +38,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [menuOpen, selection]);
 
-  if (selection) return <><AppHeader /><div className="private-route-content">{children}</div></>;
+  // SSR and the first client render share this neutral state. Never use the
+  // legacy header while session/member and workspace restoration are pending.
+  if (status !== "authenticated" || !isBrokerReady) return <StartupLoading />;
+  if (selection) return <div className="private-route-content">{children}</div>;
   function navigate(href: string) {
     setMenuOpen(false);
     router.push(href === "/dashboard" && !selectedBroker ? "/" : href);

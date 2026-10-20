@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { appNavigationOrder, softwareLinks } from "../data/software-links";
 
-const state = vi.hoisted(() => ({ pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France", open: false, push: vi.fn(), replace: vi.fn(), selectBroker: vi.fn(), clearBroker: vi.fn(), setOpen: vi.fn() }));
+const state = vi.hoisted(() => ({ pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France" as string | null, status: "authenticated", member: null as null | { broker: string }, isBrokerReady: true, open: false, push: vi.fn(), replace: vi.fn(), selectBroker: vi.fn(), clearBroker: vi.fn(), setOpen: vi.fn() }));
+vi.mock("../auth-context", () => ({ useAuth: () => state }));
 vi.mock("react", async original => ({ ...await original<typeof import("react")>(), useEffect: () => {}, useRef: () => ({ current: null }), useId: () => "software-test", useState: () => [state.open, state.setOpen] }));
 vi.mock("next/navigation", () => ({ usePathname: () => state.pathname, useRouter: () => ({ push: state.push, replace: state.replace }) }));
 vi.mock("../broker-context", () => ({ BROKERS: ["France", "Maxime", "Sandrine"], useBroker: () => ({ ...state }) }));
@@ -26,7 +27,7 @@ function find(tree: ReactNode, predicate: (props: Record<string, unknown>, type:
 }
 const sidebar = (navigate = vi.fn(), onClose?: () => void) => AppSidebar({ pathname: state.pathname, workspaceUser: state.workspaceUser, selectedBroker: state.selectedBroker, navigate, onClose });
 const topbar = () => AppTopbar({ onOpenMenu: vi.fn(), menuOpen: state.open, menuButtonRef: { current: null } });
-beforeEach(() => { vi.clearAllMocks(); Object.assign(state, { pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France", open: false }); });
+beforeEach(() => { vi.clearAllMocks(); Object.assign(state, { pathname: "/dashboard", workspaceUser: "france", selectedBroker: "France", status: "authenticated", member: null, isBrokerReady: true, open: false }); });
 
 describe("premium shell preserves the CRM navigation contract", () => {
   it("opens inventory as a primary item even when Logiciels is closed", () => {
@@ -64,10 +65,29 @@ describe("premium shell preserves the CRM navigation contract", () => {
     expect(html.match(/aria-label="Menu d’accès équipe"/g)).toHaveLength(1);
     expect(html).toContain("Existing content"); expect(html).not.toContain("Selection header");
   });
-  it("keeps user selection on the original header", () => {
+  it("keeps rescue user selection without the legacy header", () => {
     state.pathname = "/";
     const html = renderToStaticMarkup(createElement(AppShell, null, "Selection"));
-    expect(html).toContain("Selection header"); expect(html).not.toContain("crm-sidebar");
+    expect(html).toContain("Selection"); expect(html).not.toContain("Selection header"); expect(html).not.toContain("crm-sidebar");
+  });
+  it.each([
+    { status: "loading", isBrokerReady: false },
+    { status: "authenticated", isBrokerReady: false },
+    { status: "unauthenticated", isBrokerReady: true },
+  ])("withholds navigation and stale content during $status / ready=$isBrokerReady", pending => {
+    Object.assign(state, pending);
+    const html = renderToStaticMarkup(createElement(AppShell, null, "Private client data"));
+    expect(html).toContain("crm-startup-loading");
+    expect(html).not.toContain("Private client data");
+    expect(html).not.toContain("Selection header");
+    expect(html).not.toContain("crm-sidebar");
+    expect(html).not.toContain("Menu d’accès équipe");
+  });
+  it("uses the modern shell on the Google landing route once identity and workspace are ready", () => {
+    state.pathname = "/"; state.member = { broker: "france" };
+    const html = renderToStaticMarkup(createElement(AppShell, null, "Opening workspace"));
+    expect(html).toContain("crm-app-shell");
+    expect(html).not.toContain("Selection header");
   });
   it("distinguishes Immoplus identity from working broker", () => {
     state.workspaceUser = "immoplus"; state.selectedBroker = "Maxime";
