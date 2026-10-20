@@ -1,5 +1,12 @@
 import {it,expect} from 'vitest';
-import {mutation,canManageStock} from './model';
+import {mutation,canManageStock,requiresPhysicalSign} from './model';
+it.each([
+ [null,[],false],['sale',[],true],
+ ...['estimate','sold','open-house','rent'].map(id=>[null,[id],true]),
+ ['sale',['estimate','sold'],true],[null,['estimate','sold'],true],
+] as [string|null,string[],boolean][])('physical sign demand: %s / %j', (type,addons,expected)=>{
+ expect(requiresPhysicalSign(type,addons)).toBe(expected);
+});
 const base={action:'assign',id:'11111111-1111-4111-8111-111111111111',listing_id:'22222222-2222-4222-8222-222222222222',broker:'broker_a',sign_type:'sale',has_bac:true,addons:['addon:sold']};
 it('accepts a real listing identity and separate addons',()=>expect(mutation(base).data).toMatchObject({listing_id:base.listing_id,sign_type:'sale',addons:['addon:sold']}));
 it('does not pass forged audit actors to the database',()=>expect(mutation({...base,created_by:'forged'}).data).not.toHaveProperty('created_by'));

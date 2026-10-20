@@ -46,6 +46,8 @@ try {
  phase='functional parity';const {testFunctionalParity}=await import('./functional-parity.mjs');await testFunctionalParity(db);
  phase='Google login v3 migration';await db.exec(await readFile(new URL('../migrations/20261019223541_google_login_v3.sql',root),'utf8'));
  phase='Google login v3';const {testGoogleLoginV3}=await import('./google-login-v3.mjs');await testGoogleLoginV3(db);
+ phase='physical sign rule';await db.exec(await readFile(new URL('../migrations/20261020185510_addon_implies_physical_sign.sql',root),'utf8'));
+ phase='physical sign regression';const {testPhysicalSigns}=await import('./physical-signs.mjs');await testPhysicalSigns(db);
  phase='Google v3 functional parity';await testFunctionalParity(db);
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
 } catch(e) { console.error('FAIL phase:',phase,'code:',e.code,'message:',e.message);process.exitCode=1; }

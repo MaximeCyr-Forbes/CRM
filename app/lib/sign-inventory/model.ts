@@ -4,6 +4,7 @@ export type SignType={id:string;label:string};
 export type PropertyChoice={id:string;address:string;broker:string;status:string};
 export type Assignment={id:string;listing_id:string|null;address:string;address_snapshot:string;broker:string;broker_label:string;sign_type:string|null;sign_label:string|null;has_bac:boolean;addons:SignType[];version:number;created_at:string;created_by:string;updated_at:string;updated_by:string;returned_at:string|null;returned_by:string|null};
 export type InventoryData={stock:Stock[];types:SignType[];assignments:{data:Assignment[];count:number}};
+export function requiresPhysicalSign(signType:string|null,addons:readonly unknown[]){return Boolean(signType)||addons.length>0;}
 export class InventoryError extends Error {constructor(message:string,public status=400){super(message);}}
 export function canManageStock(actor:WorkspaceUser|null){return hasCRMFunctionalAccess(actor);}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
