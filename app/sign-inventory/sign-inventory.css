@@ -65,3 +65,10 @@
 .sign-warehouse dl>div{display:flex;align-items:center;gap:6px}
 .sign-warehouse dt{font-weight:400}
 .sign-warehouse dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;color:var(--crm-text)}
+
+.sign-addon-address { color:var(--crm-muted,#657087); line-height:1.6; margin:0 0 16px; }
+.sign-addon-address strong { color:var(--crm-text,#15233b); }
+.sign-existing { padding:12px; border:1px solid var(--crm-border,#e4e8ef); border-radius:12px; }
+.sign-existing section+section { margin-top:16px; }
+.sign-existing .sign-actions { margin-top:12px; flex-wrap:wrap; }
+@media(max-width:700px) { .sign-actions { flex-wrap:wrap; } .sign-actions button { min-height:40px; } }

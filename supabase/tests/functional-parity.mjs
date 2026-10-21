@@ -66,9 +66,11 @@ export async function testFunctionalParity(db){
    }
   }));
   await check(person.broker+' assignment/edit/return, stock invariant unchanged',()=>act(async tx=>{
-   const id=randomUUID();const data={id,listing_id:listing,broker:target,sign_type:'sale',has_bac:true,addons:['addon:sold']};
+   const id=randomUUID();const data={id,listing_id:listing,broker:target,sign_type:'sale',has_bac:true,addons:[]};
    await tx.query("select public.crm_inventory_write('assign',$1,$2)",[data,person.broker]);
-   await tx.query("select public.crm_inventory_write('edit',$1,$2)",[{...data,version:1},person.broker]);
+   await tx.query("select public.crm_inventory_write('edit',$1,$2)",[{...data,version:1,addons:['addon:sold']},person.broker]);
+   assert.equal((await tx.query('select updated_by from public.sign_assignments where id=$1',[id])).rows[0].updated_by,person.broker);
+   await tx.query("select public.sign_inventory_listings('Updated parity')");
    const row=(await tx.query('select * from public.sign_inventory_stock where id=$1',['sign:'+target])).rows[0];
    await tx.exec('savepoint stock_invariant');
    await assert.rejects(()=>tx.query("select public.crm_inventory_write('stock',$1,$2)",[{id:row.id,total:0,version:row.version},person.broker]),e=>e.code==='P0001');

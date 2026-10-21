@@ -46,5 +46,5 @@ export async function writeInventory(input:unknown,actor:WorkspaceUser,options: 
  return result;
 }
 export async function searchProperties(search:string){
- const {data,error}=await getSupabaseAdmin().rpc('sign_inventory_listings',{p_search:search.slice(0,160)});if(error)throw error;return {data};
+ const {data,error}=await getSupabaseAdmin().rpc('sign_inventory_properties',{p_search:search.slice(0,160)});if(error)throw error;return {data};
 }

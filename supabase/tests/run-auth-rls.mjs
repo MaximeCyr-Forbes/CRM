@@ -31,6 +31,8 @@ try {
  phase='unique indexes'; for(const idx of JSON.parse(await readFile(new URL('fixtures/business-unique-indexes.json',root),'utf8'))) await db.exec(idx.ddl);
  phase='business functions';for(const f of fixture.functions)await db.exec(f);
  await db.exec('revoke execute on all functions in schema public from public,anon,authenticated; grant execute on all functions in schema public to service_role;');
+ // Preserve the installed extension's production EXECUTE privilege after the fixture's blanket revoke.
+ await db.exec('grant execute on function public.unaccent(text) to authenticated');
  phase='business triggers';for(const t of fixture.triggers)await db.exec(t);
  phase='identity migration';await db.exec(await readFile(new URL('../migrations/20261019021416_google_crm_member_identities.sql',root),'utf8'));
  phase='RLS migration';await db.exec(await readFile(new URL('../migrations/20261019022103_crm_member_rls_and_audit.sql',root),'utf8'));
@@ -48,6 +50,8 @@ try {
  phase='Google login v3';const {testGoogleLoginV3}=await import('./google-login-v3.mjs');await testGoogleLoginV3(db);
  phase='physical sign rule';await db.exec(await readFile(new URL('../migrations/20261020185510_addon_implies_physical_sign.sql',root),'utf8'));
  phase='physical sign regression';const {testPhysicalSigns}=await import('./physical-signs.mjs');await testPhysicalSigns(db);
+ phase='addon workflow migration';await db.exec(await readFile(new URL('../migrations/20261021200345_sign_addon_property_workflow.sql',root),'utf8'));
+ phase='addon workflow tests';const {testAddonWorkflow}=await import('./addon-workflow.mjs');await testAddonWorkflow(db);
  phase='Google v3 functional parity';await testFunctionalParity(db);
  console.log('PASS: local PostgreSQL schema (46 business tables), identity and RLS migrations, identity regressions.');
 } catch(e) { console.error('FAIL phase:',phase,'code:',e.code,'message:',e.message);process.exitCode=1; }

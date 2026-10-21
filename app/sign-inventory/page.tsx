@@ -5,6 +5,7 @@ import {ShellIcon} from '../components/shell-icons';
 import {PencilIcon} from '../components/action-icons';
 import {inventoryRequest} from '../lib/sign-inventory/client';
 import {canManageStock,type Assignment,type InventoryData} from '../lib/sign-inventory/model';
+import {AddonDialog} from './addon-dialog';
 import {AssignmentDialog} from './assignment-dialog';
 import {ReturnDialog} from './return-dialog';
 import {StockDialog} from './stock-dialog';
@@ -16,6 +17,7 @@ export default function SignInventoryPage(){
  const {workspaceUser}=useBroker();
  const [view,setView]=useState<'active'|'history'>('active'),[search,setSearch]=useState(''),[broker,setBroker]=useState(''),[page,setPage]=useState(0);
  const [data,setData]=useState<InventoryData|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[revision,setRevision]=useState(0);
+ const [adding,setAdding]=useState<Assignment|null>(null);
  const [editing,setEditing]=useState<Assignment|null|undefined>(undefined),[returning,setReturning]=useState<Assignment|null|undefined>(undefined),[stockOpen,setStockOpen]=useState(false);
  useEffect(()=>{
   let active=true;setLoading(true);setError('');
@@ -25,8 +27,8 @@ export default function SignInventoryPage(){
  useEffect(()=>{const refresh=()=>setRevision(n=>n+1);window.addEventListener('focus',refresh);return()=>window.removeEventListener('focus',refresh);},[]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(timer);},[notice]);
  function reload(message:string){setNotice(message);setRevision(n=>n+1);}
- const actions=(a:Assignment)=><div className="sign-actions"><button disabled={loading||!a.listing_id} onClick={()=>setEditing(a)}><PencilIcon/>Modifier</button><button disabled={loading} onClick={()=>setReturning(a)}><ShellIcon name="return"/>Retourner</button></div>;
- const property=(a:Assignment)=>a.listing_id?<a href={`/listings/${a.listing_id}`}>{view==='history'?a.address_snapshot:a.address}</a>:<strong>{a.address_snapshot}<small>Listing supprimé</small></strong>;
+ const actions=(a:Assignment)=><div className="sign-actions"><button disabled={loading||!(a.listing_id||a.transaction_id)} onClick={()=>setEditing(a)}><PencilIcon/>Modifier</button><button title="Ajouter un ajout à la pancarte" disabled={loading||!(a.listing_id||a.transaction_id)} onClick={()=>setAdding(a)}><ShellIcon name="plus"/>Ajout</button><button disabled={loading} onClick={()=>setReturning(a)}><ShellIcon name="return"/>Retourner</button></div>;
+ const property=(a:Assignment)=>a.listing_id||a.transaction_id?<a href={a.transaction_id?`/transactions/${a.transaction_id}`:`/listings/${a.listing_id}`}>{view==='history'?a.address_snapshot:a.address}</a>:<strong>{a.address_snapshot}<small>Propriété supprimée</small></strong>;
  const history=(a:Assignment)=><div className="sign-history-dates"><small>Attribué le {inventoryDate(a.created_at)} · {a.created_by}</small>{a.returned_at&&<small>Retourné le {inventoryDate(a.returned_at)} · {a.returned_by}</small>}</div>;
  return <main className="sign-page">
   <header className="sign-header"><div><p className="sign-eyebrow">OUTILS D’ÉQUIPE</p><h1>Pancartes / BAC</h1><p>Le bon matériel, à la bonne adresse.</p></div><div className="sign-header-actions">
@@ -48,7 +50,8 @@ export default function SignInventoryPage(){
     {data.assignments.count>50&&<div className="sign-pagination"><button disabled={page===0||loading} onClick={()=>setPage(p=>p-1)}>Précédent</button><span>Page {page+1} / {Math.ceil(data.assignments.count/50)}</span><button disabled={(page+1)*50>=data.assignments.count||loading} onClick={()=>setPage(p=>p+1)}>Suivant</button></div>}
    </>}
   </section>
-  {editing!==undefined&&data&&<AssignmentDialog row={editing} data={data} onClose={()=>setEditing(undefined)} onSaved={()=>{setEditing(undefined);reload(editing?'Matériel modifié':'Matériel attribué');}}/>}
+  {editing!==undefined&&data&&<AssignmentDialog key={editing?.id??'new'} onExisting={(a,addon)=>{if(addon){setEditing(undefined);setAdding(a);}else setEditing(a);}} row={editing} data={data} onClose={()=>setEditing(undefined)} onSaved={()=>{setEditing(undefined);reload(editing?'Matériel modifié':'Matériel attribué');}}/>}
+  {adding&&data&&<AddonDialog row={adding} data={data} onClose={()=>setAdding(null)} onSaved={()=>{setAdding(null);reload('Ajout enregistré');}}/>}
   {returning!==undefined&&<ReturnDialog initial={returning} onClose={()=>setReturning(undefined)} onSaved={()=>{setReturning(undefined);reload('Matériel retourné');}}/>}
   {stockOpen&&data&&<StockDialog stock={data.stock} canEdit={canManageStock(workspaceUser)} onClose={()=>setStockOpen(false)} onChanged={()=>setRevision(n=>n+1)} onSaved={()=>{setStockOpen(false);reload('Inventaire mis à jour');}}/>}
  </main>;
