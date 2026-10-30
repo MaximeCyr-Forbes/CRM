@@ -7,6 +7,7 @@ import {
   latest,
   norm,
   parseFrenchDate,
+  parseVisibleSignatureDate,
   torontoDateTime,
   timeToIso,
 } from "./dates";
@@ -545,6 +546,7 @@ export function extractResponseAction(
   const lines = [...rows].sort(([a],[b])=>a-b).map(([top, words])=>({top, words, text:norm(words.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(" "))}));
   const start = lines.find(line => (counter ? responseMarkers.slice(3) : responseMarkers.slice(0,3)).some(marker=>line.text.includes(marker)))?.top;
   const end = lines.find(line => start !== undefined && line.top > start && /accuse de reception|acknowledgment|intervention du conjoint/.test(line.text))?.top ?? Infinity;
+  const decisionEnd=lines.find(line=>start!==undefined && line.top>start && /signe a|signed at/.test(line.text))?.top ?? end;
   const inZone = (top: number) => (start === undefined || top >= start - 3) && top < end;
   const annotations = [...doc.annotations, ...doc.signatureWidgets].filter(a=>a.pageIndex===index && inZone(a.top) && (!counter || a.x0 >= page.width/2));
   const decisions: OaciqResponse["action"][] = [];
@@ -565,6 +567,24 @@ export function extractResponseAction(
   for (const line of lines.filter(line=>start!==undefined && line.top>start && line.top<end)) {
     const text = norm(line.words.filter(w=>!counter || w.x0>=page.width/2).map(w=>w.text).join(" "));
     for (const m of text.matchAll(/(?:il declare|declares)\s+(accepter|refuser|accept|refuse)\b/g)) decisions.push(/accept/.test(m[1]) ? "accept" : "refuse");
+  }
+  // Flattened fillable fields sit ABOVE their printed baseline. Read only the
+  // declaration slot, excluding the printed ACCEPTER / REFUSER legend.
+  for (const line of lines.filter(line=>inZone(line.top) && /il declare|declares/.test(line.text))) {
+    const side=line.words.filter(w=>!counter || w.x0>=page.width/2);
+    const anchor=side.find(w=>/declare/.test(norm(w.text)));
+    if (!anchor) continue;
+    for (const w of page.words.filter(w=>w.x0>anchor.x0 && w.top>=anchor.top-14 && w.top<=anchor.top+4)) {
+      const value=norm(w.text);
+      if (/^(accepter|accept|accepted)$/.test(value)) decisions.push("accept");
+      if (/^(refuser|refuse|refused)$/.test(value)) decisions.push("refuse");
+    }
+  }
+  // A filled CP number on the response line establishes a counter-proposal,
+  // including flattened checkmarks that have become an image rather than text.
+  for (const anchor of page.words.filter(w=>inZone(w.top) && w.top<decisionEnd && /^CP-?$/.test(w.text) && (!counter || w.x0>=page.width/2))) {
+    const numbers=[...page.words,...annotations].filter(w=>/^\d{5,6}$/.test(w.text.trim()) && w.x0>=anchor.x0-5 && w.x0<anchor.x0+170 && Math.abs(w.top-anchor.top)<20);
+    if (numbers.length===1) { decisions.push("counter"); nextNumber=numbers[0].text.trim(); }
   }
   return {action:decisions.length && new Set(decisions).size===1 ? decisions[0] : "unknown",counterProposalNumber:nextNumber};
 }
@@ -630,6 +650,22 @@ function signatureTime(
       .map((s) => s.signedAt),
   );
 }
+function visibleRespondentSignatures(doc: Doc, index: number, names: string[]): {name:string;date:string}[] {
+  if(index<0) return [];
+  const page=doc.pages[index], words=page.words.filter(w=>w.x0>=page.width/2);
+  const result: {name:string;date:string}[]=[];
+  for(const stamp of words.filter(w=>/^20\d{2}-\d{2}-\d{2}$/.test(w.text))) {
+    const caption=words.some(w=>/repondant|respondent/.test(norm(w.text)) && Math.abs(w.top-stamp.top)<20);
+    if(!caption) continue;
+    const row=words.filter(w=>Math.abs(w.top-stamp.top)<2).sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ');
+    // Overlaying caption digits must not break the signed timestamp.
+    const date=parseVisibleSignatureDate(norm(row).replace(/(signe)\s+\d\s+(le)/i,'$1 $2'));
+    if(!date) continue;
+    const context=norm(words.filter(w=>w.top>=stamp.top-30 && w.top<=stamp.top+3).sort((a,b)=>a.top-b.top||a.x0-b.x0).map(w=>w.text).join(' '));
+    for(const name of names) if(context.includes(norm(name))) result.push({name,date});
+  }
+  return result;
+}
 export function parseCounterProposal(doc: Doc): OaciqCounterProposal {
   const pages = pagesText(doc),
     clauses = counterClauses(pages),
@@ -686,7 +722,10 @@ export function parseCounterProposal(doc: Doc): OaciqCounterProposal {
   const occupationTime = positionedTime || counterTime(native['P2.3.3'] || '') || counterTime(clauses['P2.3.3'] || '');
   const expiryDate = parseFrenchDate(native['P2.7'] || '') || parseFrenchDate(clauses['P2.7'] || '');
   const expiryTime = timeToIso(counterTime(native['P2.7'] || clauses['P2.7'] || ''));
+  const visible=visibleRespondentSignatures(doc,index,respondents);
+  if(visible.length) responseSignedAt=latest([signatureTime(doc.signatures,respondents,index,false,doc.pages[index].width),...visible.map(s=>s.date)]);
   const signaturesComplete = !!responseSignedAt && (!respondents.length || respondents.every(person =>
+    visible.some(s=>s.name===person) ||
     doc.signatures.some(s => s.signedAt && s.pageIndex === index && (s.x0 ?? 0) >= doc.pages[index].width / 2 && norm(`${s.name} ${s.contact} ${s.text || ''}`).includes(norm(person)))));
   return {
     warnings,

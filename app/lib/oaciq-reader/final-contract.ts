@@ -15,7 +15,7 @@ export function applyCounterContract(deadlines: OaciqDeadline[], path: OaciqCoun
   const snapshot = (d: OaciqDeadline) => ({value: d.dueDate ?? d.days, time: d.dueTime, sourceDocument: d.sourceDocument, sourceSection: d.sourceSection});
   for (const d of deadlines) final[d.type] = {...snapshot(d), overrides: []};
   let atNotary = context.occupationAtNotary;
-  function patch(type: string, value: string | null, time: string | null, cp: OaciqCounterProposal, section: string) {
+  function patch(type: string, value: string | null, time: string | null, cp: Pick<OaciqCounterProposal,"fileName"|"formNumber"|"clauses">, section: string) {
     let d = deadlines.find(d => d.type === type);
     if (!d) {
       if (!value) return;
@@ -58,15 +58,13 @@ export function applyCounterContract(deadlines: OaciqDeadline[], path: OaciqCoun
   // A later applicable MO wins over CP dates; never reapply the CP afterward.
   for (const m of context.modifications) {
     const type = ["11.1","P2.3.2"].includes(m.section) ? "notary" : ["11.2","P2.3.3"].includes(m.section) ? "occupancy" : null;
-    const d = deadlines.find(d=>d.type===type);
-    if (d && m.date) {
-      const previous = final[d.type];
-      if (d.sourceDocument !== m.document) previous.overrides.push(snapshot(d));
-      Object.assign(d,{dueDate:m.date,dueTime:m.time,sourceDocument:m.document,sourceForm:m.formNumber,sourceSection:m.section,sourceText:m.text,dateText:formatDay(m.date)});
-      final[d.type] = {...snapshot(d),overrides:previous.overrides}; m.applied=true;
+    if (type && m.date) {
+      patch(type,m.date,m.time,{fileName:m.document,formNumber:m.formNumber,clauses:{[m.section]:m.text}},m.section);
+      m.applied=true;
       if (type === "occupancy") atNotary=false;
     }
   }
+
   const notary = deadlines.find(d=>d.type==="notary");
   for (const d of deadlines) if ((d.type==="occupancy" && atNotary) || d.type==="septic_pumping") {
     d.dueDate=notary?.dueDate || null;

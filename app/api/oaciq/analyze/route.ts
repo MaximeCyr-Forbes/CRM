@@ -1,3 +1,4 @@
+import { logOaciqModifications } from "../../../lib/oaciq-reader/modification-diagnostics";
 import { withCRMIdentity } from '../../../lib/auth/route';
 import { requireApiAccess } from "../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
@@ -32,6 +33,7 @@ async function POSTHandler(request: Request) {
     }
     // One consolidated dossier, no insert, no Google request, no PDF persisted.
     const data = await analyzeOaciqTransaction(inputs);
+    logOaciqModifications(data);
     return json({ data });
   } catch (error) {
     // Never log parser errors, filenames, text, parties, signatures or clauses.

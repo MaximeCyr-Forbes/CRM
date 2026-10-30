@@ -134,8 +134,9 @@ export type OaciqAnalysis = {
   contractRequiresReview?: boolean;
   finalContract?: Record<string, { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null; overrides: { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null }[] }>;
   documentaryState?: {
+    modificationForms?: {document:string;formNumber:string;references:string[];address:string|null;otherConditionsUnchanged:boolean}[];
     links: { document: string; targetForm: string; section?: string }[];
-    modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean }[];
+    modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean; amount?: number; extensionDays?: number }[];
     acceptanceDeadline: { date: string | null; time: string | null; sourceDocument: string };
   };
   finalPrice: number | null;
