@@ -82,6 +82,7 @@ export function extractClause12(pages: string[]): string {
 export function formNumber(name: string, pages: string[]): string {
   // The form's own code wins over the upload name or a reference to another PA.
   const kind = documentKind(pages);
+  if (kind === "brokerage_contract") return /\bCC\s*[A-Z]{0,3}\s*[- ]?\s*(\d{5,6})\b/i.exec(pages.join("\n"))?.[1] || "";
   if (kind === "modification") return /\bMO\s*[- ]?\s*(\d{4,6})\b/i.exec(pages.join("\n"))?.[1].padStart(5, "0") || "";
   if (kind === "bonification") {
     const own = /\bBO\s*[- ]?\s*(\d{4,6})\b/i.exec(pages.join("\n"));
@@ -123,6 +124,7 @@ export function documentKind(pages: string[]): OaciqFormKind {
   if (/annexe f|annex f/.test(first)) return "annex_f";
   if (/contre-proposition|counter-proposal/.test(first))
     return "counter_proposal";
+  if (/contrat de courtage/.test(first) && /\bcc\s*[a-z]{0,3}\s*[- ]?\s*\d{5,6}\b/.test(first)) return "brokerage_contract";
   if (/promesse d'achat|promise to purchase/.test(first))
     return "promise_to_purchase";
   return "unknown";

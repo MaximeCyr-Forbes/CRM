@@ -1,6 +1,6 @@
 import { logOaciqFailure } from "./diagnostics";
 import { analyzeExtractedOaciqDocuments } from "./parser";
-import { modificationIdentification, parseModifications } from "./modifications";
+import { modificationIdentification, parseModifications, applyBrokerageModifications } from "./modifications";
 import { documentKind, formNumber, pagesText } from "./forms";
 import type {
   OaciqAnalysis,
@@ -52,10 +52,12 @@ export async function analyzeOaciqDocuments(
     logOaciqFailure("consolidation", error, { documents: documents.length });
     // Preserve recognized forms when the chain is ambiguous. Do not choose an
     // arbitrary PA or manufacture transaction values to hide the ambiguity.
+    const modifications=documents.filter(d=>documentKind(pagesText(d))==='modification').flatMap(parseModifications);
+    const brokerageContracts=applyBrokerageModifications(documents,modifications,warnings);
     return {
       documents:documents.map(d=>({name:d.name,pageCount:d.pages.length,ocrUsed:!!d.ocrPages})),
       forms:documents.map(d=>({document:d.name,kind:documentKind(pagesText(d)),number:formNumber(d.name,pagesText(d))})),
-      documentaryState:{modificationForms:documents.filter(d=>documentKind(pagesText(d))==='modification').map(modificationIdentification),links:documents.filter(d=>documentKind(pagesText(d))==='modification').flatMap(d=>modificationIdentification(d).references.map(targetForm=>({document:d.name,targetForm}))),modifications:documents.filter(d=>documentKind(pagesText(d))==='modification').flatMap(d=>parseModifications(d)),acceptanceDeadline:{date:null,time:null,sourceDocument:''}},
+      documentaryState:{modificationForms:documents.filter(d=>documentKind(pagesText(d))==='modification').map(modificationIdentification),links:documents.filter(d=>documentKind(pagesText(d))==='modification').flatMap(d=>modificationIdentification(d).references.map(targetForm=>({document:d.name,targetForm}))),modifications,brokerageContracts,acceptanceDeadline:{date:null,time:null,sourceDocument:''}},
       mainDocument:'',finalPrice:null,priceSourceForm:null,priceSourceDocument:null,priceSourceSection:null,priceConfidence:'low',priceWarnings:[],
       acceptanceDateTime:null,acceptanceSource:'',propertyAddress:null,buyerNames:[],sellerNames:[],deadlines:[],transactionDates:{},allDeadlinesDeferred:false,
       warnings:[...warnings,"Formulaires reconnus, mais leur consolidation nécessite une vérification. Identifiez la promesse d’achat principale et les références des annexes."],

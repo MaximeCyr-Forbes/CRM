@@ -1,4 +1,4 @@
-import { cleanSpaces, norm, parseFrenchDate, extractTimeText, timeToIso } from './dates';
+import { cleanSpaces, norm, parseFrenchDate, extractTimeText, timeToIso, latest } from './dates';
 import { documentKind, formNumber, pagesText, extractActualClause } from './forms';
 import { clauseAmount } from './price';
 import type { OaciqAnalysis, OaciqExtractedDocument as Doc } from './types';
@@ -11,8 +11,8 @@ export function formReferences(text: string): string[] {
 }
 export function documentReference(doc: Doc): string {
   const pages=pagesText(doc), kind=documentKind(pages), number=formNumber(doc.name,pages);
-  const codes = { promise_to_purchase:'PA', annex_f:'AF', annex_r:'AR', counter_proposal:'CP', modification:'MO', annex_water:'EAU', bonification:'BO', unknown:'' };
-  const code = kind==='promise_to_purchase' ? formReferences(pages.join('\n')).find(r=>r.endsWith(` ${number}`))?.split(' ')[0] || 'PA' : codes[kind];
+  const codes = { promise_to_purchase:'PA', annex_f:'AF', annex_r:'AR', counter_proposal:'CP', modification:'MO', annex_water:'EAU', bonification:'BO', brokerage_contract:'CC', unknown:'' };
+  const code = (kind==='promise_to_purchase' || kind==='brokerage_contract') ? formReferences(pages.join('\n')).find(r=>r.endsWith(` ${number}`))?.split(' ')[0] || 'PA' : codes[kind];
   return `${code} ${number}`;
 }
 /** PA is printed generically on some MO templates even for a PAD. Number must match. */
@@ -39,7 +39,7 @@ export function parseModifications(doc: Doc): Modification[] {
     const explicitSections=(leading?.[1] || clause?.[1])?.match(/[A-Z]?\d+\.\d+(?:\.\d+)?/gi);
     // A reference inside boilerplate ('courtier mentionné à la clause 2.1')
     // cannot replace a leading amendment heading (11.1 ACTE DE VENTE).
-    let sections=explicitSections?.map(s=>s.toUpperCase()) || (fallbackSection ? [fallbackSection] : []);
+    let sections=fallbackSection?.startsWith('M2.') ? [fallbackSection] : explicitSections?.map(s=>s.toUpperCase()) || (fallbackSection ? [fallbackSection] : []);
     if (!sections.length) {
       if (/occupation/.test(normalized)) sections=['11.2'];
       else if (/acte de vente|notaire/.test(normalized)) sections=['11.1'];
@@ -60,8 +60,8 @@ export function parseModifications(doc: Doc): Modification[] {
         ...(amount!==null?{amount}:{}),...(extension?{extensionDays:+extension[1]}:{}),text:cleanSpaces(text),applied:false});
     }
   };
-  read(extractActualClause(pages,'M2.1',['M2.2']).replace(/^M2\.1\s*/,''),'M2.1');
-  read(extractActualClause(pages,'M2.2',['M3.']).replace(/^M2\.2\s*/,''),'M2.2');
+  read(extractActualClause(pages,'M2.1',['M2.2']).replace(/^M2\.1\s*/,''),'M2.1',primary.find(r=>r.startsWith('CC')));
+  read(extractActualClause(pages,'M2.2',['M3.']).replace(/^M2\.2\s*/,''),'M2.2',primary.find(r=>r.startsWith('CC')));
   read(extractActualClause(pages,'M3.1',['M3.2']).replace(/^M3\.1\s*/,''),'14.1');
   read(extractActualClause(pages,'M3.2',['M4.']).replace(/^M3\.2\s*/,''));
   for(const page of pages) {
@@ -70,4 +70,41 @@ export function parseModifications(doc: Doc): Modification[] {
     for(const part of free.split(/\n(?=\s*[A-Z]?\d+\.\d+\b)|(?=Le d[eé]lai mentionn[eé] [àa] la clause)|[.;]\s+(?=[A-ZÀÉ])/)) read(part);
   }
   return result;
+}
+
+/** A shared chronology rule for purchase and brokerage contract amendments. */
+export function orderModifications(eligible:Modification[],documents:Doc[],warnings:string[]):Modification[] {
+  const modificationMoment = (name:string) => latest(documents.find(d=>d.name===name)!.signatures.map(s=>s.visibleSignedAt || s.signedAt));
+  return eligible.filter(m => {
+    const conflicts = eligible.filter(other => other.targetForm===m.targetForm && other.section===m.section);
+    const dated = conflicts.map(other=>modificationMoment(other.document));
+    const establishedOrder = dated.every(Boolean) && new Set(dated).size === dated.length;
+    if (!establishedOrder && conflicts.some(other=>other.days!==m.days || other.date!==m.date || other.time!==m.time || other.amount!==m.amount || other.extensionDays!==m.extensionDays)) {
+      warnings.push(`MO ${m.formNumber} : cible absente ou modifications contradictoires pour ${m.targetForm}, clause ${m.section}; à vérifier.`);
+      return false;
+    }
+    return true;
+  }).sort((a,b)=>(modificationMoment(a.document) || '').localeCompare(modificationMoment(b.document) || ''));
+}
+/** Consolidate M2 into the existing listing field model, without database writes.
+ * A provided, unambiguous parent is mandatory; a MO alone is only a proposal.
+ * Return changed fields only, preserving every other original contract value. */
+export function applyBrokerageModifications(documents:Doc[],modifications:Modification[],warnings:string[]) {
+  const contracts:NonNullable<NonNullable<OaciqAnalysis['documentaryState']>['brokerageContracts']>=[];
+  const eligible=modifications.filter(m=>/^M2\.[12]$/.test(m.section) && /^CC/.test(m.targetForm) && documents.filter(d=>documentKind(pagesText(d))==='brokerage_contract' && documentReference(d)===m.targetForm).length===1);
+  for(const m of orderModifications(eligible,documents,warnings)) {
+    const field=m.section==='M2.2'?'askingPrice':'expirationDate';
+    const value=field==='askingPrice'?m.amount:m.date;
+    if(value===null || value===undefined || (typeof value==='number' && value<=0)) continue;
+    let contract=contracts.find(c=>c.targetForm===m.targetForm);
+    if(!contract) {
+      contract={document:documents.find(d=>documentReference(d)===m.targetForm)!.name,targetForm:m.targetForm,changes:{},sources:[]};
+      contracts.push(contract);
+    }
+    if(field==='askingPrice') contract.changes.askingPrice=m.amount;
+    else contract.changes.expirationDate=m.date;
+    contract.sources.push({field,document:m.document,section:m.section,value});
+    m.applied=true;
+  }
+  return contracts;
 }

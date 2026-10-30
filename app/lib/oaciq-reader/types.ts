@@ -1,6 +1,7 @@
 /** Port of App Courriel PA acceptée, parser.py (e6d5302 / ded09b6).
  * Extraction DTOs use PDF points measured from the top-left, like pdfplumber.
  * No CRM persistence, broker assignment, or email generation belongs here. */
+import type { Listing } from "../../data/listing-types";
 export type OaciqFormKind =
   | "promise_to_purchase"
   | "counter_proposal"
@@ -8,6 +9,7 @@ export type OaciqFormKind =
   | "annex_f"
   | "annex_water"
   | "bonification"
+  | "brokerage_contract"
   | "modification"
   | "unknown";
 export type OaciqWord = {
@@ -134,6 +136,7 @@ export type OaciqAnalysis = {
   contractRequiresReview?: boolean;
   finalContract?: Record<string, { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null; overrides: { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null }[] }>;
   documentaryState?: {
+    brokerageContracts?: {document:string;targetForm:string;changes:Partial<Pick<Listing,"askingPrice"|"expirationDate">>;sources:{field:"askingPrice"|"expirationDate";document:string;section:string;value:string|number}[]}[];
     modificationForms?: {document:string;formNumber:string;references:string[];address:string|null;otherConditionsUnchanged:boolean}[];
     links: { document: string; targetForm: string; section?: string }[];
     modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean; amount?: number; extensionDays?: number }[];

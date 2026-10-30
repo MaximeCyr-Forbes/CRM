@@ -81,3 +81,31 @@ it('uses the named visible respondent stamp, not a later proposer timestamp',()=
  d.pages[0].words.push(word('Alice Exemple',340,140),word('RÉPONSE DU RÉPONDANT',310,500),word('Il',310,530),word('déclare',320,530),word('Accepter',380,520),word('Signé à',310,560),word('Alice Exemple',380,590),word('SIGNATURE DU RÉPONDANT',310,607),word('Signé',379,608),word('1',380,607),word('le',400,608),word('2026-10-28',420,608),word('16:39:36',460,608));
  expect(parseCounterProposal(d)).toMatchObject({responseAction:'accept',acceptedAt:'2026-10-28T16:39:36-04:00',signaturesComplete:true});
 });
+
+
+describe('MO brokerage principal consolidation',()=>{
+ const contract=()=>document('contract.pdf','CONTRAT DE COURTAGE EXCLUSIF VENTE\nCCD 30003\n4.1 Prix demandé 550000 $');
+ it('updates only asking price and expiry on the exact provided contract, without a purchase agreement',async()=>{
+  const parent=contract(), snapshot=JSON.stringify(parent);
+  const result=await analyzeOaciqDocuments([parent,mo('M2.1 DATE DE FIN Le délai de la clause 2.1 est le 10 décembre 2026\nM2.2 PRIX DE VENTE Le prix de la clause 4.1 sera de 525000 $\nM3.','CCD 30003')]);
+  expect(result.forms).toContainEqual({document:'contract.pdf',kind:'brokerage_contract',number:'30003'});
+  expect(result.documentaryState?.brokerageContracts).toMatchObject([{targetForm:'CCD 30003',changes:{askingPrice:525000,expirationDate:'2026-12-10'}}]);
+  expect(result.documentaryState?.modifications.every(m=>m.applied)).toBe(true);
+  expect(result.deadlines).toEqual([]);expect(result.finalPrice).toBeNull();expect(JSON.stringify(parent)).toBe(snapshot);
+ });
+ it('preserves the purchase price when brokerage M2 is in a mixed dossier',()=>{
+  const base=analyze([promise()]); const result=analyze([promise(),contract(),mo('M2.2 PRIX DE VENTE 525000 $\nM3.','CCD 30003')]);
+  expect(result.finalPrice).toBe(base.finalPrice);
+  expect(result.documentaryState?.brokerageContracts?.[0].changes).toEqual({askingPrice:525000});
+ });
+ it('does not apply M2 to the wrong or duplicated brokerage contract',async()=>{
+  const m=mo('M2.2 PRIX DE VENTE 525000 $\nM3.','CCD 90009');
+  const result=await analyzeOaciqDocuments([contract(),m]);expect(result.documentaryState?.brokerageContracts).toEqual([]);
+  const duplicate=contract();duplicate.name='duplicate.pdf';
+  const r=await analyzeOaciqDocuments([contract(),duplicate,mo('M2.2 PRIX DE VENTE 525000 $\nM3.','CCD 30003')]);expect(r.documentaryState?.brokerageContracts).toEqual([]);
+ });
+ it('uses the shared conflict rule and keeps contradictory undated M2 pending',async()=>{
+  const r=await analyzeOaciqDocuments([contract(),mo('M2.2 PRIX DE VENTE 525000 $\nM3.','CCD 30003'),mo('M2.2 PRIX DE VENTE 520000 $\nM3.','CCD 30003','70007')]);
+  expect(r.documentaryState?.brokerageContracts).toEqual([]);expect(r.documentaryState?.modifications.every(m=>!m.applied)).toBe(true);
+ });
+});
