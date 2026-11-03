@@ -440,7 +440,7 @@ export default function ContactProfilePage() {
               Envoyer un courriel
             </button>
             <button className="profile-action profile-action-tertiary" onClick={() => setContactEditorMode("full")} type="button">
-              Action
+              Modifier
             </button>
           </div>
         </header>
