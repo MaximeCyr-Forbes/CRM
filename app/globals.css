@@ -10464,3 +10464,19 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .login-panel > details.login-form > summary { cursor: pointer; color: #465852; font-size: 0.85rem; }
 .login-panel > details.login-form[open] > form { margin-top: 1rem; }
 .login-panel > .auth-message { margin-bottom: 1rem; }
+
+/* Explicit manual-send confirmation; shares the existing ready-state green. */
+.automatic-email-modal button.custom-campaign-send, .automatic-email-rule-actions button.custom-campaign-send { background: #31634f; border-color: #31634f; color: #fff; font-weight: 700; min-height: 44px; padding: .8rem 1rem; white-space: normal; }
+.automatic-email-modal button.custom-campaign-send:hover:not(:disabled), .automatic-email-rule-actions button.custom-campaign-send:hover:not(:disabled) { background: #254c3d; border-color: #254c3d; }
+.automatic-email-modal button.custom-campaign-send:disabled, .automatic-email-rule-actions button.custom-campaign-send:disabled { background: #e2e5e4; border-color: #d1d6d3; color: #68716c; opacity: 1; cursor: not-allowed; }
+.custom-manual-actions { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+.custom-manual-actions > p { flex-basis: 100%; }
+.custom-manual-confirmation { background: #e1ede8; border: 1px solid #8db29f; border-left: 4px solid #31634f; border-radius: .8rem; padding: 1rem; display: grid; gap: .9rem; }
+.custom-manual-confirmation h3 { color: #254c3d; margin: 0; scroll-margin-block: 1rem; }
+.custom-manual-confirmation h3:focus-visible { outline: 2px solid #31634f; outline-offset: 4px; }
+.custom-manual-confirmation dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin: 0; }
+.custom-manual-confirmation dt { font-size: .75rem; color: var(--ink-soft); }
+.custom-manual-confirmation dd { margin: .2rem 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.custom-manual-confirmation > label { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; }
+.custom-manual-confirmation > label input { width: auto; flex-shrink: 0; margin-top: .2rem; }
+@media (max-width: 600px) { .custom-manual-actions > button { width: 100%; } .custom-manual-confirmation dl { grid-template-columns: 1fr; } }

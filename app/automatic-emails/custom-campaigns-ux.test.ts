@@ -18,6 +18,9 @@ const campaign = { id: "local-campaign", name: "Fixture locale", status: "ready"
 const contact = { id: "local-contact", firstName: "QA", lastName: "Local", email: "qa@example.test", phone: "", broker: "maxime", selected: true };
 const step = { id: "local-step", campaignId: campaign.id, stepOrder: 1, delayDaysAfterPrevious: 0, subjectTemplate: "Objet QA", bodyTemplate: "Bonjour {{firstName}}" };
 const preview = { campaignId: campaign.id, campaignName: campaign.name, stepId: step.id, stepOrder: 1, recipients: [{ contactId: contact.id, name: "QA Local", to: contact.email, broker: "maxime", senderEmail: "sender@example.test", subject: "Objet QA", html: "<p>Signature QA</p>", blockingReasons: [], deliveryStatus: null, fingerprint: "local-fingerprint" }] };
+let manualSent = false;
+let deliveryStatus: string | null = null;
+let blockingReasons: string[] = [];
 let calls: { url: string; method: string; body: any }[];
 function render() { h.index = 0; tree = component(); h.effects.splice(0).forEach(fn => fn()); return tree; }
 async function settle() { for (let i = 0; i < 30; i++) await Promise.resolve(); render(); }
@@ -28,13 +31,17 @@ function input(label: string) { const node = nodes().find(n => n.type === "label
 async function click(label: string) { const node = button(label); expect(node).toBeDefined(); expect(node.props.disabled).not.toBe(true); node.props.onClick(); await settle(); }
 async function edit() { await settle(); await click("CONFIGURER"); }
 beforeEach(() => {
+  manualSent = false; deliveryStatus = null; blockingReasons = [];
   h.index = 0; h.slots = []; h.effects = []; calls = []; component = CustomCampaignsSection;
   vi.stubGlobal("window", { confirm: vi.fn(() => true) });
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? "GET", body = init?.body ? JSON.parse(String(init.body)) : null;
     calls.push({ url, method, body });
     if (!url.startsWith("/api/automatic-emails/custom-campaigns")) throw new Error("External network forbidden in QA");
-    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? preview : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign, steps: [step] } : method === "POST" ? campaign : { campaigns: [campaign] };
+    const history = [{ id: "qa-delivery", recipient_email: contact.email, broker: "maxime", status: "sent", error: null, gmail_message_id: "mock-id" }];
+    if (url.includes("/manual-send") && method === "POST") { manualSent = true; return Response.json({ data: history }); }
+    const manualPreview = { ...preview, recipients: preview.recipients.map(r => ({ ...r, deliveryStatus: manualSent ? "sent" : deliveryStatus, blockingReasons })) };
+    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? manualPreview : manualSent ? history : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign, steps: [step] } : method === "POST" ? campaign : { campaigns: [campaign] };
     return Response.json({ data });
   })); render();
 });
@@ -71,8 +78,24 @@ it("requires checked confirmation before the mocked manual send POST", async () 
   h.slots = []; h.effects = []; component = () => CustomCampaignManualSend({ campaignId: campaign.id, onClose: vi.fn() }); render(); await settle();
   expect(text(tree)).toContain("Envoi immédiat après confirmation, sans attendre la date ou l’heure simulée");
   expect(calls.filter(c => c.method === "POST")).toHaveLength(0); await click("ENVOYER MAINTENANT");
-  expect(button("ENVOYER 1 COURRIELS MAINTENANT").props.disabled).toBe(true); expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
-  input("Je confirme l’envoi manuel immédiat").props.onChange({ target: { checked: true } }); render(); await click("ENVOYER 1 COURRIELS MAINTENANT");
+  expect(button("CONFIRMER ET ENVOYER 1 COURRIEL MAINTENANT").props.disabled).toBe(true); expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
+  input("Je confirme l’envoi manuel immédiat").props.onChange({ target: { checked: true } }); render();
+  const final = button("CONFIRMER ET ENVOYER 1 COURRIEL MAINTENANT");
+  expect(final.props.disabled).toBe(false); expect(final.props.className).toBe("custom-campaign-send");
+  final.props.onClick(); final.props.onClick(); await settle();
+  expect(text(tree)).toContain("1 envoyé(s)");
+  expect(button("ENVOYER MAINTENANT").props.disabled).toBe(true);
   expect(calls.filter(c => c.method === "POST")).toEqual([{ url: `/api/automatic-emails/custom-campaigns/${campaign.id}/manual-send`, method: "POST", body: expect.objectContaining({ confirmation: "ENVOYER", stepId: step.id, contactIds: [contact.id], fingerprints: { [contact.id]: "local-fingerprint" } }) }]);
 });
 
+
+it.each(["sent", "blocked", "none"])("explains no eligible recipients (%s) without sending", async state => {
+  deliveryStatus = state === "sent" ? "sent" : null;
+  blockingReasons = state === "blocked" ? ["Signature indisponible"] : [];
+  h.slots = []; h.effects = []; component = () => CustomCampaignManualSend({ campaignId: campaign.id, onClose: vi.fn() }); render(); await settle();
+  if (state === "none") { const checkbox = nodes().find(n => n.type === "input" && n.props.type === "checkbox")!; checkbox.props.onChange({ target: { checked: false } }); render(); }
+  expect(button("ENVOYER MAINTENANT").props.disabled).toBe(true);
+  expect(text(tree)).toContain("Aucun destinataire prêt pour cet envoi.");
+  if (state === "blocked") expect(text(tree)).toContain("Signature indisponible");
+  expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
+});
