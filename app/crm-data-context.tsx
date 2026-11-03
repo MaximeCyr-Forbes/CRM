@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "./auth-context";
 import { useBroker } from "./broker-context";
 import type { ClientNote } from "./data/client-note-types";
@@ -243,6 +244,10 @@ async function crmDataRequest<T>(body: Record<string, unknown>): Promise<T> {
 export function CRMDataProvider({ children }: { children: ReactNode }) {
   const { status: authStatus } = useAuth();
   const { selectedBroker, isBrokerReady } = useBroker();
+  const pathname = usePathname();
+  const writeRevision = useRef(0);
+  const activeWrites = useRef(0);
+  const requestScope = useRef<{contactId: string | null; background: boolean} | null>(null);
   const contactsRequest = useRef<AbortController | null>(null);
   const [contacts, setContacts] = useState<ReadonlyArray<Contact>>([]);
   const [notes, setNotes] = useState<ReadonlyArray<ClientNote>>([]);
@@ -257,6 +262,8 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const runWrite = useCallback(async <T,>(message: string, operation: () => Promise<T>) => {
+    writeRevision.current++;
+    activeWrites.current++;
     setPendingWrites((current) => current + 1);
     setError(null);
     try {
@@ -266,26 +273,36 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       setError(message);
       throw caughtError;
     } finally {
+      writeRevision.current++;
+      activeWrites.current--;
       setPendingWrites((current) => Math.max(0, current - 1));
     }
   }, []);
 
-  const loadContacts = useCallback(async () => {
+  const fetchContacts = useCallback(async (contactId: string | null = null, background = false) => {
+    if (background && (contactsRequest.current || activeWrites.current)) return;
+    const revision = writeRevision.current;
     contactsRequest.current?.abort();
     const controller = new AbortController();
     contactsRequest.current = controller;
+    requestScope.current = {contactId, background};
     const timeout = setTimeout(() => controller.abort(new Error("Chargement trop long.")), 20_000);
-    setIsLoading(true);
-    setError(null);
+    if (!background) { setIsLoading(true); setError(null); }
     try {
-      const response = await fetch("/api/crm/data?resource=contacts", { cache: "no-store", signal: controller.signal });
+      const url = "/api/crm/data?resource=contacts" + (contactId ? `&contactId=${encodeURIComponent(contactId)}` : "");
+      const response = await fetch(url, { cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error("Chargement impossible.");
       const { data } = (await response.json()) as { data: ContactRow[] };
-      if (contactsRequest.current === controller && !controller.signal.aborted) setContacts((data ?? []).map(mapContact));
+      if (contactsRequest.current === controller && !controller.signal.aborted && revision === writeRevision.current) {
+        const fresh = (data ?? []).map(mapContact);
+        setContacts(current => contactId
+          ? [...current.filter(contact => contact.id !== contactId), ...fresh]
+          : fresh);
+      }
     } catch (caughtError) {
       if (contactsRequest.current === controller) {
         logDevelopmentWarning(caughtError);
-        setError("Impossible de charger les contacts. Réessayez.");
+        if (!background) setError("Impossible de charger les contacts. Réessayez.");
       }
     } finally {
       clearTimeout(timeout);
@@ -295,6 +312,8 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []);
+
+  const loadContacts = useCallback(() => fetchContacts(), [fetchContacts]);
 
   useEffect(() => {
     if (!isBrokerReady) return;
@@ -321,6 +340,37 @@ export function CRMDataProvider({ children }: { children: ReactNode }) {
     setLoadedNoteContacts(new Set());
     setIsLoading(authStatus === "loading");
   }, [authStatus, isBrokerReady, loadContacts]);
+
+  // The shared state is a display cache, never a substitute for the backend.
+  // No interval: refresh only the visible Contacts view on navigation/focus.
+  useEffect(() => {
+    if (!isBrokerReady || authStatus !== "authenticated") return;
+    const route = /^\/contacts(?:\/([^/]+))?\/?$/.exec(pathname ?? "");
+    if (!route) return;
+    let lastAttempt = -Infinity;
+    const revalidate = () => {
+      if (document.visibilityState === "hidden" || activeWrites.current) return;
+      // A rapid route change supersedes a background request for another view.
+      if (contactsRequest.current && requestScope.current?.background && requestScope.current.contactId !== (route[1] ?? null)) {
+        contactsRequest.current.abort();
+        contactsRequest.current = null;
+      }
+      if (contactsRequest.current) return;
+      const now = Date.now();
+      if (now - lastAttempt < 1500) return; // focus + visibilitychange are one return.
+      lastAttempt = now;
+      void fetchContacts(route[1] ?? null, true);
+    };
+    revalidate();
+    window.addEventListener("focus", revalidate);
+    window.addEventListener("online", revalidate);
+    document.addEventListener("visibilitychange", revalidate);
+    return () => {
+      window.removeEventListener("focus", revalidate);
+      window.removeEventListener("online", revalidate);
+      document.removeEventListener("visibilitychange", revalidate);
+    };
+  }, [authStatus, isBrokerReady, pathname, fetchContacts]);
 
   const loadNotesForContact = useCallback(
     async (contactId: string) => {

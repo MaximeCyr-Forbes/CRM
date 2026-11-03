@@ -160,13 +160,16 @@ async function GETHandler(request: Request) {
   const client = getSupabaseAdmin();
 
   if (resource === "contacts") {
+    const contactId = url.searchParams.get("contactId");
+    if (contactId !== null && !isUuid(contactId)) return Response.json({ error: "Contact invalide." }, { status: 400 });
     type ContactRow = Record<string, unknown> & { id: unknown };
     let contactRows: ContactRow[];
     try {
       contactRows = await listAllSupabaseRows<ContactRow>({
-        buildQuery: () => client
-          .from("contacts")
-          .select("*") as unknown as SupabaseOrderedRangeQuery<ContactRow>,
+        buildQuery: () => {
+          const query = client.from("contacts").select("*");
+          return (contactId ? query.eq("id", contactId) : query) as unknown as SupabaseOrderedRangeQuery<ContactRow>;
+        },
         orders: [
           { column: "created_at", ascending: false },
           { column: "id", ascending: false },

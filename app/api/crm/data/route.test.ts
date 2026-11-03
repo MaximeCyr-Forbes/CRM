@@ -37,10 +37,12 @@ vi.mock("../../../lib/supabase/server", () => ({
       if (table === "contacts") {
         return {
           select: () => {
+            let rows = testState.contactRows;
             const query = {
+              eq: (_field: string, id: string) => { rows=rows.filter(row=>row.id===id); return query; },
               order: () => query,
               range: async (from: number, to: number) => ({
-                data: testState.contactRows.slice(from, to + 1),
+                data: rows.slice(from, to + 1),
                 error: null,
               }),
             };
@@ -233,4 +235,14 @@ describe("POST action=deleteNote", () => {
     expect(testState.notes).toHaveLength(3);
     expect(testState.contactRows).toHaveLength(1250);
   });
+});
+
+describe('targeted contact revalidation',()=>{
+ it('returns only the requested contact, with no-store headers',async()=>{
+  const id='12345678-1234-4234-8234-123456789012';const oldId=testState.contactRows[0].id;testState.contactRows[0].id=id;
+  try { const r=await GET(new Request(`https://crm.test/api/crm/data?resource=contacts&contactId=${id}`));expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('private, no-store');expect((await r.json()).data.map((c:any)=>c.id)).toEqual([id]); }
+  finally { testState.contactRows[0].id=oldId; }
+ });
+ it('rejects invalid contact ids instead of falling back to the entire list',async()=>{expect((await GET(new Request('https://crm.test/api/crm/data?resource=contacts&contactId=invalid'))).status).toBe(400);});
+ it('returns an empty result for a deleted or inaccessible contact',async()=>{const r=await GET(new Request('https://crm.test/api/crm/data?resource=contacts&contactId=12345678-1234-4234-8234-123456789012'));expect((await r.json()).data).toEqual([]);});
 });
