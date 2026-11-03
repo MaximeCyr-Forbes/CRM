@@ -18,6 +18,11 @@ const campaign = { id: "local-campaign", name: "Fixture locale", status: "ready"
 const contact = { id: "local-contact", firstName: "QA", lastName: "Local", email: "qa@example.test", phone: "", broker: "maxime", selected: true };
 const step = { id: "local-step", campaignId: campaign.id, stepOrder: 1, delayDaysAfterPrevious: 0, subjectTemplate: "Objet QA", bodyTemplate: "Bonjour {{firstName}}" };
 const preview = { campaignId: campaign.id, campaignName: campaign.name, stepId: step.id, stepOrder: 1, recipients: [{ contactId: contact.id, name: "QA Local", to: contact.email, broker: "maxime", senderEmail: "sender@example.test", subject: "Objet QA", html: "<p>Signature QA</p>", blockingReasons: [], deliveryStatus: null, fingerprint: "local-fingerprint" }] };
+let failSaveAt = 0;
+let saveWrites = 0;
+let savedCampaign = { ...campaign };
+let finalSaveGate: Promise<void> | null = null;
+let manualRecipients = preview.recipients;
 let manualSent = false;
 let deliveryStatus: string | null = null;
 let blockingReasons: string[] = [];
@@ -31,6 +36,7 @@ function input(label: string) { const node = nodes().find(n => n.type === "label
 async function click(label: string) { const node = button(label); expect(node).toBeDefined(); expect(node.props.disabled).not.toBe(true); node.props.onClick(); await settle(); }
 async function edit() { await settle(); await click("CONFIGURER"); }
 beforeEach(() => {
+  failSaveAt = 0; saveWrites = 0; savedCampaign = { ...campaign }; finalSaveGate = null; manualRecipients = preview.recipients;
   manualSent = false; deliveryStatus = null; blockingReasons = [];
   h.index = 0; h.slots = []; h.effects = []; calls = []; component = CustomCampaignsSection;
   vi.stubGlobal("window", { confirm: vi.fn(() => true) });
@@ -38,10 +44,16 @@ beforeEach(() => {
     const method = init?.method ?? "GET", body = init?.body ? JSON.parse(String(init.body)) : null;
     calls.push({ url, method, body });
     if (!url.startsWith("/api/automatic-emails/custom-campaigns")) throw new Error("External network forbidden in QA");
+    if (method !== "GET" && !url.includes("/manual-send")) {
+      saveWrites++;
+      if (saveWrites === failSaveAt) return Response.json({ error: "Échec QA de sauvegarde" }, { status: 500 });
+      if (saveWrites === 5 && finalSaveGate) await finalSaveGate;
+      if (method === "PATCH" && url.endsWith(campaign.id)) Object.assign(savedCampaign, body);
+    }
     const history = [{ id: "qa-delivery", recipient_email: contact.email, broker: "maxime", status: "sent", error: null, gmail_message_id: "mock-id" }];
     if (url.includes("/manual-send") && method === "POST") { manualSent = true; return Response.json({ data: history }); }
-    const manualPreview = { ...preview, recipients: preview.recipients.map(r => ({ ...r, deliveryStatus: manualSent ? "sent" : deliveryStatus, blockingReasons })) };
-    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? manualPreview : manualSent ? history : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign, steps: [step] } : method === "POST" ? campaign : { campaigns: [campaign] };
+    const manualPreview = { ...preview, recipients: manualRecipients.map(r => ({ ...r, deliveryStatus: manualSent ? "sent" : deliveryStatus, blockingReasons })) };
+    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? manualPreview : manualSent ? history : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign: savedCampaign, steps: [step] } : method === "POST" ? campaign : { campaigns: [savedCampaign] };
     return Response.json({ data });
   })); render();
 });
@@ -97,5 +109,38 @@ it.each(["sent", "blocked", "none"])("explains no eligible recipients (%s) witho
   expect(button("ENVOYER MAINTENANT").props.disabled).toBe(true);
   expect(text(tree)).toContain("Aucun destinataire prêt pour cet envoi.");
   if (state === "blocked") expect(text(tree)).toContain("Signature indisponible");
+  expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
+});
+
+it("closes only after complete save, refreshes list and reopens persisted values", async () => {
+  await edit(); input("Nom de la campagne").props.onChange({ target: { value: "Nom QA sauvegardé" } }); render();
+  let release!: () => void; finalSaveGate = new Promise<void>(resolve => { release = resolve; });
+  button("ENREGISTRER").props.onClick(); await settle();
+  expect(saveWrites).toBe(5); expect(nodes().some(n => n.props.role === "dialog")).toBe(true);
+  expect(button("ENREGISTREMENT…").props.disabled).toBe(true);
+  release(); await settle();
+  expect(nodes().some(n => n.props.role === "dialog")).toBe(false);
+  expect(text(tree)).toContain("NOM QA SAUVEGARDÉ");
+  expect(calls.at(-1)).toMatchObject({ method: "GET", url: "/api/automatic-emails/custom-campaigns" });
+  await click("CONFIGURER"); expect(input("Nom de la campagne").props.value).toBe("Nom QA sauvegardé");
+});
+it.each([1, 2, 3, 4, 5])("keeps draft and displays error inside modal if save operation %i fails", async operation => {
+  await edit(); input("Nom de la campagne").props.onChange({ target: { value: "Brouillon QA intact" } }); render();
+  failSaveAt = operation; await click("ENREGISTRER");
+  const dialog = nodes().find(n => n.props.role === "dialog"); expect(dialog).toBeDefined();
+  expect(input("Nom de la campagne").props.value).toBe("Brouillon QA intact");
+  expect(nodes(dialog).find(n => n.props.role === "alert")?.props.children).toBe("Échec QA de sauvegarde");
+  expect(saveWrites).toBe(operation); expect(button("ENREGISTRER").props.disabled).toBe(false);
+});
+it("switches manual preview by contact ID, including identical first names", async () => {
+  manualRecipients = ["Jean", "Marie-Claude", "François", "Jean"].map((name, i) => ({ ...preview.recipients[0], contactId: `qa-${i}`, name: `${name} Nom${i}`, to: `qa${i}@example.test`, subject: `Bonjour ${name}`, html: `<p>Bonjour ${name}, Nom${i}</p>` }));
+  h.slots = []; h.effects = []; component = () => CustomCampaignManualSend({ campaignId: campaign.id, onClose: vi.fn() }); render(); await settle();
+  for (const recipient of manualRecipients) {
+    input("Prévisualisation pour").props.onChange({ target: { value: recipient.contactId } }); render();
+    expect(nodes().find(n => n.type === "iframe")?.props.srcDoc).toBe(recipient.html);
+    const article = nodes().find(n => n.type === "article")!;
+    expect(text(article)).toContain(recipient.to); expect(text(article)).toContain(recipient.subject);
+    for (const other of manualRecipients.filter(r => r.contactId !== recipient.contactId)) expect(text(article)).not.toContain(other.to);
+  }
   expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
 });

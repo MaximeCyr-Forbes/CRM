@@ -10480,3 +10480,6 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .custom-manual-confirmation > label { display: flex; flex-direction: row; align-items: flex-start; gap: .6rem; }
 .custom-manual-confirmation > label input { width: auto; flex-shrink: 0; margin-top: .2rem; }
 @media (max-width: 600px) { .custom-manual-actions > button { width: 100%; } .custom-manual-confirmation dl { grid-template-columns: 1fr; } }
+
+.custom-campaign-editor > footer { flex-wrap: wrap; }
+.custom-campaign-save-error { flex-basis: 100%; margin: 0; padding: .8rem; border: 1px solid #bd665d; border-radius: .6rem; background: #fff3f1; color: #8d322a; }

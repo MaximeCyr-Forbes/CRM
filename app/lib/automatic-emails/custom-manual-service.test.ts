@@ -139,3 +139,72 @@ describe("envois manuels personnalisés", () => {
     expect(state.send).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("scale safety — synthetic recipients only, Gmail mocked", () => {
+  const names = [["Jean", "Tremblay", "jean"], ["Marie-Claude", "Roy", "marie"], ["François", "Gagnon", "francois"]];
+  function setup(contacts: CustomEmailCampaignContact[]) {
+    (state.bundle as any).contacts = contacts;
+    Object.assign((state.bundle as any).steps[0], { subjectTemplate: "Bonjour {{firstName}}", bodyTemplate: "Bonjour {{firstName}},\n\nVotre nom complet est {{fullName}}." });
+  }
+  const three = () => names.map(([firstName, lastName, key]) => ({ ...contact, id: `qa-${key}`, firstName, lastName, email: `${key}@example.test` }));
+  async function assertRecipients(contacts: CustomEmailCampaignContact[]) {
+    setup(contacts);
+    const { preview } = await prepareManualCampaign("campaign", "step");
+    expect(preview.recipients).toHaveLength(contacts.length);
+    expect(new Set(preview.recipients.map(r => r.contactId)).size).toBe(contacts.length);
+    const input = await request();
+    // Reverse IDs so assertions cannot accidentally depend on recipient array order.
+    input.contactIds.reverse();
+    await sendManualCampaign("campaign", input);
+    expect(state.send).toHaveBeenCalledTimes(contacts.length);
+    for (const c of contacts) {
+      const expected = { to: c.email, subject: `Bonjour ${c.firstName}`, message: `Bonjour ${c.firstName},\n\nVotre nom complet est ${c.firstName} ${c.lastName}.` };
+      const r = preview.recipients.find(r => r.contactId === c.id)!;
+      expect(r).toMatchObject(expected); expect(r.blockingReasons).toEqual([]);
+      expect(r.subject + r.message).not.toMatch(/\{\{|\}\}/);
+      const sends = state.send.mock.calls.filter(call => call[1].to === c.email);
+      expect(sends).toHaveLength(1); expect(sends[0][1]).toEqual(expected);
+      for (const other of contacts.filter(other => other.firstName !== c.firstName)) {
+        expect(r.message).not.toContain(`Bonjour ${other.firstName},`);
+        expect(sends[0][1].message).not.toContain(`Bonjour ${other.firstName},`);
+      }
+    }
+  }
+  it("personalizes Jean, Marie-Claude and François independently through the real service", async () => { await assertRecipients(three()); });
+  it.each([50, 100])("keeps all %i synthetic recipients isolated", async size => {
+    await assertRecipients(Array.from({ length: size }, (_, i) => ({ ...contact, id: `qa-${i}`, firstName: `Prénom${String(i).padStart(3, "0")}`, lastName: `Nom${i}`, email: `qa${i}@example.test` })));
+  });
+  it("keeps identical first names tied to their own IDs, emails and full names", async () => {
+    await assertRecipients(three().map(c => ({ ...c, firstName: "Jean" })));
+  });
+  it("blocks only the recipient missing a first name", async () => {
+    const contacts = three(); contacts[1].firstName = ""; setup(contacts);
+    const { preview } = await prepareManualCampaign("campaign", "step");
+    expect(preview.recipients.map(r => r.blockingReasons.includes("Prénom manquant."))).toEqual([false, true, false]);
+    await sendManualCampaign("campaign", await request());
+    expect(state.send.mock.calls.map(call => call[1].to)).toEqual([contacts[0].email, contacts[2].email]);
+    expect(state.history.find(r => r.contact_id === contacts[1].id).status).toBe("blocked");
+  });
+  it.each(["firstName", "email", "template", "signature"])("refuses stale preview after %s changes and requires a new one", async field => {
+    setup(three()); const input = await request(); const bundle = state.bundle as any;
+    if (field === "firstName") bundle.contacts[0].firstName = "Jean-François";
+    if (field === "email") bundle.contacts[0].email = "changed@example.test";
+    if (field === "template") bundle.steps[0].subjectTemplate = "Nouveau {{firstName}}";
+    if (field === "signature") state.sender.mockImplementation(async (broker: string) => ({ connection: { broker }, identity: { sendAsEmail: `${broker}@example.test`, displayName: broker, signature: "Nouvelle signature QA" } }));
+    await expect(sendManualCampaign("campaign", input)).rejects.toThrow(/changé/); expect(state.send).not.toHaveBeenCalled();
+    await sendManualCampaign("campaign", await request()); expect(state.send).toHaveBeenCalledTimes(3);
+  });
+  it("never sends an unresolved variable", async () => {
+    setup(three()); (state.bundle as any).steps[0].bodyTemplate += " {{unknown}}";
+    await sendManualCampaign("campaign", await request());
+    expect(state.send).not.toHaveBeenCalled(); expect(state.history.every(r => r.status === "blocked")).toBe(true);
+  });
+  it("preserves accents, hyphens and all supported contact variables", async () => {
+    for (const firstName of ["Éloïse", "Marie-Claude", "Jean-François"]) {
+      const c = { ...contact, firstName, lastName: "Roy", email: "qa@example.test", phone: "555-0100" };
+      const r = renderManualRecipient({ ...step, subjectTemplate: "Bonjour {{firstName}}", bodyTemplate: "{{firstName}}|{{lastName}}|{{fullName}}|{{email}}|{{phone}}" }, c);
+      expect(r.message).toBe(`${firstName}|Roy|${firstName} Roy|qa@example.test|555-0100`); expect(r.blockingReasons).toEqual([]);
+    }
+  });
+});
