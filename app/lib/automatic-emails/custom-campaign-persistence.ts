@@ -104,7 +104,7 @@ export async function updateCustomEmailCampaign(campaignId: string, draft: Custo
 }
 
 export async function deleteCustomEmailCampaign(campaignId: string) {
-  const { data, error } = await getSupabaseAdmin().from("custom_email_campaigns").delete().eq("id", campaignId).in("status", ["draft", "paused"]).select("id").maybeSingle();
+  const { data, error } = await getSupabaseAdmin().from("custom_email_campaigns").delete().eq("id", campaignId).select("id").maybeSingle();
   if (error) throw error;
   return Boolean(data);
 }

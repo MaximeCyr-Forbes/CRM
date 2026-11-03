@@ -18,6 +18,9 @@ const campaign = { id: "local-campaign", name: "Fixture locale", status: "ready"
 const contact = { id: "local-contact", firstName: "QA", lastName: "Local", email: "qa@example.test", phone: "", broker: "maxime", selected: true };
 const step = { id: "local-step", campaignId: campaign.id, stepOrder: 1, delayDaysAfterPrevious: 0, subjectTemplate: "Objet QA", bodyTemplate: "Bonjour {{firstName}}" };
 const preview = { campaignId: campaign.id, campaignName: campaign.name, stepId: step.id, stepOrder: 1, recipients: [{ contactId: contact.id, name: "QA Local", to: contact.email, broker: "maxime", senderEmail: "sender@example.test", subject: "Objet QA", html: "<p>Signature QA</p>", blockingReasons: [], deliveryStatus: null, fingerprint: "local-fingerprint" }] };
+let campaignDeleted = false;
+let deleteFailure = false;
+let deleteGate: Promise<void> | null = null;
 let failSaveAt = 0;
 let saveWrites = 0;
 let savedCampaign = { ...campaign };
@@ -36,6 +39,7 @@ function input(label: string) { const node = nodes().find(n => n.type === "label
 async function click(label: string) { const node = button(label); expect(node).toBeDefined(); expect(node.props.disabled).not.toBe(true); node.props.onClick(); await settle(); }
 async function edit() { await settle(); await click("CONFIGURER"); }
 beforeEach(() => {
+  campaignDeleted = false; deleteFailure = false; deleteGate = null;
   failSaveAt = 0; saveWrites = 0; savedCampaign = { ...campaign }; finalSaveGate = null; manualRecipients = preview.recipients;
   manualSent = false; deliveryStatus = null; blockingReasons = [];
   h.index = 0; h.slots = []; h.effects = []; calls = []; component = CustomCampaignsSection;
@@ -44,6 +48,11 @@ beforeEach(() => {
     const method = init?.method ?? "GET", body = init?.body ? JSON.parse(String(init.body)) : null;
     calls.push({ url, method, body });
     if (!url.startsWith("/api/automatic-emails/custom-campaigns")) throw new Error("External network forbidden in QA");
+    if (method === "DELETE" && url.endsWith(campaign.id)) {
+      if (deleteGate) await deleteGate;
+      if (deleteFailure) return Response.json({ error: "Suppression QA refusée" }, { status: 500 });
+      campaignDeleted = true; return Response.json({ data: { deleted: true } });
+    }
     if (method !== "GET" && !url.includes("/manual-send")) {
       saveWrites++;
       if (saveWrites === failSaveAt) return Response.json({ error: "Échec QA de sauvegarde" }, { status: 500 });
@@ -53,7 +62,7 @@ beforeEach(() => {
     const history = [{ id: "qa-delivery", recipient_email: contact.email, broker: "maxime", status: "sent", error: null, gmail_message_id: "mock-id" }];
     if (url.includes("/manual-send") && method === "POST") { manualSent = true; return Response.json({ data: history }); }
     const manualPreview = { ...preview, recipients: manualRecipients.map(r => ({ ...r, deliveryStatus: manualSent ? "sent" : deliveryStatus, blockingReasons })) };
-    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? manualPreview : manualSent ? history : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign: savedCampaign, steps: [step] } : method === "POST" ? campaign : { campaigns: [savedCampaign] };
+    const data = url.includes("/manual-send") ? (url.includes("?stepId=") ? manualPreview : manualSent ? history : []) : url.endsWith("/contacts") ? [contact] : url.includes("/steps") ? step : url.endsWith(campaign.id) ? { campaign: savedCampaign, steps: [step] } : method === "POST" ? campaign : { campaigns: campaignDeleted ? [] : [savedCampaign] };
     return Response.json({ data });
   })); render();
 });
@@ -143,4 +152,28 @@ it("switches manual preview by contact ID, including identical first names", asy
     for (const other of manualRecipients.filter(r => r.contactId !== recipient.contactId)) expect(text(article)).not.toContain(other.to);
   }
   expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
+});
+
+it.each(["draft", "ready", "paused"])("reveals deletion only in edit mode and deletes %s once after confirmation", async status => {
+  savedCampaign.status = status; await settle();
+  expect(button("SUPPRIMER")).toBeUndefined(); await click("MODIFIER");
+  expect(button("TERMINER").props["aria-pressed"]).toBe(true); expect(button("SUPPRIMER")).toBeDefined();
+  await click("TERMINER"); expect(button("SUPPRIMER")).toBeUndefined(); await click("MODIFIER"); await click("SUPPRIMER");
+  expect(calls.filter(c => c.method === "DELETE")).toHaveLength(0);
+  expect(text(tree)).toContain("Supprimer cette campagne ?"); expect(text(tree)).toContain(campaign.name);
+  await click("ANNULER"); expect(calls.filter(c => c.method === "DELETE")).toHaveLength(0);
+  await click("SUPPRIMER"); let release!: () => void; deleteGate = new Promise<void>(resolve => { release = resolve; });
+  const final = button("SUPPRIMER LA CAMPAGNE"); final.props.onClick(); final.props.onClick(); await settle();
+  expect(button("SUPPRESSION…").props.disabled).toBe(true); expect(button("ANNULER").props.disabled).toBe(true);
+  expect(calls.filter(c => c.method === "DELETE")).toHaveLength(1);
+  release(); await settle(); expect(nodes().some(n => n.props.role === "dialog")).toBe(false);
+  expect(text(tree)).not.toContain(campaign.name.toUpperCase()); expect(text(tree)).toContain("AUCUNE CAMPAGNE PERSONNALISÉE");
+  expect(calls.at(-1)).toMatchObject({ method: "GET", url: "/api/automatic-emails/custom-campaigns" });
+});
+it("keeps the card and deletion confirmation open on API failure", async () => {
+  await settle(); await click("MODIFIER"); await click("SUPPRIMER"); deleteFailure = true; await click("SUPPRIMER LA CAMPAGNE");
+  expect(text(tree)).toContain(campaign.name.toUpperCase());
+  const dialog = nodes().find(n => n.props.role === "dialog")!;
+  expect(nodes(dialog).find(n => n.props.role === "alert")?.props.children).toBe("Suppression QA refusée");
+  expect(button("SUPPRIMER LA CAMPAGNE").props.disabled).toBe(false);
 });

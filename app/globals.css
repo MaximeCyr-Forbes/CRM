@@ -9985,7 +9985,7 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .automatic-email-confirmation { position: fixed; z-index: 130; right: 1rem; bottom: 1rem; padding: .9rem 1rem; border-radius: .65rem; background: var(--ink); color: var(--paper); box-shadow: 0 1rem 2rem rgba(19,35,59,.2); font-size: .76rem; font-weight: 750; }
 .custom-campaigns { margin: 3rem 0 2rem; padding-top: 2.2rem; border-top: 1px solid var(--line); }
 .custom-campaigns-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
-.custom-campaigns-heading > button, .custom-campaign-sequence > div:first-child > button { min-height: 2.9rem; padding: .75rem 1rem; border: 1px solid var(--ink); border-radius: .65rem; background: var(--ink); color: var(--paper); cursor: pointer; font: inherit; font-size: .65rem; font-weight: 900; letter-spacing: .05em; }
+.custom-campaign-heading-actions > button, .custom-campaign-sequence > div:first-child > button { min-height: 2.9rem; padding: .75rem 1rem; border: 1px solid var(--ink); border-radius: .65rem; background: var(--ink); color: var(--paper); cursor: pointer; font: inherit; font-size: .65rem; font-weight: 900; letter-spacing: .05em; }
 .custom-campaign-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
 .custom-campaign-card { padding: clamp(1.2rem,2.5vw,1.8rem); border: 1px solid var(--line); border-top: 3px solid var(--ink); border-radius: 1.1rem; background: var(--paper); box-shadow: 0 1rem 2.8rem rgba(19,35,59,.055); }
 .custom-campaign-card > div:first-child { display: flex; align-items: center; justify-content: space-between; }
@@ -10483,3 +10483,13 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 
 .custom-campaign-editor > footer { flex-wrap: wrap; }
 .custom-campaign-save-error { flex-basis: 100%; margin: 0; padding: .8rem; border: 1px solid #bd665d; border-radius: .6rem; background: #fff3f1; color: #8d322a; }
+
+.custom-campaign-heading-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.custom-campaign-heading-actions > button { min-height: 44px; }
+.custom-campaign-heading-actions > button:first-child { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.custom-campaign-delete-dialog { width: min(100%, 32rem); }
+.custom-campaign-delete-dialog strong { overflow-wrap: anywhere; }
+.custom-campaign-delete-dialog > footer { flex-wrap: wrap; }
+.custom-campaign-delete-dialog > footer button.custom-campaign-delete-confirm { background: #8d322a; border-color: #8d322a; color: #fff; white-space: normal; }
+.custom-campaign-delete-dialog > footer button.custom-campaign-delete-confirm:hover:not(:disabled) { background: #702720; }
+@media (max-width: 600px) { .custom-campaign-heading-actions { width: 100%; } .custom-campaign-heading-actions > button { flex: 1; } .custom-campaign-delete-dialog > footer button { width: 100%; } }

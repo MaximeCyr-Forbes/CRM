@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CustomCampaignManualSend from "./custom-campaign-manual-send";
 import { BROKER_LABELS, CONTACT_BROKERS, type ContactBroker } from "../data/contact-types";
 import {
@@ -46,6 +46,11 @@ async function json<T>(response: Response, fallback: string): Promise<T> {
 }
 
 export default function CustomCampaignsSection() {
+  const [editMode, setEditMode] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CustomEmailCampaign | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deletionInProgress = useRef(false);
   const [manualCampaignId, setManualCampaignId] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<CustomEmailCampaign[]>([]);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -150,12 +155,18 @@ export default function CustomCampaignsSection() {
     finally { setSaving(false); }
   }
 
-  async function deleteCampaign(campaign: CustomEmailCampaign) {
-    if (!window.confirm(`Supprimer la campagne « ${campaign.name} » et sa configuration?`)) return;
+  async function deleteCampaign() {
+    if (!deleteTarget || deletionInProgress.current) return;
+    deletionInProgress.current = true;
+    setDeleting(true); setDeleteError("");
+    const campaignId = deleteTarget.id;
     try {
-      await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaign.id}`, { method: "DELETE" }), "Suppression impossible.");
+      await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}`, { method: "DELETE" }), "Suppression impossible.");
+      setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+      setDeleteTarget(null);
       await loadCampaigns();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Suppression impossible."); }
+    } catch (reason) { setDeleteError(reason instanceof Error ? reason.message : "Suppression impossible."); }
+    finally { deletionInProgress.current = false; setDeleting(false); }
   }
 
   async function openPreview(campaignId: string) {
@@ -171,10 +182,10 @@ export default function CustomCampaignsSection() {
   const contactOccurrences = preview?.occurrences.filter((item) => item.contactId === previewContactId) ?? [];
 
   return <section className="custom-campaigns" aria-labelledby="custom-campaigns-title">
-    <div className="custom-campaigns-heading"><div className="automatic-emails-section-title"><p className="section-kicker">Personnalisés</p><h2 id="custom-campaigns-title">CAMPAGNES PERSONNALISÉES</h2><p>Créez des campagnes sur mesure et déclenchez chaque envoi manuellement. Aucun envoi automatique.</p></div><button onClick={() => void openNew()} type="button">+ NOUVELLE CAMPAGNE</button></div>
+    <div className="custom-campaigns-heading"><div className="automatic-emails-section-title"><p className="section-kicker">Personnalisés</p><h2 id="custom-campaigns-title">CAMPAGNES PERSONNALISÉES</h2><p>Créez des campagnes sur mesure et déclenchez chaque envoi manuellement. Aucun envoi automatique.</p></div><div className="custom-campaign-heading-actions"><button aria-pressed={editMode} onClick={() => setEditMode(!editMode)} type="button">{editMode ? "TERMINER" : "MODIFIER"}</button><button onClick={() => void openNew()} type="button">+ NOUVELLE CAMPAGNE</button></div></div>
     {error && !editor && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => setError(null)} type="button">Fermer</button></div>}
     {loading ? <p className="automatic-emails-loading">Chargement des campagnes…</p> : <div className="custom-campaign-grid">
-      {campaigns.map((campaign) => <article className="custom-campaign-card" key={campaign.id}><div><span className={`automatic-email-rule-status ${campaign.status}`}>{CUSTOM_EMAIL_CAMPAIGN_STATUS_LABELS[campaign.status].toUpperCase()}</span><span aria-hidden="true">✦</span></div><h3>{campaign.name.toUpperCase()}</h3>{campaign.status === "ready" && <div className="custom-campaign-ready"><strong>PRÊTE POUR ENVOI MANUEL</strong><span>AUCUN ENVOI AUTOMATIQUE</span></div>}<dl><div><dt>Contacts</dt><dd>{campaign.contactCount}</dd></div><div><dt>Courriels</dt><dd>{campaign.stepCount}</dd></div><div><dt>Durée</dt><dd>{campaign.durationDays} jour{campaign.durationDays === 1 ? "" : "s"}</dd></div><div><dt>Expéditeur</dt><dd>{CUSTOM_EMAIL_SENDER_LABELS[campaign.senderStrategy]}{campaign.senderStrategy === "fixed_broker" && campaign.fixedBroker ? ` · ${BROKER_LABELS[campaign.fixedBroker]}` : ""}</dd></div></dl><div className="automatic-email-rule-actions"><button onClick={() => void openEditor(campaign.id)} type="button">CONFIGURER</button><button className="custom-campaign-send" onClick={() => setManualCampaignId(campaign.id)} title="Envoi immédiat après confirmation" type="button">ENVOYER MAINTENANT</button><button onClick={() => void openPreview(campaign.id)} type="button">PRÉVISUALISER</button>{campaign.status !== "ready" && <button className="custom-campaign-delete" onClick={() => void deleteCampaign(campaign)} type="button">SUPPRIMER</button>}</div></article>)}
+      {campaigns.map((campaign) => <article className="custom-campaign-card" key={campaign.id}><div><span className={`automatic-email-rule-status ${campaign.status}`}>{CUSTOM_EMAIL_CAMPAIGN_STATUS_LABELS[campaign.status].toUpperCase()}</span><span aria-hidden="true">✦</span></div><h3>{campaign.name.toUpperCase()}</h3>{campaign.status === "ready" && <div className="custom-campaign-ready"><strong>PRÊTE POUR ENVOI MANUEL</strong><span>AUCUN ENVOI AUTOMATIQUE</span></div>}<dl><div><dt>Contacts</dt><dd>{campaign.contactCount}</dd></div><div><dt>Courriels</dt><dd>{campaign.stepCount}</dd></div><div><dt>Durée</dt><dd>{campaign.durationDays} jour{campaign.durationDays === 1 ? "" : "s"}</dd></div><div><dt>Expéditeur</dt><dd>{CUSTOM_EMAIL_SENDER_LABELS[campaign.senderStrategy]}{campaign.senderStrategy === "fixed_broker" && campaign.fixedBroker ? ` · ${BROKER_LABELS[campaign.fixedBroker]}` : ""}</dd></div></dl><div className="automatic-email-rule-actions"><button onClick={() => void openEditor(campaign.id)} type="button">CONFIGURER</button><button className="custom-campaign-send" onClick={() => setManualCampaignId(campaign.id)} title="Envoi immédiat après confirmation" type="button">ENVOYER MAINTENANT</button><button onClick={() => void openPreview(campaign.id)} type="button">PRÉVISUALISER</button>{editMode && <button className="custom-campaign-delete" onClick={() => { setDeleteError(""); setDeleteTarget(campaign); }} type="button">SUPPRIMER</button>}</div></article>)}
       {campaigns.length === 0 && <div className="custom-campaign-empty"><strong>AUCUNE CAMPAGNE PERSONNALISÉE</strong><span>Créez une première séquence pour un envoi manuel.</span></div>}
     </div>}
 
@@ -187,6 +198,7 @@ export default function CustomCampaignsSection() {
     </div><footer>{error && <p className="custom-campaign-save-error" role="alert">{error}</p>}<button onClick={() => setEditor(null)} type="button">ANNULER</button><button disabled={saving} onClick={() => void saveEditor()} type="button">{saving ? "ENREGISTREMENT…" : "ENREGISTRER"}</button></footer></section></div>}
 
     {preview && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setPreview(null); } }} aria-labelledby="custom-preview-title" aria-modal="true" className="automatic-email-modal custom-campaign-preview" role="dialog"><header><div><p className="section-kicker">Simulation seulement</p><h2 id="custom-preview-title">{preview.campaign.name.toUpperCase()}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setPreview(null)} type="button">×</button></header><div className="automatic-email-simulation-warning"><strong>AUCUN ENVOI</strong><span>{preview.summary.total} occurrence{preview.summary.total === 1 ? "" : "s"} calculée{preview.summary.total === 1 ? "" : "s"} à la demande · {preview.summary.ready} prête{preview.summary.ready === 1 ? "" : "s"} · {preview.summary.blocked} bloquée{preview.summary.blocked === 1 ? "" : "s"}</span></div><div className="custom-preview-controls"><label>PRÉVISUALISATION POUR<select onChange={(event) => setPreviewContactId(event.target.value)} value={previewContactId}>{preview.contacts.map((contact) => <option key={contact.id} value={contact.id}>{fullName(contact)}</option>)}</select></label><button aria-pressed={showAllPreview} onClick={() => setShowAllPreview((value) => !value)} type="button">VOIR TOUS LES ENVOIS PRÉVUS</button></div>{!showAllPreview ? <div className="custom-preview-steps">{contactOccurrences.map((item) => <article key={item.occurrenceKey}><header><strong>COURRIEL {item.stepOrder}</strong><time>{formatDate(item.scheduledDate)} · {item.scheduledTime}</time></header><dl><div><dt>Expéditeur</dt><dd>{item.brokerLabel}</dd></div><div><dt>À</dt><dd>{item.recipientEmail || "Adresse courriel manquante"}</dd></div><div><dt>Objet</dt><dd>{item.subject}</dd></div><div><dt>Message</dt><dd>{item.message}</dd></div><div><dt>Signature Gmail</dt><dd>{item.gmailSignatureReady ? "Sera ajoutée ✓" : "SIGNATURE NON AUTORISÉE"}</dd></div><div><dt>État</dt><dd>{item.blockingReasons.length ? `BLOQUÉ · ${item.blockingReasons.join(" ")}` : "PRÊT"}</dd></div></dl></article>)}{contactOccurrences.length === 0 && <p>Aucune occurrence pour ce Contact.</p>}</div> : <div className="automatic-email-schedule-list custom-preview-all">{preview.occurrences.map((item) => <article key={item.occurrenceKey}><time>{formatDate(item.scheduledDate)} · {item.scheduledTime}</time><div><strong>{item.recipientName}</strong><span>Courriel {item.stepOrder} · {item.brokerLabel}</span>{item.blockingReasons.length > 0 && <small>{item.blockingReasons.join(" ")}</small>}</div><span className={item.blockingReasons.length ? "blocked" : "ready"}>{item.blockingReasons.length ? "BLOQUÉ" : "PRÊT"}</span></article>)}</div>}<footer><button onClick={() => setPreview(null)} type="button">FERMER</button></footer></section></div>}
+    {deleteTarget && <div className="automatic-email-modal-backdrop" role="presentation"><section className="automatic-email-modal custom-campaign-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="custom-delete-title" onKeyDown={(event) => { if (event.key === "Escape" && !deletionInProgress.current) { event.stopPropagation(); setDeleteTarget(null); } }}><header><h2 id="custom-delete-title">Supprimer cette campagne ?</h2></header><div className="custom-campaign-editor-body"><strong>{deleteTarget.name}</strong><p>Cette action supprimera la campagne et sa configuration. L’historique des envois sera conservé.</p>{deleteError && <p className="custom-campaign-save-error" role="alert">{deleteError}</p>}</div><footer><button autoFocus disabled={deleting} onClick={() => { if (!deletionInProgress.current) setDeleteTarget(null); }} type="button">ANNULER</button><button className="custom-campaign-delete-confirm" disabled={deleting} onClick={() => void deleteCampaign()} type="button">{deleting ? "SUPPRESSION…" : "SUPPRIMER LA CAMPAGNE"}</button></footer></section></div>}
     {manualCampaignId && <CustomCampaignManualSend campaignId={manualCampaignId} onClose={() => setManualCampaignId(null)} />}
   </section>;
 }

@@ -50,7 +50,7 @@ async function DELETEHandler(request: Request, context: { params: Promise<{ camp
   try {
     return await deleteCustomEmailCampaign(campaignId)
       ? Response.json({ data: { deleted: true }, simulationOnly: true })
-      : Response.json({ error: "Seule une campagne Brouillon ou En pause peut être supprimée." }, { status: 409 });
+      : Response.json({ error: "Campagne introuvable." }, { status: 404 });
   } catch (error) {
     console.error("Erreur suppression campagne personnalisée:", error instanceof Error ? error.message : "erreur inconnue");
     return Response.json({ error: "Suppression de la campagne impossible." }, { status: 502 });
