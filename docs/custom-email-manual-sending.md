@@ -29,3 +29,16 @@ erreurs réseau, erreurs Gmail 5xx et échecs de journalisation après envoi res
 Les identifiants historiques n’ont pas de suppression en cascade vers les
 Contacts ou les campagnes : leur suppression ne doit pas effacer la protection
 ni le journal. Les compteurs visibles sont dérivés du journal des livraisons.
+
+## Interface manuelle
+
+« Envoyer maintenant » signifie un envoi immédiat après confirmation, sans attendre
+une date ou une heure simulée. « Prête » signifie prête pour envoi manuel.
+La carte ne présente plus le début ni le mode de simulation. Dans la configuration,
+« Simulation du futur mode automatique » est repliée par défaut et contient
+Date simulée, Heure simulée et Mode futur. Fermer cette section ou enregistrer
+sans l’ouvrir conserve startDate, sendHour, sendMinute et executionMode.
+
+Le QA de cette interface utilise uniquement des fixtures locales et des services
+Gmail mockés. En production : lecture, aperçus et modales seulement ; aucun POST
+manual-send, aucune confirmation finale, aucun courriel réel.

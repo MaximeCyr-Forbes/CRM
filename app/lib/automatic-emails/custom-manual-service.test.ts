@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CustomEmailCampaign, CustomEmailCampaignContact, CustomEmailCampaignStep } from "../../data/custom-email-campaign-types";
 
 const state = vi.hoisted(() => ({ bundle: null as unknown, history: [] as any[], send: vi.fn(), sender: vi.fn(), claims: new Set<string>() }));
@@ -38,13 +38,29 @@ async function request(retry = false): Promise<ManualSendRequest> {
 }
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Real network forbidden in manual-send tests"); }));
   state.bundle = { campaign: { ...campaign }, steps: [{ ...step }], contacts: [{ ...contact }] };
   state.history = []; state.claims.clear(); state.send.mockReset(); state.sender.mockReset();
   state.sender.mockImplementation(async (broker: string) => ({ connection: { broker }, identity: { sendAsEmail: `${broker}@example.com`, displayName: broker, signature: `<b>${broker}</b>` } }));
   state.send.mockResolvedValue({ id: "gmail-id" });
 });
 
+afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); });
+
 describe("envois manuels personnalisés", () => {
+  it.each([
+    { startDate: "2099-12-31", sendHour: 23, sendMinute: 59, executionMode: "approval" },
+    { startDate: "2000-01-01", sendHour: 0, sendMinute: 1, executionMode: "approval" },
+    { startDate: "2099-12-31", sendHour: 23, sendMinute: 59, executionMode: "automatic" },
+    { startDate: "2000-01-01", sendHour: 0, sendMinute: 1, executionMode: "automatic" },
+  ])("sends immediately only on explicit action regardless of simulation %j", async simulation => {
+    Object.assign((state.bundle as any).campaign, simulation);
+    const input = await request();
+    expect(state.send).not.toHaveBeenCalled();
+    await sendManualCampaign("campaign", input);
+    expect(state.send).toHaveBeenCalledTimes(1);
+    expect(state.history[0].status).toBe("sent");
+  });
   it.each(["Jean", "Marie-Claude", "Louis-Philippe", "Éloïse"])("conserve le prénom %s et personnalise nom complet et objet", (firstName) => {
     const rendered = renderManualRecipient(step, { ...contact, firstName: ` ${firstName} ` });
     expect(rendered.subject).toBe(`Test ${firstName}`);

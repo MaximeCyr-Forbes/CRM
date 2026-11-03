@@ -10001,6 +10001,9 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .custom-campaign-editor { width: min(100%, 70rem); }
 .custom-campaign-editor-body { display: grid; gap: 1.2rem; padding: 1.2rem 1.4rem; }
 .custom-campaign-basics { padding: 0; }
+.custom-campaign-simulation { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.custom-campaign-simulation > summary { cursor: pointer; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; }
+.custom-campaign-simulation > p { color: var(--ink-soft); font-size: 0.75rem; line-height: 1.5; }
 .custom-campaign-recipients, .custom-campaign-sequence { padding: 1rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--crm-surface-muted); }
 .custom-campaign-recipients > div:first-child, .custom-campaign-sequence > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
 .custom-campaign-recipients h3, .custom-campaign-sequence h3 { margin: 0; font-size: .72rem; letter-spacing: .08em; }

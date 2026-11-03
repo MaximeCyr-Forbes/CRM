@@ -97,7 +97,7 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
     <div className="custom-campaign-editor-body">
       {error && <p role="alert">{error}</p>}
       <label>Étape à envoyer<select disabled={busy || confirm} value={stepId} onChange={(event) => { setStepId(event.target.value); setRetry(false); void load(event.target.value); }}>{steps.map((step) => <option key={step.id} value={step.id}>Courriel {step.stepOrder} — {step.subjectTemplate}</option>)}</select></label>
-      <p>Chaque étape exige un envoi manuel distinct. Les dates, heures et délais de simulation ne déclenchent rien.</p>
+      <p>Envoi immédiat après confirmation, sans attendre la date ou l’heure simulée. Chaque étape exige un envoi manuel distinct. Les dates, heures et délais de simulation ne déclenchent rien.</p>
       <button disabled={busy || loading} onClick={() => void load(stepId)} type="button">ACTUALISER L’APERÇU ET L’HISTORIQUE</button>
       {loading && <p role="status">Vérification des Contacts et des signatures Gmail…</p>}
       {preview && <>
