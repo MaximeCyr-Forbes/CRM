@@ -11,7 +11,7 @@ export const POST=withCRMIdentity(async(request:Request)=>{
  const access=await requireApiAccess();if(access.response)return access.response;
  if(!isSameOriginRequest(request))return Response.json({error:'Origine refusée.'},{status:403});
  if(Number(request.headers.get('content-length'))>4_500_000)return Response.json({error:'Lecture visuelle trop volumineuse.'},{status:413});
- const key=process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||(process.env.VERCEL==='1'?request.headers.get('x-vercel-oidc-token'):null);
+ const key=process.env.AI_GATEWAY_API_KEY||(process.env.VERCEL==='1'?request.headers.get('x-vercel-oidc-token'):null)||process.env.VERCEL_OIDC_TOKEN;
  if(!key)return Response.json({error:'Lecture visuelle indisponible : connexion AI Gateway à configurer. Confirmez les champs manuellement.'},{status:503});
  try{
   const raw=await request.text();if(new TextEncoder().encode(raw).length>4_500_000)throw new Error();
