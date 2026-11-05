@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/app/lib/tools/tool-link";
 import { useRouter } from "next/navigation";
 import { Archive, ArrowRight, Copy, LoaderCircle, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { AnalysisSort, AnalysisStatus, AnalysisStatusFilter, AnalysisSummary, PropertyCategory } from "../../../types";
