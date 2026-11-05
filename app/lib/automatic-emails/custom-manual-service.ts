@@ -65,6 +65,13 @@ export async function sendManualCampaign(campaignId: string, input: ManualSendRe
     const sender = recipient.broker ? senders.get(recipient.broker) : undefined;
     if (!sender) throw new Error("Expéditeur préparé indisponible.");
     try {
+      // Check current membership and rendered data again after the durable claim.
+      const latest = await getCustomEmailCampaign(campaignId);
+      const current = latest?.contacts.find(c => c.id === recipient.contactId);
+      const currentStep = latest?.steps.find(s => s.id === input.stepId);
+      if (!latest || !current || !currentStep) throw new GmailSendError("Contact retiré de la campagne. Aucun envoi.");
+      const rendered = renderManualRecipient(currentStep, current);
+      if (rendered.blockingReasons.length || rendered.to !== recipient.to || rendered.subject !== recipient.subject || rendered.message !== recipient.message || manualSenderBroker(latest.campaign, current) !== recipient.broker) throw new GmailSendError("Le Contact ou le modèle a changé. Actualisez l’aperçu.");
       const sent = await sendPreparedGmailMessage(sender, { to: recipient.to, subject: recipient.subject, message: recipient.message });
       await finishManualRecipient(id, input.attemptKey, "sent", sent.id, null);
     } catch (error) {

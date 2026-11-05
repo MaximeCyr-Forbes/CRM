@@ -208,3 +208,19 @@ describe("scale safety — synthetic recipients only, Gmail mocked", () => {
     }
   });
 });
+
+it('preserves one Gmail signature and Reply-To through the real pipeline',async()=>{
+ const broker='france';
+ const identity={sendAsEmail:`${broker}@example.test`,replyToAddress:`reply-${broker}@example.test`,signature:`<p>Signature ${broker}</p>`};
+ state.sender.mockResolvedValue({identity});
+ state.send.mockImplementation(async(sender,message)=>{
+  const {buildGmailRawMessage}=await import('../google-gmail/service');
+  const mime=Buffer.from(buildGmailRawMessage(message,sender.identity),'base64url').toString();
+  expect(mime).toContain(`From: ${broker}@example.test`);expect(mime).toContain(`Reply-To: reply-${broker}@example.test`);
+  const html=Buffer.from(mime.match(/Content-Type: text\/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([\s\S]*?)\r\n--/)![1].replace(/\s/g,''),'base64').toString();
+  expect(html.split(identity.signature)).toHaveLength(2);expect(mime.match(/^To:/gm)).toHaveLength(1);expect(mime).not.toMatch(/^(Cc|Bcc):/mi);
+  return {id:'mock-contract'};
+ });
+ await sendManualCampaign("campaign",await request());
+ expect(state.send).toHaveBeenCalledTimes(1);
+});

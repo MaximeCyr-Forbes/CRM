@@ -2,7 +2,7 @@ import { withCRMIdentity } from '../../../../../lib/auth/route';
 import {birthdayWorkspaceActor,requireApiAccess} from '../../../../../lib/crm-access';
 import {isSameOriginRequest} from '../../../../../lib/google-calendar/config';
 import {DirectClientError} from '../../../../../lib/transactions/direct-clients';
-import {directClientEmailHistory,sendDirectClientEmail} from '../../../../../lib/transactions/direct-client-email-server';
+import {previewDirectClientEmail,directClientEmailHistory,sendDirectClientEmail} from '../../../../../lib/transactions/direct-client-email-server';
 import {GmailNotEnabledError,GmailSignatureAuthorizationRequiredError,GmailAuthorizationRequiredError,GmailSendError} from '../../../../../lib/google-gmail/service';
 export const dynamic='force-dynamic';
 export const maxDuration=300;
@@ -11,7 +11,7 @@ async function POSTHandler(request:Request,context:{params:Promise<{transactionI
  if(!isSameOriginRequest(request))return Response.json({error:'Origine refusée.'},{status:403});
  const actor=await birthdayWorkspaceActor(request);if(!actor)return Response.json({error:'Sélectionnez votre espace utilisateur.'},{status:403});
  try{const body=await request.json();if(!body||typeof body!=='object'||Array.isArray(body))throw new TypeError('Requête invalide.');
- return Response.json(await sendDirectClientEmail((await context.params).transactionId,body,actor),{headers:{'Cache-Control':'no-store'}});
+ return Response.json(await (body.preview===true?previewDirectClientEmail:sendDirectClientEmail)((await context.params).transactionId,body,actor),{headers:{'Cache-Control':'no-store'}});
  }catch(error){
  if(error instanceof DirectClientError)return Response.json({error:error.message},{status:error.status});
  if(error instanceof TypeError||error instanceof SyntaxError)return Response.json({error:error.message},{status:400});

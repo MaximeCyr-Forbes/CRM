@@ -40,10 +40,12 @@ export function ContactEmailModal({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sendingRef = useRef(false);
+  const [uncertain, setUncertain] = useState(false);
   useDialogLifecycle(isOpen, isSending ? () => undefined : onClose);
 
   useEffect(() => {
     if (!isOpen) return;
+    setUncertain(false);
     setTo(initialTo);
     setSubject("");
     setMessage("");
@@ -79,18 +81,22 @@ export function ContactEmailModal({
     sendingRef.current = true;
     setIsSending(true);
     setError(null);
+    let definitiveFailure = false;
     try {
       // selectedBroker est volontairement l’expéditeur; contact.broker ne participe jamais à ce choix.
       const response = await fetch("/api/gmail/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderBroker, contactId, to, subject, message }),
+        body: JSON.stringify({ senderBroker, contactId, to, subject, message, expectedEmail: initialTo }),
       });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as { error?: string; uncertain?: boolean } | null;
+      definitiveFailure = !response.ok && !!payload && (response.status < 500 || payload.uncertain === false);
+      if (payload?.uncertain) setUncertain(true);
       if (!response.ok) throw new Error(payload?.error ?? "Le courriel n’a pas pu être envoyé.");
       onSent(selectedBroker);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Le courriel n’a pas pu être envoyé.");
+      if (!definitiveFailure) setUncertain(true);
+      setError(definitiveFailure && caughtError instanceof Error ? caughtError.message : "Résultat Gmail à vérifier dans les messages envoyés avant toute nouvelle tentative.");
       sendingRef.current = false;
       setIsSending(false);
     }
@@ -127,7 +133,7 @@ export function ContactEmailModal({
             <label><span>OBJET *</span><input maxLength={250} onChange={(event) => setSubject(event.target.value)} required value={subject} /></label>
             <label><span>MESSAGE *</span><textarea maxLength={100000} onChange={(event) => setMessage(event.target.value)} required rows={9} value={message} /></label>
             {error && <p className="contact-email-error" role="alert">{error}</p>}
-            <div className="contact-email-actions"><button disabled={isSending} onClick={onClose} type="button">ANNULER</button><button disabled={isSending || !to.trim() || !subject.trim() || !message.trim()} type="submit">{isSending ? "ENVOI…" : "ENVOYER"}</button></div>
+            <div className="contact-email-actions"><button disabled={isSending} onClick={onClose} type="button">ANNULER</button><button disabled={uncertain || isSending || !to.trim() || !subject.trim() || !message.trim()} type="submit">{isSending ? "ENVOI…" : "ENVOYER"}</button></div>
           </form>
         )}
       </section>

@@ -1,3 +1,5 @@
+import { validateGmailMessage, type GmailMessageInput } from "../email/validation";
+export { validateGmailMessage, type GmailMessageInput } from "../email/validation";
 import type { CalendarBroker } from "../../data/calendar-types";
 import type { GoogleConnectionRow } from "../google/connection";
 import { getGoogleConnection, googleAuthenticatedRequest } from "../google/connection";
@@ -15,11 +17,6 @@ export class GmailSignatureAuthorizationRequiredError extends Error {}
 export class GmailSendError extends Error {}
 export class GmailSendUncertainError extends Error {}
 
-export type GmailMessageInput = {
-  to: string;
-  subject: string;
-  message: string;
-};
 
 export type GmailSendAsIdentity = {
   sendAsEmail: string;
@@ -105,18 +102,6 @@ export function selectGmailSendAsIdentity(
     ?? null;
 }
 
-export function validateGmailMessage(input: GmailMessageInput): GmailMessageInput {
-  if (/[\r\n]/.test(input.to) || /[\r\n]/.test(input.subject)) {
-    throw new TypeError("Les retours à la ligne sont interdits dans le destinataire et l’objet.");
-  }
-  const to = input.to.trim();
-  const subject = input.subject.trim();
-  const message = input.message;
-  if (!EMAIL_PATTERN.test(to) || to.length > 320) throw new TypeError("Adresse courriel invalide.");
-  if (!subject || subject.length > 250) throw new TypeError("L’objet doit contenir entre 1 et 250 caractères.");
-  if (!message.trim() || message.length > 100_000) throw new TypeError("Le message doit contenir entre 1 et 100 000 caractères.");
-  return { to, subject, message };
-}
 
 export function buildGmailRawMessage(
   input: GmailMessageInput,

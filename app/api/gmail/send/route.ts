@@ -1,3 +1,4 @@
+import { sendContactEmail } from "../../../lib/google-gmail/contact";
 import { withCRMIdentity } from '../../../lib/auth/route';
 import { isCalendarBroker } from "../../../data/calendar-types";
 import { requireApiAccess } from "../../../lib/crm-access";
@@ -6,7 +7,7 @@ import {
   GmailNotEnabledError,
   GmailSendError,
   GmailSignatureAuthorizationRequiredError,
-  sendGmailMessage,
+  GmailSendUncertainError,
 } from "../../../lib/google-gmail/service";
 import { isSameOriginRequest } from "../../../lib/google-calendar/config";
 
@@ -18,6 +19,7 @@ type SendGmailPayload = {
   to?: unknown;
   subject?: unknown;
   message?: unknown;
+  expectedEmail?: unknown;
 };
 
 function json(error: string, status: number) {
@@ -44,19 +46,21 @@ async function POSTHandler(request: Request) {
   }
 
   try {
-    // TODO(auth individuelle): valider senderBroker avec l’identité authentifiée lorsqu’elle existera.
-    const result = await sendGmailMessage(payload.senderBroker, {
+    const result = await sendContactEmail(payload.senderBroker, {
+      contactId: payload.contactId,
+      expectedEmail: typeof payload.expectedEmail === "string" ? payload.expectedEmail : undefined,
       to: payload.to,
       subject: payload.subject,
       message: payload.message,
     });
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof GmailSendUncertainError) return Response.json({error:error.message,uncertain:true},{status:502});
     if (error instanceof TypeError) return json(error.message, 400);
     if (error instanceof GmailNotEnabledError) return json("Gmail n’est pas activé pour ce courtier.", 409);
     if (error instanceof GmailSignatureAuthorizationRequiredError) return json("La signature Gmail doit être autorisée pour ce courtier.", 409);
     if (error instanceof GmailAuthorizationRequiredError) return json("L’autorisation Gmail doit être renouvelée.", 409);
-    if (error instanceof GmailSendError) return json(error.message, 502);
+    if (error instanceof GmailSendError) return Response.json({error:error.message,uncertain:false},{status:502});
     console.error("Envoi Gmail impossible:", error instanceof Error ? error.message : "erreur inconnue");
     return json("Le courriel n’a pas pu être envoyé.", 502);
   }

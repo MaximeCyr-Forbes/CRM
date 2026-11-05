@@ -1,3 +1,4 @@
+import { resolveEmailTemplate } from "../email/template";
 import type { CalendarConnectionStatus } from "../../data/calendar-types";
 import { BROKER_LABELS, type ContactBroker } from "../../data/contact-types";
 import type {
@@ -101,7 +102,7 @@ export function invalidTemplateVariables(ruleType: AutomaticEmailRuleType, templ
 }
 
 export function resolveAutomaticEmailTemplate(template: string, values: Record<string, string>) {
-  return template.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9]*)\s*\}\}/g, (_, name: string) => values[name] ?? "");
+  return resolveEmailTemplate(template, values);
 }
 
 function contactVariables(contact: AutomaticEmailContact, extras: Record<string, string> = {}) {

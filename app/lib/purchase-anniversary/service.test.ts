@@ -77,3 +77,19 @@ describe("purchase eligibility and independent occurrences", () => {
   it("uses notary date in the actual template", async () => { state.rules[0].bodyTemplate="Bonjour {{firstName}}, achat du {{purchaseDate}}"; await actOnPurchase("purchase","one","manual","maxime"); expect(state.send.mock.calls[0][1].message).toContain("22 septembre 2025"); });
   it("rechecks link after sender preparation", async () => { state.sender.mockImplementation(async () => { state.links=[]; return {}; }); await expect(actOnPurchase("purchase","one","manual","maxime")).rejects.toThrow(); expect(state.send).not.toHaveBeenCalled(); });
 });
+
+it('preserves one Gmail signature and Reply-To through the real pipeline',async()=>{
+ const broker='france';
+ const identity={sendAsEmail:`${broker}@example.test`,replyToAddress:`reply-${broker}@example.test`,signature:`<p>Signature ${broker}</p>`};
+ state.sender.mockResolvedValue({identity});
+ state.send.mockImplementation(async(sender,message)=>{
+  const {buildGmailRawMessage}=await import('../google-gmail/service');
+  const mime=Buffer.from(buildGmailRawMessage(message,sender.identity),'base64url').toString();
+  expect(mime).toContain(`From: ${broker}@example.test`);expect(mime).toContain(`Reply-To: reply-${broker}@example.test`);
+  const html=Buffer.from(mime.match(/Content-Type: text\/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([\s\S]*?)\r\n--/)![1].replace(/\s/g,''),'base64').toString();
+  expect(html.split(identity.signature)).toHaveLength(2);expect(mime.match(/^To:/gm)).toHaveLength(1);expect(mime).not.toMatch(/^(Cc|Bcc):/mi);
+  return {id:'mock-contract'};
+ });
+ await actOnPurchase("purchase","one","manual","immoplus");
+ expect(state.send).toHaveBeenCalledTimes(1);
+});

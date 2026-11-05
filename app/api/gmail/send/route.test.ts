@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ accessDenied: false, sameOrigin: true, send: vi.fn() }));
 vi.mock("../../../lib/crm-access", () => ({ requireApiAccess: vi.fn(async () => ({ response: state.accessDenied ? Response.json({ error: "Accès CRM requis." }, { status: 401 }) : null })) }));
 vi.mock("../../../lib/google-calendar/config", () => ({ isSameOriginRequest: vi.fn(() => state.sameOrigin) }));
-vi.mock("../../../lib/google-gmail/service", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../../lib/google-gmail/service")>();
-  return { ...original, sendGmailMessage: state.send };
-});
+vi.mock("../../../lib/google-gmail/contact", () => ({sendContactEmail:state.send}));
 
 import { POST } from "./route";
 import { GmailSignatureAuthorizationRequiredError } from "../../../lib/google-gmail/service";
@@ -37,7 +34,7 @@ describe("POST /api/gmail/send", () => {
   it("transmet strictement le selectedBroker fourni comme expéditeur", async () => {
     const response = await POST(request({ senderBroker: "maxime", contactId: "11111111-1111-4111-8111-111111111111", to: "client@example.com", subject: "Suivi", message: "Bonjour" }));
     expect(response.status).toBe(200);
-    expect(state.send).toHaveBeenCalledWith("maxime", { to: "client@example.com", subject: "Suivi", message: "Bonjour" });
+    expect(state.send).toHaveBeenCalledWith("maxime", { contactId: "11111111-1111-4111-8111-111111111111", expectedEmail: undefined, to: "client@example.com", subject: "Suivi", message: "Bonjour" });
   });
 
   it("refuse un courtier unassigned ou inconnu", async () => {

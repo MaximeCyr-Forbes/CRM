@@ -7,7 +7,7 @@ vi.mock('../supabase/server',()=>({getSupabaseAdmin:()=>({from:()=>{
  const run=()=>{if(operation==='insert'){const list=values as Record<string,unknown>[];if(list.some(v=>state.rows.some(r=>r.batch_id===v.batch_id&&r.normalized_email===v.normalized_email)))return {data:null,error:{code:'23505'}};state.rows.push(...list.map(v=>({...v,id:crypto.randomUUID(),gmail_message_id:null,error:null})));return{data:[],error:null};}const rows=state.rows.filter(r=>filters.every(([k,v])=>r[k]===v));if(operation==='update')rows.forEach(r=>Object.assign(r,values));return {data:rows.map(r=>({...r})),error:null};};
  const q={select:()=>q,eq:(k:string,v:unknown)=>{filters.push([k,v]);return q;},order:()=>q,range:async(from:number,to:number)=>{const r=run();return {...r,data:r.data?.slice(from,to+1)};},insert:(v:Record<string,unknown>[])=>{operation='insert';values=v;return q;},update:(v:Record<string,unknown>)=>{operation='update';values=v;return q;},maybeSingle:async()=>{const r=run();return {...r,data:r.data?.[0]??null};},then:(resolve:(v:unknown)=>unknown)=>Promise.resolve(run()).then(resolve)};return q;
 }})}));
-import {directClientEmailHistory,sendDirectClientEmail} from './direct-client-email-server';
+import {previewDirectClientEmail,directClientEmailHistory,sendDirectClientEmail} from './direct-client-email-server';
 import {directClientEmailValid,uniqueDirectEmailRecipients,directEmailSender} from './direct-client-email';
 import {buildGmailRawMessage,GmailSendError,GmailSendUncertainError} from '../google-gmail/service';
 const tx='11111111-1111-4111-8111-111111111111',id='22222222-2222-4222-8222-222222222222',id2='33333333-3333-4333-8333-333333333333';
@@ -28,3 +28,54 @@ it('generates one To and no CC/BCC for each recipient using the existing MIME bu
 
 it('history includes only sent receipts for this transaction after client removal',async()=>{state.clients=[];state.rows=[{id:'sent',transaction_id:tx,status:'sent',direct_client_id:null},{id:'failed',transaction_id:tx,status:'failed'},{id:'other',transaction_id:'other',status:'sent'}];expect(await directClientEmailHistory(tx)).toEqual({entries:[state.rows[0]],hasMore:false});expect(state.send).not.toHaveBeenCalled();});
 it('history paginates without dropping the extra receipt',async()=>{state.rows=Array.from({length:51},(_,n)=>({id:String(n),transaction_id:tx,status:'sent'}));expect(await directClientEmailHistory(tx)).toMatchObject({entries:state.rows.slice(0,50),hasMore:true});expect(await directClientEmailHistory(tx,50)).toEqual({entries:state.rows.slice(50),hasMore:false});await expect(directClientEmailHistory(tx,-1)).rejects.toThrow('Page invalide');});
+
+it.each([3,50,100])('renders %i independent recipients with no raw tokens',async count=>{
+ state.clients=Array.from({length:count},(_,n)=>({id:crypto.randomUUID(),transaction_id:tx,name:`Prenom${String.fromCharCode(65+n%26)} Nom`,email:`synthetic${n}@example.test`,phone:'5145550100'}));
+ const body={...input(),clientIds:state.clients.map(c=>c.id),subjectTemplate:'Pour {{firstName}}',messageTemplate:'Bonjour {{firstName}}, {{email}} {{phone}}'};
+ const preview=await previewDirectClientEmail(tx,body,'maxime');
+ expect(state.send).not.toHaveBeenCalled();
+ expect(preview.recipients).toHaveLength(count);
+ const result=await sendDirectClientEmail(tx,{...body,fingerprints:Object.fromEntries(preview.recipients.map(r=>[r.id,r.fingerprint]))},'maxime');
+ expect(result.sent).toBe(count);expect(state.send).toHaveBeenCalledTimes(count);
+ for(const [,message] of state.send.mock.calls){expect(message.message).toContain(message.to);expect(message.message).not.toMatch(/\{\{/);expect(message.subject).toMatch(/^Pour Prenom/);}
+ expect(new Set(state.send.mock.calls.map(c=>c[1].message)).size).toBe(count);
+});
+it('blocks only the recipient without a usable first name',async()=>{
+ state.clients.push({id:crypto.randomUUID(),transaction_id:tx,name:'',email:'missing@example.test'});
+ const result=await sendDirectClientEmail(tx,{...input(),clientIds:state.clients.map(c=>c.id),messageTemplate:'Bonjour {{firstName}},'},'maxime');
+ expect(result).toMatchObject({sent:2,failed:1});expect(result.results.find(r=>r.status==='failed')?.error).toContain('Prénom manquant.');
+});
+it('blocks unknown variables without Gmail calls',async()=>{
+ const result=await sendDirectClientEmail(tx,{...input(),messageTemplate:'Bonjour {{unknown}}'},'maxime');
+ expect(result.failed).toBe(1);expect(state.send).not.toHaveBeenCalled();
+});
+it('refuses changed email after preview',async()=>{
+ const body=input(),preview=await previewDirectClientEmail(tx,body,'maxime');
+ state.clients[0].email='changed@example.test';
+ const result=await sendDirectClientEmail(tx,{...body,fingerprints:{[id]:preview.recipients[0].fingerprint}},'maxime');
+ expect(result.failed).toBe(1);expect(state.send).not.toHaveBeenCalled();
+});
+it('re-reads after sender preparation even without a preview',async()=>{
+ state.prepare.mockImplementationOnce(async()=>{state.clients[0]={...state.clients[0],email:'changed@example.test'};return {identity:{sendAsEmail:'maxime@example.test'}};});
+ expect(await sendDirectClientEmail(tx,input(),'maxime')).toMatchObject({failed:1});expect(state.send).not.toHaveBeenCalled();
+});
+it('keeps the rendered subject in history',async()=>{
+ await sendDirectClientEmail(tx,{...input(),subjectTemplate:'Bonjour {{firstName}}'},'maxime');
+ expect(state.rows[0].subject).toBe('Bonjour Synthetic');
+});
+
+it('preserves one Gmail signature and Reply-To through the real pipeline',async()=>{
+ const broker='maxime';
+ const identity={sendAsEmail:`${broker}@example.test`,replyToAddress:`reply-${broker}@example.test`,signature:`<p>Signature ${broker}</p>`};
+ state.prepare.mockResolvedValue({identity});
+ state.send.mockImplementation(async(sender,message)=>{
+  const {buildGmailRawMessage}=await import('../google-gmail/service');
+  const mime=Buffer.from(buildGmailRawMessage(message,sender.identity),'base64url').toString();
+  expect(mime).toContain(`From: ${broker}@example.test`);expect(mime).toContain(`Reply-To: reply-${broker}@example.test`);
+  const html=Buffer.from(mime.match(/Content-Type: text\/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([\s\S]*?)\r\n--/)![1].replace(/\s/g,''),'base64').toString();
+  expect(html.split(identity.signature)).toHaveLength(2);expect(mime.match(/^To:/gm)).toHaveLength(1);expect(mime).not.toMatch(/^(Cc|Bcc):/mi);
+  return {id:'mock-contract'};
+ });
+ await sendDirectClientEmail(tx,input(),'maxime');
+ expect(state.send).toHaveBeenCalledTimes(1);
+});

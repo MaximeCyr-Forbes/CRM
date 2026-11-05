@@ -66,3 +66,19 @@ describe("birthday workflow", () => {
   it("never backfills yesterday", async () => { vi.setSystemTime(new Date("2026-09-23T21:00:00Z")); await runBirthdayFallback(); expect(state.send).not.toHaveBeenCalled(); });
   it("rejects a manual action outside the birthday", async () => { state.contacts[0].birth_date="1980-09-21"; await expect(actOnBirthday("one","done","maxime")).rejects.toThrow(); expect(state.rows).toHaveLength(0); });
 });
+
+it('preserves one Gmail signature and Reply-To through the real pipeline',async()=>{
+ const broker='france';
+ const identity={sendAsEmail:`${broker}@example.test`,replyToAddress:`reply-${broker}@example.test`,signature:`<p>Signature ${broker}</p>`};
+ state.sender.mockResolvedValue({identity});
+ state.send.mockImplementation(async(sender,message)=>{
+  const {buildGmailRawMessage}=await import('../google-gmail/service');
+  const mime=Buffer.from(buildGmailRawMessage(message,sender.identity),'base64url').toString();
+  expect(mime).toContain(`From: ${broker}@example.test`);expect(mime).toContain(`Reply-To: reply-${broker}@example.test`);
+  const html=Buffer.from(mime.match(/Content-Type: text\/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([\s\S]*?)\r\n--/)![1].replace(/\s/g,''),'base64').toString();
+  expect(html.split(identity.signature)).toHaveLength(2);expect(mime.match(/^To:/gm)).toHaveLength(1);expect(mime).not.toMatch(/^(Cc|Bcc):/mi);
+  return {id:'mock-contract'};
+ });
+ await actOnBirthday("one","manual","immoplus");
+ expect(state.send).toHaveBeenCalledTimes(1);
+});
