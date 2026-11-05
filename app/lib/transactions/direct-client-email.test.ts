@@ -37,7 +37,7 @@ it.each([3,50,100])('renders %i independent recipients with no raw tokens',async
  expect(preview.recipients).toHaveLength(count);
  const result=await sendDirectClientEmail(tx,{...body,fingerprints:Object.fromEntries(preview.recipients.map(r=>[r.id,r.fingerprint]))},'maxime');
  expect(result.sent).toBe(count);expect(state.send).toHaveBeenCalledTimes(count);
- for(const [,message] of state.send.mock.calls){expect(message.message).toContain(message.to);expect(message.message).not.toMatch(/\{\{/);expect(message.subject).toMatch(/^Pour Prenom/);}
+ for(const [,message] of state.send.mock.calls){expect(message.message).toContain(message.to);expect(message.message).not.toMatch(/\{\{/);const expected=state.clients.find(c=>c.email===message.to)!;expect(message.subject).toBe('Pour '+String(expected.name).split(' ')[0]);expect(message.message).toBe('Bonjour '+String(expected.name).split(' ')[0]+', '+expected.email+' 5145550100');}
  expect(new Set(state.send.mock.calls.map(c=>c[1].message)).size).toBe(count);
 });
 it('blocks only the recipient without a usable first name',async()=>{

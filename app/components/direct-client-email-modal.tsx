@@ -50,7 +50,7 @@ export default function DirectClientEmailModal({recipients,endpoint,onClose,onCo
     <label className="transaction-field direct-client-note-field"><span>Message</span><textarea name="direct-email-message" required rows={9} maxLength={100000} value={message} onChange={e=>{setMessage(e.target.value);setPreview(null);}}/></label>
    </fieldset>
    <p className="direct-email-help">{'Variables : {{firstName}} {{lastName}} {{fullName}} {{email}} {{phone}}'}</p>
-   {!attempt&&<button type="button" disabled={busy||previewing||loading||!ready||!selected.length||!subject.trim()||!message.trim()} onClick={showPreview}>{previewing?'Prévisualisation…':'Prévisualiser avec la signature Gmail'}</button>}
+   {!attempt&&<div className="transaction-form-actions"><button type="button" disabled={busy||previewing||loading||!ready||!selected.length||!subject.trim()||!message.trim()} onClick={showPreview}>{previewing?'Prévisualisation…':'Prévisualiser avec la signature Gmail'}</button></div>}
    {preview&&<section aria-label="Prévisualisation du courriel">
     <label className="transaction-field"><span>Prévisualisation pour</span><select value={previewId} onChange={e=>setPreviewId(e.target.value)}>{preview.recipients.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
     <p className="direct-email-help">De : {preview.senderEmail} · {preview.recipients.filter(r=>!r.blockingReasons.length).length} prêt(s) · {preview.recipients.filter(r=>r.blockingReasons.length).length} bloqué(s)</p>
