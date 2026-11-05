@@ -9,3 +9,4 @@ node_modules
 *.log
 *.tsbuildinfo
 **/*.pdf
+!app/lib/tools/acm/features/reports/assets/equipe-forbes-presentation.pdf
