@@ -47,8 +47,8 @@ export function AppSidebar({ pathname, workspaceUser, selectedBroker, navigate, 
             <ShellIcon name={label} /><span>{label}</span><span aria-hidden="true" className="crm-nav-chevron">{softwareOpen ? "−" : "+"}</span>
           </button>
           {softwareOpen && <div className="crm-software-links" id={softwareId}>
-            {softwareLinks.map(software => <a key={software.href} href={software.href} target="_blank" rel="noopener noreferrer" onClick={() => { setSoftwareOpen(false); onClose?.(); }}>
-              <span>{software.label}</span><span aria-hidden="true">↗</span>
+            {softwareLinks.map(software => <a key={software.href} href={software.href} aria-current={pathname.startsWith(software.href) ? "page" : undefined} onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); setSoftwareOpen(false); navigate(software.href); onClose?.(); }}>
+              <span>{software.label}</span><span aria-hidden="true">→</span>
             </a>)}
           </div>}
         </div>;

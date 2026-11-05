@@ -20,33 +20,33 @@ describe("navigation des logiciels", () => {
     expect(appNavigationOrder.at(-1)).toBe("Paramètres");
   });
 
-  it("centralise les trois applications externes attendues", () => {
+  it("centralise les trois modules internes attendues", () => {
     expect(softwareLinks).toEqual([
       {
         label: "Générateur de courriel",
         description: "Création de courriels immobiliers",
-        href: "https://courriel-pa-accept-e.vercel.app/",
+        href: "/logiciels/generateur-courriel",
       },
       {
         label: "Calculatrice Plex",
         description: "Analyse financière d'immeubles à revenus",
-        href: "https://analyse-plex-quebec.vercel.app/",
+        href: "/logiciels/calculatrice-plex",
       },
       {
         label: "Générateur ACM",
         description: "Génération d’analyses comparatives de marché",
-        href: "https://acmgenerator.vercel.app/",
+        href: "/logiciels/generateur-acm",
       },
     ]);
   });
 
   it("pointe le Générateur ACM vers son URL exacte", () => {
     expect(softwareLinks.find((software) => software.label === "Générateur ACM")?.href)
-      .toBe("https://acmgenerator.vercel.app/");
+      .toBe("/logiciels/generateur-acm");
   });
 
-  it("n'accepte que des liens HTTPS uniques", () => {
-    expect(softwareLinks.every((software) => new URL(software.href).protocol === "https:")).toBe(true);
+  it("n'accepte que des routes internes uniques", () => {
+    expect(softwareLinks.every((software) => software.href.startsWith("/logiciels/"))).toBe(true);
     expect(new Set(softwareLinks.map((software) => software.href)).size).toBe(softwareLinks.length);
   });
 });

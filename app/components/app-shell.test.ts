@@ -50,14 +50,14 @@ describe("premium shell preserves the CRM navigation contract", () => {
     (props.onClick as () => void)(); expect(navigate).toHaveBeenCalledWith(link.href);
     expect(renderToStaticMarkup(tree).match(/aria-current="page"/g)).toHaveLength(1);
   });
-  it("keeps all software URLs and safely closes the mobile drawer after an external link", () => {
+  it("keeps all software URLs and safely closes the mobile drawer after internal navigation", () => {
     state.open = true; const close = vi.fn(); const tree = sidebar(vi.fn(), close);
     const html = renderToStaticMarkup(tree);
     expect(html).not.toContain('href="/sign-inventory"');
     for (const link of softwareLinks) expect(html).toContain(`href="${link.href}"`);
     const link = find(tree, (props, type) => type === "a" && props.href === softwareLinks[0].href);
-    expect(link.target).toBe("_blank"); expect(link.rel).toBe("noopener noreferrer");
-    (link.onClick as () => void)(); expect(close).toHaveBeenCalledOnce(); expect(state.setOpen).toHaveBeenCalledWith(false);
+    expect(link.target).toBeUndefined(); expect(link.rel).toBeUndefined();
+    (link.onClick as (event: object) => void)({ button: 0, preventDefault: vi.fn() }); expect(close).toHaveBeenCalledOnce(); expect(state.setOpen).toHaveBeenCalledWith(false);
   });
   it("mounts existing search and account menu exactly once", () => {
     const html = renderToStaticMarkup(createElement(AppShell, null, "Existing content"));

@@ -153,13 +153,11 @@ export function AppHeader() {
             <a
               href={software.href}
               key={software.href}
-              onClick={() => setIsSoftwareOpen(false)}
-              rel="noopener noreferrer"
+              onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); setIsSoftwareOpen(false); router.push(software.href); }}
               role="menuitem"
-              target="_blank"
             >
               <span><strong>{software.label}</strong><small>{software.description}</small></span>
-              <span aria-hidden="true">↗</span>
+              <span aria-hidden="true">→</span>
             </a>
           ))}
         </div>

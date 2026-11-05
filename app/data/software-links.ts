@@ -2,17 +2,17 @@ export const softwareLinks = [
   {
     label: "Générateur de courriel",
     description: "Création de courriels immobiliers",
-    href: "https://courriel-pa-accept-e.vercel.app/",
+    href: "/logiciels/generateur-courriel",
   },
   {
     label: "Calculatrice Plex",
     description: "Analyse financière d'immeubles à revenus",
-    href: "https://analyse-plex-quebec.vercel.app/",
+    href: "/logiciels/calculatrice-plex",
   },
   {
     label: "Générateur ACM",
     description: "Génération d’analyses comparatives de marché",
-    href: "https://acmgenerator.vercel.app/",
+    href: "/logiciels/generateur-acm",
   },
 ] as const;
 
