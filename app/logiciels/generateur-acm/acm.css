@@ -1,3 +1,5 @@
+@import "../software-tools.css";
+
 .forbes-tool-acm {
 & {
   --background: #f4f3f0;
@@ -164,7 +166,7 @@ main {
 h1 {
   max-width: 790px;
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: clamp(48px, 6vw, 78px);
   font-weight: 400;
   line-height: 0.98;
@@ -269,7 +271,7 @@ h1 {
 
 .drop-zone h3 {
   margin: 0 0 10px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 27px;
   font-weight: 400;
   letter-spacing: -0.025em;
@@ -559,7 +561,7 @@ h1 {
 
 .property-results__header h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 34px;
   font-weight: 400;
   letter-spacing: -0.035em;
@@ -671,7 +673,7 @@ h1 {
 
 .property-card__content h3 {
   margin: 26px 0 5px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 29px;
   font-weight: 400;
   letter-spacing: -0.03em;
@@ -769,7 +771,7 @@ h1 {
 
 .property-detail__header h4 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 400;
 }
@@ -916,7 +918,7 @@ h1 {
 
 .editor-section legend {
   padding: 0 8px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 17px;
 }
 
@@ -1071,7 +1073,7 @@ h1 {
 
 .cma-workspace__header h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: clamp(42px, 5vw, 60px);
   font-weight: 400;
   letter-spacing: -0.05em;
@@ -1095,7 +1097,7 @@ h1 {
 }
 
 .cma-workspace__status strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 30px;
   font-weight: 400;
 }
@@ -1131,7 +1133,7 @@ h1 {
 }
 
 .subject-selector__copy strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 18px;
   font-weight: 400;
 }
@@ -1253,7 +1255,7 @@ h1 {
 
 .comparison-panel__toolbar h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 22px;
   font-weight: 400;
 }
@@ -1335,7 +1337,7 @@ h1 {
 }
 
 .comparison-table__criteria > span {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 20px;
   font-weight: 400;
 }
@@ -1451,7 +1453,7 @@ h1 {
 .comparison-column-header > strong {
   overflow: hidden;
   display: -webkit-box;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.25;
@@ -1558,7 +1560,7 @@ h1 {
 
 .comparable-map__header h3 {
   margin: 6px 0 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 400;
 }
@@ -1657,7 +1659,7 @@ h1 {
   max-width: 220px;
   margin-bottom: 8px;
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.3;
 }
@@ -1723,7 +1725,7 @@ h1 {
 .analysis-section-heading h3,
 .market-opinion__intro h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 28px;
   font-weight: 400;
   letter-spacing: -0.03em;
@@ -1775,7 +1777,7 @@ h1 {
 
 .property-editing-modal__header h2 {
   margin: 5px 0 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: clamp(25px, 3vw, 34px);
   font-weight: 400;
   letter-spacing: -0.035em;
@@ -1799,7 +1801,7 @@ h1 {
 
 .property-editing-modal__meta strong {
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 400;
 }
@@ -1865,7 +1867,7 @@ h1 {
 
 .property-editing-modal__section-heading h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 23px;
   font-weight: 400;
 }
@@ -1963,7 +1965,7 @@ h1 {
 
 .jlr-import-zone strong {
   color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 17px;
   font-weight: 400;
 }
@@ -2057,7 +2059,7 @@ h1 {
 
 .adjustment-guidance strong {
   grid-row: 1 / span 2;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 400;
 }
@@ -2096,7 +2098,7 @@ h1 {
 .adjustment-reference strong {
   grid-row: 1 / span 2;
   grid-column: 2;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 27px;
   font-weight: 400;
 }
@@ -2246,7 +2248,7 @@ h1 {
 }
 
 .adjustment-totals strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 400;
 }
@@ -2320,7 +2322,7 @@ h1 {
 
 .analysis-summary-card__identity h4 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 18px;
   font-weight: 400;
 }
@@ -2393,7 +2395,7 @@ h1 {
 }
 
 .analysis-summary-card__adjusted dd {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 400;
 }
@@ -2418,7 +2420,7 @@ h1 {
 }
 
 .analysis-statistics strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 20px;
   font-weight: 400;
 }
@@ -2488,13 +2490,13 @@ h1 {
   background: transparent;
   border: 0;
   outline: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 25px;
 }
 
 .market-opinion-field b {
   color: #c9ae8b;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 18px;
   font-weight: 400;
 }
@@ -2558,7 +2560,7 @@ h1 {
 
 .report-actions__copy h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-sans);
   font-size: 28px;
   font-weight: 400;
   letter-spacing: -0.03em;
@@ -3397,7 +3399,7 @@ h1 {
     position: relative;
     color: var(--ink);
     border-bottom: 1px solid var(--line);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-sans);
     font-size: clamp(24px, 7vw, 31px);
     letter-spacing: -0.025em;
     text-decoration: none;

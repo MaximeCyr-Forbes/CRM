@@ -1,0 +1,108 @@
+/* Native CRM presentation only. Every selector is confined to a software tool. */
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) {
+  --background: var(--crm-bg);
+  --surface: var(--crm-surface);
+  --surface-muted: var(--crm-surface-muted);
+  --surface-deep: var(--crm-surface-muted);
+  --ink: var(--crm-text);
+  --ink-soft: var(--crm-text-muted);
+  --ink-muted: var(--crm-text-muted);
+  --muted: var(--crm-text-muted);
+  --line: var(--crm-border);
+  --line-strong: var(--crm-border);
+  --gold: var(--crm-accent);
+  --gold-soft: var(--crm-accent-soft);
+  --accent: var(--crm-text);
+  --accent-soft: var(--crm-accent-soft);
+  --radius: var(--crm-radius-lg);
+  --radius-large: var(--crm-radius-lg);
+  --radius-medium: var(--crm-radius-sm);
+  --shadow: var(--crm-shadow-sm);
+  --shadow-soft: var(--crm-shadow-sm);
+  --font-serif: var(--font-sans);
+  min-width: 0;
+  min-height: 0;
+  background: var(--crm-bg);
+  color: var(--crm-text);
+  font-family: var(--font-sans);
+}
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) :is(h1,h2,h3,h4,button,input,select,textarea) { font-family: var(--font-sans); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) :is(button,input,select,textarea) { border-radius: var(--crm-radius-sm); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) :is(button,a,input,select,textarea,[tabindex]):focus-visible { outline: 2px solid var(--crm-accent); outline-offset: 3px; }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) :is(.primary-button,.drop-action,.drop-zone__action) { background: var(--crm-text); color: white; border-color: var(--crm-text); border-radius: var(--crm-radius-sm); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-plex, .forbes-tool-acm) :is(.secondary-button,.button-secondary) { background: white; color: var(--crm-text); border-color: var(--crm-border); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) .step-number { background: var(--crm-surface-muted); color: var(--crm-text-muted); border-color: var(--crm-border); width: 28px; height: 28px; font-size: 10px; }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) .workspace-card { background: white; border: 1px solid var(--crm-border-soft); border-radius: var(--crm-radius-lg); box-shadow: var(--crm-shadow-sm); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.workspace-card__header,.email-panel__header) { padding: 18px 22px; min-height: 0; gap: 14px; flex-wrap: wrap; }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.workspace-card__body,.email-panel__body) { padding: 22px; }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.workspace-card__heading h2,.panel-head h2) { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.dropzone,.drop-zone) { min-height: 230px; padding: 26px 18px; background: var(--crm-surface-muted); border-color: var(--crm-border); border-radius: var(--crm-radius-md); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.drop-title,.drop-zone h3) { font: 600 18px/1.4 var(--font-sans); }
+.crm-app-shell :is(.forbes-tool-email, .forbes-tool-acm) :is(.drop-icon,.drop-zone__icon) { width: 42px; height: 42px; margin-bottom: 16px; box-shadow: none; }
+.crm-app-shell .forbes-tool-email .page-shell,
+.crm-app-shell .forbes-tool-plex .analysis-app,
+.crm-app-shell .forbes-tool-acm { width: 100%; max-width: 1320px; margin: 0 auto; padding: 30px 32px 40px; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) .hero,
+.crm-app-shell .forbes-tool-plex .editorial-hero { display: block; width: 100%; max-width: none; padding: 0; margin: 0 0 26px; border: 0; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) .hero h1,
+.crm-app-shell .forbes-tool-plex .editorial-hero h1 { max-width: none; font: 650 29px/1.2 var(--font-sans); letter-spacing: -1px; margin: 0 0 8px; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) :is(.hero-eyebrow,.hero__eyebrow),
+.crm-app-shell .forbes-tool-plex .editorial-hero .eyebrow { display: block; margin: 0 0 9px; color: var(--crm-text-soft); font: 600 10px/1.4 var(--font-sans); letter-spacing: 2px; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) :is(.hero-rule,.hero-eyebrow > span,.hero__eyebrow-line),
+.crm-app-shell .forbes-tool-plex .editorial-rule { display: none; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) :is(.hero-copy,.hero__content),
+.crm-app-shell .forbes-tool-plex .editorial-hero-copy { display: block; max-width: none; padding: 0; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) .hero p,
+.crm-app-shell .forbes-tool-plex .editorial-hero-copy p { max-width: 800px; margin: 0; font-size: 13px; line-height: 1.6; color: var(--crm-text-muted); }
+.crm-app-shell .forbes-tool-email .hero-title { display: block; }
+.crm-app-shell .forbes-tool-email .status { margin: 16px 32px 0 auto; width: fit-content; }
+.crm-app-shell .forbes-tool-email .app { grid-template-columns: minmax(0,1fr) minmax(0,1fr); padding: 0; border: 0; gap: 20px; }
+.crm-app-shell .forbes-tool-email .email-panel { min-height: 500px; }
+.crm-app-shell .forbes-tool-email .email-panel textarea { min-height: 360px; background: white; }
+.crm-app-shell .forbes-tool-plex .analysis-app { --forbes-paper: white; --forbes-cream: var(--crm-bg); --forbes-line: var(--crm-border); --forbes-ink: var(--crm-text); --forbes-navy: var(--crm-text); --forbes-gold: var(--crm-accent); --forbes-serif: var(--font-sans); --forbes-shadow: var(--crm-shadow-sm); --ink: var(--crm-text); --line: var(--crm-border); --accent: var(--crm-text); background: transparent; overflow: visible; }
+.crm-app-shell .forbes-tool-plex .plex-header { display: flex; flex-direction: column; align-items: stretch; gap: 14px; margin: 0 0 20px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.crm-app-shell .forbes-tool-plex .header-actions { order: -1; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; margin: 0; }
+.crm-app-shell .forbes-tool-plex .header-nav { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; background: var(--crm-surface-muted); border-radius: var(--crm-radius-sm); }
+.crm-app-shell .forbes-tool-plex .header-nav a { padding: 9px 12px; font-size: 12px; color: var(--crm-text-muted); border-radius: 7px; }
+.crm-app-shell .forbes-tool-plex .header-nav a:hover { background: white; color: var(--crm-text); }
+.crm-app-shell .forbes-tool-plex .cash-flow-outlook { flex: initial; width: 100%; min-width: 0; max-width: none; min-height: 0; padding: 12px 16px; box-shadow: none; border-radius: var(--crm-radius-sm); }
+.crm-app-shell .forbes-tool-plex .analysis-workspace { width: 100%; margin: 0; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 20px; }
+.crm-app-shell .forbes-tool-plex .results-column-group { grid-template-columns: minmax(0,1fr); min-width: 0; }
+.crm-app-shell .forbes-tool-plex :is(.form-section,.analysis-price-section,.results-panel,.unit-description-panel,.ten-year-panel) { padding: 20px; background: white; border: 1px solid var(--crm-border-soft); border-radius: var(--crm-radius-lg); box-shadow: var(--crm-shadow-sm); }
+.crm-app-shell .forbes-tool-plex .ten-year-panel { width: 100%; margin-top: 20px; }
+.crm-app-shell .forbes-tool-plex :is(.section-heading h2,.results-panel h2,.analysis-price-section h2,.ten-year-heading-row h2) { font-size: 17px; font-weight: 600; }
+.crm-app-shell .forbes-tool-plex .section-heading { margin-bottom: 18px; gap: 10px; grid-template-columns: 28px minmax(0,1fr); }
+.crm-app-shell .forbes-tool-plex .section-heading > span { width: 28px; height: 28px; background: var(--crm-surface-muted); color: var(--crm-text-muted); border-color: var(--crm-border); font: 600 10px var(--font-sans); }
+.crm-app-shell .forbes-tool-plex .section-reset-button { grid-column: 2; background: white; border-color: var(--crm-border); color: var(--crm-text); }
+.crm-app-shell .forbes-tool-plex :is(.field input,.field select,.data-table input,.data-table select) { background: white; border-color: var(--crm-border); }
+.crm-app-shell .forbes-tool-plex .pdf-drop-zone { min-height: 180px; padding: 24px 16px; background: var(--crm-surface-muted); border-color: var(--crm-border); border-radius: var(--crm-radius-md); }
+.crm-app-shell .forbes-tool-plex .pdf-select-action { background: white; border-color: var(--crm-border); color: var(--crm-text) !important; border-radius: var(--crm-radius-sm); }
+.crm-app-shell .forbes-tool-plex .pdf-upload-icon { color: var(--crm-accent) !important; border-color: var(--crm-border); }
+.crm-app-shell .forbes-tool-acm .acm-tool-nav { width: fit-content; display: flex; gap: 3px; padding: 3px; margin-bottom: 22px; background: var(--crm-surface-muted); border-radius: var(--crm-radius-sm); }
+.crm-app-shell .forbes-tool-acm .acm-tool-nav a { padding: 9px 12px; color: var(--crm-text); font-size: 12px; border-radius: 7px; }
+.crm-app-shell .forbes-tool-acm .acm-tool-nav a:hover { background: white; }
+.crm-app-shell .forbes-tool-acm main { width: 100%; padding: 0; }
+.crm-app-shell .forbes-tool-acm :is(.analysis-history-page,.cma-workspace) { width: 100%; padding-top: 0; }
+.crm-app-shell .forbes-tool-acm :is(.cma-workspace__header h2,.analysis-history__header h1) { font-size: 29px; font-weight: 650; letter-spacing: -1px; }
+@media (max-width: 1200px) {
+  .crm-app-shell .forbes-tool-plex .analysis-workspace { grid-template-columns: minmax(0,1fr); }
+  .crm-app-shell .forbes-tool-plex .results-column-group { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .crm-app-shell .forbes-tool-email .app { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 767px) {
+  .crm-app-shell .forbes-tool-email .page-shell,
+  .crm-app-shell .forbes-tool-plex .analysis-app,
+  .crm-app-shell .forbes-tool-acm { padding: 22px 16px 32px; }
+  .crm-app-shell .forbes-tool-plex .results-column-group { grid-template-columns: minmax(0,1fr); }
+  .crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) :is(.workspace-card__header,.workspace-card__body,.email-panel__header,.email-panel__body) { padding: 16px; }
+  .crm-app-shell .forbes-tool-plex .header-nav a { padding: 9px 10px; }
+  .crm-app-shell .forbes-tool-email .status { margin-right: 16px; }
+}
+.crm-app-shell .forbes-tool-email .status { display: flex; }
+.crm-app-shell :is(.forbes-tool-email,.forbes-tool-acm) :is(.workspace-card__footer,.email-panel__footer) { background: var(--crm-surface-muted); }
+.crm-app-shell .forbes-tool-plex .editorial-hero-title { display: block; }
+.crm-app-shell .forbes-tool-plex :is(.cash-flow-outlook-neutral,.active-scenario-banner,.result-overview,.investment-total) { background: var(--crm-surface-muted); border-color: var(--crm-border); color: var(--crm-text); }
+.crm-app-shell .forbes-tool-plex .result-card { background: white; border-color: var(--crm-border); border-radius: var(--crm-radius-sm); }
+.crm-app-shell .forbes-tool-plex .result-card-featured { background: var(--crm-accent-soft); border-color: var(--crm-border); }
+.crm-app-shell .forbes-tool-plex .results-panel-potential .result-card-featured { background: #edf5f0; border-color: #dcebe2; }
+.crm-app-shell .forbes-tool-plex .result-overview > div { border-color: var(--crm-border); }

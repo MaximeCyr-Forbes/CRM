@@ -11,7 +11,7 @@ export default function Home() {
           </div>
           <div className="hero__content">
             <div>
-              <h1 id="page-title">Analyse comparative<br />de marché</h1>
+              <h1 id="page-title">Analyse comparative de marché</h1>
             </div>
             <p>
               Rassemblez vos fiches Centris et feuillets JLR dans un espace structuré, puis

@@ -1402,6 +1402,23 @@ export function ManualAnalysisApp() {
 
   return (
     <main className="analysis-app">
+      <div className="editorial-hero" role="region" aria-labelledby="analysis-title">
+        <div className="editorial-hero-title">
+          <span className="eyebrow">Analyse immobilière</span>
+          <h1 id="analysis-title">
+            Analyse d’immeuble à revenus
+          </h1>
+        </div>
+        <div className="editorial-hero-copy">
+          <span className="editorial-rule" aria-hidden="true" />
+          <p>
+            Importez votre fiche Centris, ajustez les hypothèses et analysez
+            instantanément la rentabilité, le financement et le cashflow de
+            l’immeuble.
+          </p>
+        </div>
+      </div>
+
       <header className="plex-header">
         <div
           className={`cash-flow-outlook cash-flow-outlook-${cashFlowOutlook.color}`}
@@ -1415,7 +1432,7 @@ export function ManualAnalysisApp() {
           <small>{cashFlowOutlook.explanation}</small>
         </div>
         <div className="header-actions">
-          <nav className="header-nav" aria-label="Navigation principale">
+          <nav className="header-nav" aria-label="Navigation de l’analyse">
             <a href="#pdf-import-heading">Importer</a>
             <a href="#property-heading">Données</a>
             <a href="#ten-year-heading">Projection</a>
@@ -1425,24 +1442,6 @@ export function ManualAnalysisApp() {
           </button>
         </div>
       </header>
-
-      <div className="editorial-hero" role="region" aria-labelledby="analysis-title">
-        <div className="editorial-hero-title">
-          <span className="eyebrow">Analyse immobilière</span>
-          <h1 id="analysis-title">
-            Analyse d’immeuble
-            <span>à revenus</span>
-          </h1>
-        </div>
-        <div className="editorial-hero-copy">
-          <span className="editorial-rule" aria-hidden="true" />
-          <p>
-            Importez votre fiche Centris, ajustez les hypothèses et analysez
-            instantanément la rentabilité, le financement et le cashflow de
-            l’immeuble.
-          </p>
-        </div>
-      </div>
 
       <div className="analysis-workspace">
         <div className="input-column">
