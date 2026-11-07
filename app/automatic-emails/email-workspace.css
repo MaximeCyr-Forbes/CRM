@@ -1,0 +1,46 @@
+/* Presentation is confined to the Courriels workspace. */
+.automatic-emails-page [hidden] { display: none !important; }
+.automatic-emails-page .automatic-emails-heading { margin-bottom: 22px; }
+.automatic-emails-page .automatic-emails-heading h1 { font: 650 29px/1.2 var(--font-sans); letter-spacing: -1px; }
+.automatic-emails-page .email-workspace-tabs { display: flex; width: fit-content; max-width: 100%; gap: 4px; padding: 4px; margin-bottom: 28px; border-radius: var(--crm-radius-sm); background: #edf0f4; }
+.automatic-emails-page .email-workspace-tabs button { min-height: 40px; padding: 10px 18px; border: 0; border-radius: 7px; background: transparent; color: var(--crm-text-muted); font: 550 13px var(--font-sans); cursor: pointer; }
+.automatic-emails-page .email-workspace-tabs button[aria-pressed="true"] { background: white; color: var(--crm-text); box-shadow: var(--crm-shadow-sm); }
+.automatic-emails-page .email-workspace-tabs button:focus-visible,
+.automatic-emails-page summary:focus-visible { outline: 2px solid var(--crm-accent); outline-offset: 3px; }
+.automatic-emails-page .email-workspace-intro { margin: 0 0 20px; }
+.automatic-emails-page .email-workspace-intro h2,
+.automatic-emails-page .email-security h2 { margin: 0 0 8px; font: 600 18px/1.4 var(--font-sans); }
+.automatic-emails-page .email-workspace-intro p,
+.automatic-emails-page .email-security p { margin: 0; color: var(--crm-text-muted); font-size: 13px; line-height: 1.6; }
+.automatic-emails-page .email-protection { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; margin-bottom: 20px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-md); background: var(--crm-accent-soft); font-size: 13px; }
+.automatic-emails-page .email-protection p { margin: 4px 0 0; font-size: 12px; color: var(--crm-text-muted); }
+.automatic-emails-page .email-protection button { padding: 9px 12px; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); background: white; color: var(--crm-text); font: 550 12px var(--font-sans); cursor: pointer; white-space: nowrap; }
+.automatic-emails-page .automatic-emails-upcoming { padding: 18px 20px; margin-bottom: 24px; }
+.automatic-emails-page .automatic-emails-upcoming article { padding: 12px 14px; }
+.automatic-emails-page .automatic-emails-upcoming article strong { font-size: 27px; margin: 6px 0; }
+.automatic-emails-page .automatic-emails-section-title h2 { font: 600 17px/1.4 var(--font-sans); }
+.automatic-emails-page .automatic-email-rule-card { padding: 20px; }
+.automatic-emails-page .automatic-email-rule-card h3 { margin: 12px 0; }
+.automatic-emails-page .automatic-email-rule-card dl { margin: 14px 0; gap: 12px; }
+.automatic-emails-page .email-rule-trigger { margin: 0; font-size: 13px; color: var(--crm-text-muted); }
+.automatic-emails-page .automatic-email-rule-issues { margin: 12px 0; padding: 0; border: 0; background: none; color: var(--crm-warning); font-size: 12px; }
+.automatic-emails-page .birthday-fallback { margin: 12px 0; padding: 12px; background: var(--crm-surface-muted); border-color: var(--crm-border); }
+.automatic-emails-page .birthday-fallback button { font-size: 12px; }
+.automatic-emails-page .birthday-fallback small { font-size: 11px; }
+.automatic-emails-page .email-security,
+.automatic-emails-page .email-advanced { padding: 22px; margin-top: 20px; border: 1px solid var(--crm-border-soft); border-radius: var(--crm-radius-lg); background: white; box-shadow: var(--crm-shadow-sm); }
+.automatic-emails-page .email-security dl { display: grid; gap: 14px; margin: 20px 0; font-size: 13px; }
+.automatic-emails-page .email-security dl > div { display: flex; justify-content: space-between; gap: 16px; }
+.automatic-emails-page .email-security dd { margin: 0; font-weight: 600; }
+.automatic-emails-page .email-advanced p { font-size: 13px; color: var(--crm-text-muted); line-height: 1.6; }
+.automatic-emails-page .automatic-emails-history { margin-top: 24px; }
+.automatic-emails-page :is(.automatic-emails-history,.email-advanced) summary { cursor: pointer; font: 600 15px/1.5 var(--font-sans); }
+.automatic-emails-page .automatic-emails-history > p { font-size: 13px; color: var(--crm-text-muted); margin-top: 16px; }
+.automatic-emails-page .email-editor-context { font-size: 13px; color: var(--crm-text-muted); }
+@media (max-width: 767px) {
+  .automatic-emails-page .email-workspace-tabs { width: 100%; gap: 2px; }
+  .automatic-emails-page .email-workspace-tabs button { flex: 1; padding: 10px 6px; font-size: 12px; }
+  .automatic-emails-page .email-protection { align-items: flex-start; flex-direction: column; }
+  .automatic-emails-page .email-security dl > div { flex-direction: column; gap: 4px; }
+  .automatic-emails-page .automatic-email-rule-grid { grid-template-columns: minmax(0,1fr); }
+}

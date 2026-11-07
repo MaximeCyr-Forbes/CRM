@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { workspaceRequest } from "../lib/workspace-request";
 import type { AutomaticEmailRule } from "../data/automatic-email-types";
 import type { CalendarConnectionStatus } from "../data/calendar-types";
-import { BROKER_LABELS, CONTACT_BROKERS } from "../data/contact-types";
+import { CONTACT_BROKERS } from "../data/contact-types";
 import "../components/birthday-greetings.css";
 export function BirthdayFallback({ rule, connections, onChange }: { rule: AutomaticEmailRule; connections: CalendarConnectionStatus[]; onChange: (enabled: boolean) => void }) {
   const [busy, setBusy] = useState(false);
@@ -22,5 +22,5 @@ export function BirthdayFallback({ rule, connections, onChange }: { rule: Automa
     } catch (e) { setError(e instanceof Error ? e.message : "Modification impossible."); }
     finally { guard.current = false; setBusy(false); }
   }
-  return <div className="birthday-fallback"><button type="button" role="switch" aria-checked={enabled} disabled={busy} onClick={() => void toggle()}>ENVOI DE SECOURS À 17 H · {busy ? "…" : enabled ? "ON" : "OFF"}</button><small>Heure du Québec. Uniquement si personne n’a envoyé le courriel ou cliqué « Fait ». Les actions manuelles restent disponibles.</small>{CONTACT_BROKERS.filter(b => !connections.some(c => c.broker === b && c.gmailSendEnabled && c.gmailSignatureEnabled)).map(b => <small key={b}>Gmail ou signature à connecter : {BROKER_LABELS[b]}.</small>)}{error && <p role="alert">{error}</p>}</div>;
+  return <div className="birthday-fallback"><button type="button" role="switch" aria-checked={enabled} disabled={busy} onClick={() => void toggle()}>Envoi de secours à 17 h · {busy ? "…" : enabled ? "Activé" : "Désactivé"}</button><small>Heure du Québec. Uniquement si personne n’a envoyé le courriel ou cliqué « Fait ». Les actions manuelles restent disponibles.</small>{CONTACT_BROKERS.some(b => !connections.some(c => c.broker === b && c.gmailSendEnabled && c.gmailSignatureEnabled)) && <small>Une connexion Gmail est à vérifier dans Paramètres.</small>}{error && <p role="alert">{error}</p>}</div>;
 }

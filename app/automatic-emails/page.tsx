@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { CalendarConnectionStatus } from "../data/calendar-types";
 import { BROKER_LABELS, CONTACT_BROKERS } from "../data/contact-types";
 import {
-  AUTOMATIC_EMAIL_MODE_LABELS,
   AUTOMATIC_EMAIL_RULE_DESCRIPTIONS,
   AUTOMATIC_EMAIL_RULE_LABELS,
   AUTOMATIC_EMAIL_STATUS_LABELS,
@@ -19,6 +18,8 @@ import {
 import { useSimulation } from "./use-simulation";
 import { BirthdayFallback } from "./birthday-fallback";
 import CustomCampaignsSection from "./custom-campaigns-section";
+import { useEmailTab, EmailTabs } from "./email-tabs";
+import "./email-workspace.css";
 
 type RulesPayload = {
   rules: AutomaticEmailRule[];
@@ -73,6 +74,8 @@ function transactionTypeLabel(type: AutomaticEmailOccurrence["transactionType"])
 }
 
 export default function AutomaticEmailsPage() {
+  const [activeTab, selectTab] = useEmailTab();
+  const [security, setSecurity] = useState<RulesPayload | null>(null);
   const [rules, setRules] = useState<AutomaticEmailRule[]>([]);
   const [deliveries, setDeliveries] = useState<AutomaticEmailDelivery[]>([]);
 
@@ -97,7 +100,7 @@ export default function AutomaticEmailsPage() {
     setLoadingRules(true); setError(null);
     void fetch("/api/automatic-emails/rules", { cache: "no-store", signal: controller.signal })
       .then(async r => { const body = await r.json() as { data?: RulesPayload; error?: string }; if (!r.ok || !body.data) throw new Error(body.error ?? "Chargement des règles impossible."); return body.data; })
-      .then(data => { if (!controller.signal.aborted) { setRules(data.rules); setDeliveries(data.deliveries); } })
+      .then(data => { if (!controller.signal.aborted) { setRules(data.rules); setDeliveries(data.deliveries); setSecurity(data); } })
       .catch(e => { if (!controller.signal.aborted) setError(e.message); })
       .finally(() => { if (!controller.signal.aborted) setLoadingRules(false); });
     return () => controller.abort();
@@ -160,31 +163,47 @@ export default function AutomaticEmailsPage() {
   }
 
   return <main className="automatic-emails-page"><div className="automatic-emails-shell">
-    <header className="automatic-emails-heading"><div><p className="section-kicker">Préparation contrôlée</p><h1>COURRIELS AUTO</h1><p>Configurez et simulez les communications récurrentes de l’Équipe Forbes.</p></div><span className="automatic-emails-mode">MODE SIMULATION</span></header>
+    <header className="automatic-emails-heading"><div><h1>Courriels</h1><p>Campagnes et communications de l’Équipe Forbes.</p></div></header>
+    <EmailTabs activeTab={activeTab} onSelect={selectTab} />
+    <div hidden={activeTab !== "campaigns"} id="email-campaigns"><CustomCampaignsSection /></div>
 
-    <section className="automatic-emails-lock" aria-label="État de sécurité"><span className="automatic-emails-lock-icon" aria-hidden="true">⌑</span><div><p>VERROU MAÎTRE</p><h2>AUTOMATISATIONS GÉNÉRALES VERROUILLÉES</h2><span>Exceptions contrôlées : Bonne fête à 17 h et Anniversaire d’achat à 17 h, activables séparément. Les autres règles restent verrouillées.</span></div><strong>VERROUILLÉS</strong></section>
+    {activeTab !== "campaigns" && error && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => setReloadRules(v => v + 1)} type="button">Réessayer</button></div>}
+    {activeTab !== "campaigns" && loadingRules && <div className="automatic-emails-loading" role="status">Chargement des règles…</div>}
 
-    {error && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => setReloadRules(v => v + 1)} type="button">Réessayer</button></div>}
-    {loadingRules && <div className="automatic-emails-loading" role="status">Chargement des règles…</div>}
-
-    {<>
+    <div hidden={activeTab !== "automations"} id="email-automations">
+      <div className="email-workspace-intro"><h2>Automatisations</h2><p>Préparez les communications récurrentes de l’Équipe Forbes.</p></div>
+      <aside className="email-protection"><div><strong>Automatisations protégées</strong><p>Seules les fonctions explicitement autorisées peuvent envoyer un courriel.</p></div><button type="button" onClick={() => selectTab("settings")}>Voir les paramètres</button></aside>
       {simulation.summaryError && <p role="status">Simulation temporairement indisponible.<button onClick={() => setRevision(v => v + 1)} type="button">Réessayer</button></p>}
-      <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><p className="section-kicker">À venir</p><h2>SIMULATION DES 30 PROCHAINS JOURS</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>occurrence{todayCount === 1 ? "" : "s"} potentielle{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>occurrence{tomorrowCount === 1 ? "" : "s"} potentielle{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>Dans 7 jours</span><strong>{weekCount}</strong><small>occurrence{weekCount === 1 ? "" : "s"} potentielle{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
+      <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><p className="section-kicker">À venir</p><h2>Envois prévus · simulation</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>envoi{todayCount === 1 ? "" : "s"} prévu{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>envoi{tomorrowCount === 1 ? "" : "s"} prévu{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>7 prochains jours</span><strong>{weekCount}</strong><small>envoi{weekCount === 1 ? "" : "s"} prévu{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
 
-      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><p className="section-kicker">Automatisations V1</p><h2 id="automatic-rules-title">RÈGLES PRÉPARÉES</h2><p>Les autres règles restent en simulation. Bonne fête et Anniversaire d’achat ont chacun leur bouton de secours à 17 h.</p></div><div className="automatic-email-rule-grid">
-        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "CONFIGURATION INCOMPLÈTE" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status].toUpperCase()}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType].toUpperCase()}</h3>{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); }} />}<dl><div><dt>Mode prévu</dt><dd>{AUTOMATIC_EMAIL_MODE_LABELS[rule.executionMode]}</dd></div><div><dt>Expéditeur</dt><dd>Selon le courtier du Contact{rule.defaultBroker ? ` · secours ${BROKER_LABELS[rule.defaultBroker]}` : " · secours requis"}</dd></div><div><dt>Déclencheur</dt><dd>{triggerLabel(rule)}</dd></div><div><dt>Destinataires potentiels</dt><dd>{count} sur 30 jours</dd></div><div><dt>Prochaine occurrence</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucune dans les 30 jours"}</dd></div><div><dt>Signature Gmail</dt><dd>{rule.defaultBroker && connections.find((item) => item.broker === rule.defaultBroker)?.gmailSignatureEnabled ? "Utilisée automatiquement ✓" : "À vérifier / autoriser"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
+      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><h2 id="automatic-rules-title">Communications récurrentes</h2></div><div className="automatic-email-rule-grid">
+        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "À compléter" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status]}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType]}</h3>{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); }} />}<p className="email-rule-trigger">{triggerLabel(rule)}</p><dl><div><dt>Destinataires</dt><dd>{count} dans les 30 prochains jours</dd></div><div><dt>Prochain envoi prévu</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucun dans les 30 jours"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
       </div></section>
 
-      <CustomCampaignsSection />
 
-      <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><p className="section-kicker">Infrastructure existante</p><h2>GMAIL ET SIGNATURES</h2>{loadingConnections && <p role="status">Vérification des connexions…</p>}</div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail prêt ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature réelle est récupérée directement de Gmail au moment de chaque envoi autorisé. Aucun nouveau scope OAuth n’est requis.</p></section>
+      <details className="automatic-emails-history"><summary>Historique</summary>{deliveries.length === 0 ? <p>Aucune file persistante n’a été créée. Les simulations affichées sur cette page ne sont pas enregistrées comme des envois.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</details>
+    </div>
+    <div hidden={activeTab !== "settings"} id="email-settings">
+      <div className="email-workspace-intro"><h2>Paramètres</h2><p>Vos connexions et les protections des communications.</p></div>
+      <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><h2>Connexions Gmail</h2>{loadingConnections && <p role="status">Vérification des connexions…</p>}</div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail connecté ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature Gmail est ajoutée automatiquement à chaque envoi autorisé.</p></section>
 
-      <section className="automatic-emails-history"><div className="automatic-emails-section-title"><p className="section-kicker">Historique</p><h2>HISTORIQUE DES AUTRES RÈGLES</h2></div>{deliveries.length === 0 ? <p>Aucune file persistante n’a été créée. Les simulations affichées sur cette page ne sont pas enregistrées comme des envois.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</section>
-    </>}
+      <section className="email-security"><h2>Sécurité des automatisations</h2>
+        <dl><div><dt>Automatisations générales</dt><dd>{security ? "Verrouillées" : "Vérification…"}</dd></div>
+        {rules.filter(rule => rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary").map(rule => <div key={rule.id}><dt>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType]} — secours 17 h</dt><dd>{(rule.ruleType === "birthday" ? rule.triggerConfig.birthdayFallbackEnabled : rule.triggerConfig.purchaseAnniversaryFallbackEnabled) === true ? "Activé" : "Désactivé"}</dd></div>)}</dl>
+        <p>Les secours se règlent individuellement dans Automatisations. Les autres règles restent verrouillées.</p>
+      </section>
+      <details className="email-advanced"><summary>Paramètres avancés</summary>
+        <p>Fuseau horaire : America/Toronto</p><p>MODE SIMULATION : les aperçus ne déclenchent aucun envoi.</p>
+        <p>AUTOMATISATIONS GÉNÉRALES VERROUILLÉES</p>
+        <p>{security ? security.runnerAvailable ? "Exécution générale disponible." : "Exécution générale indisponible : les protections restent actives." : "Vérification des protections…"}</p>
+        <p>Les modes prévus, modèles et délais sont accessibles dans « Configurer » pour chaque règle.</p>
+      </details>
+    </div>
   </div>
 
   {editing && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape" && !isSaving) { event.stopPropagation(); setEditing(null); } }} aria-labelledby="automatic-email-editor-title" aria-modal="true" className="automatic-email-modal automatic-email-editor" role="dialog">
     <header><div><p className="section-kicker">Configuration verrouillée</p><h2 id="automatic-email-editor-title">{AUTOMATIC_EMAIL_RULE_LABELS[editing.ruleType].toUpperCase()}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setEditing(null)} type="button">×</button></header>
+    <p className="email-editor-context">Signature Gmail du courtier de secours : {editing.defaultBroker && connections.find(item => item.broker === editing.defaultBroker)?.gmailSignatureEnabled ? "autorisée" : "à vérifier dans Paramètres"}.</p>
     <div className="automatic-email-editor-grid">
       <label>Nom<input onChange={(event) => setEditing({ ...editing, name: event.target.value })} value={editing.name} /></label>
       <label>Statut de configuration<select onChange={(event) => setEditing({ ...editing, status: event.target.value as AutomaticEmailRule["status"] })} value={editing.status}><option value="draft">Brouillon</option><option value="ready">Prête</option><option value="paused">En pause</option></select><small>« Prête » signifie configuration complète, jamais activée.</small></label>
