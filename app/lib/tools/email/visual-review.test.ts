@@ -4,6 +4,14 @@ const base=()=>({id:'qa',main_form:'PA-10001',acceptance:{action:'unknown',confi
 const doc={form_id:'PA-10001',file_name:'synthetic.pdf'};
 const condition={id:'zone',type:'other',label:'Zonage',clause:'12.1',source_page:1,text:'30 jours suivant acceptation',confidence:1,active:true,trigger:'acceptance',duration_days:30};
 describe('bounded visual fallback',()=>{
+ it('never changes manually confirmed conditions',()=>{
+  const tx=base() as any;tx.conditions=[{...condition,id:'manual',duration_days:12,confirmed:true,manual_override:true,source:{source_form:'PA-10001'}}];
+  expect(mergeVisualReview(tx,doc,{conditions:[condition]},[1]).conditions[0].duration_days).toBe(12);
+ });
+ it('does not restore a PA clause already replaced or removed by a BO',()=>{
+  const tx=base() as any;tx.terms.bonifications=[{applicable:true,modifications:[{section:'12.1',applied:true}]}];
+  expect(mergeVisualReview(tx,doc,{conditions:[condition]},[1]).conditions).toHaveLength(0);
+ });
  it('keeps evidenced relative conditions without inventing acceptance',()=>{
   const result=mergeVisualReview(base(),doc,{conditions:[condition]},[1]);
   expect(result.conditions[0]).toMatchObject({duration_days:30,date:null,status:'pending'});expect(result.acceptance.complete).toBe(false);

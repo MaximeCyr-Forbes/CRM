@@ -1,4 +1,6 @@
-import { cleanSpaces, latest, norm, parseVisibleSignatureDate } from "./dates";
+import { parseBonification, resolveBonifications } from './bonifications';
+export { parseBonification } from './bonifications';
+import { cleanSpaces, norm } from "./dates";
 import {
   documentKind,
   extractActualClause,
@@ -78,28 +80,6 @@ export function clauseAmount(text: string): number | null {
   const unique = [...new Set(values)];
   return unique.length === 1 ? unique[0] : null;
 }
-export function parseBonification(doc: Doc) {
-  const identification = priceClause(doc, "B1.", "B2.");
-  const identifiers = [
-    ...identification
-      .split(/portant|immeuble|property/i)[0]
-      .matchAll(/\b\d{5,6}\b/g),
-  ].map((m) => m[0]);
-  const target =
-    /\b(?:PAD|PA|PP)\s*(?:[-_() ]\s*)*(\d{5,6})\b/i.exec(identification)?.[1] ??
-    (new Set(identifiers).size === 1 ? identifiers[0] : "");
-  const section = priceClause(doc, "B2.1", "B2.2");
-  const signedAt = latest([
-    ...doc.signatures.map((s) => s.signedAt),
-    ...pagesText(doc).map(parseVisibleSignatureDate),
-  ]);
-  return {
-    number: formNumber(doc.name, pagesText(doc)),
-    target,
-    amount: clauseAmount(section),
-    signedAt,
-  };
-}
 
 export function resolveFinalPrice(
   documents: Doc[],
@@ -137,56 +117,16 @@ export function resolveFinalPrice(
   const laterBO = allBO.filter(b=>b.target===mainNumber && acceptedAt && b.signedAt && Date.parse(b.signedAt)>Date.parse(acceptedAt)
     && extractResponseAction(b.doc).action==="accept" && b.doc.signatures.some(s=>s.signedAt)
     && sellers.every(person=>b.doc.signatures.some(s=>s.signedAt && norm(`${s.name} ${s.contact}`).includes(norm(person)))));
-  const related = allBO.filter(
-    (b) =>
-      b.target &&
-      b.target === mainNumber &&
-      (!b.signedAt ||
-        !acceptedAt ||
-        Date.parse(b.signedAt) <= Date.parse(acceptedAt)),
-  );
-  if (
-    allBO.some(
-      (b) =>
-        !b.target ||
-        (b.target === mainNumber &&
-          b.signedAt &&
-          acceptedAt &&
-          Date.parse(b.signedAt) > Date.parse(acceptedAt) && !laterBO.includes(b)),
-    )
-  )
-    result.priceWarnings.push(
-      "PRIX À CONFIRMER : une BO ne peut pas être reliée avec certitude à la PA avant son acceptation.",
-    );
-  let chosen = related[0];
-  let ambiguous = false;
-  if (related.length > 1) {
-    const dated = [...related].sort(
-      (a, b) => Date.parse(b.signedAt ?? "") - Date.parse(a.signedAt ?? ""),
-    );
-    if (
-      dated.every((b) => b.signedAt) &&
-      dated[0].signedAt !== dated[1].signedAt
-    )
-      chosen = dated[0];
-    else {
-      // An explicit newer BO may declare the previous BO null and void.
-      const superseded = new Set(
-        related.flatMap((b) => {
-          const text = norm(pagesText(b.doc).join("\n"));
-          return /null[es]* et non avenu|annul/.test(text)
-            ? [...text.matchAll(/\bbo\s*[- ]?\s*(\d{5,6})\b/g)]
-                .map((m) => m[1])
-                .filter((n) => n !== b.number)
-            : [];
-        }),
-      );
-      const leaves = related.filter((b) => !superseded.has(b.number));
-      if (leaves.length === 1) chosen = leaves[0];
-      else ambiguous = true;
-    }
+  const resolved=resolveBonifications(documents,main,acceptedAt);
+  result.priceWarnings.push(...resolved.warnings);
+  let chosen: (typeof allBO)[number] | undefined;
+  let ambiguous=resolved.forms.some(b=>b.warnings.some(w=>w.includes('ordre')) && b.amount!==null);
+  for(const b of resolved.active) {
+    const item=allBO.find(item=>item.doc.name===b.document)!;
+    const freePrice=b.modifications.filter(m=>m.section==='4.1'&&m.amount!==undefined).at(-1);
+    const amount=freePrice?.amount??b.amount;
+    if(amount!==null){ apply(item.doc,'BO',freePrice?'B2.2':'B2.1',amount); chosen={...item,amount}; }
   }
-  if (!ambiguous && chosen) apply(chosen.doc, "BO", "B2.1", chosen.amount);
   const counters = documents
     .filter((d) => documentKind(pagesText(d)) === "counter_proposal")
     .map(parseCounterProposal);

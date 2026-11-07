@@ -1,3 +1,4 @@
+import { resolveBonifications } from './bonifications';
 import { applyCounterContract } from "./final-contract";
 /** Faithful port of parse_files/parse_pa from App Courriel PA acceptée.
  * Human-readable deadlines and rule precedence are preserved. The CRM adapter
@@ -180,7 +181,10 @@ export function analyzeExtractedOaciqDocuments(
     if (!target) return false;
     return true;
   });
-  const applicable = orderModifications(eligible, documents, warnings);
+  const bo=resolveBonifications(documents,main,accepted);
+  warnings.push(...bo.warnings);
+  for(const b of bo.forms.filter(b=>b.target===number))if(!links.some(l=>l.document===b.document&&sameFormReference(l.targetForm,documentReference(main))))links.push({document:b.document,targetForm:documentReference(main)});
+  const applicable = [...bo.modifications, ...orderModifications(eligible, documents, warnings)];
   for (const m of applicable) {
     if (sameFormReference(m.targetForm,documentReference(main)) && m.section==='14.1' && m.date) {
       Object.assign(acceptanceDeadline,{date:m.date,time:m.time,sourceDocument:m.document}); m.applied=true;
@@ -215,7 +219,8 @@ export function analyzeExtractedOaciqDocuments(
     relativeRule?: OaciqDeadline["relativeRule"],
   ) {
     if (isExcludedDeadlineSection(src.section)) return;
-    const replacement = [...applicable].reverse().find(m=>sameFormReference(m.targetForm,documentReference(src.document)) && m.section===src.section && !['notary','occupancy'].includes(src.type));
+    const replacement = [...applicable].reverse().find(m=>(sameFormReference(m.targetForm,documentReference(src.document)) || (m.documentType==='BO' && sameFormReference(m.targetForm,documentReference(main)) && [fEntry?.doc,rEntry?.doc,wEntry?.doc].includes(src.document))) && m.section===src.section && !['notary','occupancy'].includes(src.type));
+    if(replacement?.removed){replacement.applied=true;return;}
     if (replacement && (replacement.date || ((replacement.days!==null || replacement.extensionDays!==undefined) && relativeRule?.reference==='acceptance'))) {
       if ((replacement.days!==null || (replacement.extensionDays!==undefined && days!==null)) && relativeRule?.reference==='acceptance') {
         const derivedOffset = src.type==='inspection_report' ? 4 : src.type==='documents_review' ? (src.precedingDays ?? 0) : 0;
@@ -225,8 +230,8 @@ export function analyzeExtractedOaciqDocuments(
         dueDate=calculated.dueDate; dateText=calculated.dateText; dueTime=calculated.dueTime;
         days=effectiveDays; relativeRule={...relativeRule,days};
         details=src.type==='documents_review'
-          ? `${derivedOffset} jours après le délai de remise des documents (${replacementDays} jours après l'acceptation) — modifié par MO ${replacement.formNumber}`
-          : `${days} jours après l'acceptation — modifié par MO ${replacement.formNumber}`;
+          ? `${derivedOffset} jours après le délai de remise des documents (${replacementDays} jours après l'acceptation) — modifié par ${replacement.documentType || 'MO'} ${replacement.formNumber}`
+          : `${days} jours après l'acceptation — modifié par ${replacement.documentType || 'MO'} ${replacement.formNumber}`;
       } else if (replacement.date) {
         dueDate=src.type==='documents_review' ? addDays(replacement.date, src.precedingDays ?? 0) : replacement.date; dueTime=replacement.time; dateText=formatDay(dueDate); relativeRule=undefined; days=null; baseDate=null;
       }
@@ -486,7 +491,8 @@ export function analyzeExtractedOaciqDocuments(
         "l'acceptation",
         "acceptance",
       );
-      notices.push({ clause, date: addDays(acceptedDay, days + 4) });
+      const effective=deadlines.find(d=>d.sourceSection===clause&&d.type==='water_condition');
+      if(effective?.dueDate)notices.push({ clause, date: addDays(effective.dueDate,4) });
     };
     fields.forEach(addWater);
     if (w.septicPumping) {
@@ -718,7 +724,7 @@ export function analyzeExtractedOaciqDocuments(
   }
   const price = resolveFinalPrice(documents, main, accepted, contract.path);
   for (const m of applicable) if (m.amount!==undefined && ["4.1","P2.3.1"].includes(m.section)) {
-    Object.assign(price,{finalPrice:m.amount,priceSourceForm:m.formNumber,priceSourceDocument:m.document,priceSourceSection:m.section,priceConfidence:"high"}); m.applied=true;
+    if(m.documentType!=='BO')Object.assign(price,{finalPrice:m.amount,priceSourceForm:m.formNumber,priceSourceDocument:m.document,priceSourceSection:m.section,priceConfidence:"high"}); m.applied=true;
   }
   const finalContract = applyCounterContract(deadlines, contract.path, {
     occupationAtNotary,
@@ -738,7 +744,7 @@ export function analyzeExtractedOaciqDocuments(
   financingDays = deadlines.find(d=>d.type==='financing')?.days ?? financingDays;
   return {
     contractRequiresReview: contract.warnings.length > 0 || counters.some(c=>c.warnings?.length),
-    documentaryState: { links, modifications, acceptanceDeadline, brokerageContracts, modificationForms:ofKind("modification").map(modificationIdentification) },
+    documentaryState: { bonifications:bo.forms, links, modifications:[...bo.modifications,...modifications], acceptanceDeadline, brokerageContracts, modificationForms:ofKind("modification").map(modificationIdentification) },
     ...price,
     finalContract,
     documents: documents.map((d) => ({

@@ -7,6 +7,12 @@ export function mergeVisualReview(transaction, document, facts, pages) {
  for(const k of ['conditions','overrides','terms','issues','buyers','sellers'])if(facts[k]!==undefined&&!Array.isArray(facts[k]))throw new Error('Structure visuelle invalide.');
  const evidence=x=>x&&allowed.has(x.source_page)&&typeof x.text==='string'&&x.text.trim()&&typeof x.confidence==='number'&&Number.isFinite(x.confidence)&&x.confidence>=0&&x.confidence<=1;
  const form=document.form_id, kind=form.split('-')[0],isAmendment=['CP','MO','BO'].includes(kind);
+ // BO applicability and supersession belong to the shared contractual reader.
+ // A signature acknowledgement cannot turn a BO into a post-acceptance MO.
+ if(kind==='BO'){
+  tx.issues.push(`${form} : vérifiez les éléments BO non résolus par la lecture documentaire.`);
+  return consolidate(tx);
+ }
  const proof=x=>({source_form:form,source_clause:String(x.clause||x.source_clause||''),source_page:x.source_page,detected_text:x.text,confidence:x.confidence,method:'vision'});
  const response=facts.response;
  let acceptance;
@@ -28,8 +34,10 @@ export function mergeVisualReview(transaction, document, facts, pages) {
    active:['empty','crossed_out'].includes(incoming.activation)?false:incoming.activation==='uncertain'?null:typeof incoming.active==='boolean'?incoming.active:null};
   if(c.trigger?.startsWith('condition:'))c.trigger='condition:'+(idMap.get(c.trigger.slice(10))||c.trigger.slice(10));
   const matches=tx.conditions.filter(old=>isAmendment?(c.replaces_clause&&old.clause===c.replaces_clause)||(c.replaces_type&&old.type===(types[c.replaces_type]||c.replaces_type)):old.source?.source_form===form&&old.clause===c.clause);
+  if(!isAmendment && (tx.terms?.bonifications||[]).some(b=>b.applicable&&!b.superseded&&b.modifications.some(m=>m.applied&&m.section===c.clause)))continue;
   if(matches.length>1){tx.issues.push(`${form} : plusieurs conditions correspondent à ${c.clause}.`);continue;}
   const previous=matches[0];
+  if(previous?.manual_override || previous?.confirmed)continue;
   if(isAmendment&&c.active===false&&!c.removes_clause)continue;
   if(previous){
    if(!isAmendment&&previous.confidence>=.9&&((previous.explicit_date&&c.explicit_date!==previous.explicit_date)||(previous.duration_days!=null&&c.duration_days!==previous.duration_days))){tx.issues.push(`${form} ${c.clause} : lectures contradictoires à confirmer.`);continue;}

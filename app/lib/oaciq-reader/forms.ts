@@ -116,7 +116,8 @@ export function documentKind(pages: string[]): OaciqFormKind {
   const first = norm(pages[0] || "");
   if ((pages[0] || '').split('\n').some(line=>/^(?:formulaire obligatoire\s*[-–—:]?\s*)?modifications(?:\s+aux conditions)?$/.test(norm(line))) || /\bm1\.\s*identification du formulaire principal/.test(first))
     return "modification";
-  if (/\bbonifications?\s+avant\s+acceptation\b/.test(first))
+  if (/\bbonifications?\s+avant\s+acceptation\b/.test(first) ||
+      (/\bb1\.\s*identification du formulaire principal/.test(first) && /\bb2[.\s]/.test(first) && /\bbo\s*[- ]?\s*\d{4,6}\b/.test(pages.join("\n").toLowerCase())))
     return "bonification";
   if (/annexe eau potable|drinking water and septic/.test(first))
     return "annex_water";

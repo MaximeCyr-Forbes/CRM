@@ -26,6 +26,44 @@ export function modificationIdentification(doc: Doc) {
   const otherConditionsUnchanged=/autres conditions[\s\S]*demeurent inchang/.test(norm(extractActualClause(pagesText(doc),'M5.',['M6.'])));
   return {document:doc.name,formNumber:formNumber(doc.name,pagesText(doc)),references,address,otherConditionsUnchanged};
 }
+/** Shared free-text clause reader for MO M4 and BO B2.2. */
+export function readAmendmentText(doc:Doc, text:string, primary:string[], fallbackSection?:string, defaultTarget=primary.find(r=>/^(?:PA[D]?|PP|CP|CC[A-Z]*) /.test(r))):Modification[] {
+  const result:Modification[]=[];
+  const normalized=norm(text);
+  // Negated or conditional changes are not affirmative contractual patches.
+  if(documentKind(pagesText(doc))==='bonification' && /\bne\b.{0,45}\bpas\b|\bn.est pas\b|\bsi\b.{0,80}(?:retir|supprim|modifi)/.test(normalized))return result;
+  const leading=/^\s*((?:[A-Z]?\d+\.\d+(?:\.\d+)?)(?:\s*(?:et|,|&)\s*[A-Z]?\d+\.\d+(?:\.\d+)?)*)\s/i.exec(text);
+  const clause=/\bclauses?\s+((?:[A-Z]?\d+\.\d+(?:\.\d+)?)(?:\s*(?:et|,|&)\s*[A-Z]?\d+\.\d+(?:\.\d+)?)*)/i.exec(text);
+  const explicitSections=(leading?.[1] || clause?.[1])?.match(/[A-Z]?\d+\.\d+(?:\.\d+)?/gi);
+  // A reference inside boilerplate ('courtier mentionné à la clause 2.1')
+  // cannot replace a leading amendment heading (11.1 ACTE DE VENTE).
+  let sections=fallbackSection?.startsWith('M2.') ? [fallbackSection] : explicitSections?.map(s=>s.toUpperCase()) || (fallbackSection ? [fallbackSection] : []);
+  if (!sections.length) {
+    if (/occupation/.test(normalized)) sections=['11.2'];
+    else if (/acte de vente|notaire/.test(normalized)) sections=['11.1'];
+    else if (/financement|hypothecaire/.test(normalized)) sections=['6.2'];
+    else if (/prix/.test(normalized)) sections=['4.1'];
+    else if (/inspection/.test(normalized)) sections=['8.1'];
+    else if (/documents/.test(normalized)) sections=['9.1'];
+    else if (/acompte|depot/.test(normalized)) sections=['4.3'];
+  }
+  const removed=/(?:condition|clause|inspection).{0,70}(?:retiree|supprimee|annulee)|(?:renonce|renonciation).{0,60}(?:inspection|condition)|(?:retrait|suppression|annulation) de (?:la |l.)?(?:condition|clause)/.test(normalized);
+  const atNotary=sections.includes('11.2') && /(?:a l.acte notarie|a la signature de l.acte)/.test(normalized);
+  const daysMatch=/(\d+)\s+jours?\s+(?:suivant|apres)\s+l.?acceptation/i.exec(normalized) || /(?:reduit|ramene|raccourci)\s+a\s+(\d+)\s+jours?\b/i.exec(normalized);
+  const extension=/prolong\w*\s+de\s+(\d+)\s+jours?/i.exec(normalized);
+  let date: string | null=null, malformedDate=false;
+  try { date=parseFrenchDate(text); } catch { malformedDate=true; /* Retain as pending without discarding other amendments. */ }
+  const amount=/prix|acompte|depot/.test(normalized) ? clauseAmount(text) : null;
+  const explicit=formReferences(text);
+  for(const section of sections) {
+    const targetForm=explicit.find(r=>section.startsWith('F') ? r.startsWith('AF ') : true) || (section.startsWith('F') ? primary.find(r=>r.startsWith('AF ')) : defaultTarget) || defaultTarget;
+    if (!targetForm || (!date && !daysMatch && !extension && amount===null && !malformedDate && !removed && !atNotary)) continue;
+    result.push({document:doc.name,formNumber:formNumber(doc.name,pagesText(doc)),targetForm,section,
+    days:daysMatch?+daysMatch[1]:null,date,time:date?timeToIso(extractTimeText(text)):null,
+      ...(amount!==null?{amount}:{}),...(extension?{extensionDays:+extension[1]}:{}),...(removed?{removed:true}:{}),...(atNotary?{atNotary:true}:{}),text:cleanSpaces(text),applied:false});
+  }
+  return result;
+}
 export function parseModifications(doc: Doc): Modification[] {
   // Keep M4 continuations, but never read generation dates or footer examples as amendments.
   const pages=pagesText(doc).map(p=>p.split(/\(v\d|L[’']OACIQ A POUR MISSION/i)[0]);
@@ -33,32 +71,7 @@ export function parseModifications(doc: Doc): Modification[] {
   const main=primary.find(r=>/^(?:PA[D]?|PP|CP|CC[A-Z]*) /.test(r));
   const result: Modification[]=[];
   const read=(text:string, fallbackSection?:string, defaultTarget=main) => {
-    const normalized=norm(text);
-    const leading=/^\s*((?:[A-Z]?\d+\.\d+(?:\.\d+)?)(?:\s*(?:et|,|&)\s*[A-Z]?\d+\.\d+(?:\.\d+)?)*)\s/i.exec(text);
-    const clause=/\bclauses?\s+((?:[A-Z]?\d+\.\d+(?:\.\d+)?)(?:\s*(?:et|,|&)\s*[A-Z]?\d+\.\d+(?:\.\d+)?)*)/i.exec(text);
-    const explicitSections=(leading?.[1] || clause?.[1])?.match(/[A-Z]?\d+\.\d+(?:\.\d+)?/gi);
-    // A reference inside boilerplate ('courtier mentionné à la clause 2.1')
-    // cannot replace a leading amendment heading (11.1 ACTE DE VENTE).
-    let sections=fallbackSection?.startsWith('M2.') ? [fallbackSection] : explicitSections?.map(s=>s.toUpperCase()) || (fallbackSection ? [fallbackSection] : []);
-    if (!sections.length) {
-      if (/occupation/.test(normalized)) sections=['11.2'];
-      else if (/acte de vente|notaire/.test(normalized)) sections=['11.1'];
-      else if (/financement|hypothecaire/.test(normalized)) sections=['6.2'];
-      else if (/prix/.test(normalized)) sections=['4.1'];
-    }
-    const daysMatch=/(\d+)\s+jours?\s+(?:suivant|apres)\s+l.?acceptation/i.exec(normalized);
-    const extension=/prolong\w*\s+de\s+(\d+)\s+jours?/i.exec(normalized);
-    let date: string | null=null, malformedDate=false;
-    try { date=parseFrenchDate(text); } catch { malformedDate=true; /* Retain as pending without discarding other amendments. */ }
-    const amount=/prix/.test(normalized) ? clauseAmount(text) : null;
-    const explicit=formReferences(text);
-    for(const section of sections) {
-      const targetForm=explicit.find(r=>section.startsWith('F') ? r.startsWith('AF ') : true) || (section.startsWith('F') ? primary.find(r=>r.startsWith('AF ')) : defaultTarget);
-      if (!targetForm || (!date && !daysMatch && !extension && amount===null && !malformedDate)) continue;
-      result.push({document:doc.name,formNumber:formNumber(doc.name,pagesText(doc)),targetForm,section,
-        days:daysMatch?+daysMatch[1]:null,date,time:date?timeToIso(extractTimeText(text)):null,
-        ...(amount!==null?{amount}:{}),...(extension?{extensionDays:+extension[1]}:{}),text:cleanSpaces(text),applied:false});
-    }
+    result.push(...readAmendmentText(doc,text,primary,fallbackSection,defaultTarget));
   };
   read(extractActualClause(pages,'M2.1',['M2.2']).replace(/^M2\.1\s*/,''),'M2.1',primary.find(r=>r.startsWith('CC')));
   read(extractActualClause(pages,'M2.2',['M3.']).replace(/^M2\.2\s*/,''),'M2.2',primary.find(r=>r.startsWith('CC')));

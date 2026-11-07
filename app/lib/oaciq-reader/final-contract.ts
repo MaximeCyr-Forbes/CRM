@@ -33,6 +33,25 @@ export function applyCounterContract(deadlines: OaciqDeadline[], path: OaciqCoun
   }
   const basePrice = clauseAmount(priceClause(context.main,"4.1","4.2"));
   final.price = {value:basePrice,sourceDocument:context.main.name,sourceSection:"4.1",overrides:[]};
+  function amendment(m: typeof context.modifications[number]) {
+    const type = ["11.1","P2.3.2"].includes(m.section) ? "notary" : ["11.2","P2.3.3"].includes(m.section) ? "occupancy" : null;
+    if(type && m.removed){
+      const old=final[type];
+      final[type]={value:null,sourceDocument:m.document,sourceSection:m.section,overrides:old?[...old.overrides,{value:old.value,time:old.time,sourceDocument:old.sourceDocument,sourceSection:old.sourceSection}]:[]};
+      for(let i=deadlines.length-1;i>=0;i--)if(deadlines[i].type===type)deadlines.splice(i,1);
+      m.applied=true;return;
+    }
+    if(type && (m.date || m.atNotary)) {
+      patch(type,m.atNotary ? deadlines.find(d=>d.type==='notary')?.dueDate || null : m.date,m.time,{fileName:m.document,formNumber:m.formNumber,clauses:{[m.section]:m.text}},m.section);
+      m.applied=true;
+      if(type==='occupancy')atNotary=!!m.atNotary;
+    }
+    if(m.section==='4.3' && m.amount!==undefined){
+      final.deposit={value:m.amount,sourceDocument:m.document,sourceSection:m.section,overrides:[]};m.applied=true;
+    }
+  }
+  // Pre-acceptance BO patches precede the accepted CP chain.
+  for(const m of context.modifications.filter(m=>m.documentType==='BO'))amendment(m);
   for (const cp of path) {
     for (const section of cp.cancelledClauses || []) {
       for (let i=deadlines.length-1;i>=0;i--) if (deadlines[i].sourceSection === section ||
@@ -56,14 +75,7 @@ export function applyCounterContract(deadlines: OaciqDeadline[], path: OaciqCoun
     }
   }
   // A later applicable MO wins over CP dates; never reapply the CP afterward.
-  for (const m of context.modifications) {
-    const type = ["11.1","P2.3.2"].includes(m.section) ? "notary" : ["11.2","P2.3.3"].includes(m.section) ? "occupancy" : null;
-    if (type && m.date) {
-      patch(type,m.date,m.time,{fileName:m.document,formNumber:m.formNumber,clauses:{[m.section]:m.text}},m.section);
-      m.applied=true;
-      if (type === "occupancy") atNotary=false;
-    }
-  }
+  for (const m of context.modifications.filter(m=>m.documentType!=='BO')) amendment(m);
 
   const notary = deadlines.find(d=>d.type==="notary");
   for (const d of deadlines) if ((d.type==="occupancy" && atNotary) || d.type==="septic_pumping") {

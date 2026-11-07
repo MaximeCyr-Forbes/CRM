@@ -136,10 +136,11 @@ export type OaciqAnalysis = {
   contractRequiresReview?: boolean;
   finalContract?: Record<string, { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null; overrides: { value: string | number | null; time?: string | null; sourceDocument: string | null; sourceSection: string | null }[] }>;
   documentaryState?: {
+    bonifications?: import('./bonifications').Bonification[];
     brokerageContracts?: {document:string;targetForm:string;changes:Partial<Pick<Listing,"askingPrice"|"expirationDate">>;sources:{field:"askingPrice"|"expirationDate";document:string;section:string;value:string|number}[]}[];
     modificationForms?: {document:string;formNumber:string;references:string[];address:string|null;otherConditionsUnchanged:boolean}[];
     links: { document: string; targetForm: string; section?: string }[];
-    modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean; amount?: number; extensionDays?: number }[];
+    modifications: { document: string; formNumber: string; targetForm: string; section: string; days: number | null; date: string | null; time: string | null; text: string; applied: boolean; amount?: number; extensionDays?: number; removed?: boolean; atNotary?: boolean; documentType?: 'BO' | 'MO' }[];
     acceptanceDeadline: { date: string | null; time: string | null; sourceDocument: string };
   };
   finalPrice: number | null;
