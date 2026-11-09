@@ -1,11 +1,11 @@
-import { captureDates, captureClientWarnings, captureTableText, normalizedCaptureName, parseCaptureText, type CaptureResult, type CaptureWord, type ImportClient } from './direct-client-capture';
+import { captureDates, captureClientWarnings, captureTableText, hasCaptureTable, normalizedCaptureName, parseCaptureText, type CaptureResult, type CaptureWord, type ImportClient } from './direct-client-capture';
 export type CaptureFormat = 'ChatGPT' | 'Centris' | 'unknown';
 export type CaptureProperty = {address?:string|null;listingNumber?:string|null};
 const label=(s:string)=>normalizedCaptureName(s).replace(/\s*:\s*$/,'');
 const labels=new Set(['type','nom','courriel','email','telephone','message','date','date de reception']);
 export function detectScreenshotFormat(text:string):CaptureFormat {
  const lines=text.split(/\r?\n/).map(label),normal=normalizedCaptureName(text);
- if(lines.some(l=>/\bnom\b/.test(l)&&/telephone/.test(l)&&/courriel|email/.test(l)&&/provenance|source/.test(l)))return 'ChatGPT';
+ if(hasCaptureTable(text))return 'ChatGPT';
  const fields=['nom','courriel','email','telephone','message','type'].filter(l=>lines.includes(l));
  if((/centris\s*\.\s*ca|formulaire de contact/.test(normal)&&fields.length>=3&&lines.includes('message')) ||
     (fields.length>=5&&/vous a envoye|concernant l'inscription/.test(normal)))return 'Centris';

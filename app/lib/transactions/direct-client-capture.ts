@@ -33,6 +33,42 @@ export function captureClientWarnings(draft: DirectClientDraft) {
   return warnings;
 }
 function mergeNotes(a: string | null, b: string | null) { return [...new Set([a,b].filter(Boolean))].join(" · ") || null; }
+type CaptureColumn = 'name'|'phone'|'email'|'source'|'date'|'note'|'visit';
+const columnAliases:Record<CaptureColumn,string[]>={
+  name:['nom','client','contact'],phone:['telephone','tel','cellulaire'],email:['courriel','email','e-mail'],
+  source:['provenance','source'],date:['date','date de demande','date demande','recue le','date de reception'],
+  note:['nature','nature de la demande','demande','message'],visit:['visite demandee','date de visite','visite','rendez-vous','rdv'],
+};
+const columnLabel=(text:string)=>normalizedCaptureName(text).replace(/[*_:]+/g,'').replace(/\.$/,'').trim();
+function captureColumn(text:string):CaptureColumn|undefined {
+  return (Object.keys(columnAliases) as CaptureColumn[]).find(key=>columnAliases[key].includes(columnLabel(text)));
+}
+const captureCells=(line:string)=>{
+  const text=line.trim();
+  const inner=text.startsWith('|')&&text.endsWith('|')?text.slice(1,-1).trim():text;
+  return inner.split(/\s*\|\s*|\t+|\s{2,}/).map(s=>s.trim());
+};
+function captureColumns(cells:string[]) {
+  const map:Partial<Record<CaptureColumn,number>>={};
+  cells.forEach((cell,index)=>{const key=captureColumn(cell);if(key && map[key]===undefined)map[key]=index;});
+  return map;
+}
+const clientColumns=(map:Partial<Record<CaptureColumn,number>>)=>map.name!==undefined&&(map.phone!==undefined||map.email!==undefined);
+/** Require a real delimited row with plausible coordinates, not just UI labels. */
+export function hasCaptureTable(text:string) {
+  let map:Partial<Record<CaptureColumn,number>>={};let count=0;
+  for(const line of text.split(/\r?\n/)) {
+    const cells=captureCells(line),header=captureColumns(cells);
+    if(clientColumns(header)){map=header;count=cells.length;continue;}
+    if(!count||cells.length!==count)continue;
+    const name=clean(cells[map.name!]);
+    const email=map.email===undefined?'':cells[map.email].replace(/\s+/g,'').replace(/[.,;:]+$/,'');
+    const phone=map.phone===undefined?'':cells[map.phone];
+    if(name&&/[\p{L}]/u.test(name)&&name.length<=200&&
+       (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||(normalizedDirectPhone(phone).length===10&&/^\+?[\d () .-]{7,30}$/.test(phone))))return true;
+  }
+  return false;
+}
 export function deduplicateCapture(clients: ImportClient[]) {
   const result: ImportClient[] = [];
   for (const client of clients) {
@@ -60,21 +96,25 @@ export function deduplicateCapture(clients: ImportClient[]) {
 export function parseCaptureText(text: string, today: string): CaptureResult {
   const clients: ImportClient[] = []; const details: string[][] = []; const warnings: string[] = [];
   let mode: "clients" | "details" | null = null;
+  let columns:Partial<Record<CaptureColumn,number>>={};let columnCount=0;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim(); const normal = normalizedCaptureName(line);
-    const cells = line.replace(/^\|\s*|\s*\|$/g, "").split(/\s*\|\s*|\t+|\s{2,}/).map(s => s.trim());
-    if (/\bnom\b/.test(normal) && /telephone|courriel|email/.test(normal)) { mode = "clients"; continue; }
-    if (/\bclient\b/.test(normal) && /\bdate\b/.test(normal) && /nature|demande/.test(normal)) { mode = "details"; continue; }
-    if (/details des demandes/.test(normal)) { mode = null; continue; }
+    const cells = captureCells(line),header=captureColumns(cells);
+    if (clientColumns(header)) { mode = "clients"; columns=header;columnCount=cells.length;continue; }
+    if (header.name!==undefined&&header.date!==undefined&&header.note!==undefined) { mode = "details";columns=header;columnCount=cells.length;continue; }
+    if (/details des demandes|suivis retrouves/.test(normal)) { mode = null; continue; }
     if (!line || /^[-|:\s]+$/.test(line)) continue;
-    if (cells.length < (mode === "clients" ? 4 : 3)) { if (/^(?:resume|conclusion|remarque|note\s*:)/.test(normal)) mode = null; continue; }
+    if (cells.length !== columnCount) { if (/^(?:resume|conclusion|remarque|note\s*:)/.test(normal)) mode = null; continue; }
     if (mode === "clients") {
-      const [name,phone,email,source] = cells;
+      const value=(key:CaptureColumn)=>columns[key]===undefined?'':cells[columns[key]!];
+      const name=value('name'),phone=value('phone'),email=value('email'),source=value('source');
       if (!clean(name)) continue;
       const mail = clean(email)?.replace(/\s+/g, "").replace(/[.,;:]+$/, "") ?? null;
-      const draft = { name, phone: clean(phone), email: mail, source: clean(source), request_date: null, request_note: null };
-      clients.push({ ...draft, warnings: captureClientWarnings(draft) });
-    } else if (mode === "details") details.push(cells);
+      const date=captureDates(value('date'),today);
+      const note=mergeNotes(clean(value('note')),clean(value('visit'))?'Visite demandée : '+value('visit'):null);
+      const draft = { name, phone: clean(phone), email: mail, source: clean(source), request_date: date.date, request_note: note };
+      clients.push({ ...draft, warnings: [...captureClientWarnings(draft),...date.warnings] });
+    } else if (mode === "details") details.push([cells[columns.name!],cells[columns.date!],cells[columns.note!]]);
   }
   for (const [name,date,...noteParts] of details) {
     const dateInfo = captureDates(date,today); const note = noteParts.join(" | ").trim();
@@ -103,14 +143,23 @@ export function captureWordsFromTsv(tsv: string): CaptureWord[] {
   });
 }
 /** Spatial columns prevent OCR block order from mixing clients or swapping details. */
+function spatialHeader(line:CaptureWord[]) {
+  const found:{key:CaptureColumn;text:string;x:number;height:number}[]=[];
+  for(let i=0;i<line.length;i++)for(let length=Math.min(4,line.length-i);length>0;length--){
+    const text=line.slice(i,i+length).map(w=>w.text).join(' '),key=captureColumn(text);
+    if(key){found.push({key,text,x:line[i].x,height:line[i].height});i+=length-1;break;}
+  }
+  const keys=found.map(c=>c.key);
+  return keys.includes('name')&&((keys.includes('phone')||keys.includes('email'))||(keys.includes('date')&&keys.includes('note')))?found:[];
+}
 export function captureTableText(words: CaptureWord[]) {
   // Find the actual table header before grouping lines: surrounding browser/sidebar
   // text must not become the vertical anchor or the first data column.
-  const token=(w:CaptureWord)=>normalizedCaptureName(w.text).replace(/[^a-z]/g,"");
-  const header=words.find(w=>token(w)==="nom"&&["telephone","courriel","provenance"].every(label=>words.some(other=>token(other)===label&&other.x>w.x&&Math.abs((other.y+other.height/2)-(w.y+w.height/2))<Math.max(other.height,w.height)*.8)));
-  const detailHeader=words.find(w=>token(w)==="client"&&words.some(other=>token(other)==="date"&&other.x>w.x&&Math.abs(other.y+other.height/2-w.y-w.height/2)<Math.max(other.height,w.height)*.8));
-  const start=header??detailHeader;
-  const tableWords=start?words.filter(w=>w.x>=start.x-10&&w.y+w.height>=start.y):words;
+  const candidates=words.filter(w=>captureColumn(w.text)==='name').sort((a,b)=>a.y-b.y);
+  const start=candidates.map(w=>({word:w,header:spatialHeader(words.filter(other=>Math.abs(other.y+other.height/2-w.y-w.height/2)<Math.max(other.height,w.height)*.8).sort((a,b)=>a.x-b.x))})).find(c=>c.header.length);
+  if(!start)return '';
+  const left=start.header[0].x;
+  const tableWords=words.filter(w=>w.x>=left-10&&w.y+w.height>=start.word.y);
   const sorted = [...tableWords].sort((a,b)=>a.y+a.height/2-b.y-b.height/2);
   const lines: CaptureWord[][] = [];
   for(const word of sorted) {
@@ -119,16 +168,13 @@ export function captureTableText(words: CaptureWord[]) {
     else lines.push([word]);
   }
   lines.forEach(line=>line.sort((a,b)=>a.x-b.x));
-  const output:string[]=[]; let columns:number[]=[]; let type=""; let current:string[]|null=null; let previousY=0; let headerHeight=0;
-  const flush=()=>{if(current)output.push(current.join(" | "));current=null;};
+  const output:string[]=[]; let columns:number[]=[]; let type=""; let nameColumn=0; let current:string[]|null=null; let previousY=0; let headerHeight=0;
+  const flush=()=>{if(current)output.push('| '+current.join(" | ")+' |');current=null;};
   for(const line of lines) {
-    const tokens=line.map(w=>normalizedCaptureName(w.text).replace(/[^a-z]/g,""));
-    const nominal=tokens.findIndex(t=>t==="nom"), telephone=tokens.findIndex(t=>t==="telephone"), email=tokens.findIndex(t=>t==="courriel"||t==="email"), source=tokens.findIndex(t=>t==="provenance"||t==="source");
-    const client=tokens.findIndex(t=>t==="client"), date=tokens.findIndex(t=>t==="date"), nature=tokens.findIndex(t=>t==="nature");
-    if(nominal>=0&&telephone>=0&&email>=0&&source>=0) { flush(); columns=[nominal,telephone,email,source].map(i=>line[i].x);type="clients";headerHeight=Math.min(...[nominal,telephone,email,source].map(i=>line[i].height));output.push("Nom | Téléphone | Courriel | Provenance");continue; }
-    if(client>=0&&date>=0&&nature>=0){flush();columns=[client,date,nature].map(i=>line[i].x);type="details";headerHeight=Math.min(...[client,date,nature].map(i=>line[i].height));output.push("Client | Date | Nature de la demande");continue;}
+    const header=spatialHeader(line);
+    if(header.length){flush();columns=header.map(c=>c.x);nameColumn=header.findIndex(c=>c.key==='name');type=header.some(c=>c.key==='phone'||c.key==='email')?'clients':'details';headerHeight=Math.min(...header.map(c=>c.height));output.push(header.map(c=>c.text).join(' | '));continue;}
     const text=normalizedCaptureName(line.map(w=>w.text).join(" "));
-    if(/details des demandes|liste des clients|clients potentiels|^(?:resume|conclusion|remarque|note\s*:)/.test(text)){flush();columns=[];continue;}
+    if(/details des demandes|suivis retrouves|liste des clients|clients potentiels|^(?:resume|conclusion|remarque|note\s*:)/.test(text)){flush();columns=[];continue;}
     if(!columns.length)continue;
     const heights=line.map(w=>w.height).sort((a,b)=>a-b);
     if(heights[Math.floor(heights.length/2)]<headerHeight*.8){flush();columns=[];continue;}
@@ -136,11 +182,11 @@ export function captureTableText(words: CaptureWord[]) {
     const cells=columns.map(()=>"");
     for(const word of line){let col=0;for(let i=1;i<columns.length;i++)if(word.x+word.width*.15>=columns[i]-Math.max(4,word.height*.35))col=i;cells[col]+=(cells[col]?" ":"")+word.text;}
     const y=line[0].y;
-    const continuation=current && (!cells[0] || (type==="details"&&/-$/.test(current[0])&&y-previousY<line[0].height*2.5) || (cells.slice(1).every(c=>!c) && y-previousY<line[0].height*1.9));
-    if(continuation){cells.forEach((cell,i)=>{if(cell)current![i]+=(current![i]&&!(i===0&&/-$/.test(current![i]))?" ":"")+cell;});}
+    const continuation=current && (!cells[nameColumn] || (type==="details"&&/-$/.test(current[nameColumn])&&y-previousY<line[0].height*2.5) || (cells.every((c,i)=>i===nameColumn||!c) && y-previousY<line[0].height*1.9));
+    if(continuation){cells.forEach((cell,i)=>{if(cell)current![i]+=(current![i]&&!(i===nameColumn&&/-$/.test(current![i]))?" ":"")+cell;});}
     else {flush();current=cells;}
     previousY=y;
-    if(type==="clients" && current?.[0] && current[0].length>200){flush();columns=[];}
+    if(type==="clients" && current?.[nameColumn] && current[nameColumn].length>200){flush();columns=[];}
   }
   flush();return output.join("\n");
 }
