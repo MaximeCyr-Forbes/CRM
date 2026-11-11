@@ -5,11 +5,22 @@ import {restoreWorkspace} from '../lib/workspace';
 import {workspaceRequest} from '../lib/workspace-request';
 import {useDialogLifecycle} from '../lib/use-dialog-lifecycle';
 import type {CalendarConnectionStatus} from '../data/calendar-types';
+const DIRECT_CLIENT_DEFAULT_MESSAGE = `Bonjour {{firstName}},
+
+je me permets de faire un petit suivi à la suite de votre demande d'information concernant l'une de mes propriétés.
+
+Je voulais simplement savoir si vous êtes toujours à la recherche d'une propriété et si vous êtes actuellement accompagné par un courtier immobilier.
+
+Si ce n'est pas le cas, sachez que j'accompagne également les acheteurs dans leurs démarches, que ce soit pour trouver la bonne propriété, organiser les visites ou les conseiller tout au long du processus d'achat.
+
+Si vous êtes toujours à la recherche, nous pourrions prendre un moment pour discuter de votre projet et de vos critères. Ça me ferait réellement plaisir de pouvoir vous accompagner!
+
+Au plaisir,`;
 export default function DirectClientEmailModal({recipients,endpoint,onClose,onComplete}:{recipients:EmailRecipient[];endpoint:string;onClose:()=>void;onComplete:(failedIds:string[])=>void}){
  const dialog=useRef<HTMLDialogElement>(null),inFlight=useRef(false);
  const [sender]=useState(()=>restoreWorkspace(window.sessionStorage).workingBroker);
  const [selected,setSelected]=useState(()=>uniqueDirectEmailRecipients(recipients));
- const [subject,setSubject]=useState(''),[message,setMessage]=useState('Bonjour {{firstName}},\n\n'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [subject,setSubject]=useState(''),[message,setMessage]=useState(DIRECT_CLIENT_DEFAULT_MESSAGE),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [connection,setConnection]=useState<CalendarConnectionStatus|null>(null),[loading,setLoading]=useState(true);
  const [preview,setPreview]=useState<DirectEmailPreview|null>(null),[previewId,setPreviewId]=useState(''),[previewing,setPreviewing]=useState(false);
  const [result,setResult]=useState<DirectEmailResult|null>(null);
