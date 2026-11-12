@@ -898,7 +898,15 @@ async function upsertDeadlineGoogleEvent(
   for (let attempt = 0; attempt < 100; attempt++) {
     let response = eventExists ? await updateEvent() : await insertEvent();
     if (eventExists && response.status === 404) response = await insertEvent();
-    if (response.status === 409) response = await updateEvent();
+    if (response.status === 409) {
+      // A PUT can resurrect a cancelled resource on some calendars. Inspect
+      // the conflicting ID first; never reuse a deleted event on reopening.
+      const existing = await googleCalendarRequest(connection, `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, { method: "GET" });
+      if (existing.ok) {
+        const resource = await existing.json();
+        response = resource.status === "cancelled" ? new Response(null, { status: 410 }) : await updateEvent();
+      } else response = existing;
+    }
     if (response.ok) {
       const resource = await response.json();
       if (resource.status !== "cancelled") return eventId;

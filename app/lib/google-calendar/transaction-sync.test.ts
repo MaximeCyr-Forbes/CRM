@@ -34,6 +34,7 @@ beforeEach(() => {
     const eventId = body?.id ?? url.split("/").at(-1)!;
     if (init.method === "DELETE") { const found = events.delete(eventId); tombstones.add(eventId); return new Response(null, { status: found ? 204 : 404 }); }
     if (tombstones.has(eventId)) return new Response(null, { status: init.method === "POST" ? 409 : 410 });
+    if (init.method === "GET") return new Response(JSON.stringify(events.get(eventId) ?? {}), { status: events.has(eventId) ? 200 : 404 });
     if (init.method === "POST" && events.has(eventId)) return new Response(null, { status: 409 });
     if (init.method === "PUT" && !events.has(eventId)) return new Response(null, { status: 404 });
     events.set(eventId, body); return new Response("{}", { status: 200 });
@@ -65,6 +66,21 @@ describe("transaction Google sync, server authority and idempotency", () => {
     expect(deadline.google_calendar_sync_status).toBe("synced");
     await deleteCalendarEventForTransactionDeadline(deadline);
     expect(events.size).toBe(0);
+  });
+  it("ne ressuscite pas par PUT un ID annulé que Google retourne encore avec 200", async () => {
+    const http = mocks.http.getMockImplementation()!;
+    await syncTransactionDeadline(id);
+    const original = deadline.google_calendar_event_id!;
+    await deleteCalendarEventForTransactionDeadline(deadline);
+    deadline.google_calendar_event_id = null; deadline.google_calendar_event_broker = null;
+    mocks.http.mockImplementation(async (connection,url,init) => {
+      if(init.method === "GET" && url.endsWith(original)) return new Response(JSON.stringify({status:"cancelled"}),{status:200});
+      return http(connection,url,init);
+    });
+    expect((await syncTransactionDeadline(id)).status).toBe("synced");
+    expect(deadline.google_calendar_event_id).not.toBe(original);
+    expect(mocks.http.mock.calls.some(([,url,init])=>init.method==="PUT" && url.endsWith(original))).toBe(false);
+    expect(events.size).toBe(1);
   });
   it("uses transaction France, preserves the event ID on update, and deletes with 404 tolerance", async () => {
     expect((await syncTransactionDeadline(id)).status).toBe("synced");
