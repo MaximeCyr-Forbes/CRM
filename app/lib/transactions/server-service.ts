@@ -472,7 +472,7 @@ export async function insertDeadline(
 export async function updateDeadline(
   transactionId: string,
   deadlineId: string,
-  values: { title?: string; dueDate?: string; dueTime?: string | null; completed?: boolean; syncToGoogle?: boolean },
+  values: { title?: string; dueDate?: string; dueTime?: string | null; completed?: boolean; syncToGoogle?: boolean; clearGoogleEvent?: boolean },
 ) {
   const payload: Record<string, unknown> = {};
   if (values.title !== undefined) payload.title = values.title.trim();
@@ -480,6 +480,12 @@ export async function updateDeadline(
   if (values.dueTime !== undefined) payload.due_time = values.dueTime;
   if (values.completed !== undefined) payload.completed = values.completed;
   if (values.syncToGoogle) payload.google_calendar_sync_status = "pending";
+  if (values.clearGoogleEvent) Object.assign(payload, {
+    google_calendar_event_id: null,
+    google_calendar_event_broker: null,
+    google_calendar_sync_status: "synced",
+    google_calendar_last_error: null,
+  });
   const { error } = await getSupabaseAdmin()
     .from("transaction_deadlines")
     .update(payload)

@@ -10,8 +10,9 @@ let deadline: TransactionDeadlineRow;
 let transaction: TransactionRow;
 let events: Map<string, Record<string, unknown>>;
 let failSave = false;
+let tombstones: Set<string>;
 beforeEach(() => {
-  vi.resetAllMocks(); failSave = false; events = new Map();
+  vi.resetAllMocks(); failSave = false; events = new Map(); tombstones = new Set();
   transaction = { id: "transaction", broker: "france", address: "300 rue Test" } as TransactionRow;
   deadline = { id, transaction_id: transaction.id, title: "Inspection", due_date: "2026-09-15", due_time: "10:00", completed: false,
     source_type: "oaciq", source_form: "PA", source_section: "8.1", source_document: "PA-synthetique.pdf", source_text: "PRIVATE CLAUSE",
@@ -31,7 +32,8 @@ beforeEach(() => {
   mocks.http.mockImplementation(async (_connection, url: string, init: RequestInit) => {
     const body = init.body ? JSON.parse(String(init.body)) : null;
     const eventId = body?.id ?? url.split("/").at(-1)!;
-    if (init.method === "DELETE") { const found = events.delete(eventId); return new Response(null, { status: found ? 204 : 404 }); }
+    if (init.method === "DELETE") { const found = events.delete(eventId); tombstones.add(eventId); return new Response(null, { status: found ? 204 : 404 }); }
+    if (tombstones.has(eventId)) return new Response(null, { status: init.method === "POST" ? 409 : 410 });
     if (init.method === "POST" && events.has(eventId)) return new Response(null, { status: 409 });
     if (init.method === "PUT" && !events.has(eventId)) return new Response(null, { status: 404 });
     events.set(eventId, body); return new Response("{}", { status: 200 });
@@ -39,6 +41,31 @@ beforeEach(() => {
 });
 
 describe("transaction Google sync, server authority and idempotency", () => {
+  it.each([404, 410])("DELETE %s est un succès", async status => {
+    deadline.google_calendar_event_id = "event"; deadline.google_calendar_event_broker = "france";
+    mocks.http.mockResolvedValue(new Response(null, { status }));
+    await expect(deleteCalendarEventForTransactionDeadline(deadline)).resolves.toBeUndefined();
+  });
+  it("ne synchronise jamais une échéance terminée", async () => {
+    deadline.completed = true;
+    await syncTransactionDeadline(id);
+    expect(mocks.connection).not.toHaveBeenCalled(); expect(mocks.http).not.toHaveBeenCalled();
+  });
+  it("réouvre avec un nouvel ID malgré tombstone, concurrence et échec DB", async () => {
+    await syncTransactionDeadline(id);
+    const original = deadline.google_calendar_event_id;
+    await deleteCalendarEventForTransactionDeadline(deadline);
+    deadline.google_calendar_event_id = null; deadline.google_calendar_event_broker = null;
+    failSave = true;
+    expect((await syncTransactionDeadline(id)).status).toBe("error");
+    expect(events.size).toBe(1);
+    await Promise.all([syncTransactionDeadline(id), syncTransactionDeadline(id)]);
+    expect(events.size).toBe(1);
+    expect(deadline.google_calendar_event_id).not.toBe(original);
+    expect(deadline.google_calendar_sync_status).toBe("synced");
+    await deleteCalendarEventForTransactionDeadline(deadline);
+    expect(events.size).toBe(0);
+  });
   it("uses transaction France, preserves the event ID on update, and deletes with 404 tolerance", async () => {
     expect((await syncTransactionDeadline(id)).status).toBe("synced");
     expect(mocks.connection).toHaveBeenCalledWith("france");

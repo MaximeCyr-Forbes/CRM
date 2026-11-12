@@ -20,7 +20,7 @@ export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComple
     if (busy.current || disabled) return;
     busy.current = true;
     setPending(true); setError(null);
-    try { await action(); } catch { setError("La modification de l’échéance a échoué. Réessayez."); } finally { busy.current = false; setPending(false); }
+    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "La modification de l’échéance a échoué. Réessayez."); } finally { busy.current = false; setPending(false); }
   }
   return <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title">
     <div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">AGENDA DE LA TRANSACTION</h2></div><button className="transaction-add-deadline" disabled={disabled} onClick={onAdd} type="button">+ Ajouter une échéance</button></div>
@@ -36,7 +36,7 @@ export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComple
         <time className="tx-agenda-date" dateTime={deadline.dueDate}>{date}{time && <span>{time}</span>}</time>
         <label><input aria-label={`Fait : ${deadline.title}`} checked={deadline.completed} disabled={pending || disabled} onChange={(e) => void change(() => onComplete(deadline, e.target.checked))} type="checkbox" /><span aria-hidden="true" /></label>
         <div className="tx-agenda-content"><div className="deadline-title-line"><h3>{deadline.title}</h3><strong className={state === "FAIT" ? "agenda-done" : state === "EN RETARD" ? "agenda-overdue" : "agenda-upcoming"}>{state}</strong></div>
-          <small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.googleCalendarEventId ? `Google Agenda · ${deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}` : deadline.googleCalendarSyncStatus === "pending" || deadline.googleCalendarSyncStatus === "error" ? deadline.googleCalendarLastError ?? "Synchronisation Google en attente" : "Agenda interne · Non envoyé à Google"}</small>
+          <small className={`calendar-deadline-state calendar-${deadline.googleCalendarSyncStatus}`}>{deadline.completed ? (deadline.googleCalendarEventId ? "Retrait Google en attente" : "Retiré de Google Agenda") : deadline.googleCalendarEventId ? `Google Agenda · ${deadline.googleCalendarSyncStatus === "synced" ? "Synchronisé" : deadline.googleCalendarLastError ?? "En attente"}` : deadline.googleCalendarSyncStatus === "pending" || deadline.googleCalendarSyncStatus === "error" ? deadline.googleCalendarLastError ?? "Synchronisation Google en attente" : "Agenda interne · Non envoyé à Google"}</small>
           {source?.type === "oaciq" && <div className="oaciq-source"><span>Source : {[source.form, source.section && `clause ${source.section}`, source.document].filter(Boolean).join(" · ")}</span>{source.confidence && <span>Confiance : {CONFIDENCE_LABELS[source.confidence]}</span>}</div>}
           {source?.text && <details><summary>Voir la source</summary><p className="oaciq-source-text">{source.text}</p></details>}
         </div>

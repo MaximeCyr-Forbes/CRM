@@ -215,14 +215,23 @@ async function POSTHandler(request: Request) {
       if (existing.transaction_id !== transactionId) {
         return Response.json({ error: "Échéance invalide." }, { status: 400 });
       }
+      const completed = typeof body.completed === "boolean" ? body.completed : existing.completed;
+      if (completed && existing.google_calendar_event_id) {
+        try {
+          await deleteCalendarEventForTransactionDeadline(existing);
+        } catch {
+          return Response.json({ error: "Impossible de retirer cette échéance de Google Agenda. Elle n’a pas été marquée Fait. Réessayez ou reconnectez Google Agenda." }, { status: 502 });
+        }
+      }
       await updateDeadline(transactionId, deadlineId, {
         ...(typeof body.title === "string" && body.title.trim() ? { title: body.title } : {}),
         ...(isDate(body.dueDate) ? { dueDate: body.dueDate } : {}),
         ...(dueTime.value !== undefined ? { dueTime: dueTime.value } : {}),
         ...(typeof body.completed === "boolean" ? { completed: body.completed } : {}),
-        syncToGoogle: true,
+        syncToGoogle: !completed,
+        clearGoogleEvent: Boolean(completed),
       });
-      const calendar = await syncDeadlineSafely(deadlineId);
+      const calendar = completed ? undefined : await syncDeadlineSafely(deadlineId);
       return Response.json({ data: await getTransaction(transactionId), calendar });
     }
 

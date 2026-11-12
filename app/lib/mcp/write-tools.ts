@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {addInventoryStockTool} from './inventory-stock';
 import {getDeadlineRow,insertTransactionNote,updateDeadline} from '../transactions/server-service';
+import {deleteCalendarEventForTransactionDeadline} from '../google-calendar/service';
 import {saveDirectClient,importDirectClients} from '../transactions/direct-clients-server';
 import {createExpense,getExpense,updateExpense,setExpensePayment} from '../accounting/server';
 import {setBrokerBalance} from '../accounting/balances-server';
@@ -35,7 +36,9 @@ export const writeTools:ToolDefinition[]=[
  write('crm_update_transaction_deadline','Modifier une échéance existante. La synchronisation Google existante sera réutilisée après l’enregistrement CRM; une heure null signifie une date seule. Ne sert pas à créer un rappel indépendant.',{transaction_id:uuid,deadline_id:uuid,title:text(250).min(1).optional(),date:date.optional(),time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),completed:z.boolean().optional()},async(a,db)=>{
   await accessible(db,'transactions',a.transaction_id);const row=await getDeadlineRow(a.deadline_id);if(row.transaction_id!==a.transaction_id)throw new MCPAccessError('NOT_FOUND','Échéance inaccessible.');
   if(a.title===undefined&&a.date===undefined&&a.time===undefined&&a.completed===undefined)throw new MCPAccessError('INVALID_INPUT','Aucune modification fournie.');
-  await updateDeadline(a.transaction_id,a.deadline_id,{title:a.title,dueDate:a.date,dueTime:a.time,completed:a.completed,syncToGoogle:true});return result('transaction_deadline',a.deadline_id);
+  const completed=a.completed??row.completed;
+  if(completed&&row.google_calendar_event_id)await deleteCalendarEventForTransactionDeadline(row);
+  await updateDeadline(a.transaction_id,a.deadline_id,{title:a.title,dueDate:a.date,dueTime:a.time,completed:a.completed,syncToGoogle:!completed,clearGoogleEvent:Boolean(completed)});return result('transaction_deadline',a.deadline_id);
  }),
  write('crm_add_direct_client','Ajouter un prospect à une transaction. Les doublons de téléphone et courriel sont refusés; rechercher les clients directs existants avant l’ajout.',{transaction_id:uuid,client:z.strictObject(direct)},async(a,db,i)=>{await accessible(db,'transactions',a.transaction_id);return result('direct_client',(await saveDirectClient(a.transaction_id,a.client,i.actor)).id);}),
  write('crm_add_direct_clients_batch','Ajouter entre 1 et 50 prospects en une opération validée. Doublons refusés. Chaque importId doit rester identique lors d’une reprise.',{transaction_id:uuid,clients:z.array(z.strictObject({...direct,importId:uuid})).min(1).max(50)},async(a,db,i)=>{await accessible(db,'transactions',a.transaction_id);const rows=await importDirectClients(a.transaction_id,{clients:a.clients},i.actor);return {entity:'direct_client_batch',id:a.action_id,ids:rows.map(r=>r.id)};}),

@@ -883,8 +883,7 @@ async function upsertDeadlineGoogleEvent(
   eventExists: boolean,
 ) {
   const calendarId = encodeURIComponent(connection.calendar_id);
-  const eventPath = `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`;
-  const updateEvent = () => googleCalendarRequest(connection, eventPath, {
+  const updateEvent = () => googleCalendarRequest(connection, `/calendars/${calendarId}/events/${encodeURIComponent(eventId)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildDeadlineEventPayload(transaction, deadline)),
@@ -894,10 +893,22 @@ async function upsertDeadlineGoogleEvent(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildDeadlineEventPayload(transaction, deadline, eventId)),
   });
-  let response = eventExists ? await updateEvent() : await insertEvent();
-  if (eventExists && (response.status === 404 || response.status === 410)) response = await insertEvent();
-  else if (!eventExists && response.status === 409) response = await updateEvent();
-  if (!response.ok) throw new Error(`Synchronisation Google refusée (${response.status}).`);
+  // Deterministic replacement IDs make concurrent reopen requests and retries
+  // after a failed DB save converge on the same live Google event.
+  for (let attempt = 0; attempt < 100; attempt++) {
+    let response = eventExists ? await updateEvent() : await insertEvent();
+    if (eventExists && response.status === 404) response = await insertEvent();
+    if (response.status === 409) response = await updateEvent();
+    if (response.ok) {
+      const resource = await response.json();
+      if (resource.status !== "cancelled") return eventId;
+    } else if (response.status !== 404 && response.status !== 410) {
+      throw new Error(`Synchronisation Google refusée (${response.status}).`);
+    }
+    eventId = `d${await sha256Hex(eventId)}`;
+    eventExists = false;
+  }
+  throw new Error("Trop d’anciens identifiants Google supprimés pour cette échéance.");
 }
 
 export async function syncTransactionDeadline(deadlineId: string): Promise<TransactionCalendarResult> {
@@ -909,6 +920,7 @@ export async function syncTransactionDeadline(deadlineId: string): Promise<Trans
     .single();
   if (deadlineError) throw deadlineError;
   let deadline = deadlineData as TransactionDeadlineRow;
+  if (deadline.completed) return { status: "synced", message: "Échéance terminée · aucune synchronisation Google." };
   const { data: transactionData, error: transactionError } = await admin
     .from("transactions")
     .select("*")
@@ -947,8 +959,8 @@ export async function syncTransactionDeadline(deadlineId: string): Promise<Trans
     // A stable UUID-derived Google ID makes concurrent requests and retries
     // idempotent, even if Google succeeds but saving its ID fails. Persist only
     // after success so a failed first attempt keeps the CRM event ID null.
-    const eventId = eventExists ? deadline.google_calendar_event_id! : `d${deadline.id.replace(/-/g, "")}`;
-    await upsertDeadlineGoogleEvent(connection, transaction, deadline, eventId, eventExists);
+    const initialEventId = eventExists ? deadline.google_calendar_event_id! : `d${deadline.id.replace(/-/g, "")}`;
+    const eventId = await upsertDeadlineGoogleEvent(connection, transaction, deadline, initialEventId, eventExists);
     const { error: saveError } = await admin.from("transaction_deadlines").update({
       google_calendar_event_id: eventId,
       google_calendar_event_broker: broker,
@@ -969,7 +981,8 @@ export async function syncTransactionDeadline(deadlineId: string): Promise<Trans
 export async function deleteCalendarEventForTransactionDeadline(
   deadline: Pick<TransactionDeadlineRow, "google_calendar_event_id" | "google_calendar_event_broker">,
 ) {
-  if (!deadline.google_calendar_event_id || !deadline.google_calendar_event_broker) return;
+  if (!deadline.google_calendar_event_id) return;
+  if (!deadline.google_calendar_event_broker) throw new Error("Courtier de l’événement Google manquant.");
   const connection = await getConnection(deadline.google_calendar_event_broker);
   if (!connection) throw new Error("Reconnectez Google Agenda avant de supprimer cette échéance synchronisée.");
   await deleteGoogleEvent(connection, deadline.google_calendar_event_id);

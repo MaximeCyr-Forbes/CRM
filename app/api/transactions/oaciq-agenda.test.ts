@@ -59,10 +59,10 @@ describe("transaction agenda: enregistrement CRM puis Google automatique", () =>
     expect(result.status).toBe(502); expect(await result.text()).not.toContain("PRIVATE");
     expect(JSON.stringify(log.mock.calls)).not.toContain("PRIVATE"); log.mockRestore();
   });
-  it("marquer Fait met à jour Google sans supprimer", async () => {
+  it("marquer Fait sans événement ne contacte pas Google", async () => {
     expect((await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true }))).status).toBe(200);
-    expect(mocks.update).toHaveBeenCalledWith("test", "d1", { completed: true, syncToGoogle: true });
-    expect(mocks.sync).toHaveBeenCalledWith("d1");
+    expect(mocks.update).toHaveBeenCalledWith("test", "d1", { completed: true, syncToGoogle: false, clearGoogleEvent: true });
+    expect(mocks.sync).not.toHaveBeenCalled();
     expect(mocks.googleDelete).not.toHaveBeenCalled();
   });
   it("une erreur de modification ne logge pas la source OACIQ de la ligne", async () => {
@@ -70,6 +70,52 @@ describe("transaction agenda: enregistrement CRM puis Google automatique", () =>
     mocks.update.mockRejectedValue({ code: "23514", details: "PRIVATE OACIQ ROW" });
     expect((await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true }))).status).toBe(502);
     expect(JSON.stringify(log.mock.calls)).not.toContain("PRIVATE"); log.mockRestore();
+  });
+  it("supprime Google avant de terminer, sans resynchroniser", async () => {
+    mocks.row.mockResolvedValue({ transaction_id: "test", completed: false, google_calendar_event_id: "event", google_calendar_event_broker: "france" });
+    expect((await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true }))).status).toBe(200);
+    expect(mocks.googleDelete).toHaveBeenCalledTimes(1);
+    expect(mocks.googleDelete.mock.invocationCallOrder[0]).toBeLessThan(mocks.update.mock.invocationCallOrder[0]);
+    expect(mocks.update).toHaveBeenCalledWith("test", "d1", expect.objectContaining({ completed: true, clearGoogleEvent: true }));
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+  it("un refus Google conserve l’état CRM et explique l’échec", async () => {
+    mocks.row.mockResolvedValue({ transaction_id: "test", completed: false, google_calendar_event_id: "event" });
+    mocks.googleDelete.mockRejectedValue(new Error("503"));
+    const response = await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true }));
+    expect(response.status).toBe(502);
+    expect((await response.json()).error).toContain("Elle n’a pas été marquée Fait");
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+  it("une modification terminée ne synchronise pas, une réouverture synchronise", async () => {
+    mocks.row.mockResolvedValue({ transaction_id: "test", completed: true, google_calendar_event_id: null });
+    await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", title: "Nouveau titre" }));
+    expect(mocks.sync).not.toHaveBeenCalled();
+    await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: false }));
+    expect(mocks.sync).toHaveBeenCalledExactlyOnceWith("d1");
+  });
+  it("deux demandes Fait concurrentes ne créent aucun événement", async () => {
+    mocks.row.mockResolvedValue({ transaction_id: "test", completed: false, google_calendar_event_id: "same-event" });
+    const responses = await Promise.all([1, 2].map(() => POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true }))));
+    expect(responses.map(r => r.status)).toEqual([200, 200]);
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledTimes(2);
+  });
+  it("réessaie après échec DB suivant DELETE sans recréer Google", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.row.mockResolvedValue({ transaction_id: "test", completed: false, google_calendar_event_id: "event" });
+    mocks.update.mockRejectedValueOnce(new Error("DB unavailable")).mockResolvedValueOnce(undefined);
+    const body = { action: "updateDeadline", transactionId: "test", deadlineId: "d1", completed: true };
+    expect((await POST(request(body))).status).toBe(502);
+    expect((await POST(request(body))).status).toBe(200);
+    expect(mocks.googleDelete).toHaveBeenCalledTimes(2);
+    expect(mocks.sync).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+  it("supprimer manuellement retire Google avant la ligne CRM", async () => {
+    expect((await POST(request({ action: "deleteDeadline", transactionId: "test", deadlineId: "d1" }))).status).toBe(200);
+    expect(mocks.googleDelete.mock.invocationCallOrder[0]).toBeLessThan(mocks.remove.mock.invocationCallOrder[0]);
   });
   it("l’option explicite synchronise uniquement l’échéance choisie", async () => {
     expect((await POST(request({ action: "updateDeadline", transactionId: "test", deadlineId: "d1", syncToGoogle: true }))).status).toBe(200);
