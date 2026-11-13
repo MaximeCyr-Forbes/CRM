@@ -280,8 +280,9 @@
 .centris-change-badge { display:inline-block; max-width:100%; margin:4px 0; padding:5px 9px; border-radius:8px; color:#725621; background:#fff5dc; font-size:12px; overflow-wrap:anywhere; }
 .centris-property-more summary,.centris-public-remarks summary,.centris-sync-history summary { cursor:pointer; font-size:13px; font-weight:600; color:#243c5a; padding:10px 0; }
 .centris-public-remarks p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.7; color:#42536a; }
-.centris-sync-history { width:100%; max-width:740px; }
-.centris-sync-history ol { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+.listings-premium .listings-header-actions { align-items:flex-start; }
+.centris-sync-history { position:relative; width:100%; max-width:740px; }
+.centris-sync-history ol { position:absolute; top:100%; left:0; z-index:25; width:min(440px,calc(100vw - 48px)); max-height:340px; overflow:auto; list-style:none; padding:10px; margin:0; display:grid; gap:8px; background:#fff; border:1px solid #e7ecf2; border-radius:12px; box-shadow:0 12px 36px #17233620; }
 .centris-sync-history li { padding:10px 12px; border:1px solid #e7ecf2; border-radius:10px; font-size:12px; line-height:1.7; background:#fff; }
 .centris-sync-history strong,.centris-sync-history span { display:block; }
 @media(max-width:480px) { .centris-property-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .centris-property-grid dd { font-size:15px; } }
