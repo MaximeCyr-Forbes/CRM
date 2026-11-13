@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BROKER_LABELS } from "../data/contact-types";
 import type { ListingOverview as ListingOverviewData, ListingPurpose } from "../data/listing-types";
 import { formatListingAmount, formatListingDate } from "../lib/listings/presentation";
+import { useListings } from "../listings-context";
 
 function overviewUrl(broker: string | undefined, purpose: ListingPurpose | undefined) {
   const query = new URLSearchParams();
@@ -19,6 +20,8 @@ export function ListingOverview({ broker, purpose, refreshToken }: {
   refreshToken: number;
 }) {
   const router = useRouter();
+  const { listings } = useListings();
+  const listingsVersion = listings.map(listing => `${listing.id}:${listing.updatedAt}`).join('|');
   const [data, setData] = useState<ListingOverviewData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,7 @@ export function ListingOverview({ broker, purpose, refreshToken }: {
     finally { setIsLoading(false); }
   }, [broker, purpose]);
 
-  useEffect(() => { void refreshToken; void load(); }, [load, refreshToken]);
+  useEffect(() => { void refreshToken; void listingsVersion; void load(); }, [load, refreshToken, listingsVersion]);
 
   return <section className="listing-overview" aria-labelledby="listing-overview-title">
     <div className="listing-overview-heading"><div><p className="section-kicker">Pilotage de l’inventaire</p><h2 id="listing-overview-title">VUE D’ENSEMBLE</h2></div>{broker && <span>Statistiques · {BROKER_LABELS[broker]}</span>}</div>
