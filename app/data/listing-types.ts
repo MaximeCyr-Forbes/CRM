@@ -58,6 +58,7 @@ export const LISTING_PURPOSE_LABELS: Record<ListingPurpose, string> = {
 };
 
 export type Listing = {
+  centrisDetails?: import('../lib/centris/details').CentrisPropertyDetails | null;
   centrisListingKey?: string | null;
   centrisStandardStatus?: string | null;
   centrisMlsStatus?: string | null;
@@ -244,6 +245,7 @@ export type ListingTransactionLink = {
 };
 
 export type ListingActivityEventType =
+  | "centris_status_changed"
   | "listing_created"
   | "status_changed"
   | "price_changed"
@@ -268,6 +270,8 @@ export type ListingActivityEventType =
   | "note_updated";
 
 export type ListingActivityEntry = {
+  source?: 'crm' | 'centris';
+  sourceAt?: string | null;
   id: string;
   listingId: string;
   eventType: ListingActivityEventType;
@@ -279,6 +283,8 @@ export type ListingActivityEntry = {
 };
 
 export type ListingPriceHistoryEntry = {
+  source?: 'crm' | 'centris';
+  sourceAt?: string | null;
   id: string;
   listingId: string;
   purpose: ListingPurpose;

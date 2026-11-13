@@ -10,6 +10,7 @@ import { ListingMedia } from "../../components/listing-media";
 import { ListingMarketSnapshot } from "../../components/listing-market-snapshot";
 import { ListingPaAcceptedAction } from "../../components/listing-pa-accepted-action";
 import { ListingTracking } from "../../components/listing-tracking";
+import { CentrisPropertyDetails } from "../../components/centris-property-details";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
 import {
@@ -204,6 +205,7 @@ export default function ListingDetailPage() {
           )}
         </section>
 
+        <CentrisPropertyDetails listing={listing} />
         <DriveDocumentsSection broker={listing.broker} entityId={listing.id} entityType="listing" />
 
         <ListingTracking listing={listing} key={listing.updatedAt} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />

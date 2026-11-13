@@ -270,3 +270,18 @@
 .centris-sync-dialog p,.centris-sync-dialog details { margin:14px 0; }
 .centris-sync-dialog li { margin:10px 0; font-size:13px; }
 .centris-sync-close { position:absolute; top:12px; right:12px; border:0; background:transparent; cursor:pointer; }
+
+/* Centris V3: compact source details and changes, without changing listing media. */
+.centris-property-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:12px; margin:16px 0; }
+.centris-property-grid > div { min-width:0; padding:12px; background:#f7f9fc; border:1px solid #e7ecf2; border-radius:12px; }
+.centris-property-grid dt { font-size:12px; color:#64748b; }
+.centris-property-grid dd { margin:5px 0 0; font-size:17px; font-weight:600; color:#172c48; overflow-wrap:anywhere; }
+.centris-source-status,.centris-review-note { font-size:13px; line-height:1.6; color:#52647b; }
+.centris-change-badge { display:inline-block; max-width:100%; margin:4px 0; padding:5px 9px; border-radius:8px; color:#725621; background:#fff5dc; font-size:12px; overflow-wrap:anywhere; }
+.centris-property-more summary,.centris-public-remarks summary,.centris-sync-history summary { cursor:pointer; font-size:13px; font-weight:600; color:#243c5a; padding:10px 0; }
+.centris-public-remarks p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.7; color:#42536a; }
+.centris-sync-history { width:100%; max-width:740px; }
+.centris-sync-history ol { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+.centris-sync-history li { padding:10px 12px; border:1px solid #e7ecf2; border-radius:10px; font-size:12px; line-height:1.7; background:#fff; }
+.centris-sync-history strong,.centris-sync-history span { display:block; }
+@media(max-width:480px) { .centris-property-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .centris-property-grid dd { font-size:15px; } }

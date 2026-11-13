@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { SyncResult } from '../lib/centris/sync';
-type Status = { configured: boolean; connected: boolean; running?: boolean; lastSuccessAt?: string; lastRunAt?: string };
+type Status = { configured: boolean; connected: boolean; automatic?: boolean; running?: boolean; lastSuccessAt?: string; lastRunAt?: string;
+  history?: { startedAt: string; status: string; source: string; created: number; updated: number; unchanged: number; errors: number; changes: number }[] };
 export function CentrisSync({ onSynced }: { onSynced: () => void }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false);
@@ -43,7 +44,15 @@ export function CentrisSync({ onSynced }: { onSynced: () => void }) {
       <button type="button" className="centris-sync-button" disabled={!status?.configured || busy || status.running}
         onClick={() => { setOpen(true); setResult(null); void run(true); }}><RefreshCw size={15} /> Synchroniser Centris</button>
       <small>{status === null ? 'État Centris en cours de vérification' : status.configured ? status.connected ? 'Centris connecté ✓' : 'Centris prêt à vérifier' : 'Centris non configuré'}
-        {status?.lastRunAt && <> · Dernière synchro : {new Date(status.lastRunAt).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })}</>}</small>
+        {status?.automatic && <> · Automatique aux 12 heures</>}
+        {status?.lastSuccessAt && <> · Dernière réussite : {new Date(status.lastSuccessAt).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })}</>}</small>
+      {!!status?.history?.length && <details className="centris-sync-history"><summary>Historique des synchronisations</summary><ol>
+        {status.history.map((run,i) => <li key={`${run.startedAt}-${i}`}>
+          <strong>{new Date(run.startedAt).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })} · {run.source === 'cron' ? 'Automatique' : 'Manuelle'}</strong>
+          <span>{run.status === 'success' ? 'Réussie' : run.status === 'partial' ? 'Partielle — à vérifier' : run.status === 'running' ? 'En cours' : 'Échec — à réessayer'}</span>
+          <small>{run.created} créés · {run.updated} mis à jour · {run.unchanged} inchangés · {run.changes} changements · {run.errors} erreurs</small>
+        </li>)}
+      </ol></details>}
     </div>
     {open && <div className="centris-sync-overlay"><section ref={dialog} tabIndex={-1} className="centris-sync-dialog" role="dialog" aria-modal="true" aria-labelledby="centris-sync-title"
       onKeyDown={event => {

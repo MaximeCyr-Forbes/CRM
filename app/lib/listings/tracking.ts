@@ -27,11 +27,13 @@ export type VisitRow = {
 };
 
 export type ActivityRow = {
+  source?: 'crm' | 'centris'; source_at?: string | null;
   id: string; listing_id: string; event_type: ListingActivityEventType; title: string;
   detail: string; actor_broker: ListingBroker | null; metadata: Record<string, unknown>; created_at: string;
 };
 
 export type PriceHistoryRow = {
+  source?: 'crm' | 'centris'; source_at?: string | null;
   id: string; listing_id: string; purpose: ListingPurpose; amount: number | string | null;
   changed_by: ListingBroker | null; changed_at: string;
 };
@@ -70,6 +72,7 @@ export function mapVisit(row: VisitRow): ListingVisit {
 
 export function mapActivity(row: ActivityRow): ListingActivityEntry {
   return {
+    source: row.source ?? 'crm', sourceAt: row.source_at ?? null,
     id: row.id, listingId: row.listing_id, eventType: row.event_type, title: row.title,
     detail: row.detail, actorBroker: row.actor_broker, metadata: row.metadata ?? {}, createdAt: row.created_at,
   };
@@ -77,6 +80,7 @@ export function mapActivity(row: ActivityRow): ListingActivityEntry {
 
 export function mapPriceHistory(row: PriceHistoryRow): ListingPriceHistoryEntry {
   return {
+    source: row.source ?? 'crm', sourceAt: row.source_at ?? null,
     id: row.id, listingId: row.listing_id, purpose: row.purpose,
     amount: row.amount === null ? null : Number(row.amount), changedBy: row.changed_by, changedAt: row.changed_at,
   };
@@ -150,7 +154,8 @@ export function createListingTrackingService(repository: ListingTrackingReposito
       ]);
       return {
         tasks: tasks.map(mapMarketingTask), visits: visits.map(mapVisit),
-        activity: activity.map(mapActivity), priceHistory: priceHistory.map(mapPriceHistory),
+        activity: activity.map(mapActivity).sort((a,b) => Date.parse(b.sourceAt ?? b.createdAt) - Date.parse(a.sourceAt ?? a.createdAt)),
+        priceHistory: priceHistory.map(mapPriceHistory).sort((a,b) => Date.parse(b.sourceAt ?? b.changedAt) - Date.parse(a.sourceAt ?? a.changedAt)),
       };
     },
     async toggleTask(listingId: string, taskId: string, completed: boolean, actor: ListingBroker | null) {

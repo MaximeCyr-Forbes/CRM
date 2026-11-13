@@ -7,6 +7,7 @@ import { useBroker } from "../broker-context";
 import { ListingEditorModal } from "../components/listing-editor-modal";
 import { ListingMedia } from "../components/listing-media";
 import { CentrisSync } from "../components/centris-sync";
+import { CentrisChangeBadge } from "../components/centris-property-details";
 import { ListingOverview } from "../components/listing-overview";
 import { ListingChecklistPreview } from "../components/listing-checklist-preview";
 import { useContacts } from "../contacts-context";
@@ -203,6 +204,7 @@ export default function ListingsPage() {
                     </span>
                   </div>
                   <div className="listing-card-content">
+                    <CentrisChangeBadge listing={listing} />
                     <div className="listing-card-address">
                       <h2>
                         <button

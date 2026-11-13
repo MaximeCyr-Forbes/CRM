@@ -4,6 +4,7 @@ import { getSupabaseServiceClient } from '../supabase/server';
 import { centrisClient, CentrisError, isConfigured, odataString } from './client';
 import { discoverMembers, mapProperty, safeMediaUrl, type Member, type MemberMapping, type Property, type MappedProperty } from './mapping';
 import type { ListingBroker } from '../../data/listing-types';
+import { DETAIL_FIELDS } from './details';
 
 export type CentrisSyncActor =
   | { memberId: string; broker: ListingBroker | null; source: 'manual' }
@@ -13,10 +14,10 @@ const BUCKET = 'centris-listing-images';
 const SELECT = 'ListingKey,ListingId,ListAgentKey,CoListAgentKey,StreetNumberStart,StreetShortName,StreetName,UnitNumber,Township,CityOrTownshipKey,StateOrProvince,PostalCode,Country,ListPrice,RentPrice,StandardStatus,MlsStatus,PropertyType,PropertySubType,ListingTerms,ListingURL,OnMarketTimestamp,ModificationTimestamp';
 type Action = 'created' | 'updated' | 'unchanged' | 'skipped' | 'conflict';
 export type SyncResult = { fetched: number; eligible: number; created: number; updated: number; unchanged: number;
-  skipped: number; conflicts: number; errors: number; warnings: string[]; dryRun: boolean;
+  skipped: number; conflicts: number; errors: number; warnings: string[]; dryRun: boolean; changes?: number;
   preview: { address: string; broker: string; price: number | null; purpose: string; action: string }[] };
 const emptyResult = (dryRun: boolean): SyncResult => ({ fetched: 0, eligible: 0, created: 0, updated: 0,
-  unchanged: 0, skipped: 0, conflicts: 0, errors: 0, warnings: [], dryRun, preview: [] });
+  unchanged: 0, skipped: 0, conflicts: 0, errors: 0, changes: 0, warnings: [], dryRun, preview: [] });
 const publicResult = (r: SyncResult) => ({ ...r, preview: undefined });
 function check(error: unknown) { if (error) throw new CentrisError('unavailable'); }
 function mediaPath(mapped: MappedProperty) {
@@ -56,7 +57,15 @@ async function storeImage(mapped: MappedProperty, signal: AbortSignal) {
 export async function centrisStatus() {
   if (!isConfigured()) return { configured: false, connected: false };
   const { data, error } = await getSupabaseServiceClient().from('centris_sync_state').select('*').eq('id', true).single(); check(error);
-  return { configured: true, connected: Boolean(data.last_success_at), status: data.status,
+  const [runs, schedule] = await Promise.all([
+    getSupabaseServiceClient().from('centris_sync_runs').select('started_at,completed_at,status,result,trigger_source').order('started_at', { ascending: false }).limit(10),
+    getSupabaseServiceClient().rpc('centris_schedule_status'),
+  ]);
+  return { configured: true, connected: Boolean(data.last_success_at) && !['failed','partial'].includes(data.status), status: data.status,
+    automatic: !schedule.error && schedule.data === true,
+    history: runs.error ? [] : (runs.data ?? []).map(run => ({ startedAt: run.started_at, completedAt: run.completed_at,
+      status: run.status, source: run.trigger_source, created: run.result?.created ?? 0, updated: run.result?.updated ?? 0,
+      unchanged: run.result?.unchanged ?? 0, errors: run.result?.errors ?? 0, changes: run.result?.changes ?? 0 })),
     running: data.status === 'running' && Date.parse(data.lock_until ?? '') > Date.now(),
     lastSuccessAt: data.last_success_at, lastRunAt: data.last_completed_at, lastResult: data.result, error: data.last_error };
 }
@@ -75,7 +84,7 @@ export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promi
     if (!discovery.mappings.length) throw new CentrisError('invalid');
     const keys = discovery.mappings.map(m => odataString(m.member_key)).join(',');
     const properties = await centrisClient.collection<Property>('Property', {
-      $select: SELECT, $expand: 'Media', $filter: `ListAgentKey in (${keys}) or CoListAgentKey in (${keys})`,
+      $select: `${SELECT},${DETAIL_FIELDS}`, $expand: 'Media', $filter: `ListAgentKey in (${keys}) or CoListAgentKey in (${keys})`,
     }, signal);
     if (properties.length > 500 || new Set(properties.map(p => p.ListingKey)).size !== properties.length) throw new CentrisError('invalid');
     result.fetched = properties.length;
@@ -86,7 +95,7 @@ export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promi
         $select: 'CityOrTownshipKey,CityOrTownshipName', $filter: `CityOrTownshipKey in (${cityKeys.map(odataString).join(',')})`,
       }, signal); rows.forEach(c => cities.set(c.CityOrTownshipKey, c.CityOrTownshipName));
     }
-    const planned: { mapped: MappedProperty; action: Action }[] = [];
+    const planned: { mapped: MappedProperty; action: Action; changes: number }[] = [];
     for (const property of properties) {
       let mapped: MappedProperty;
       try { mapped = mapProperty(property, discovery.mappings, cities); }
@@ -96,7 +105,7 @@ export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promi
       if (mapped.image) mapped.values.primaryImageUrl = db.storage.from(BUCKET).getPublicUrl(mediaPath(mapped)).data.publicUrl;
       const plan = await db.rpc('centris_apply_property', { p_values: mapped.values, p_source: mapped.source,
         p_eligible: mapped.eligible, p_actor: actor.broker, p_dry_run: true }); check(plan.error);
-      planned.push({ mapped, action: plan.data.action });
+      planned.push({ mapped, action: plan.data.action, changes: plan.data.changes ?? 0 });
       result.preview.push({ address: `${mapped.values.civicNumber} ${mapped.values.address}, ${mapped.values.city}`,
         broker: String(mapped.values.broker), price: mapped.values.purpose === 'sale' ? mapped.values.askingPrice ?? null : mapped.values.monthlyRent ?? null,
         purpose: mapped.values.purpose!, action: plan.data.action });
@@ -117,6 +126,7 @@ export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promi
     }
     for (const plan of planned) {
       let action = plan.action;
+      let changes = plan.changes;
       if (!dryRun && ['created','updated'].includes(action)) {
         try {
           signal.throwIfAborted();
@@ -127,9 +137,11 @@ export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promi
           const applied = await db.rpc('centris_apply_property', { p_values: plan.mapped.values, p_source: plan.mapped.source,
             p_eligible: plan.mapped.eligible, p_actor: actor.broker, p_dry_run: false, p_run: runId }); check(applied.error);
           action = applied.data.action;
+          changes = applied.data.changes ?? 0;
         } catch { result.errors++; result.warnings.push(`Inscription ${plan.mapped.values.centrisNumber} : synchronisation à réessayer.`); continue; }
       }
       if (action === 'conflict') result.conflicts++; else result[action]++;
+      result.changes = (result.changes ?? 0) + changes;
     }
     if (locked) {
       const finished = await db.rpc('centris_finish_sync', { p_run: runId,

@@ -1,9 +1,10 @@
 import type { ListingBroker, ListingDraft, ListingPropertyType } from '../../data/listing-types';
+import { mapDetails, knownStandardStatuses, type CentrisPropertyDetails } from './details';
 export type Member = { MemberKey: string; MemberMlsId: string; MemberEmail: string; MemberFullName: string; MemberStatus: string };
 export type MemberMapping = { broker: ListingBroker; member_key: string; member_mls_id: string; member_email: string };
 export type Media = { MediaKey?: string; MediaURL?: string; MediaCategory?: string; MediaStatus?: string; Order?: number; ModificationTimestamp?: string };
 export type Property = Record<string, unknown> & { ListingKey: string; ListingId: string; Media?: Media[] };
-export type Source = { key: string; standard: string; mls: string; modified: string; agent: string; coAgent: string; mediaKey: string | null };
+export type Source = { key: string; standard: string; mls: string; modified: string; agent: string; coAgent: string; mediaKey: string | null; details?: CentrisPropertyDetails };
 export type MappedProperty = { values: Partial<ListingDraft>; source: Source; image: Media | null; eligible: boolean; warning?: string };
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
 function amount(value: unknown) {
@@ -75,8 +76,9 @@ export function mapProperty(p: Property, mappings: MemberMapping[], cities = new
       province: text(p.StateOrProvince), postalCode: text(p.PostalCode), country: text(p.Country),
       centrisNumber: id, broker, purpose, askingPrice: price, monthlyRent: rent,
       propertyType: propertyType(type, subtype), ...(date ? { listingDate: date } : {}), centrisUrl: listingUrl(p.ListingURL) },
-    source: { key, standard, mls, modified, agent, coAgent,
+    source: { key, standard, mls, modified, agent, coAgent, details: mapDetails(p),
       mediaKey: image ? `${image.MediaKey ?? ''}:${image.ModificationTimestamp ?? ''}:${image.MediaURL}` : null },
-    image, eligible, ...(propertyType(type, subtype) === 'other' ? { warning: 'Type de propriété à vérifier.' } : {}),
+    image, eligible, ...(propertyType(type, subtype) === 'other' ? { warning: 'Type de propriété à vérifier.' }
+      : !knownStandardStatuses.has(standard) ? { warning: 'Statut Centris à vérifier — statut CRM conservé.' } : {}),
   };
 }

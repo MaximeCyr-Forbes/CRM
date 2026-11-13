@@ -103,12 +103,12 @@ export function ListingTracking({ listing, ownerNames, onListingChanged }: { lis
 
         <section className="listing-tracking-panel" aria-labelledby="listing-price-history-title">
           <header><div><span>Évolution du mandat</span><h3 id="listing-price-history-title">HISTORIQUE DE PRIX</h3></div></header>
-          <div className="listing-price-history">{tracking.data.priceHistory.map((entry) => <article key={entry.id}><span>{displayDate(entry.changedAt)}</span><strong>{entry.amount === null ? "Non renseigné" : `${money.format(entry.amount)}${entry.purpose === "rental" ? " / mois" : ""}`}</strong><small>{entry.purpose === "sale" ? "Vente" : "Location"}</small></article>)}{tracking.data.priceHistory.length === 0 && <p className="listing-detail-empty">Aucun historique de prix ou de loyer.</p>}</div>
+          <div className="listing-price-history">{tracking.data.priceHistory.map((entry) => <article key={entry.id}><span>{entry.source === "centris" && !entry.sourceAt ? "Détecté le " : ""}{displayDate(entry.sourceAt ?? entry.changedAt)}</span><strong>{entry.amount === null ? "Non renseigné" : `${money.format(entry.amount)}${entry.purpose === "rental" ? " / mois" : ""}`}</strong><small>{entry.purpose === "sale" ? "Vente" : "Location"} · {entry.source === "centris" ? "Centris" : entry.changedBy ? BROKER_LABELS[entry.changedBy] : "CRM"}</small></article>)}{tracking.data.priceHistory.length === 0 && <p className="listing-detail-empty">Aucun historique de prix ou de loyer.</p>}</div>
         </section>
 
         <section className="listing-tracking-panel" aria-labelledby="listing-activity-title">
           <header><div><span>Journal automatique</span><h3 id="listing-activity-title">ACTIVITÉ</h3></div></header>
-          <div className="listing-activity-list">{tracking.data.activity.map((entry) => <article key={entry.id}><time>{dateTime.format(new Date(entry.createdAt))}</time><div><strong>{entry.title}</strong>{entry.detail && <p>{entry.detail}</p>}{entry.actorBroker && <small>{BROKER_LABELS[entry.actorBroker]}</small>}</div></article>)}{tracking.data.activity.length === 0 && <p className="listing-detail-empty">Aucune activité pour le moment.</p>}</div>
+          <div className="listing-activity-list">{tracking.data.activity.map((entry) => <article key={entry.id}><time>{entry.source === "centris" && !entry.sourceAt ? "Détecté le " : ""}{dateTime.format(new Date(entry.sourceAt ?? entry.createdAt))}</time><div><strong>{entry.title}</strong>{entry.detail && <p>{entry.detail}</p>}<small>{entry.source === "centris" ? "Centris" : entry.actorBroker ? BROKER_LABELS[entry.actorBroker] : "CRM"}</small></div></article>)}{tracking.data.activity.length === 0 && <p className="listing-detail-empty">Aucune activité pour le moment.</p>}</div>
         </section>
       </div>
 

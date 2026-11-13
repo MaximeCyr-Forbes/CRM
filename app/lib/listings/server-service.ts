@@ -18,6 +18,7 @@ export { ListingServiceError } from "./persistence";
 
 export function mapListing(row: ListingRow, ownerRows: ReadonlyArray<ListingOwnerRow>): Listing {
   return {
+    centrisDetails: row.centris_property_details ?? null,
     id: row.id,
     centrisListingKey: row.centris_listing_key ?? null,
     centrisStandardStatus: row.centris_standard_status ?? null,
@@ -103,6 +104,7 @@ export function createListingsService(repository: ListingRepository) {
         }
       }
       const row = await repository.updateWithOwners(listingId, values, actor);
+      row.centris_property_details = current.centris_property_details;
       const owners = values.ownerContactIds === undefined
         ? await repository.listOwnerRows([listingId])
         : ownerRows(listingId, values.ownerContactIds);
@@ -121,6 +123,7 @@ export function createListingsService(repository: ListingRepository) {
         throw new ListingServiceError("already_sold", "Ce Listing est déjà marqué comme vendu.");
       }
       const row = await repository.completeSale(listingId, values, actor);
+      row.centris_property_details = current.centris_property_details;
       const owners = await repository.listOwnerRows([listingId]);
       return mapListing(row, owners);
     },

@@ -51,3 +51,11 @@ it('rejects an entirely unknown property classification',async()=>{
  mock.collection.mockResolvedValue([{...property,PropertyType:'Unknown'}]);
  await expect(syncCentris(actor,false)).rejects.toThrow();expect(upsert).not.toHaveBeenCalled();
 });
+
+it('isolates invalid V3 details and enriches valid properties through the same engine',async()=>{
+ mock.collection.mockResolvedValue([{...property,BedroomsTotal:4,BathroomsFull:2,BathroomsPartial:1,YearBuilt:1998},{...property,ListingKey:'k2',ListingId:'456',BedroomsTotal:'invalid'}]);
+ const result=await syncCentris(actor,false);expect(result.created).toBe(1);expect(result.skipped).toBe(1);expect(result.warnings).toHaveLength(1);
+ const applied=mock.db.rpc.mock.calls.find(([name,args])=>name==='centris_apply_property'&&!args.p_dry_run);
+ expect(applied?.[1].p_source.details).toMatchObject({bedrooms_total:4,bathrooms_full:2,bathrooms_partial:1,year_built:1998});
+ expect(mock.db.rpc.mock.calls.at(-1)?.[1].p_status).toBe('partial');
+});

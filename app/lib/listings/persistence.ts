@@ -21,6 +21,7 @@ import {
 } from "../supabase/pagination";
 
 export type ListingRow = {
+  centris_property_details?: import('../centris/details').CentrisPropertyDetails | null;
   centris_listing_key?: string | null;
   centris_standard_status?: string | null;
   centris_mls_status?: string | null;
@@ -364,7 +365,7 @@ export function createSupabaseListingRepository(): ListingRepository {
     async listRows(filters) {
       return listAllSupabaseRows<ListingRow>({
         buildQuery: () => {
-          let query = getSupabaseAdmin().from("listings").select("*");
+          let query = getSupabaseAdmin().from("listings").select("*, centris_property_details(*)");
           if (filters.broker) query = query.eq("broker", filters.broker);
           if (filters.status) query = query.eq("status", filters.status);
           if (filters.purpose) query = query.eq("purpose", filters.purpose);
@@ -380,7 +381,7 @@ export function createSupabaseListingRepository(): ListingRepository {
     async getRow(listingId) {
       const { data, error } = await getSupabaseAdmin()
         .from("listings")
-        .select("*")
+        .select("*, centris_property_details(*)")
         .eq("id", listingId)
         .maybeSingle();
       if (error) throw error;
