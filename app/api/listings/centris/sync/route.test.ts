@@ -18,7 +18,7 @@ it('rejects cross-origin calls and broker injection',async()=>{
 });
 it('uses only verified server actor and disables caching',async()=>{
  const response=await POST(req());expect(response.status).toBe(200);
- expect(m.sync).toHaveBeenCalledWith({memberId:'verified',broker:'france'},true);
+ expect(m.sync).toHaveBeenCalledWith({memberId:'verified',broker:'france',source:'manual'},true);
  expect(response.headers.get('Cache-Control')).toBe('private, no-store');
 });
 it('does not expose raw credentials or errors',async()=>{

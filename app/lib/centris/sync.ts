@@ -3,8 +3,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { getSupabaseServiceClient } from '../supabase/server';
 import { centrisClient, CentrisError, isConfigured, odataString } from './client';
 import { discoverMembers, mapProperty, safeMediaUrl, type Member, type MemberMapping, type Property, type MappedProperty } from './mapping';
-import type { CRMMember } from '../auth/identity';
 import type { ListingBroker } from '../../data/listing-types';
+
+export type CentrisSyncActor =
+  | { memberId: string; broker: ListingBroker | null; source: 'manual' }
+  | { memberId: null; broker: null; source: 'cron' };
 
 const BUCKET = 'centris-listing-images';
 const SELECT = 'ListingKey,ListingId,ListAgentKey,CoListAgentKey,StreetNumberStart,StreetShortName,StreetName,UnitNumber,Township,CityOrTownshipKey,StateOrProvince,PostalCode,Country,ListPrice,RentPrice,StandardStatus,MlsStatus,PropertyType,PropertySubType,ListingTerms,ListingURL,OnMarketTimestamp,ModificationTimestamp';
@@ -57,7 +60,7 @@ export async function centrisStatus() {
     running: data.status === 'running' && Date.parse(data.lock_until ?? '') > Date.now(),
     lastSuccessAt: data.last_success_at, lastRunAt: data.last_completed_at, lastResult: data.result, error: data.last_error };
 }
-export async function syncCentris(actor: CRMMember, dryRun = true): Promise<SyncResult> {
+export async function syncCentris(actor: CentrisSyncActor, dryRun = true): Promise<SyncResult> {
   if (!isConfigured()) throw new CentrisError('configuration');
   const db = getSupabaseServiceClient(), runId = randomUUID(), started = Date.now();
   const signal = AbortSignal.timeout(240000); const result = emptyResult(dryRun);
@@ -66,7 +69,7 @@ export async function syncCentris(actor: CRMMember, dryRun = true): Promise<Sync
     if (!dryRun) {
       const lock = await db.rpc('centris_start_sync', { p_run: runId, p_actor: actor.memberId }); check(lock.error);
       if (!lock.data) throw new CentrisError('busy'); locked = true;
-      console.info('centris_sync_started', { runId, actor: actor.memberId });
+      console.info('centris_sync_started', { runId, actor: actor.memberId, source: actor.source });
     }
     const discovery = await memberMappings(signal); result.warnings.push(...discovery.warnings);
     if (!discovery.mappings.length) throw new CentrisError('invalid');
@@ -131,7 +134,7 @@ export async function syncCentris(actor: CRMMember, dryRun = true): Promise<Sync
     if (locked) {
       const finished = await db.rpc('centris_finish_sync', { p_run: runId,
         p_status: result.errors || result.warnings.length ? 'partial' : 'success', p_result: publicResult(result) }); check(finished.error);
-      console.info('centris_sync_completed', { runId, actor: actor.memberId, duration: Date.now() - started,
+      console.info('centris_sync_completed', { runId, actor: actor.memberId, source: actor.source, duration: Date.now() - started,
         fetched: result.fetched, created: result.created, updated: result.updated, unchanged: result.unchanged, skipped: result.skipped, conflicts: result.conflicts });
     }
     return result;
@@ -139,7 +142,7 @@ export async function syncCentris(actor: CRMMember, dryRun = true): Promise<Sync
     const safe = error instanceof CentrisError ? error : new CentrisError('unavailable');
     if (locked) {
       await db.rpc('centris_finish_sync', { p_run: runId, p_status: 'failed', p_result: publicResult(result), p_error: safe.message });
-      console.warn('centris_sync_failed', { runId, actor: actor.memberId, duration: Date.now() - started, code: safe.code });
+      console.warn('centris_sync_failed', { runId, actor: actor.memberId, source: actor.source, duration: Date.now() - started, code: safe.code });
     }
     throw safe;
   }

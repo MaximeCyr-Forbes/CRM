@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -48,6 +49,8 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingWrites, setPendingWrites] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const refreshing = useRef(false);
+  const lastRefresh = useRef(0);
 
   const loadListings = useCallback(async () => {
     if (status !== "authenticated") {
@@ -68,6 +71,27 @@ export function ListingsProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => { void loadListings(); }, [loadListings]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const refresh = async () => {
+      // Refresh the overview silently; leave open editors and detail tracking drafts intact.
+      if (window.location.pathname !== "/listings" || document.visibilityState !== "visible"
+        || document.querySelector('[role="dialog"]') || pendingWrites || refreshing.current
+        || Date.now() - lastRefresh.current < 2000) return;
+      refreshing.current = true;
+      lastRefresh.current = Date.now();
+      try { setListings(await listingRequest<Listing[]>("/api/listings", { cache: "no-store" })); }
+      catch (caughtError) { logDevelopmentWarning(caughtError); }
+      finally { refreshing.current = false; }
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [status, pendingWrites]);
 
   const runWrite = useCallback(async <T,>(operation: () => Promise<T>) => {
     setPendingWrites((current) => current + 1);

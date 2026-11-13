@@ -3,7 +3,7 @@ const mock=vi.hoisted(()=>({db:{from:vi.fn(),rpc:vi.fn(),storage:{from:vi.fn(),g
 vi.mock('../supabase/server',()=>({getSupabaseServiceClient:()=>mock.db}));
 vi.mock('./client',async(importOriginal)=>({...await importOriginal<typeof import('./client')>(),centrisClient:{collection:mock.collection},isConfigured:()=>true}));
 import {syncCentris} from './sync';
-const actor={memberId:'actor',identityId:'identity',authUserId:'auth',broker:'maxime' as const,role:'broker' as const,brokers:['maxime' as const]};
+const actor={memberId:'actor',broker:'maxime' as const,source:'manual' as const};
 const mappings=['maxime','france','sandrine'].map((broker,i)=>({broker,member_key:`m${i}`,member_mls_id:`${i}`,member_email:`${i}@example.test`}));
 const property={ListingKey:'k1',ListingId:'123',ListAgentKey:'m0',StreetShortName:'Rue Test',Township:'Ville Test',ListPrice:500000,RentPrice:null,PropertyType:'Residential',StandardStatus:'Active',MlsStatus:'Active',ModificationTimestamp:'2026-11-13T00:00:00Z'};
 let upsert:ReturnType<typeof vi.fn>;

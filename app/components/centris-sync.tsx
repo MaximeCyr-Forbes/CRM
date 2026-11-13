@@ -18,7 +18,17 @@ export function CentrisSync({ onSynced }: { onSynced: () => void }) {
     try { const response = await fetch('/api/listings/centris/status', { cache: 'no-store' });
       if (response.ok) setStatus((await response.json()).data); } catch { /* Existing Listings remain usable. */ }
   }
-  useEffect(() => { void refreshStatus(); }, []);
+  useEffect(() => {
+    let last = 0;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 2000) return;
+      last = Date.now(); void refreshStatus();
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, []);
   async function run(dryRun: boolean) {
     if (busy) return; setBusy(true); setError('');
     try {

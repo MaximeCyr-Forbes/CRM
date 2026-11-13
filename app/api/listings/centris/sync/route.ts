@@ -14,7 +14,7 @@ export const POST = withCRMIdentity(async (request: Request) => {
   const body = await request.json().catch(() => null);
   if (!body || typeof body.dryRun !== 'boolean' || Object.keys(body).some(k => k !== 'dryRun'))
     return Response.json({ error: 'Requête invalide.' }, { status: 400 });
-  try { return Response.json({ data: await syncCentris(actor, body.dryRun) }, { headers: { 'Cache-Control': 'private, no-store' } }); }
+  try { return Response.json({ data: await syncCentris({ memberId: actor.memberId, broker: actor.broker, source: 'manual' }, body.dryRun) }, { headers: { 'Cache-Control': 'private, no-store' } }); }
   catch (error) {
     const safe = error instanceof CentrisError ? error : new CentrisError('unavailable');
     return Response.json({ error: safe.message }, { status: safe.code === 'busy' ? 409 : 503 });

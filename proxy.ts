@@ -6,7 +6,7 @@ const PUBLIC_PATHS = new Set([
  '/login',"/manifest.webmanifest",'/api/access/login','/api/access/logout','/api/access/session',
  '/api/access/google','/api/access/google/link','/api/access/google/reset','/api/access/callback','/api/access/consent','/oauth/consent',
  '/api/mcp','/.well-known/oauth-protected-resource',
- "/api/google-calendar/webhook",'/api/cron/birthday-greetings',
+ "/api/google-calendar/webhook",'/api/cron/birthday-greetings','/api/listings/centris/cron',
 ]);
 export async function proxy(request: NextRequest) {
  const path=request.nextUrl.pathname;

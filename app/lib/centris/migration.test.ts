@@ -18,10 +18,20 @@ beforeAll(async()=>{
   await db.exec(readFileSync(`supabase/migrations/${file}`,'utf8'));
  }
  // Production already changed the existing RPCs to invoker security.
+ await db.exec(readFileSync('supabase/migrations/20261113195516_centris_listings_v2_cron.sql','utf8')
+  .replace(/^create extension .*;$/gm, '')); // PGlite does not ship network/scheduler extensions.
  await db.exec(`alter function public.create_listing_with_owners(jsonb,uuid[]) security invoker;
  alter function public.update_listing_with_owners(uuid,jsonb,uuid[]) security invoker;`);
 },30000);
 afterAll(async()=>{await db?.close();});
+it('records a system run without inventing a member and shares the manual lock',async()=>{
+ const cronRun='33333333-3333-4333-8333-333333333333';
+ expect((await db.query<{ok:boolean}>('select centris_start_sync($1,null) ok',[cronRun])).rows[0].ok).toBe(true);
+ expect((await db.query('select actor,trigger_source from centris_sync_runs where id=$1',[cronRun])).rows[0]).toEqual({actor:null,trigger_source:'cron'});
+ expect((await db.query<{ok:boolean}>('select centris_start_sync($1,$1) ok',[run])).rows[0].ok).toBe(false);
+ await db.query("select centris_finish_sync($1,'success','{}')",[cronRun]);
+ await db.query('delete from centris_sync_runs where id=$1',[cronRun]);
+});
 it('dry run produces a plan without changing any listing, tracking, run or mapping',async()=>{
  expect((await apply()).action).toBe('created');
  for(const table of ['listings','listing_activity','listing_price_history','listing_marketing_tasks','centris_sync_runs','centris_member_mappings']) {
