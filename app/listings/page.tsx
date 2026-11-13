@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useBroker } from "../broker-context";
 import { ListingEditorModal } from "../components/listing-editor-modal";
 import { ListingMedia } from "../components/listing-media";
+import { CentrisSync } from "../components/centris-sync";
 import { ListingOverview } from "../components/listing-overview";
 import { ListingChecklistPreview } from "../components/listing-checklist-preview";
 import { useContacts } from "../contacts-context";
@@ -104,6 +105,7 @@ export default function ListingsPage() {
             <p>Suivi des propriétés en mise en marché.</p>
           </div>
           <div className="listings-header-actions">
+            <CentrisSync onSynced={() => { retry(); setOverviewRefreshToken(value => value + 1); }} />
             <div className="listings-summary" aria-live="polite">
               <strong>{isLoading || error ? "—" : activeCount}</strong>
               <span>{isLoading ? "Chargement…" : error ? "Données indisponibles" : `${activeCount === 1 ? "listing actif" : "listings actifs"}`}</span>

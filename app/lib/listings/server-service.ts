@@ -19,6 +19,10 @@ export { ListingServiceError } from "./persistence";
 export function mapListing(row: ListingRow, ownerRows: ReadonlyArray<ListingOwnerRow>): Listing {
   return {
     id: row.id,
+    centrisListingKey: row.centris_listing_key ?? null,
+    centrisStandardStatus: row.centris_standard_status ?? null,
+    centrisMlsStatus: row.centris_mls_status ?? null,
+    centrisLastSyncedAt: row.centris_last_synced_at ?? null,
     civicNumber: row.civic_number ?? "",
     address: row.address ?? "",
     apartment: row.apartment ?? "",

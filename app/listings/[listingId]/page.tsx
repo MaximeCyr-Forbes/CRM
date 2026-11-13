@@ -114,6 +114,8 @@ export default function ListingDetailPage() {
           <div>
             <p className="section-kicker">{LISTING_PURPOSE_LABELS[listing.purpose]} · {BROKER_LABELS[listing.broker]}</p>
             <h1>{addressLines[0]}</h1>
+            {listing.centrisListingKey && <p>Source : Centris{listing.centrisLastSyncedAt && <> · Dernière synchro : {new Date(listing.centrisLastSyncedAt).toLocaleString('fr-CA')}</>}
+              {listing.centrisStandardStatus === 'Closed' && <> · Centris indique vendu ou loué — finalisation CRM à compléter.</>}</p>}
             <p>{addressLines[1] || "Localité à confirmer"}</p>
           </div>
           <div className="listing-detail-actions">

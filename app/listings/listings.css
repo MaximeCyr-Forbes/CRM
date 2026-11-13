@@ -261,3 +261,12 @@
 @media (prefers-reduced-motion: reduce) {
   .listings-premium *, .listings-premium *::before, .listings-premium *::after { animation: none !important; transition: none !important; }
 }
+.centris-sync-control { display:flex; flex-direction:column; gap:5px; align-items:flex-start; }
+.centris-sync-control small { color:#64748b; font-size:11px; max-width:290px; }
+.centris-sync-button { display:inline-flex; align-items:center; gap:7px; border:1px solid #dbe2ea; background:#fff; color:#25334a; border-radius:10px; padding:10px 13px; font:inherit; font-size:13px; cursor:pointer; }
+.centris-sync-button:disabled { opacity:.5; cursor:default; }
+.centris-sync-overlay { position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; background:#17233660; }
+.centris-sync-dialog { position:relative; width:100%; max-width:580px; max-height:85vh; overflow:auto; background:#fff; border-radius:18px; padding:28px; box-shadow:0 24px 80px #17233630; }
+.centris-sync-dialog p,.centris-sync-dialog details { margin:14px 0; }
+.centris-sync-dialog li { margin:10px 0; font-size:13px; }
+.centris-sync-close { position:absolute; top:12px; right:12px; border:0; background:transparent; cursor:pointer; }

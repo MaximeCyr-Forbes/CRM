@@ -58,6 +58,10 @@ export const LISTING_PURPOSE_LABELS: Record<ListingPurpose, string> = {
 };
 
 export type Listing = {
+  centrisListingKey?: string | null;
+  centrisStandardStatus?: string | null;
+  centrisMlsStatus?: string | null;
+  centrisLastSyncedAt?: string | null;
   id: string;
   civicNumber: string;
   address: string;

@@ -68,6 +68,7 @@ describe("activation visuelle Listings", () => {
       "20260822133000_allow_listing_return_to_market.sql",
       "20260824173000_update_listing_checklist_documents.sql",
       "20260914162119_listing_contract_signed_date.sql",
+      "20261113185229_centris_listings_v1.sql",
     ]);
   });
 });

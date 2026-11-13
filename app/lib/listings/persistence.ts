@@ -21,6 +21,10 @@ import {
 } from "../supabase/pagination";
 
 export type ListingRow = {
+  centris_listing_key?: string | null;
+  centris_standard_status?: string | null;
+  centris_mls_status?: string | null;
+  centris_last_synced_at?: string | null;
   id: string;
   civic_number: string;
   address: string;
