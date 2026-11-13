@@ -42,11 +42,11 @@ describe("photos des courtiers responsables des Listings", () => {
     expect(listingBrokerPhoto(current)).toBe("/brokers/sandrine.jpg");
   });
 
-  it("ListingMedia dérive sa source du broker et ignore primaryImageUrl", () => {
+  it("ListingMedia conserve le portrait courtier comme repli de la photo propriété", () => {
     const media = readFileSync(resolve(root, "app/components/listing-media.tsx"), "utf8");
     expect(media).toContain("listingBrokerPhoto(listing)");
     expect(media).toContain("listing-broker-photo-${listing.broker}");
-    expect(media).not.toContain("listing.primaryImageUrl");
+    expect(media).toContain("listing.primaryImageUrl");
     expect(media).toContain("courtier responsable du Listing");
   });
 

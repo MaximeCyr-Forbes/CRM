@@ -14,12 +14,16 @@ export function ListingMedia({
   variant?: "card" | "detail";
 }) {
   const [hasImageError, setHasImageError] = useState(false);
+  const [hasPropertyImageError, setHasPropertyImageError] = useState(false);
   const address = listingAddressLines(listing)[0];
   const brokerLabel = BROKER_LABELS[listing.broker];
-  const photo = listingBrokerPhoto(listing);
+  const propertyPhoto = listing.primaryImageUrl?.trim();
+  const showPropertyPhoto = Boolean(propertyPhoto && !hasPropertyImageError);
+  const photo = showPropertyPhoto ? propertyPhoto : listingBrokerPhoto(listing);
   const variantClassName = variant === "detail" ? " listing-detail-media-content" : "";
 
   useEffect(() => setHasImageError(false), [photo]);
+  useEffect(() => setHasPropertyImageError(false), [propertyPhoto]);
 
   if (hasImageError) {
     return (
@@ -33,6 +37,14 @@ export function ListingMedia({
       </div>
     );
   }
+
+  if (showPropertyPhoto) return <img
+    alt={`Propriété — ${address}`}
+    className={`listing-card-image${variantClassName}`}
+    loading={variant === "detail" ? "eager" : "lazy"}
+    onError={() => setHasPropertyImageError(true)}
+    src={photo}
+  />;
 
   return (
     <img
