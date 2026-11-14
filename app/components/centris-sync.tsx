@@ -10,6 +10,12 @@ export function CentrisSync({ onSynced }: { onSynced: () => void }) {
   const [result, setResult] = useState<SyncResult | null>(null), [error, setError] = useState('');
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
+    if (!open || busy || error || !result || result.dryRun
+      || result.errors !== 0 || result.conflicts !== 0 || result.warnings.length > 0) return;
+    const timer = window.setTimeout(() => setOpen(false), 1000);
+    return () => window.clearTimeout(timer);
+  }, [open, busy, result, error]);
+  useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.focus();
