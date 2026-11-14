@@ -9,7 +9,7 @@ import {AddonDialog} from './addon-dialog';
 import {AssignmentDialog} from './assignment-dialog';
 import {ReturnDialog} from './return-dialog';
 import {StockDialog} from './stock-dialog';
-import {MaterialBadges,BacBadge,InventorySearch,inventoryDate} from './presentation';
+import {MaterialBadges,BacBadge,InventorySearch,inventoryDate,PropertyAddress} from './presentation';
 import './sign-inventory.css';
 import {SignStockSummary} from './sign-stock-summary';
 
@@ -28,7 +28,7 @@ export default function SignInventoryPage(){
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(timer);},[notice]);
  function reload(message:string){setNotice(message);setRevision(n=>n+1);}
  const actions=(a:Assignment)=><div className="sign-actions"><button disabled={loading||!(a.listing_id||a.transaction_id)} onClick={()=>setEditing(a)}><PencilIcon/>Modifier</button><button title="Ajouter un ajout à la pancarte" disabled={loading||!(a.listing_id||a.transaction_id)} onClick={()=>setAdding(a)}><ShellIcon name="plus"/>Ajout</button><button disabled={loading} onClick={()=>setReturning(a)}><ShellIcon name="return"/>Retourner</button></div>;
- const property=(a:Assignment)=>a.listing_id||a.transaction_id?<a href={a.transaction_id?`/transactions/${a.transaction_id}`:`/listings/${a.listing_id}`}>{view==='history'?a.address_snapshot:a.address}</a>:<strong>{a.address_snapshot}<small>Propriété supprimée</small></strong>;
+ const property=(a:Assignment)=><PropertyAddress row={a} history={view==='history'}/>;
  const history=(a:Assignment)=><div className="sign-history-dates"><small>Attribué le {inventoryDate(a.created_at)} · {a.created_by}</small>{a.returned_at&&<small>Retourné le {inventoryDate(a.returned_at)} · {a.returned_by}</small>}</div>;
  return <main className="sign-page">
   <header className="sign-header"><div><p className="sign-eyebrow">OUTILS D’ÉQUIPE</p><h1>Pancartes / BAC</h1><p>Le bon matériel, à la bonne adresse.</p></div><div className="sign-header-actions">

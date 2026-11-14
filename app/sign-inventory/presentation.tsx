@@ -1,6 +1,11 @@
 import {ShellIcon} from '../components/shell-icons';
 import type {Assignment} from '../lib/sign-inventory/model';
 export const inventoryDate=(value:string)=>new Intl.DateTimeFormat('fr-CA',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Toronto'}).format(new Date(value));
+export function PropertyAddress({row,history=false}:{row:Assignment;history?:boolean}){
+ const href=row.transaction_id?`/transactions/${row.transaction_id}`:row.listing_id?`/listings/${row.listing_id}`:null;
+ const address=history||!href?row.address_snapshot:row.address;
+ return href?<a className="sign-property-address" href={href}>{address}</a>:<strong className="sign-property-address">{address}</strong>;
+}
 export function MaterialBadges({row}:{row:Assignment}){
  return <div className="sign-materials">{row.sign_type&&<span className={`sign-badge ${row.sign_type}`}>{row.sign_label}</span>}{row.addons.map(x=><span className={`sign-badge sign-addon ${x.id.replace('addon:','')}`} key={x.id}>{x.label}</span>)}{!row.sign_type&&!row.addons.length&&<span className="sign-muted">Sans pancarte</span>}</div>;
 }

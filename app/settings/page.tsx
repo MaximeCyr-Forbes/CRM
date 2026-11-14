@@ -9,6 +9,7 @@ import type {
 import { BROKER_LABELS } from "../data/contact-types";
 import { SettingsRecommendations } from "../components/settings-recommendations";
 import { SettingsGoogleDrive } from "../components/settings-google-drive";
+import { SettingsCentris } from "../components/settings-centris";
 import { BROKER_PHOTOS } from "../lib/listings/broker-photos";
 import { getGoogleOAuthFeedback } from "../lib/google/oauth-feedback";
 
@@ -242,6 +243,8 @@ export default function SettingsPage() {
         </div>
 
         <SettingsGoogleDrive connections={connections} />
+
+        <SettingsCentris />
 
         <SettingsRecommendations />
       </section>

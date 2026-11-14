@@ -72,3 +72,9 @@
 .sign-existing section+section { margin-top:16px; }
 .sign-existing .sign-actions { margin-top:12px; flex-wrap:wrap; }
 @media(max-width:700px) { .sign-actions { flex-wrap:wrap; } .sign-actions button { min-height:40px; } }
+/* Shared address hierarchy for linked and snapshot-only properties. */
+.sign-property-address{display:block;min-width:0;font-size:13px;font-weight:600;line-height:1.6;overflow-wrap:anywhere;white-space:normal}
+.sign-table th:first-child{width:30%}.sign-table th:last-child{width:24%}
+.sign-card-heading h3{min-width:0;flex:1}.sign-cards .sign-property-address{font-size:14px}
+.sign-cards .sign-materials{margin-top:10px}.sign-history-dates{padding-block:2px}
+@media(max-width:767px){.sign-cards article{box-shadow:0 2px 8px #18283c04}.sign-cards .sign-actions button{min-height:44px}.sign-cards .sign-history-dates{margin-top:14px;padding-top:10px;border-top:1px solid var(--crm-border-soft)}}

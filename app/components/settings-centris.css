@@ -1,0 +1,15 @@
+.settings-centris{margin-top:28px;padding:24px;border:1px solid var(--crm-border);border-radius:var(--crm-radius-md);background:var(--crm-surface);box-shadow:var(--crm-shadow-sm);min-width:0}
+.settings-centris h2{margin:0 0 16px;font:600 17px/1.4 var(--font-sans);letter-spacing:-.015em}
+.settings-centris-status{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:12px;line-height:1.7;color:var(--crm-text-muted)}
+.settings-centris-status strong{color:var(--crm-text);font-weight:600}
+.settings-centris-history{margin-top:18px;border-top:1px solid var(--crm-border-soft)}
+.settings-centris-history summary{padding:14px 0;cursor:pointer;font-size:13px;font-weight:600;color:var(--crm-accent)}
+.settings-centris-history summary:focus-visible{outline:2px solid var(--crm-accent);outline-offset:3px}
+.settings-centris-history ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.settings-centris-history li{padding:12px 14px;border:1px solid var(--crm-border-soft);border-radius:10px;font-size:12px;line-height:1.7}
+.settings-centris-history li>div{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
+.settings-centris-history time{font-weight:600}.settings-centris p{font-size:12px;line-height:1.7;color:var(--crm-text-muted)}
+.settings-centris-history li p{margin:6px 0 0;overflow-wrap:anywhere}
+.settings-centris-badge{padding:2px 8px;border-radius:6px;background:var(--crm-surface-muted);color:var(--crm-text-muted);font-size:11px}
+.settings-centris-badge.success{background:#eff7f1;color:#416b50}.settings-centris-badge.partial,.settings-centris-badge.failed{background:#fbf3e8;color:#826443}
+@media(max-width:767px){.settings-centris{padding:18px}.settings-centris-status{flex-direction:column;gap:6px}.settings-centris-history li{padding:12px}.settings-centris-history summary{min-height:44px}}
