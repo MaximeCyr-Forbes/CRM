@@ -13,6 +13,14 @@ describe("fiche détaillée Listings", () => {
   const soldModal = source("app/components/sale-completion-modal.tsx");
   const context = source("app/listings-context.tsx");
 
+  it("masque seulement l’expiration du détail et conserve la signature et les renouvellements ailleurs", () => {
+    expect(detail).not.toContain("Date d’expiration");
+    expect(detail).toContain("Signature du contrat de courtage");
+    expect(detail).toContain("formatListingDate(listing.contractSignedDate ?? null)");
+    expect(inventory).toContain("getListingExpirationInfo(listing)");
+    expect(source("app/listings/[listingId]/report/page.tsx")).toContain("listing.expirationDate");
+  });
+
   it("ouvre la même route depuis l’adresse et le bouton Ouvrir", () => {
     expect(inventory).toContain("router.push(`/listings/${listingId}`)");
     expect(inventory.match(/openListing\(listing\.id\)/g)).toHaveLength(2);

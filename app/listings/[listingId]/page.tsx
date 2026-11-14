@@ -180,7 +180,6 @@ export default function ListingDetailPage() {
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Dates du mandat</p><h2 id="listing-contract-title">CONTRAT DE COURTAGE</h2></div></div>
           <dl className="listing-detail-information">
             <div><dt>Signature du contrat de courtage</dt><dd>{formatListingDate(listing.contractSignedDate ?? null)}</dd></div>
-            <div><dt>Date d’expiration</dt><dd>{formatListingDate(listing.expirationDate)}</dd></div>
           </dl>
         </section>
 

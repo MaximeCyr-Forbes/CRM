@@ -90,7 +90,7 @@
 .listings-premium .listing-detail-information > div { min-width: 0; padding: 0; border: 0; }
 .listings-premium .listing-detail-information dt { font-size: 10px; color: var(--crm-text-muted); font-weight: 500; letter-spacing: .04em; }
 .listings-premium .listing-detail-information dd { font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
-.listings-premium .listing-contract .listing-detail-information { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.listings-premium .listing-contract .listing-detail-information { grid-template-columns: minmax(0, 1fr); }
 .listings-premium .listing-owner-list { gap: 12px; }
 .listings-premium .listing-owner-card { border: 1px solid var(--crm-border); border-radius: 10px; background: white; padding: 16px; }
 .listings-premium .listing-owner-card p { font-size: 12px; overflow-wrap: anywhere; }
@@ -282,3 +282,5 @@
 .centris-public-remarks p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.7; color:#42536a; }
 .listings-premium .listings-header-actions { align-items:flex-start; }
 @media(max-width:480px) { .centris-property-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .centris-property-grid dd { font-size:15px; } }
+.listings-premium .listing-market-snapshot > div { display:flex; flex-wrap:wrap; }
+.listings-premium .listing-market-snapshot > div > article { flex:1 1 150px; min-width:0; }
