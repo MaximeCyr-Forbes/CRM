@@ -13,6 +13,8 @@ import type {
   StatisticsYear,
 } from "../../data/statistics-types";
 
+import { getListingDisplayStatus } from "../listings/display-status";
+
 const DAY_MS = 86_400_000;
 const QUEBEC_TIME_ZONE = "America/Toronto";
 const ACTIVE_LISTING_STATUSES = new Set(["active"]);
@@ -400,7 +402,7 @@ export function calculateStatistics(
     kpis: {
       ...selected,
       activeListings: year === parts(today)[0]
-        ? dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && ACTIVE_LISTING_STATUSES.has(listing.status)).length
+        ? dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && ACTIVE_LISTING_STATUSES.has(getListingDisplayStatus(listing).status)).length
         : null,
     },
     monthContext: month.context,

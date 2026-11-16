@@ -1,4 +1,5 @@
 "use client";
+import { getListingDisplayStatus } from "../../../lib/listings/display-status";
 
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -8,7 +9,6 @@ import {
   LISTING_OFFER_STATUS_LABELS,
   LISTING_PROPERTY_TYPE_LABELS,
   LISTING_PURPOSE_LABELS,
-  LISTING_STATUS_LABELS,
 } from "../../../data/listing-types";
 import { getListingDaysOnMarket, getListingExpirationInfo } from "../../../lib/listings/overview";
 import { formatListingAmount, formatListingDate, listingAddressLines, listingPriceLabel } from "../../../lib/listings/presentation";
@@ -70,7 +70,7 @@ export default function ListingReportPage() {
     <article className="listing-report-document">
       <header className="listing-report-header"><img alt="Équipe Forbes Team" height="182" src="/branding/equipe-forbes-header-logo.png" width="1337" /><div><p>RAPPORT DE MISE EN MARCHÉ</p><h1>{listing.purpose === "sale" ? "RAPPORT VENDEUR" : "RAPPORT PROPRIÉTAIRE"}</h1><strong>{address}</strong><span>{BROKER_LABELS[listing.broker]} · Rapport généré le {generatedOn}</span></div></header>
 
-      <section className="listing-report-section" aria-labelledby="report-property-title"><div className="listing-report-section-title"><span>01</span><h2 id="report-property-title">RÉSUMÉ DE LA PROPRIÉTÉ</h2></div><dl className="listing-report-facts"><div><dt>Adresse</dt><dd>{address}</dd></div><div><dt>Numéro Centris</dt><dd>{listing.centrisNumber || "Non renseigné"}</dd></div><div><dt>Type</dt><dd>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</dd></div><div><dt>Mandat</dt><dd>{LISTING_PURPOSE_LABELS[listing.purpose]}</dd></div><div><dt>Statut</dt><dd>{LISTING_STATUS_LABELS[listing.status]}</dd></div><div><dt>{listing.purpose === "sale" ? "Prix actuel" : "Loyer actuel"}</dt><dd>{listingPriceLabel(listing)}</dd></div><div><dt>Mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div><div><dt>Jours en marché</dt><dd>{daysOnMarket === null ? "Non disponible" : daysOnMarket === 1 ? "Jour 1" : `${daysOnMarket} jours`}</dd></div><div><dt>Expiration du contrat</dt><dd>{formatListingDate(listing.expirationDate)}{expiration ? ` · ${expiration.label}` : ""}</dd></div></dl>{ownerNames.length > 0 && <div className="listing-report-owners"><span>Propriétaire{ownerNames.length > 1 ? "s" : ""}</span><strong>{ownerNames.join(" · ")}</strong></div>}</section>
+      <section className="listing-report-section" aria-labelledby="report-property-title"><div className="listing-report-section-title"><span>01</span><h2 id="report-property-title">RÉSUMÉ DE LA PROPRIÉTÉ</h2></div><dl className="listing-report-facts"><div><dt>Adresse</dt><dd>{address}</dd></div><div><dt>Numéro Centris</dt><dd>{listing.centrisNumber || "Non renseigné"}</dd></div><div><dt>Type</dt><dd>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</dd></div><div><dt>Mandat</dt><dd>{LISTING_PURPOSE_LABELS[listing.purpose]}</dd></div><div><dt>Statut</dt><dd>{getListingDisplayStatus(listing).label}</dd></div><div><dt>{listing.purpose === "sale" ? "Prix actuel" : "Loyer actuel"}</dt><dd>{listingPriceLabel(listing)}</dd></div><div><dt>Mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div><div><dt>Jours en marché</dt><dd>{daysOnMarket === null ? "Non disponible" : daysOnMarket === 1 ? "Jour 1" : `${daysOnMarket} jours`}</dd></div><div><dt>Expiration du contrat</dt><dd>{formatListingDate(listing.expirationDate)}{expiration ? ` · ${expiration.label}` : ""}</dd></div></dl>{ownerNames.length > 0 && <div className="listing-report-owners"><span>Propriétaire{ownerNames.length > 1 ? "s" : ""}</span><strong>{ownerNames.join(" · ")}</strong></div>}</section>
 
       <section className="listing-report-section" aria-labelledby="report-performance-title"><div className="listing-report-section-title"><span>02</span><h2 id="report-performance-title">ACTIVITÉ DE MISE EN MARCHÉ</h2></div>{tracking && offers && checklist ? <div className="listing-report-performance"><article><strong>{tracking.visits.length}</strong><span>Visites</span></article><article><strong>{offers.length}</strong><span>Offres</span></article><article><strong>{checklist.completed} / {checklist.total}</strong><span>Checklist complétée</span></article><article><strong>{daysOnMarket ?? "—"}</strong><span>Jours en marché</span></article></div> : <p className="listing-report-unavailable">Certaines données de performance sont temporairement indisponibles.</p>}</section>
 

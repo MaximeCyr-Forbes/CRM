@@ -1,4 +1,5 @@
 "use client";
+import { getListingDisplayStatus } from "../../lib/listings/display-status";
 import "../listings.css";
 
 import { useParams, useRouter } from "next/navigation";
@@ -116,7 +117,7 @@ export default function ListingDetailPage() {
             <p className="section-kicker">{LISTING_PURPOSE_LABELS[listing.purpose]} · {BROKER_LABELS[listing.broker]}</p>
             <h1>{addressLines[0]}</h1>
             {listing.centrisListingKey && <p>Source : Centris{listing.centrisLastSyncedAt && <> · Dernière synchro : {new Date(listing.centrisLastSyncedAt).toLocaleString('fr-CA')}</>}
-              {listing.centrisStandardStatus === 'Closed' && <> · Centris indique vendu ou loué — finalisation CRM à compléter.</>}</p>}
+              {getListingDisplayStatus(listing).source === "centris" && <> · Statut publié par Centris. La finalisation du dossier CRM reste indépendante.</>}</p>}
             <p>{addressLines[1] || "Localité à confirmer"}</p>
           </div>
           <div className="listing-detail-actions">
@@ -133,7 +134,7 @@ export default function ListingDetailPage() {
           <div className="listing-detail-media">
             <ListingMedia listing={listing} variant="detail" />
             <span className={`listing-purpose-badge listing-purpose-${listing.purpose}`}>{LISTING_PURPOSE_LABELS[listing.purpose]}</span>
-            <span className={`listing-status-badge listing-status-${listing.status}`}>{LISTING_STATUS_LABELS[listing.status]}</span>
+            <span className={`listing-status-badge listing-status-${getListingDisplayStatus(listing).status}`}>{getListingDisplayStatus(listing).label}</span>
           </div>
           <div className="listing-detail-price-panel">
             <span>{listing.status === "sold" && listing.soldPrice !== null ? "Prix vendu" : listing.purpose === "sale" ? "Prix demandé" : "Loyer mensuel"}</span>
@@ -150,7 +151,7 @@ export default function ListingDetailPage() {
             <div><dt>Numéro Centris</dt><dd>{listing.centrisNumber || "Non renseigné"}</dd></div>
             <div><dt>Type de propriété</dt><dd>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</dd></div>
             <div><dt>Courtier responsable</dt><dd>{BROKER_LABELS[listing.broker]}</dd></div>
-            <div><dt>Statut</dt><dd>{LISTING_STATUS_LABELS[listing.status]}</dd></div>
+            <div><dt>Statut du dossier CRM</dt><dd>{LISTING_STATUS_LABELS[listing.status]}</dd></div>
             <div><dt>Type de mandat</dt><dd>{LISTING_PURPOSE_LABELS[listing.purpose]}</dd></div>
             <div><dt>Date de mise en marché</dt><dd>{formatListingDate(listing.listingDate)}</dd></div>
           </dl>

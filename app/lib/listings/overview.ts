@@ -10,6 +10,7 @@ import { listingAddressLines } from "./presentation";
 import { mapListing } from "./server-service";
 import type { ListingRow } from "./persistence";
 import { isListingTaskActionable } from "./checklist";
+import { getListingDisplayStatus } from "./display-status";
 
 const MARKET_STATUSES = new Set(["preparation", "coming_soon", "active", "offer_received", "conditional"]);
 const DAYS_ON_MARKET_STATUSES = new Set(["active", "offer_received", "conditional"]);
@@ -45,8 +46,8 @@ export function getListingDaysOnMarket(listing: Pick<Listing, "listingDate">, to
   return Math.max(1, 1 - dayDifference(listing.listingDate, today));
 }
 
-export function getListingExpirationInfo(listing: Pick<Listing, "expirationDate" | "status">, today = new Date()) {
-  if (!listing.expirationDate || CLOSED_STATUSES.has(listing.status)) return null;
+export function getListingExpirationInfo(listing: Pick<Listing, "expirationDate" | "status"> & Partial<Pick<Listing, "purpose" | "centrisStandardStatus" | "centrisMlsStatus">>, today = new Date()) {
+  if (!listing.expirationDate || CLOSED_STATUSES.has(getListingDisplayStatus(listing).status)) return null;
   const days = dayDifference(listing.expirationDate, today);
   if (days > 30) return null;
   const level: ListingExpirationLevel = days < 0 ? "overdue" : days <= 7 ? "urgent" : days <= 14 ? "watch" : "upcoming";
@@ -78,7 +79,9 @@ export function calculateListingOverview(
   today = new Date(),
 ): ListingOverview {
   const listingIds = new Set(listings.map((listing) => listing.id));
-  const relevantOffers = offers.filter((offer) => listingIds.has(offer.listing_id) && OPEN_OFFER_STATUSES.has(offer.status));
+  const marketListings = listings.filter((listing) => MARKET_STATUSES.has(getListingDisplayStatus(listing).status));
+  const marketIds = new Set(marketListings.map((listing) => listing.id));
+  const relevantOffers = offers.filter((offer) => marketIds.has(offer.listing_id) && OPEN_OFFER_STATUSES.has(offer.status));
   const offersByListing = new Map<string, OverviewOfferRow[]>();
   for (const offer of relevantOffers) offersByListing.set(offer.listing_id, [...(offersByListing.get(offer.listing_id) ?? []), offer]);
   const tasksByListing = new Map<string, OverviewTaskRow[]>();
@@ -99,7 +102,7 @@ export function calculateListingOverview(
   }).sort((a, b) => a.daysUntilExpiration - b.daysUntilExpiration);
 
   const attentionItems = listings.flatMap((listing) => {
-    if (CLOSED_STATUSES.has(listing.status)) return [];
+    if (CLOSED_STATUSES.has(getListingDisplayStatus(listing).status)) return [];
     const address = listingAddressLines(listing)[0];
     const base = { listingId: listing.id, address, broker: listing.broker, purpose: listing.purpose };
     const items: ListingOverview["attentionItems"] = [];
@@ -118,14 +121,13 @@ export function calculateListingOverview(
     return items;
   });
 
-  const marketListings = listings.filter((listing) => MARKET_STATUSES.has(listing.status));
   const daysValues = listings
-    .filter((listing) => DAYS_ON_MARKET_STATUSES.has(listing.status))
+    .filter((listing) => DAYS_ON_MARKET_STATUSES.has(getListingDisplayStatus(listing).status))
     .map((listing) => getListingDaysOnMarket(listing, today))
     .filter((value): value is number => value !== null);
 
   return {
-    activeListings: listings.filter((listing) => listing.status === "active").length,
+    activeListings: listings.filter((listing) => getListingDisplayStatus(listing).status === "active").length,
     activeSaleInventoryValue: marketListings.filter((listing) => listing.purpose === "sale").reduce((total, listing) => total + (listing.askingPrice ?? 0), 0),
     activeRentalMonthlyTotal: marketListings.filter((listing) => listing.purpose === "rental").reduce((total, listing) => total + (listing.monthlyRent ?? 0), 0),
     openOffers: relevantOffers.length,

@@ -12,6 +12,7 @@ import {
   type ListingUpdate,
 } from "./persistence";
 import { isFinalizedListing } from "./editor";
+import { getListingDisplayStatus } from "./display-status";
 
 export type { ListingFilters, ListingRow, ListingUpdate } from "./persistence";
 export { ListingServiceError } from "./persistence";
@@ -67,10 +68,12 @@ function ownerRows(listingId: string, ownerContactIds: ReadonlyArray<string>): L
 export function createListingsService(repository: ListingRepository) {
   return {
     async listListings(filters: ListingFilters = {}) {
-      const rows = await repository.listRows(filters);
+      const { status, ...scope } = filters;
+      const rows = await repository.listRows(scope);
       if (rows.length === 0) return [];
       const owners = await repository.listOwnerRows(rows.map((row) => row.id));
-      return rows.map((row) => mapListing(row, owners));
+      return rows.map((row) => mapListing(row, owners))
+        .filter((listing) => !status || getListingDisplayStatus(listing).status === status);
     },
 
     async getListing(listingId: string) {

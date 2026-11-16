@@ -1,5 +1,6 @@
 "use client";
 import "./listings.css";
+import { getListingDisplayStatus } from "../lib/listings/display-status";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -62,7 +63,7 @@ export default function ListingsPage() {
     status: statusFilter,
     search,
   }), [brokerFilter, listings, purposeFilter, search, statusFilter]);
-  const activeCount = listings.filter((listing) => listing.status === "active"
+  const activeCount = listings.filter((listing) => getListingDisplayStatus(listing).status === "active"
     && (brokerFilter === "all" || listing.broker === brokerFilter)
     && (purposeFilter === "all" || listing.purpose === purposeFilter)).length;
   const selectedBrokerKey = selectedBroker?.toLowerCase();
@@ -199,8 +200,8 @@ export default function ListingsPage() {
                     <span className={`listing-purpose-badge listing-purpose-${listing.purpose}`}>
                       {LISTING_PURPOSE_LABELS[listing.purpose]}
                     </span>
-                    <span className={`listing-status-badge listing-status-${listing.status}`}>
-                      {LISTING_STATUS_LABELS[listing.status]}
+                    <span className={`listing-status-badge listing-status-${getListingDisplayStatus(listing).status}`}>
+                      {getListingDisplayStatus(listing).label}
                     </span>
                   </div>
                   <div className="listing-card-content">

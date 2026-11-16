@@ -1,4 +1,5 @@
 import type { Listing } from '../data/listing-types';
+import { getListingDisplayStatus } from '../lib/listings/display-status';
 import { areaLabel, subtypeLabel, knownStandardStatuses } from '../lib/centris/details';
 
 export function CentrisChangeBadge({ listing }: { listing: Listing }) {
@@ -19,7 +20,9 @@ export function CentrisPropertyDetails({ listing }: { listing: Listing }) {
     <div className="listing-detail-section-heading"><div><p className="section-kicker">Données Centris</p><h2 id="centris-property-title">CARACTÉRISTIQUES DE LA PROPRIÉTÉ</h2></div></div>
     <p className="centris-source-status">Statut Centris : <strong>{standard || 'Non renseigné'}</strong>{listing.centrisMlsStatus && listing.centrisMlsStatus !== standard && ` · ${listing.centrisMlsStatus}`}</p>
     <CentrisChangeBadge listing={listing} />
-    {standard && standard !== 'Active' && <p className="centris-review-note">{knownStandardStatuses.has(standard) ? 'Statut Centris à vérifier.' : 'Statut Centris non reconnu à vérifier.'} Le statut du dossier CRM est conservé. Aucune vente ou location n’est finalisée automatiquement.</p>}
+    {getListingDisplayStatus(listing).source === 'centris'
+      ? <p className="centris-review-note">Vendu — Centris. Statut publié par Centris. La finalisation du dossier CRM reste indépendante.</p>
+      : standard && standard !== 'Active' && <p className="centris-review-note">{knownStandardStatuses.has(standard) ? 'Statut Centris à vérifier.' : 'Statut Centris non reconnu à vérifier.'} Le statut du dossier CRM est conservé. Aucune vente ou location n’est finalisée automatiquement.</p>}
     {d ? <>
       <dl className="centris-property-grid">{fields.filter(([,v]) => v !== null && v !== undefined).map(([label,value]) => <div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <details className="centris-property-more"><summary>Voir plus de caractéristiques</summary><dl className="centris-property-grid">

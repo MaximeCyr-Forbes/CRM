@@ -1,4 +1,5 @@
 "use client";
+import { getListingDisplayStatus } from "../lib/listings/display-status";
 
 import { PurchaseAnniversaryModal } from "../components/purchase-anniversary-modal";
 import { usePurchaseNotifications } from "../lib/purchase-anniversary/use-notifications";
@@ -110,7 +111,7 @@ export default function Dashboard() {
       label: "Listings actifs",
       value: areListingsLoading || listingsError
         ? "—"
-        : listings.filter((listing) => listing.broker === brokerKey && listing.status === "active").length,
+        : listings.filter((listing) => listing.broker === brokerKey && getListingDisplayStatus(listing).status === "active").length,
       tone: "listings",
       href: brokerKey && brokerKey !== "unassigned" ? `/listings?broker=${brokerKey}&status=active` : "/listings",
     },

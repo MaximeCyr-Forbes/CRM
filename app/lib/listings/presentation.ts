@@ -1,4 +1,5 @@
 import type { Contact } from "../../data/contact-types";
+import { getListingDisplayStatus } from "./display-status";
 import { getContactName } from "../../data/contact-types";
 import type {
   Listing,
@@ -72,7 +73,7 @@ export function filterListings(
     if (filters.broker !== "all" && listing.broker !== filters.broker) return false;
     if (filters.purpose !== "all" && listing.purpose !== filters.purpose) return false;
     const acceptedStatuses = statusFilter.statuses as ReadonlyArray<ListingStatus>;
-    if (acceptedStatuses.length > 0 && !acceptedStatuses.includes(listing.status)) return false;
+    if (acceptedStatuses.length > 0 && !acceptedStatuses.includes(getListingDisplayStatus(listing).status)) return false;
     return listingMatchesSearch(listing, filters.search);
   });
 }

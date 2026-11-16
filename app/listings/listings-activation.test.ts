@@ -50,7 +50,7 @@ describe("activation visuelle Listings", () => {
   it("remplace seulement la carte Vendeurs par Listings actifs sur le dashboard", () => {
     const dashboard = source("app/dashboard/page.tsx");
     expect(dashboard).toContain('label: "Listings actifs"');
-    expect(dashboard).toContain('listing.broker === brokerKey && listing.status === "active"');
+    expect(dashboard).toContain('listing.broker === brokerKey && getListingDisplayStatus(listing).status === "active"');
     expect(dashboard).toContain("`/listings?broker=${brokerKey}&status=active`");
     expect(dashboard).not.toContain('label: "Vendeurs actifs"');
     expect(dashboard).toContain('label: "Acheteurs actifs"');

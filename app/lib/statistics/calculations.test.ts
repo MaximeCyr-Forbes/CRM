@@ -90,6 +90,14 @@ function snapshot(dataset: StatisticsDataset, broker: "team" | "maxime" | "franc
 }
 
 describe("calculs Statistiques", () => {
+  it("exclut une vente Centris du stock courant sans la compter comme vente CRM", () => {
+    const current = listing();
+    const before = snapshot(data({ listings: [current] }));
+    const after = snapshot(data({ listings: [{ ...current, centrisStandardStatus: "Closed", centrisMlsStatus: "Sold" }] }));
+    expect(before.kpis.activeListings).toBe(1);
+    expect(after.kpis.activeListings).toBe(0);
+    expect({ ...after, kpis: { ...after.kpis, activeListings: 1 } }).toEqual(before);
+  });
   it("expose exactement les années 2020 à 2030 et choisit le fallback le plus proche", () => {
     expect(STATISTICS_YEARS).toEqual([2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]);
     expect(defaultStatisticsYear(new Date("2026-08-24T12:00:00-04:00"))).toBe(2026);

@@ -25,6 +25,8 @@ type ContactRow = {
 };
 
 type ListingRow = {
+  centris_standard_status?: string | null;
+  centris_mls_status?: string | null;
   id: string;
   broker: StatisticsListingRow["broker"];
   purpose: StatisticsListingRow["purpose"];
@@ -82,7 +84,7 @@ function amount(value: number | string | null) {
 export async function loadStatisticsDataset(): Promise<StatisticsDataset> {
   const [contacts, listings, offers, links, transactions, transactionContacts] = await Promise.all([
     listAllRows<ContactRow>("contacts", "id, broker, priority, client_provenance, last_contact_date, next_follow_up_date, created_at"),
-    listAllRows<ListingRow>("listings", "id, broker, purpose, status, listing_date, created_at"),
+    listAllRows<ListingRow>("listings", "id, broker, purpose, status, listing_date, created_at, centris_standard_status, centris_mls_status"),
     listAllRows<OfferRow>("listing_offers", "id, listing_id, purpose, offer_date, status"),
     listAllRows<LinkRow>("listing_transaction_links", "listing_id, offer_id, transaction_id"),
     listAllRows<TransactionRow>("transactions", "id, type, broker, price, sold_price, promise_date, notary_date, sale_finalized_at, purchase_finalized_at, status, created_at"),
@@ -99,6 +101,8 @@ export async function loadStatisticsDataset(): Promise<StatisticsDataset> {
       createdAt: row.created_at,
     })),
     listings: listings.map((row) => ({
+      centrisStandardStatus: row.centris_standard_status ?? null,
+      centrisMlsStatus: row.centris_mls_status ?? null,
       id: row.id,
       broker: row.broker,
       purpose: row.purpose,

@@ -1,6 +1,7 @@
 import {beforeAll,afterAll,it,expect} from 'vitest';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync} from 'node:fs';
+import {getListingDisplayStatus} from '../listings/display-status';
 let db:PGlite;
 const run='11111111-1111-4111-8111-111111111111';
 const values={centrisNumber:'12345',broker:'maxime',purpose:'sale',askingPrice:500000,propertyType:'residential',address:'Rue Test',city:'Ville Test'};
@@ -99,4 +100,25 @@ it('initial enrichment of an existing V2 listing does not manufacture a price or
  const counts=(await db.query('select (select count(*) from listing_price_history) prices,(select count(*) from listing_activity) events')).rows;
  expect((await apply({...values,centrisNumber:'98765'},{...source,key:'baseline',details:{bedrooms_total:4}} as typeof source,false)).changes).toBe(0);
  expect((await db.query('select (select count(*) from listing_price_history) prices,(select count(*) from listing_activity) events')).rows).toEqual(counts);
+});
+
+it('V4 follows existing V3 sold and active transitions without business writes or duplicate history',async()=>{
+ const v={...values,centrisNumber:'v4-qa'};
+ const s={...source,key:'v4-qa'};
+ const id=(await apply(v,s,false)).id;
+ const businessSnapshot="select to_jsonb(l)-array['centris_standard_status','centris_mls_status','centris_last_synced_at','updated_at'] as business from listings l where id=$1";
+ const before=(await db.query(businessSnapshot,[id])).rows;
+ for(const [standard,mls,expected] of [['Closed','Sold','centris'],['Active','Active','crm']]) {
+  const next={...s,standard,mls};
+  expect((await apply(v,next,false,false)).action).toBe('updated');
+  expect((await apply(v,next,false,false)).action).toBe('unchanged');
+  const row=(await db.query<{status:'active';purpose:'sale';centris_standard_status:string;centris_mls_status:string}>('select * from listings where id=$1',[id])).rows[0];
+  expect(getListingDisplayStatus({...row,centrisStandardStatus:row.centris_standard_status,centrisMlsStatus:row.centris_mls_status}).source).toBe(expected);
+  expect((await db.query(businessSnapshot,[id])).rows).toEqual(before);
+ }
+ expect((await db.query("select * from listing_activity where listing_id=$1 and event_type='centris_status_changed'",[id])).rows).toHaveLength(2);
+ await db.query("update listings set status='sold' where id=$1",[id]);
+ expect((await apply(v,s,false)).action).toBe('skipped');
+ expect((await db.query('select status from listings where id=$1',[id])).rows).toEqual([{status:'sold'}]);
+ expect((await apply({...v,centrisNumber:'unimported-v4'},{...s,key:'unimported-v4',standard:'Closed',mls:'Sold'},false,false)).action).toBe('skipped');
 });

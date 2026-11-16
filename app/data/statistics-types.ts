@@ -34,6 +34,8 @@ export type StatisticsContactRow = {
 };
 
 export type StatisticsListingRow = {
+  centrisStandardStatus?: string | null;
+  centrisMlsStatus?: string | null;
   id: string;
   broker: ListingBroker;
   purpose: ListingPurpose;
