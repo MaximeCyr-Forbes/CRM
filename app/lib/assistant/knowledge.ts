@@ -1,5 +1,6 @@
 /** UI contracts are checked against these source files in knowledge.test.ts. No client records here. */
 export const modules={
+ statistics:{label:'Statistiques',href:'/statistics',source:'app/statistics/page.tsx',anchor:'export default',overview:'Ouvre Statistiques pour consulter les indicateurs du CRM. Les statistiques financières et transactionnelles restent distinctes du classement commercial Centris.'},
  contacts:{label:'Contacts',href:'/contacts',source:'app/contacts/page.tsx',anchor:'Ajouter un contact',overview:'Ouvre Contacts pour rechercher une personne, ouvrir sa fiche et consulter ses coordonnées et suivis.'},
  listings:{label:'Listings',href:'/listings',source:'app/listings/page.tsx',anchor:'Modifier',overview:'Ouvre Listings, utilise les filtres puis ouvre une propriété pour consulter son suivi, ses visites et ses offres.'},
  transactions:{label:'Transactions',href:'/transactions',source:'app/transactions/page.tsx',anchor:'+ Nouvelle transaction',overview:'Ouvre Transactions pour filtrer les dossiers et consulter leurs clients liés, notes et échéances.'},

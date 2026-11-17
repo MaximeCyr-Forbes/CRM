@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedMember } from '../auth/server';
 import { getSupabaseServiceClient } from '../supabase/server';
 import { runReadTool } from './tools';
-import { preparePrivateContext, assemblePrivateAnswer, assembleLocalAnswer, type PrivateContext } from './privacy';
+import { assemblePrivateAnswer, type PrivateContext } from './privacy';
 import { chatInput, DISABLED_MESSAGE, MAX_PAYLOAD_BYTES, MODEL, GENERIC_PLAN_BODY, type ChatInput } from './policy';
 import { answerConversation } from './conversation';
 
@@ -24,11 +24,15 @@ export async function handleChat(request:Request) {
     finally {reader.releaseLock();}
     input=chatInput.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
   } catch {return json({error:'Question ou contexte invalide.'},400);}
+  const started=performance.now();
   try {
-    return json(await answerConversation(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member)));
+    const result=await answerConversation(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member));
+    console.info('assistant_read',{requestId:input.requestId,mode:result.mode,module:result.module,status:result.status,toolCount:result.toolCount,durationMs:Math.round(performance.now()-started),navigation:!!result.navigateTo,...('coverage' in result?{candidateCount:result.coverage?.candidateCount}:{}),...('timing' in result?{timing:result.timing}:{})});
+    return json(result);
   } catch (error) {
     const denied=error instanceof Error && (error.message==='ASSISTANT_FORBIDDEN' || ('code' in error && ['FORBIDDEN','NOT_FOUND'].includes(String(error.code))));
-    return json({error:denied?'Cette recherche ne fait pas partie de vos accès CRM.':'La lecture CRM demandée a échoué. Réessayez ou ouvrez le module concerné; aucun résultat vide ne peut être confirmé.',source:'crm'},denied?403:503);
+    console.info('assistant_read',{requestId:input.requestId,status:denied?'FORBIDDEN':'TECHNICAL_ERROR',durationMs:Math.round(performance.now()-started)});
+    return json({error:denied?'Cette recherche ne fait pas partie de vos accès CRM.':'La lecture CRM demandée a échoué. Réessayez ou ouvrez le module concerné; aucun résultat vide ne peut être confirmé.',status:denied?'FORBIDDEN':'TECHNICAL_ERROR',source:'crm'},denied?403:503);
   }
 }
 

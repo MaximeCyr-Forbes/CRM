@@ -8,7 +8,7 @@ import {GENERIC_PLAN_BODY} from './policy';
 const id='11111111-1111-4111-8111-111111111111';
 const member={memberId:id,broker:'maxime',brokers:['maxime','france','sandrine']};
 const request=(extra={},headers={})=>new Request('https://crm.test/api/assistant/chat',{method:'POST',headers:{origin:'https://crm.test','content-type':'application/json',...headers},body:JSON.stringify({requestId:id,question:'Trouve Exemple',...extra})});
-beforeEach(()=>{vi.stubEnv('ASSISTANT_ENABLED','false');vi.stubEnv('OPENAI_API_KEY','');mocks.auth.mockReset().mockResolvedValue({member,client:{}});mocks.rpc.mockReset();mocks.tool.mockReset().mockImplementation(async name=>({data:name==='crm_search'?{contacts:{data:[{id,first_name:'Exemple'}]}}:{id,first_name:'Exemple',address:'Rue Exemple'},links:[]}));vi.stubGlobal('fetch',vi.fn());});
+beforeEach(()=>{vi.stubEnv('ASSISTANT_ENABLED','false');vi.stubEnv('OPENAI_API_KEY','');mocks.auth.mockReset().mockResolvedValue({member,client:{}});mocks.rpc.mockReset();mocks.tool.mockReset().mockImplementation(async name=>({data:name==='crm_search_contacts'?{data:[{id,first_name:'Exemple'}]}:name==='crm_search'?{contacts:{data:[{id,first_name:'Exemple'}]}}:{id,first_name:'Exemple',address:'Rue Exemple'},links:[{href:`/contacts/${id}`,label:'Exemple'}]}));vi.stubGlobal('fetch',vi.fn());});
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
 it.each([null,false])('requires membership %s before reading',async auth=>{mocks.auth.mockResolvedValue(auth);expect((await handleChat(request())).status).toBe(401);expect(mocks.tool).not.toHaveBeenCalled();});
 it('rejects origin before auth',async()=>{expect((await handleChat(request({}, {origin:'https://evil.test'}))).status).toBe(403);expect(mocks.auth).not.toHaveBeenCalled();});

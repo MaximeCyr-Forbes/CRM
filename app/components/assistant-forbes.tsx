@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Plus, Send, X } from 'lucide-react';
 import {useRouter} from 'next/navigation';
-import {parseRecordRequest,recordPath} from '../lib/assistant/record-request';
+import {recordPath} from '../lib/assistant/record-request';
+import type {ConversationState} from '../lib/assistant/query-plan';
 import './assistant-forbes.css';
 type Turn={question:string;answer:string;links?:{href:string;label:string}[]};
 const welcome="Salut ! Je suis l’Assistant Forbes.\n\nJe peux t’aider à retrouver des Contacts, comprendre des Transactions, consulter les Listings et repérer les échéances importantes.\n\nQue veux-tu savoir ?";
@@ -12,11 +13,12 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null),controller=useRef<AbortController|null>(null),generation=useRef(0);
  const sending=useRef(false),messages=useRef<HTMLDivElement>(null);
+ const conversation=useRef<ConversationState|undefined>(undefined);
  useEffect(()=>{if(open&&messages.current)messages.current.scrollTop=messages.current.scrollHeight;},[open,turns,busy,error]);
  useEffect(()=>()=>{generation.current++;controller.current?.abort();},[]);
  useEffect(()=>{if(open)dialog.current?.showModal();else dialog.current?.close();},[open]);
  function close(){setOpen(false);trigger.current?.focus();}
- function reset(){generation.current++;controller.current?.abort();sending.current=false;setTurns([]);setQuestion('');setError('');setBusy(false);}
+ function reset(){generation.current++;controller.current?.abort();sending.current=false;conversation.current=undefined;setTurns([]);setQuestion('');setError('');setBusy(false);}
  async function send(){
   if(sending.current||busy||!question.trim())return;
   sending.current=true;
@@ -24,12 +26,13 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
   const abort=new AbortController();controller.current=abort;
   try{
    const response=await fetch('/api/assistant/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abort.signal,
-    body:JSON.stringify({requestId:crypto.randomUUID(),question:text,history:turns.slice(-4).map(turn=>({question:turn.question,answer:''})),
+    body:JSON.stringify({requestId:crypto.randomUUID(),question:text,history:[],state:conversation.current,
      ...(/^\/(contacts|listings|transactions)\/[0-9a-f-]{36}$/i.test(pathname)?{context:pathname}:{})})});
    const result=await response.json();if(current!==generation.current)return;
    if(!response.ok)throw new Error(result.error||'Assistant temporairement indisponible.');
+   conversation.current=result.state;
    setTurns(items=>[...items,{question:text,answer:result.answer,links:result.links}].slice(-4));setQuestion('');
-   if(result.source==='crm'&&parseRecordRequest(text)?.open&&recordPath(result.navigateTo)&&result.links?.some((link:{href:string})=>link.href===result.navigateTo)){close();router.push(result.navigateTo);}
+   if(result.source==='crm'&&result.status==='SUCCESS'&&recordPath(result.navigateTo)&&result.links?.some((link:{href:string})=>link.href===result.navigateTo)){close();router.push(result.navigateTo);}
   }catch(reason){if(current===generation.current&&!abort.signal.aborted)setError(reason instanceof Error?reason.message:'Connexion interrompue.');}
   finally{if(current===generation.current){sending.current=false;setBusy(false);}}
  }

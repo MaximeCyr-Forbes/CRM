@@ -8,6 +8,9 @@ import type { MCPIdentity } from '../mcp/access';
 import { queryTools } from './query-tools';
 
 export const TOOL_NAMES = [
+  'crm_get_listing_transactions','crm_get_listing_visits','crm_get_listing_offers','crm_get_listing_signs',
+  'crm_count_records',
+  'crm_get_contact_transactions','crm_get_transaction_contacts','crm_get_transaction_documents',
   'crm_query_accounting',
   'crm_search','crm_search_contacts','crm_get_contact','crm_search_listings','crm_get_listing',
   'crm_search_transactions','crm_get_transaction','crm_get_transaction_timeline',
@@ -19,8 +22,8 @@ const allowed = [...readTools, ...queryTools].filter(tool => TOOL_NAMES.some(nam
 export const definitions = allowed.map(tool => ({ type: 'function', name: tool.name,
   description: tool.description, parameters: z.toJSONSchema(tool.schema, { io: 'input' }), strict: false }));
 export type VerifiedLink = { href: string; label: string };
-const fields = new Set(['explanation','vendor','description','assigned_broker','category','expense_date','created_at','is_paid','invoice_uploaded_at','id','first_name','last_name','phone','email','broker','address','city','civic_number','postal_code',
-  'status','type','purpose','price','asking_price','monthly_rent','centris_number','centrisNumber','askingPrice','monthlyRent',
+const fields = new Set(['ambiguous','visit_date','visit_time','offer_date','interest_level','has_bac','returned_at','folder_name','explanation','vendor','description','assigned_broker','category','expense_date','created_at','is_paid','invoice_uploaded_at','id','first_name','last_name','phone','email','broker','address','city','civic_number','postal_code',
+  'client_provenance','status','type','purpose','price','asking_price','monthly_rent','centris_number','centrisNumber','askingPrice','monthlyRent',
   'centrisStandardStatus','centrisMlsStatus','notary_date','promise_date','notaryDate','promiseDate','notes','content',
   'deadlines','title','due_date','due_time','completed','transaction_id','label','date','time','source','form','confidence',
   'data','contacts','transactions','listings','nextPage','total','marketing','operation','paid','unpaid','amount','truncated','displayStatus','centris_standard_status','centris_mls_status',
@@ -36,6 +39,7 @@ export function minimize(value: unknown, depth = 0): unknown {
   return undefined;
 }
 export function verifiedLinks(name: string, result: unknown): VerifiedLink[] {
+  if(['crm_get_listing_visits','crm_get_listing_offers','crm_get_listing_signs','crm_get_transaction_documents'].includes(name))return [];
   if(name==='crm_query_accounting')return [{href:'/accounting',label:'Ouvrir Comptabilité'}];
   const links: VerifiedLink[]=[];
   function collect(value: unknown, section: string) {
@@ -61,5 +65,7 @@ export async function runReadTool(name: string, input: unknown, client: Supabase
     role:member.role,actor:member.broker,brokers:member.brokers,teamId:'crm',clientId:'assistant',sessionId:'current-crm-session',
     canWrite:false,canReadTeamAccounting:true,canManageRecommendations:false};
   const raw=await crmMemberContext.run(member,()=>withSupabaseClient(client,()=>tool.run(args,client,identity)));
-  return { data:minimize(raw), links:verifiedLinks(name,raw) };
+  const data=minimize(raw);
+  const truncated=(value:unknown,depth=0):boolean=>depth<5&&(Array.isArray(value)?value.length>5||value.some(v=>truncated(v,depth+1)):!!value&&typeof value==='object'&&Object.entries(value).some(([key,v])=>fields.has(key)&&truncated(v,depth+1)));
+  return { data:truncated(raw)&&data&&typeof data==='object'&&!Array.isArray(data)?{...data,truncated:true}:data, links:verifiedLinks(name,raw) };
 }

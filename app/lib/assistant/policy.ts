@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {conversationState} from './query-plan';
 
 export const MODEL = 'gpt-6-luna';
 export const RESERVATION_USD = 0.03;
@@ -9,6 +10,7 @@ export const chatInput = z.strictObject({
   question: z.string().trim().min(1).max(600),
   history: z.array(z.strictObject({ question: z.string().max(600), answer: z.string().max(3200) })).max(4).default([]),
   context: z.string().max(100).regex(/^\/(contacts|listings|transactions)\/[0-9a-f-]{36}$/i).optional(),
+  state: conversationState.optional(),
 });
 export type ChatInput = z.infer<typeof chatInput>;
 export function estimatedCost(input: number, output: number) {
