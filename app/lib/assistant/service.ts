@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { getAuthenticatedMember } from '../auth/server';
 import { getSupabaseServiceClient } from '../supabase/server';
 import { runReadTool } from './tools';
-import { preparePrivateContext } from './privacy';
-import { chatInput, DISABLED_MESSAGE, MAX_PAYLOAD_BYTES, MODEL, SYSTEM, type ChatInput } from './policy';
+import { preparePrivateContext, assemblePrivateAnswer } from './privacy';
+import { chatInput, DISABLED_MESSAGE, MAX_PAYLOAD_BYTES, MODEL, GENERIC_PLAN_BODY, type ChatInput } from './policy';
 
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const usageSchema=z.object({input_tokens:z.number().int().nonnegative(),output_tokens:z.number().int().nonnegative()});
@@ -32,15 +32,13 @@ export async function handleChat(request:Request) {
   let inputTokens=0,outputTokens=0,complete=false,attempted=false;
   try {
     const prepared=await preparePrivateContext(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member));
-    if(prepared.localAnswer){complete=true;return json({answer:prepared.localAnswer,links:prepared.links});}
+    if(prepared.localAnswer){complete=true;return json({answer:[prepared.localAnswer,...Object.values(prepared.sections).flat()].join('\n'),links:prepared.links});}
     {
       // Recheck live membership and cycle immediately before every external call; never retry.
       const live=await getAuthenticatedMember();
       const permit=await db.rpc('assistant_permit',{p_request_id:input.requestId});
       if(live?.member.memberId!==auth.member.memberId || permit.error || permit.data!==true || Date.now()>=Date.parse(grant.expiresAt)) throw new Error('ASSISTANT_EXPIRED');
-      const body=JSON.stringify({model:MODEL,store:false,service_tier:'default',reasoning:{effort:'none'},max_output_tokens:700,
-        instructions:`${SYSTEM}\nUtilise les étiquettes fournies. Aucun nom, adresse ou lien ne doit être inventé. Aucun outil ne peut être appelé.`,
-        input:[{role:'user',content:JSON.stringify({task:prepared.task,data:prepared.data})}]});
+      const body=GENERIC_PLAN_BODY;
       if(Buffer.byteLength(body,'utf8')>MAX_PAYLOAD_BYTES) throw new Error('ASSISTANT_CONTEXT_LIMIT');
       attempted=true;
       const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','OpenAI-Organization':grant.organizationId,'OpenAI-Project':grant.projectId},body,signal:AbortSignal.timeout(20_000)});
@@ -52,8 +50,9 @@ export async function handleChat(request:Request) {
       if(!calls.length){
         const answer=value.output.filter((item:{type?:string})=>item.type==='message').flatMap((item:{content?:{type:string;text?:string}[]})=>item.content||[]).filter((item:{type:string})=>item.type==='output_text').map((item:{text?:string})=>item.text||'').join('\n').slice(0,3200);
         if(!answer)throw new Error('ASSISTANT_EMPTY');
+        const privateAnswer=assemblePrivateAnswer(prepared,answer);
         complete=true;
-        return json({answer,links:prepared.links});
+        return json({answer:privateAnswer,links:prepared.links});
       }
       throw new Error('ASSISTANT_TOOL_FORBIDDEN');
     }

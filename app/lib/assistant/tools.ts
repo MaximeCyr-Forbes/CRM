@@ -12,6 +12,7 @@ export const TOOL_NAMES = [
   'crm_search_transactions','crm_get_transaction','crm_get_transaction_timeline',
   'crm_get_upcoming_deadlines','crm_get_sign_inventory','crm_get_mortgage_referrals','crm_get_accounting_summary',
   'crm_get_contact_listings','crm_get_active_broker_listings','crm_get_active_broker_transactions',
+  'crm_get_listing_owners','crm_get_broker_listings','crm_get_due_contact_followups','crm_get_private_deadlines',
 ] as const;
 const allowed = [...readTools, ...queryTools].filter(tool => TOOL_NAMES.some(name => name === tool.name) && !tool.write);
 export const definitions = allowed.map(tool => ({ type: 'function', name: tool.name,
@@ -23,8 +24,8 @@ const fields = new Set(['id','first_name','last_name','phone','email','broker','
   'deadlines','title','due_date','due_time','completed','transaction_id','label','date','time','source','form','confidence',
   'data','contacts','transactions','listings','nextPage','total','marketing','operation','paid','unpaid','amount','truncated','displayStatus','centris_standard_status','centris_mls_status',
   'available','used','quantity','assigned','stock_id','sign_type','kind','name','paid_at','paid_amount','received_amount','payment_status',
-  'civicNumber','dueDate','dueTime','transactionId','soldPrice','saleFinalizedAt','purchaseFinalizedAt','mortgage_advisor_name','institution_name']);
-/** Explicit small projection: never send entire service objects, documents or URLs. */
+  'civicNumber','dueDate','dueTime','transactionId','soldPrice','saleFinalizedAt','purchaseFinalizedAt','mortgage_advisor_name','institution_name','next_follow_up_date','sourceListing','listingId']);
+/** Bounded PRIVATE server projection. This is never a provider payload. */
 export function minimize(value: unknown, depth = 0): unknown {
   if (depth > 4) return undefined;
   if (typeof value === 'string') return value.slice(0,400);

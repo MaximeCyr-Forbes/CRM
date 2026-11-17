@@ -1,4 +1,26 @@
-# Assistant Forbes — V2, préparation confidentielle
+# Assistant Forbes — V3, réponses privées assemblées dans le CRM
+
+## V3 — architecture courante, 17 novembre 2026
+
+Cette section remplace l’architecture V2 décrite plus bas à titre historique. Backup : `pre-assistant-forbes-v3-private-2026-11-17`, baseline `ffb799bb2f3030e28dddb9112179833c1438a0b2`.
+
+Navigateur → API authentifiée → grammaire locale extensible → résolution locale/lectures RLS → plan générique OpenAI éventuel → assemblage privé serveur → navigateur.
+
+**Aucune donnée CRM n’entre dans la requête OpenAI, même pseudonymisée ou agrégée.** `GENERIC_PLAN_BODY` est une chaîne constante ne recevant aucun paramètre : ni question, historique, intention détectée, nom, adresse, coordonnées, note, document, numéro Centris, identifiant, prix, date ou nombre de dossiers. Le même corps est utilisé pour toutes les questions et tous les membres. Les seuls identifiants d’authentification du destinataire sont ceux du compte/projet OpenAI, sans identité CRM du membre.
+
+Le modèle peut uniquement retourner un ordre de sections parmi `summary`, `people`, `deadlines`, `inventory`, `results`. Le schéma est strict; texte libre, clés supplémentaires, doublons, outils ou instruction d’exécution sont refusés. Un plan incomplet ne masque aucune section locale. Le modèle ne peut ni sélectionner une lecture, ni demander une fiche, ni produire des faits clients. Il n’a pas analysé les dossiers privés; la réponse le précise pour les résumés.
+
+`intents.ts` sépare concepts/synonymes, règles de priorité et extraction d’entités. `privacy.ts` exécute les intentions et assemble les sections privées. Ce moteur local ne prétend pas comprendre tout langage naturel : une demande inconnue/ambiguë est clarifiée sans appel externe. Ajouter un concept ou un résolveur ne doit jamais modifier le corps externe à partir de données dynamiques. Les quatre questions précédentes peuvent revenir au CRM pour résoudre un suivi; leurs réponses ne sont pas renvoyées. Toute entité est recherchée à nouveau sous les permissions courantes; l’historique n’est pas une preuve.
+
+Capacités : propriétaires réellement liés via `listing_contacts.role=owner`; Listing source d’une Transaction lorsqu’il existe; recherche multi-entités avec désambiguïsation; résumés structurés locaux; inscriptions d’un courtier (tous statuts ou actifs V4); Transactions actives; suivis Contacts dus/retardés; échéances ouvertes classées par date; stocks. Les conditions ciblent les échéances ouvertes des étapes PA acceptée/inspection/financement/autres conditions et affichent cette définition, sans décider juridiquement qu’une condition est levée. L’urgence est un classement par échéance, pas une analyse de notes. Un Contact lié à une Transaction n’est jamais présumé vendeur sans lien propriétaire vérifié.
+
+Maximum quatre lectures locales et cinq fiches affichées par extrait. Réponses et liens privés restent dans le CRM et utilisent du texte React, pas du HTML exécutable. Notes/documents/coordonnées restent consultables dans la fiche, sans interprétation IA externe. Aucun rôle modifié, aucune mutation métier, aucune migration, aucun serveur personnel.
+
+Les protections financières V2 restent identiques : flag false, zéro cycle créé, aucune requête fournisseur réelle, aucune dépense. `store:false`, clé serveur restreinte, un appel maximum, aucun retry/fallback. `privacy_reviewed` demeure non validé jusqu’à la décision documentée. Voir [l’EFVP V3](assistant-forbes-privacy-review.md).
+
+Validation V3 : suite complète 2 888 tests réussis, zéro échec, sept ignorés (fixtures privées/moteur source OACIQ absents). Les 123 tests Assistant inclus couvrent le flux privé, le contrat externe constant, les permissions, le budget et l’interface avec mocks. TypeScript réussi. ESLint n’est pas installé/configuré dans ce checkout. Le build local reste bloqué par l’erreur Windows `EBADF` d’écriture des types générés; la livraison exige donc une vérification séparée du build Vercel et du mode désactivé en Production. Aucun fichier généré n’est commité.
+
+## Historique V2 — remplacé par la séparation V3 ci-dessus
 
 ## État courant — 17 novembre 2026
 

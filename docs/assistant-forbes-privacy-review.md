@@ -1,4 +1,49 @@
-# Assistant Forbes — dossier EFVP et décision de mise en service
+# Assistant Forbes — EFVP V3 et décision de mise en service
+
+## Addendum V3 — décision courante du 17 novembre 2026
+
+Cet addendum remplace les descriptions de transfert de champs pseudonymisés de la V2 conservées ci-dessous comme historique. Baseline V3 : `ffb799bb2f3030e28dddb9112179833c1438a0b2`; backup `pre-assistant-forbes-v3-private-2026-11-17`. La décision reste **désactivé, approbation juridique non obtenue**. L’autorisation du propriétaire couvre l’implémentation et les tests, pas une signature de conformité ou un nouveau budget.
+
+### Flux et frontières de confiance
+
+1. Le navigateur transmet la question et au plus quatre questions antérieures au serveur CRM Vercel authentifié. Les réponses passées ne sont pas retransmises; aucun historique n’est une autorisation d’accès.
+2. Le serveur détermine localement l’intention, recherche les entités et vérifie les permissions via les services existants et le client Supabase du membre. L’identité sélectionnée à l’écran ne remplace jamais l’identité Google résolue côté serveur.
+3. Les données clients (noms, adresses, coordonnées, UUID, Centris, prix, dates, suivis, notes) restent dans cette frontière CRM. Les lectures sont bornées et ne chargent pas de fichiers externes.
+4. Si les conditions financières et de confidentialité sont satisfaites dans une future activation, OpenAI reçoit seulement un **corps constant** demandant un ordre générique de cinq catégories. Aucun résultat, compte, date, montant, intention spécifique, étiquette de client, identifiant stable ou texte libre n’est transmis. Aucun remplacement de variable n’existe dans ce corps.
+5. Le serveur valide la liste de catégories renvoyée et assemble lui-même les informations autorisées. L’IA n’accède pas aux outils et son texte libre n’est jamais présenté comme un fait client. Les liens proviennent exclusivement des lectures CRM autorisées.
+
+### Nécessité et minimisation
+
+Il n’existe plus de catégorie de renseignement client nécessaire à OpenAI pour ce traitement. Même un total agrégé ou un statut pseudonymisé est exclu. Les réponses personnalisées sont locales. Le service externe apporte au plus une structure de présentation; sa valeur ne doit pas être décrite comme une compréhension des dossiers. Le registre d’intentions local est extensible, mais borné : synonymes et concepts, résolution des fiches, clarification des ambiguïtés. Une compréhension universelle ou un résumé sémantique des notes privées n’est pas promis.
+
+Les fournisseurs CRM existants Vercel et Supabase continuent de traiter les données pour l’entreprise. La mission ne les rend pas anonymes et ne change ni leur région ni leurs contrats. Leurs garanties restent à rattacher au dossier de conformité global. Les règles d’accès partagées des trois courtiers restent celles du CRM, sans extension par le modèle.
+
+### Réidentification, localisation, journaux et conservation
+
+La transmission de quasi-identifiants client de la V2 (dates/prix/statuts) est supprimée. Le corps fixe empêche ces recoupements dans les requêtes prévues. Cela ne signifie pas anonymat du compte fournisseur : clé/projet OpenAI, adresse réseau Vercel, horaire et métadonnées techniques restent observables. Aucun identifiant de client ou membre CRM n’est ajouté aux en-têtes ou métadonnées. Les journaux applicatifs n’enregistrent pas le contenu des questions/réponses.
+
+Le projet OpenAI reste Global; `store:false` n’est toujours pas une garantie de rétention nulle. Les contrôles de partage vérifiés pendant V2 le 17 novembre étaient désactivés et doivent être recontrôlés avant activation. Les conditions de conservation/support et les sous-traitants documentés ci-dessous restent pertinents au compte et au texte générique. La V3 ne prétend pas envoyer des dossiers clients hors Québec à OpenAI; les traitements hors Québec par l’infrastructure CRM existante et leur EFVP ne sont pas réputés approuvés pour autant.
+
+Mémoire du dialogue : session navigateur seulement, réinitialisation explicite possible; questions antérieures utilisées uniquement dans le backend CRM. Registre d’usage : métadonnées techniques et coûts, pas de contenu ni de fiche client. Les durées contractuelles/hébergement et la conservation du registre restent à faire valider par le responsable, comme dans le dossier V2.
+
+### Contrôles, tests et risques résiduels
+
+- Frontière externe positive : `GENERIC_PLAN_BODY` est constant, sans argument. La protection ne repose pas sur la détection de PII par regex.
+- Les tests interceptent chaque `fetch` OpenAI et exigent l’égalité exacte du corps avec cette constante. Les marqueurs synthétiques couvrent nom, téléphone, adresse, courriel, Centris, notes, montant, UUID et date. Ils restent absents même pour recherche libre, suivi conversationnel, résumé et injection.
+- Les tests couvrent ambiguïtés, absence de lien propriétaire, données indisponibles, erreurs locales, plans malveillants, contrôle d’accès des trois courtiers et blocage financier. Les écritures ne sont jamais proposées au modèle.
+- Risque résiduel technique : une future modification du code pourrait réintroduire une entrée dynamique. Toute modification du contrat externe exige revue du diff et tests de non-divulgation. Les développeurs ne doivent jamais sérialiser le résultat privé ni un message d’erreur dans la requête fournisseur.
+- Risque de mauvaise réponse locale : homonymes, relation manquante, extrait tronqué, limites lexicales et statut métier ambigu. Clarifier, montrer les liens sources et définir les critères; ne jamais inventer un vendeur ou une condition juridique.
+- Risque d’accès illégitime au CRM : dépendance à la session, aux autorisations et à la sécurité des hébergeurs existants. Le modèle n’est pas une couche d’autorisation.
+
+Le risque de divulgation client par le chemin OpenAI prévu est atténué par l’absence complète de données dynamiques; ce constat technique ne constitue pas une approbation juridique de l’ensemble du CRM. Aucun appel réel n’a validé une conversation IA et aucun paiement n’est autorisé.
+
+### Décision et conditions restant à satisfaire
+
+La personne réellement responsable doit examiner cet addendum, confirmer l’entité contractante et les garanties applicables, valider les avis/base juridique des traitements internes CRM et consigner la décision. La communication des renseignements clients à OpenAI n’est **pas** autorisée par cette V3 : elle n’est pas nécessaire à l’architecture et tout ajout futur la réouvrirait. Ne pas demander ni présumer un consentement client à un transfert qui n’est pas mis en œuvre.
+
+Le formulaire de décision V2 ci-dessous reste utilisable avec référence expresse à cet addendum et au périmètre « aucun renseignement client dans le fournisseur IA ». Aucune signature inventée, `privacy_reviewed` non validé, aucun cycle ajouté, `ASSISTANT_ENABLED=false`. Revalidation financière distincte au rappel existant; aucune duplication du rappel, carte, recharge ou nouveau fournisseur. Les procédures d’incident et de rollback V2 restent applicables. Aucune migration Supabase ni modification des données métier n’est nécessaire.
+
+## Dossier V2 historique — champs externes décrits ci-dessous interdits en V3
 
 Version : 17 novembre 2026. Projet : CRM Équipe Forbes existant. Baseline : `beeebef16548e7a449967e900f628cd7e1d2ef52`. Sauvegarde : `pre-assistant-forbes-privacy-completion-2026-11-17`, même SHA.
 

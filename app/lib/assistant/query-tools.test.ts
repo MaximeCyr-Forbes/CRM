@@ -9,7 +9,7 @@ const member: CRMMember = { memberId: id, identityId: id, authUserId: id, broker
 beforeEach(() => mocks.listings.mockReset().mockResolvedValue([]));
 function database(rows: unknown[], contact: unknown = { id }) {
   const q: Record<string, any> = {};
-  for (const name of ['select', 'eq', 'not', 'order']) q[name] = vi.fn(() => q);
+  for (const name of ['select', 'eq', 'not', 'order','in','lte','gte']) q[name] = vi.fn(() => q);
   q.limit = vi.fn(async () => ({ data: rows, error: null }));
   q.maybeSingle = vi.fn(async () => ({ data: contact, error: null }));
   const from = vi.fn((_table: string) => q);
@@ -52,3 +52,15 @@ it('returns an explicit empty relationship rather than inventing a listing', asy
   const db=database([]);
   expect(await runReadTool('crm_get_contact_listings',{contact_id:id},db.client,member)).toEqual({data:{listings:[],truncated:false},links:[]});
 });
+it('seller lookup checks the listing and follows only role=owner with contact RLS join',async()=>{
+ const db=database([{contacts:{id,first_name:'Exemple'}}]);const result=await runReadTool('crm_get_listing_owners',{listing_id:id},db.client,member);
+ expect(db.from.mock.calls.map(c=>c[0])).toEqual(['listings','listing_contacts']);expect(db.q.select).toHaveBeenCalledWith('contacts!inner(id,first_name,last_name)');expect(db.q.eq).toHaveBeenCalledWith('role','owner');expect(result.links[0].href).toBe(`/contacts/${id}`);
+});
+it('inaccessible listing never queries its owners',async()=>{const db=database([],null);await expect(runReadTool('crm_get_listing_owners',{listing_id:id},db.client,member)).rejects.toThrow('inaccessible');expect(db.from).toHaveBeenCalledTimes(1);});
+it.each(['maxime','france','sandrine'] as const)('followups preserve %s server grants and query only due dates',async broker=>{
+ const db=database([]);await runReadTool('crm_get_due_contact_followups',{to:'2026-11-17'},db.client,{...member,broker,brokers:[broker]});expect(db.q.in).toHaveBeenCalledWith('broker',[broker]);expect(db.q.lte).toHaveBeenCalledWith('next_follow_up_date','2026-11-17');expect(db.q.limit).toHaveBeenCalledWith(6);
+});
+it('conditions exclude completed deadlines and closed transactions, preserve broker scope',async()=>{
+ const db=database([]);await runReadTool('crm_get_private_deadlines',{from:'2026-01-01',to:'2026-12-31',conditions:true},db.client,member);expect(db.q.eq).toHaveBeenCalledWith('completed',false);expect(db.q.in).toHaveBeenCalledWith('transactions.broker',['maxime']);expect(db.q.not).toHaveBeenCalledWith('transactions.status','in','(completed,cancelled)');expect(db.q.in).toHaveBeenCalledWith('transactions.status',['pa_accepted','inspection','financing','other_conditions']);
+});
+it.each(['crm_get_broker_listings','crm_get_due_contact_followups','crm_get_private_deadlines'])('new reads reject outside broker: %s',async tool=>{const db=database([]);const args=tool==='crm_get_broker_listings'?{broker:'france'}:tool==='crm_get_private_deadlines'?{broker:'france',from:'2026-01-01',to:'2026-12-31'}:{broker:'france',to:'2026-11-17'};await expect(runReadTool(tool,args,db.client,member)).rejects.toThrow('inaccessible');expect(db.from).not.toHaveBeenCalled();});
