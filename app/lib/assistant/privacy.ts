@@ -71,8 +71,9 @@ export async function preparePrivateContext(input:ChatInput,member:CRMMember,rea
  }
  if(['deadlines','conditions','urgent'].includes(parsed.intent)){
   const overdue=q.includes('retard');
-  const from=overdue?'1900-01-01':q.includes('demain')?add(1):parsed.intent==='urgent'||parsed.intent==='conditions'?'1900-01-01':today;
-  const to=overdue?add(-1):q.includes('demain')?add(1):q.includes('aujourd')?today:parsed.intent==='conditions'?'2200-12-31':add(7);
+  const nextWeek=q.includes('semaine prochaine'),monday=8-(new Date(`${today}T12:00:00Z`).getUTCDay()||7);
+  const from=nextWeek?add(monday):overdue?'1900-01-01':q.includes('demain')?add(1):parsed.intent==='urgent'||parsed.intent==='conditions'?'1900-01-01':today;
+  const to=nextWeek?add(monday+6):overdue?add(-1):q.includes('demain')?add(1):q.includes('aujourd')?today:parsed.intent==='conditions'?'2200-12-31':add(7);
   const r=await run('crm_get_private_deadlines',{from,to,...scoped,conditions:parsed.intent==='conditions'});
   sections.deadlines=[parsed.intent==='conditions'?'Conditions : échéances ouvertes des dossiers aux étapes PA acceptée, inspection, financement ou autres conditions.':'Échéances non terminées, classées par date; les retards apparaissent en premier pour les urgences.',...rows(r.data).map(d=>`${deadline(d)} — ${text(row(d.transactions).address)}`)];
   if(!rows(r.data).length)sections.deadlines.push('Aucune échéance correspondant à ces critères.');if(r.truncated)sections.deadlines.push('Extrait limité à cinq échéances.');return done();
@@ -91,7 +92,7 @@ export async function preparePrivateContext(input:ChatInput,member:CRMMember,rea
   const related=await run('crm_get_contact_listings',{contact_id:found[0].id});sections.results=[`Listings liés à ${name(found[0])} :`,...rows(related.listings).map(line)];if(!rows(related.listings).length)sections.results.push('Aucun lien propriétaire enregistré.');return done();
  }
  let kind='',id:unknown,record:Row|undefined;
- if(input.context&&['summary','sellers'].includes(parsed.intent)){
+ if(input.context&&!entity&&['summary','sellers'].includes(parsed.intent)){
   const [,section,contextId]=input.context.split('/');kind=section;id=contextId;
  }else if(entity&&['search','summary','sellers','listings','transactions'].includes(parsed.intent)){
   const r=await run('crm_search',{query:entity,limit:5});

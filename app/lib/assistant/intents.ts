@@ -5,7 +5,7 @@ const vocabulary={sellers:['vendeur','vendeurs','proprietaire','proprietaires'],
 type Concept=keyof typeof vocabulary;
 export type Intent=Exclude<Concept,'contacts'>|'unknown'|'accounting'|'mortgage';
 const accountingWords=new Set('comptabilite depense depenses fournisseur fournisseurs montant montants paiement paiements facture factures paye payee payees payes impaye impayee impayees impayes'.split(' '));
-const queryStops=new Set('dans chez dernier derniere derniers dernieres recent recente recents recentes avons-nous avons nous une disponibles disponible reste restent en retard maintenant donc est-ce que a-t-on'.split(' '));
+const queryStops=new Set('dans chez dernier derniere derniers dernieres recent recente recents recentes avons-nous avons nous une disponibles disponible reste restent en retard maintenant donc est-ce que a-t-on montre-moi trouve-moi'.split(' '));
 const rules:{intent:Intent;all:Concept[];weight:number}[]=[
  {intent:'write',all:['write'],weight:100},{intent:'sellers',all:['sellers'],weight:90},{intent:'coordinates',all:['coordinates'],weight:85},{intent:'summary',all:['summary'],weight:80},{intent:'relation',all:['listings','relation'],weight:78},{intent:'followups',all:['followups'],weight:75},{intent:'urgent',all:['urgent'],weight:74},{intent:'conditions',all:['conditions'],weight:70},{intent:'deadlines',all:['deadlines'],weight:69},{intent:'inventory',all:['inventory'],weight:65},{intent:'search',all:['search'],weight:60},{intent:'listings',all:['listings'],weight:50},{intent:'transactions',all:['transactions'],weight:49},
 ];

@@ -5,6 +5,7 @@ import { getSupabaseServiceClient } from '../supabase/server';
 import { runReadTool } from './tools';
 import { preparePrivateContext, assemblePrivateAnswer, assembleLocalAnswer, type PrivateContext } from './privacy';
 import { chatInput, DISABLED_MESSAGE, MAX_PAYLOAD_BYTES, MODEL, GENERIC_PLAN_BODY, type ChatInput } from './policy';
+import { answerConversation } from './conversation';
 
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const usageSchema=z.object({input_tokens:z.number().int().nonnegative(),output_tokens:z.number().int().nonnegative()});
@@ -24,8 +25,7 @@ export async function handleChat(request:Request) {
     input=chatInput.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
   } catch {return json({error:'Question ou contexte invalide.'},400);}
   try {
-    const prepared=await preparePrivateContext(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member));
-    return json({answer:assembleLocalAnswer(prepared),links:prepared.links,source:'crm'});
+    return json(await answerConversation(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member)));
   } catch (error) {
     const denied=error instanceof Error && (error.message==='ASSISTANT_FORBIDDEN' || ('code' in error && ['FORBIDDEN','NOT_FOUND'].includes(String(error.code))));
     return json({error:denied?'Cette recherche ne fait pas partie de vos accès CRM.':'La lecture CRM demandée a échoué. Réessayez ou ouvrez le module concerné; aucun résultat vide ne peut être confirmé.',source:'crm'},denied?403:503);

@@ -97,3 +97,13 @@ Tests mock every OpenAI request and use an isolated PGlite database for real SQL
 Comptabilité : `listExpenses({materialize:false})`, permissions et contexte CRM existants. Recherche des champs fournisseur, description, attribution et catégorie; correspondances exactes avant normalisées. Dépense triée par `expense_date`, paiement par `paid_at`, facture jointe par dépôt (date de facturation indisponible, explicitement indiqué). Dates manquantes et homonymes demandent une précision. Aucun téléchargement ni écriture. Les montants affichés proviennent des enregistrements; ils ne prouvent pas une transaction bancaire.
 
 L'interface distingue consultation CRM et IA externe non activée. `ASSISTANT_ENABLED=false` reste inchangé. Les restrictions V3 précédentes concernent le chemin externe; elles ne bloquent plus la consultation interne. Aucune donnée client ni question brute ne sort vers OpenAI.
+
+## V4 — conversation locale (2026-11-17)
+
+`conversation.ts` sépare HOW_TO, READ, EXPLAIN, SUMMARY, COMPARE, WRITE_REQUEST, FOLLOW_UP et UNKNOWN avant la recherche métier. `knowledge.ts` décrit les onze modules et des parcours vérifiés. Ses tests contrôlent routes et libellés dans les composants sources; toute évolution UI nécessite leur revue. L'aide n'exécute aucune opération.
+
+Le serveur reconstruit des indications structurées (module, demande, courtier, type, action) depuis quatre questions maximum. Aucun ancien texte de réponse ne sert de preuve. Un changement de courtier entraîne une nouvelle lecture avec les permissions actuelles; les échéances restent celles des Transactions, sans association inventée depuis un Listing. « Semaine prochaine » désigne lundi à dimanche prochains en heure de Toronto. Une adresse explicite prime sur la fiche ouverte.
+
+Les demandes multiples sont limitées à deux. La comparaison explicite de deux adresses relit chaque fiche et présente ses données structurées; elle ne calcule aucune valeur marchande. Les noms ambigus restent à préciser. Un contexte absent, oublié ou inadapté déclenche une clarification. Ce moteur déterministe ne prétend pas comprendre toutes les formulations. Les anciens tours sortent de la session après quatre réponses; Nouvelle conversation efface le contexte.
+
+L'interface garde son style : paragraphes préformatés, défilement au dernier message, verrou immédiat des doubles envois. Le clavier conserve la saisie multiligne; la taille mobile utilise déjà `100dvh` et une police de 16px. Aucune donnée ni question vers OpenAI, aucune activation financière, migration ou écriture métier.

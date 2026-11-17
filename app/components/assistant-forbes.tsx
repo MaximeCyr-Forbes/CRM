@@ -8,12 +8,15 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
  const [open,setOpen]=useState(false),[question,setQuestion]=useState(''),[turns,setTurns]=useState<Turn[]>([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null),controller=useRef<AbortController|null>(null),generation=useRef(0);
+ const sending=useRef(false),messages=useRef<HTMLDivElement>(null);
+ useEffect(()=>{if(open&&messages.current)messages.current.scrollTop=messages.current.scrollHeight;},[open,turns,busy,error]);
  useEffect(()=>()=>{generation.current++;controller.current?.abort();},[]);
  useEffect(()=>{if(open)dialog.current?.showModal();else dialog.current?.close();},[open]);
  function close(){setOpen(false);trigger.current?.focus();}
- function reset(){generation.current++;controller.current?.abort();setTurns([]);setQuestion('');setError('');setBusy(false);}
+ function reset(){generation.current++;controller.current?.abort();sending.current=false;setTurns([]);setQuestion('');setError('');setBusy(false);}
  async function send(){
-  if(busy||!question.trim())return;
+  if(sending.current||busy||!question.trim())return;
+  sending.current=true;
   const current=generation.current,text=question.trim();setBusy(true);setError('');
   const abort=new AbortController();controller.current=abort;
   try{
@@ -24,14 +27,14 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
    if(!response.ok)throw new Error(result.error||'Assistant temporairement indisponible.');
    setTurns(items=>[...items,{question:text,answer:result.answer,links:result.links}].slice(-4));setQuestion('');
   }catch(reason){if(current===generation.current&&!abort.signal.aborted)setError(reason instanceof Error?reason.message:'Connexion interrompue.');}
-  finally{if(current===generation.current)setBusy(false);}
+  finally{if(current===generation.current){sending.current=false;setBusy(false);}}
  }
  return <>
   <button ref={trigger} type="button" className="forbes-assistant-launch" onClick={()=>setOpen(true)} aria-haspopup="dialog" aria-expanded={open}><MessageCircle size={18}/><span>Assistant Forbes</span></button>
   <dialog ref={dialog} className="forbes-assistant-panel" aria-labelledby="assistant-title" onCancel={close} onClick={event=>{if(event.target===event.currentTarget)close();}}>
    <header><div><h2 id="assistant-title">ASSISTANT FORBES</h2><p>Consultation CRM disponible</p><small>IA externe non activée</small></div><button type="button" onClick={close} aria-label="Fermer l’assistant"><X size={20}/></button></header>
    <div className="forbes-assistant-toolbar"><span>Lecture seule</span><button type="button" onClick={reset}><Plus size={15}/>Nouvelle conversation</button></div>
-   <div className="forbes-assistant-messages" role="log" aria-live="polite"><p>{welcome}</p>
+   <div ref={messages} className="forbes-assistant-messages" role="log" aria-live="polite"><p>{welcome}</p>
     {turns.map((turn,index)=><div key={index}><p className="assistant-question">{turn.question}</p><p>{turn.answer}</p>{turn.links?.map(link=><a key={link.href} href={link.href} onClick={close}>{link.label} →</a>)}</div>)}
     {busy&&<p role="status">Recherche en cours…</p>}{error&&<p className="assistant-feedback" role="alert">{error}</p>}
    </div>

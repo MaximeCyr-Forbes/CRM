@@ -15,3 +15,14 @@ it('renders a privately assembled answer and sends follow-up questions only to t
  fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Résume cette fiche'}});fireEvent.click(screen.getByLabelText('Envoyer la question'));await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2));
  const [url,options]=vi.mocked(fetch).mock.calls[1];expect(url).toBe('/api/assistant/chat');expect(JSON.parse(String(options?.body)).history).toEqual([{question:'Vendeurs du 147 Exemple',answer:''}]);expect(String(options?.body)).not.toContain('Ariane');
 });
+it('synchronous double submit is locked and reset clears private history',async()=>{
+ let resolve:(v:Response)=>void=()=>{};vi.mocked(fetch).mockReturnValue(new Promise<Response>(r=>{resolve=r;}));render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));
+ fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Comment créer un contact ?'}});const form=screen.getByLabelText('Votre question').closest('form')!;fireEvent.submit(form);fireEvent.submit(form);expect(fetch).toHaveBeenCalledTimes(1);
+ resolve(Response.json({answer:'Étapes vérifiées',links:[{href:'/contacts',label:'Ouvrir Contacts'}]}));await waitFor(()=>expect(screen.getByText('Étapes vérifiées')).toBeTruthy());
+ fireEvent.click(screen.getByRole('button',{name:'Nouvelle conversation'}));vi.mocked(fetch).mockResolvedValue(Response.json({answer:'Précise la recherche'}));fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Et pour France ?'}});fireEvent.submit(form);await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2));expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body)).history).toEqual([]);
+});
+it('long conversation keeps only four private question hints, never answer facts',async()=>{
+ vi.mocked(fetch).mockImplementation(async()=>Response.json({answer:'Réponse privée'}));render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));
+ for(let i=0;i<7;i++){fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:`Question ${i}`}});fireEvent.click(screen.getByLabelText('Envoyer la question'));await waitFor(()=>expect((screen.getByLabelText('Votre question') as HTMLTextAreaElement).value).toBe(''));}
+ const payload=JSON.parse(String(vi.mocked(fetch).mock.calls[6][1]?.body));expect(payload.history).toHaveLength(4);expect(payload.history[0].question).toBe('Question 2');expect(JSON.stringify(payload)).not.toContain('Réponse privée');
+});
