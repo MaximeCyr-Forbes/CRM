@@ -12,6 +12,13 @@ afterAll(async()=>{await db.close();});
 it('reserves once per request and retains member lock',async()=>{const id=crypto.randomUUID();await reserve(id);await expect(reserve(id)).rejects.toThrow('DUPLICATE');await expect(reserve()).rejects.toThrow('BUSY');});
 it('concurrent questions produce only one reservation per member',async()=>{const results=await Promise.allSettled(Array.from({length:8},()=>reserve()));expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);expect((await db.query('select * from assistant_usage')).rows).toHaveLength(1);});
 it('does not reset budget on calendar boundaries',async()=>{await db.exec("update assistant_billing_cycles set budget_usd=.05");const id=crypto.randomUUID();await reserve(id);await db.query('select assistant_finish($1,0,0,false)',[id]);await expect(reserve()).rejects.toThrow('BUDGET');});
+it('V2 reserves against two dollars, not the six-dollar promotional balance',async()=>{
+ await db.exec('update assistant_billing_cycles set promotional_credit_usd=6,budget_usd=2');
+ const id=crypto.randomUUID();await reserve(id);
+ await db.query("update assistant_usage set status='completed',estimated_usd=1.99 where request_id=$1",[id]);
+ await expect(reserve()).rejects.toThrow('BUDGET');
+ expect((await db.query('select count(*)::int n from assistant_usage')).rows).toEqual([{n:1}]);
+});
 it('reconciles successful measured usage',async()=>{const id=crypto.randomUUID();await reserve(id);await db.query('select assistant_finish($1,1000,700,true)',[id]);expect((await db.query('select status,estimated_usd from assistant_usage')).rows).toEqual([{status:'completed',estimated_usd:'0.000475'}]);await reserve();});
 it('timeouts retain full reserve, including stale crashed calls',async()=>{await reserve();await db.exec("update assistant_usage set created_at=now()-interval '6 minutes';update assistant_billing_cycles set budget_usd=.05");await expect(reserve()).rejects.toThrow('BUDGET');expect((await db.query('select reserved_usd from assistant_usage')).rows[0]).toEqual({reserved_usd:'0.030000'});});
 it.each(['enabled','no_paid_fallback','auto_recharge_off','privacy_reviewed','model_verified'])('requires %s',async field=>{await db.exec(`update assistant_billing_cycles set ${field}=false`);await expect(reserve()).rejects.toThrow('DISABLED');});

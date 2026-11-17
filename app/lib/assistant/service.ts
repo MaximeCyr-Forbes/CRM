@@ -33,6 +33,7 @@ export async function handleChat(request:Request) {
     const links:VerifiedLink[]=[];
     const messages:unknown[]=input.history.flatMap(turn=>[{role:'user',content:turn.question},{role:'assistant',content:turn.answer}]);
     messages.push({role:'user',content:input.question});
+    messages.push({role:'developer',content:`Courtier de la session authentifiée : ${auth.member.broker}. « Mes dossiers » désigne ce courtier; une sélection dans l’interface ne change pas l’identité.`});
     // URL is only a hint; service accessibility is checked under the member's RLS before any data leaves the CRM.
     let toolCount=0;
     if(input.context){
@@ -85,12 +86,13 @@ export async function handleUsage() {
   try {
     const auth=await getAuthenticatedMember();if(!auth)return json({error:'Connexion requise.'},401);
     const db=getSupabaseServiceClient();
-    const {data:cycle,error}=await db.from('assistant_billing_cycles').select('id,starts_at,expires_at,verified_until,budget_usd,enabled,no_paid_fallback,auto_recharge_off,privacy_reviewed,model_verified').eq('enabled',true).maybeSingle();
+    const {data:cycle,error}=await db.from('assistant_billing_cycles').select('id,starts_at,expires_at,verified_at,verified_until,promotional_credit_usd,budget_usd,enabled,no_paid_fallback,auto_recharge_off,privacy_reviewed,model_verified').eq('enabled',true).maybeSingle();
     if(error)throw error;
     const {data:rows,error:usageError}=cycle?await db.from('assistant_usage').select('estimated_usd,reserved_usd,status').eq('billing_cycle_id',cycle.id):{data:[],error:null};
     if(usageError)throw usageError;
     const verified=!!cycle && cycle.no_paid_fallback && cycle.auto_recharge_off && cycle.privacy_reviewed && cycle.model_verified && Date.now()>=Date.parse(cycle.starts_at) && Date.now()<Math.min(Date.parse(cycle.expires_at),Date.parse(cycle.verified_until));
-    return json({enabled:process.env.ASSISTANT_ENABLED==='true'&&!!process.env.OPENAI_API_KEY&&verified,model:MODEL,budget:cycle?.budget_usd??10,
-      estimated:(rows||[]).reduce((sum,row)=>sum+Number(row.estimated_usd),0),reserved:(rows||[]).reduce((sum,row)=>sum+(row.status==='completed'?0:Number(row.reserved_usd)),0),requests:rows?.length??0,cycle:cycle?{start:cycle.starts_at,end:cycle.expires_at}:null,financialVerified:verified});
+    return json({enabled:process.env.ASSISTANT_ENABLED==='true'&&!!process.env.OPENAI_API_KEY&&verified,model:MODEL,budget:cycle?.budget_usd??2,
+      estimated:(rows||[]).reduce((sum,row)=>sum+Number(row.estimated_usd),0),reserved:(rows||[]).reduce((sum,row)=>sum+(row.status==='completed'?0:Number(row.reserved_usd)),0),requests:rows?.length??0,cycle:cycle?{start:cycle.starts_at,end:cycle.expires_at}:null,
+      creditVerification:cycle?{amount:Number(cycle.promotional_credit_usd),at:cycle.verified_at,until:cycle.verified_until}:null,financialVerified:verified});
   }catch{return json({error:'Utilisation temporairement indisponible.'},503);}
 }

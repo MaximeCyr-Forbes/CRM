@@ -1,12 +1,13 @@
 import {expect,it,vi} from 'vitest';
 import {definitions,minimize,runReadTool,TOOL_NAMES,verifiedLinks} from './tools';
 import {readTools} from '../mcp/read-tools';
+import {queryTools} from './query-tools';
 import {estimatedCost,RESERVATION_USD,MAX_PAYLOAD_BYTES} from './policy';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import type {CRMMember} from '../auth/identity';
 const id='11111111-1111-4111-8111-111111111111';
 const member:CRMMember={memberId:id,authUserId:id,identityId:id,broker:'maxime',brokers:['maxime'],role:'broker'};
-it('only lists explicit existing read tools; never imports write tools',()=>{expect(definitions).toHaveLength(TOOL_NAMES.length);for(const tool of definitions){expect(readTools.find(t=>t.name===tool.name)?.write).toBe(false);expect(tool.type).toBe('function');}});
+it('only lists explicit read tools; never imports write tools',()=>{expect(definitions).toHaveLength(TOOL_NAMES.length);for(const tool of definitions){expect([...readTools,...queryTools].find(t=>t.name===tool.name)?.write).toBe(false);expect(tool.type).toBe('function');}});
 it.each(['crm_update_contact','crm_add_sign_inventory_stock','send_email','web_search','sql'])('rejects injection requesting %s',async name=>{await expect(runReadTool(name,{},{} as SupabaseClient,member)).rejects.toThrow('FORBIDDEN');});
 it('limits data recursively and excludes files, secrets, arbitrary links',()=>{const result=minimize({id,address:'A',secret:'key',web_view_link:'https://evil.test',notes:Array(12).fill({content:'x'.repeat(900)})}) as {notes:{content:string}[]};expect(result.notes).toHaveLength(5);expect(result.notes[0].content).toHaveLength(400);expect(JSON.stringify(result)).not.toContain('secret');expect(JSON.stringify(result)).not.toContain('evil.test');});
 it('links require real UUIDs in successful service results',()=>{expect(verifiedLinks('crm_search_contacts',{data:[{id,first_name:'Exemple'},{id:'invented',first_name:'Fake'}]})).toEqual([{href:`/contacts/${id}`,label:'Exemple'}]);expect(verifiedLinks('crm_get_sign_inventory',{data:[{id}]})).toEqual([]);});

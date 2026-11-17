@@ -1,5 +1,32 @@
 # Assistant Forbes V1
 
+## V2 activation review — 2026-11-17 (pending)
+
+Backup: `pre-assistant-forbes-v2-activation-2026-11-17`, SHA `07541b29e445dd693b9b291791d2645c49dc0b38`.
+The live Personal organization now shows USD 6.00 promotional credit, received November 17 and expiring November 19, 2026. Payment methods states no API billing plan has been started; billing history has no invoices. Organization: `org-JwXIZ39unGgmLf3iBc0EUqyn`. A free dedicated project was created: Assistant Forbes CRM, `proj_3nR1EoI68iayqFsFihfVccqC`, Global residency. The organization displays Build-tier limits for gpt-6-luna. These UI facts do not yet prove a successful authenticated model request.
+
+For this grant only, set the existing cycle budget to `min(2, verified remaining promotional credit - 1)` USD; refuse activation if the remainder is below one USD 0.03 reservation. This leaves USD 4 of the observed USD 6 unallocated. No ten-dollar cycle is authorized. Preserve the atomic database reservation. Conservative cutoff: November 18, 2026, 18:00 America/Toronto (23:00 UTC), or an earlier verified provider/key expiry. Financial evidence expires no later than 24 hours after the real verification. No cycle exists yet, and no next grant is presumed. The default Settings budget is two dollars, not a claim of an activated budget.
+
+### Privacy assessment for responsible-person review
+
+| Topic | Observed implementation / outstanding validation |
+| --- | --- |
+| Purpose | On-demand assistance locating and summarizing authorized CRM records; no automated decision or business mutation. |
+| Data transmitted | User question, up to four prior turns and selected read-tool excerpts: names, contact details, property addresses, statuses, amounts, deadlines and short notes. No PDF, Drive file or full database export. Free-text questions and notes can still contain sensitive information. |
+| Necessity / minimization | Five records per excerpt, 400 characters per string, bounded context and tools. The current projection can include phone/email even when the question does not require them; necessity of these fields and notes must be reviewed before real-client activation. |
+| Recipient and location | Direct OpenAI Responses API via Vercel; Global project. Canada residency was unavailable for this account. No claim of Québec/Canada-only processing. Responsible person must assess cross-border protections and the applicable written agreement/subprocessors. |
+| Retention | `store:false`; no saved CRM conversations or content in the usage ledger. Provider abuse-monitoring retention and prompt caching remain possible; this is not zero retention. Browser conversation memory lasts for the session. |
+| Training/sharing | Live organization controls show feedback, evaluation/fine-tuning sharing and API input/output sharing all Disabled. No sharing was enabled in exchange for credits. |
+| Access / security | Existing live Google membership and member-scoped Supabase client/RLS; strict read-tool allowlist; no write dispatcher; server-only restricted key planned; authenticated same-origin endpoint; bounded quotas. Team accounting access follows the existing shared-member policy, not browser-selected permissions. |
+| Information and lawful basis | No client notices, consent records or applicable exception assessment were supplied for this use. The responsible person must document the necessary basis and information/consent duties, access/correction requests and incident handling. |
+| Decision | NOT APPROVED. No real-client data may be sent and `privacy_reviewed` must remain false until a documented assessment and actual responsible-person validation are obtained. General permission to deploy is not recorded as privacy approval. |
+
+The [CAI guidance](https://www.cai.gouv.qc.ca/protection-renseignements-personnels/information-entreprises-privees/utilisation-communication-renseignements-personnels) requires assessing necessity and cross-border protection, including the applicable written agreement. The [OpenAI retention documentation](https://developers.openai.com/api/docs/guides/your-data) describes abuse monitoring up to 30 days (with exceptions) and caching up to 24 hours. This technical review does not certify legal compliance.
+
+User decision on November 17: no documented privacy validation yet; leave disabled. The user separately approved creating the dedicated restricted API key. It was created with only Responses permission, one-day expiry (November 18), and saved as a sensitive Production-only `OPENAI_API_KEY` in Vercel. No secret was written to a repository, database, log or local file. `ASSISTANT_ENABLED=false` remains unchanged. No billing cycle is fabricated: no key hash, model-validation flag or privacy approval is inserted without complete evidence. No live inference test or real-client transmission is claimed. Activation remains blocked by the documented privacy decision; the dedicated credential also still needs an authenticated synthetic model test before any future activation.
+
+Functional gaps corrected with isolated tests: three bounded assistant-only read tools reuse the authenticated database scope, real `listing_contacts` owner relationship and existing commercial Listing service. They cover active records by authorized broker and verified contact-to-listing links, without changing MCP write tools or business workflows. The authenticated broker is supplied by the server for questions about “my” dossiers.
+
 Delivered disabled. `ASSISTANT_ENABLED=false` in Production. No API key was created or transferred and no inference request was sent during development. On 2026-11-17 the accessible Personal OpenAI organization displayed USD 0.00 and an unlinked ChatGPT benefit. Linking was blocked by automatic approval review; billing was left unchanged.
 
 ## Architecture

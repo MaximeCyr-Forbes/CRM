@@ -5,13 +5,15 @@ import { crmMemberContext } from '../auth/context';
 import { withSupabaseClient } from '../supabase/request-context';
 import { readTools } from '../mcp/read-tools';
 import type { MCPIdentity } from '../mcp/access';
+import { queryTools } from './query-tools';
 
 export const TOOL_NAMES = [
   'crm_search','crm_search_contacts','crm_get_contact','crm_search_listings','crm_get_listing',
   'crm_search_transactions','crm_get_transaction','crm_get_transaction_timeline',
   'crm_get_upcoming_deadlines','crm_get_sign_inventory','crm_get_mortgage_referrals','crm_get_accounting_summary',
+  'crm_get_contact_listings','crm_get_active_broker_listings','crm_get_active_broker_transactions',
 ] as const;
-const allowed = readTools.filter(tool => TOOL_NAMES.some(name => name === tool.name) && !tool.write);
+const allowed = [...readTools, ...queryTools].filter(tool => TOOL_NAMES.some(name => name === tool.name) && !tool.write);
 export const definitions = allowed.map(tool => ({ type: 'function', name: tool.name,
   description: tool.description, parameters: z.toJSONSchema(tool.schema, { io: 'input' }), strict: false }));
 export type VerifiedLink = { href: string; label: string };
@@ -19,7 +21,7 @@ const fields = new Set(['id','first_name','last_name','phone','email','broker','
   'status','type','purpose','price','asking_price','monthly_rent','centris_number','centrisNumber','askingPrice','monthlyRent',
   'centrisStandardStatus','centrisMlsStatus','notary_date','promise_date','notaryDate','promiseDate','notes','content',
   'deadlines','title','due_date','due_time','completed','transaction_id','label','date','time','source','form','confidence',
-  'data','contacts','transactions','listings','nextPage','total','marketing','operation','paid','unpaid','amount',
+  'data','contacts','transactions','listings','nextPage','total','marketing','operation','paid','unpaid','amount','truncated','displayStatus','centris_standard_status','centris_mls_status',
   'available','used','quantity','assigned','stock_id','sign_type','kind','name','paid_at','paid_amount','received_amount','payment_status',
   'civicNumber','dueDate','dueTime','transactionId','soldPrice','saleFinalizedAt','purchaseFinalizedAt','mortgage_advisor_name','institution_name']);
 /** Explicit small projection: never send entire service objects, documents or URLs. */
