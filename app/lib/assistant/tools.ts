@@ -47,7 +47,7 @@ export function verifiedLinks(name: string, result: unknown): VerifiedLink[] {
     if (!value || typeof value!=='object') return;
     const row=value as Record<string,unknown>;
     if (z.uuid().safeParse(row.id).success && ['contacts','listings','transactions'].includes(section))
-      links.push({href:`/${section}/${row.id}`,label:String(row.address || [row.first_name,row.last_name].filter(Boolean).join(' ') || 'Ouvrir la fiche').slice(0,100)});
+      links.push({href:`/${section}/${row.id}`,label:String((section==='contacts'?[row.first_name,row.last_name].filter(Boolean).join(' '):row.address) || 'Ouvrir la fiche').slice(0,100)});
     for (const key of ['data','contacts','listings','transactions']) if (row[key]) collect(row[key],key==='data'?section:key);
   }
   const section=name.includes('contact')?'contacts':name.includes('listing')?'listings':name==='crm_get_transaction'||name==='crm_search_transactions'?'transactions':'';
