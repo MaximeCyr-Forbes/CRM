@@ -1,12 +1,18 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CRMMember } from '../auth/identity';
-const mocks = vi.hoisted(() => ({ listings: vi.fn() }));
+const mocks = vi.hoisted(() => ({ listings: vi.fn(),expenses:vi.fn() }));
+vi.mock('../accounting/server',()=>({listExpenses:mocks.expenses}));
 vi.mock('../listings/server-service', () => ({ listListings: mocks.listings, getListing: vi.fn() }));
 import { runReadTool } from './tools';
 const id = '11111111-1111-4111-8111-111111111111';
 const member: CRMMember = { memberId: id, identityId: id, authUserId: id, broker: 'maxime', brokers: ['maxime'], role: 'broker' };
-beforeEach(() => mocks.listings.mockReset().mockResolvedValue([]));
+beforeEach(() => {mocks.listings.mockReset().mockResolvedValue([]);mocks.expenses.mockReset().mockResolvedValue([]);});
+it('accounting reads never materialize and propagate errors',async()=>{
+ const result=await runReadTool('crm_query_accounting',{query:'Immoplus',mode:'latest'},{} as SupabaseClient,member);
+ expect(mocks.expenses).toHaveBeenCalledWith({materialize:false});expect(result.links).toEqual([{href:'/accounting',label:'Ouvrir Comptabilité'}]);
+ mocks.expenses.mockRejectedValue(Error('SQL'));await expect(runReadTool('crm_query_accounting',{query:'Immoplus',mode:'latest'},{} as SupabaseClient,member)).rejects.toThrow('SQL');
+});
 function database(rows: unknown[], contact: unknown = { id }) {
   const q: Record<string, any> = {};
   for (const name of ['select', 'eq', 'not', 'order','in','lte','gte']) q[name] = vi.fn(() => q);

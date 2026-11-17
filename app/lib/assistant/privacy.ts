@@ -13,6 +13,9 @@ const keys=['summary','people','deadlines','inventory','results'] as const;
 type SectionKey=typeof keys[number];
 export type PrivateContext={sections:Partial<Record<SectionKey,string[]>>;links:VerifiedLink[];localAnswer?:string};
 const plan=z.strictObject({sections:z.array(z.enum(keys)).min(1).max(5).refine(a=>new Set(a).size===a.length)});
+export function assembleLocalAnswer(prepared:PrivateContext){
+ return [prepared.localAnswer,...keys.flatMap(k=>prepared.sections[k]??[])].filter(Boolean).join('\n').slice(0,6000)||'Précisez le module CRM et l’information que vous souhaitez retrouver.';
+}
 /** Only validated ordering is used. Model text never enters a private answer. */
 export function assemblePrivateAnswer(prepared:PrivateContext,output:string){
  const order=plan.parse(JSON.parse(output)).sections;
@@ -33,6 +36,22 @@ export async function preparePrivateContext(input:ChatInput,member:CRMMember,rea
  const today=new Intl.DateTimeFormat('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
  const add=(days:number)=>{const d=new Date(`${today}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
  const scoped=parsed.broker||parsed.mine?{broker:brokers[0]}:{};
+ if(parsed.intent==='accounting'){
+  const r=await run('crm_query_accounting',{query:parsed.entity,mode:parsed.accountingMode,unpaid:parsed.unpaid,...(parsed.broker?{broker:parsed.broker}:{})});
+  sections.results=[text(r.explanation),...rows(r.data).map(e=>[
+   `${text(e.vendor)||'Fournisseur non renseigné'} — ${typeof e.amount==='number'?e.amount.toLocaleString('fr-CA',{style:'currency',currency:'CAD'}):'Montant non renseigné'}`,
+   `Date de dépense : ${text(e.expense_date)||'non renseignée'}. Description : ${text(e.description)||'non renseignée'}.`,
+   ...(!e.expense_date?[`Création de l’enregistrement (pas la date de dépense) : ${text(e.created_at)||'non renseignée'}.`]:[]),
+   ...(parsed.accountingMode==='invoice'?[`Dépôt de la facture (pas sa date de facturation) : ${text(e.invoice_uploaded_at)||'non renseigné'}.`]:[]),
+   `Statut : ${e.is_paid?'payé':'non payé'}. Paiement enregistré : ${text(e.paid_at)||'non renseigné'}. Attribution : ${text(e.assigned_broker)||'équipe'}.`,
+  ].join('\n'))];
+  if(!rows(r.data).length)sections.results.push(`Je n’ai trouvé aucune ${parsed.accountingMode==='invoice'?'facture':parsed.accountingMode==='payment'||parsed.accountingMode==='paid_total'?'dépense payée':'dépense'} correspondant à ${parsed.entity||'ces critères'} dans les données comptables auxquelles vous avez accès.`);
+  if(typeof r.total==='number')sections.results.push(`Total des montants enregistrés comme payés : ${r.total.toLocaleString('fr-CA',{style:'currency',currency:'CAD'})}.`);
+  if(r.truncated)sections.results.push('Extrait limité à cinq résultats; consultez Comptabilité pour la suite.');return done();
+ }
+ if(parsed.intent==='mortgage'){
+  for(const broker of brokers){const r=await run('crm_get_mortgage_referrals',{broker,limit:5});(sections.results??=[]).push(`Références hypothécaires — ${broker} :`,...rows(r.data).map(r=>`${text(r.mortgage_advisor_name)||'Conseiller non renseigné'} — ${text(r.institution_name)} — ${r.paid_at?'payé':'à venir'}${typeof r.paid_amount==='number'?` — ${r.paid_amount} CAD`:''}`));if(!rows(r.data).length)sections.results.push('Aucune référence accessible.');if(r.nextPage!=null)sections.results.push('Extrait limité à cinq références.');}return done();
+ }
  if(parsed.intent==='coordinates'){
   if(input.context){const [,section,id]=input.context.split('/');const type=section==='contacts'?'contact':section==='listings'?'listing':'transaction';await run(`crm_get_${type}`,{[`${type}_id`]:id});}
   return done('Les coordonnées, notes et documents restent dans la fiche CRM autorisée. Ouvrez son lien pour les consulter.');
@@ -51,8 +70,9 @@ export async function preparePrivateContext(input:ChatInput,member:CRMMember,rea
   sections.results=['Transactions actives — extrait limité à cinq fiches.',...found.slice(0,5).map(line)];if(!found.length)sections.results.push('Aucune transaction active trouvée.');return done();
  }
  if(['deadlines','conditions','urgent'].includes(parsed.intent)){
-  const from=q.includes('demain')?add(1):parsed.intent==='urgent'||parsed.intent==='conditions'?'1900-01-01':today;
-  const to=q.includes('demain')?add(1):q.includes('aujourd')?today:parsed.intent==='conditions'?'2200-12-31':add(7);
+  const overdue=q.includes('retard');
+  const from=overdue?'1900-01-01':q.includes('demain')?add(1):parsed.intent==='urgent'||parsed.intent==='conditions'?'1900-01-01':today;
+  const to=overdue?add(-1):q.includes('demain')?add(1):q.includes('aujourd')?today:parsed.intent==='conditions'?'2200-12-31':add(7);
   const r=await run('crm_get_private_deadlines',{from,to,...scoped,conditions:parsed.intent==='conditions'});
   sections.deadlines=[parsed.intent==='conditions'?'Conditions : échéances ouvertes des dossiers aux étapes PA acceptée, inspection, financement ou autres conditions.':'Échéances non terminées, classées par date; les retards apparaissent en premier pour les urgences.',...rows(r.data).map(d=>`${deadline(d)} — ${text(row(d.transactions).address)}`)];
   if(!rows(r.data).length)sections.deadlines.push('Aucune échéance correspondant à ces critères.');if(r.truncated)sections.deadlines.push('Extrait limité à cinq échéances.');return done();
@@ -75,7 +95,7 @@ export async function preparePrivateContext(input:ChatInput,member:CRMMember,rea
   const [,section,contextId]=input.context.split('/');kind=section;id=contextId;
  }else if(entity&&['search','summary','sellers','listings','transactions'].includes(parsed.intent)){
   const r=await run('crm_search',{query:entity,limit:5});
-  const kinds=parsed.intent==='sellers'?(rows(row(r.listings).data).length?['listings']:['transactions']):parsed.concepts.has('transactions')&&parsed.intent==='summary'?['transactions']:['contacts','listings','transactions'];
+  const kinds=parsed.intent==='sellers'?(rows(row(r.listings).data).length?['listings']:['transactions']):parsed.concepts.has('transactions')?['transactions']:parsed.concepts.has('listings')?['listings']:parsed.concepts.has('contacts')?['contacts']:['contacts','listings','transactions'];
   const found=kinds.flatMap(k=>rows(row(r[k]).data).map(record=>({kind:k,record}))),truncated=kinds.some(k=>row(r[k]).nextPage!=null);
   if(found.length!==1||truncated){sections.results=found.slice(0,5).map(f=>`${f.kind} : ${name(f.record)}`);return done(found.length?'Plusieurs fiches correspondent. Précisez votre recherche ou ouvrez la fiche voulue.':'Aucune fiche accessible trouvée.');}
   ({kind,record}=found[0]);id=record.id;

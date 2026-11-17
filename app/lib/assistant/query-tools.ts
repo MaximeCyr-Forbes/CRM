@@ -3,9 +3,16 @@ import { accessible, checked, type ToolDefinition } from '../mcp/read-tools';
 import { broker, date, requireBroker, uuid } from '../mcp/access';
 import { listListings } from '../listings/server-service';
 import { getListingDisplayStatus } from '../listings/display-status';
+import { listExpenses } from '../accounting/server';
+import { selectAccounting } from './accounting-query';
 
 // Complements existing MCP reads; executed only inside the same authenticated request scope.
 export const queryTools: ToolDefinition[] = [
+  {
+    name:'crm_query_accounting',write:false,description:'Rechercher des dépenses existantes sans matérialiser les récurrences; distinguer dépenses, paiements et factures.',
+    schema:z.strictObject({query:z.string().max(160).default(''),mode:z.enum(['latest','expenses','payment','invoice','paid_total']),unpaid:z.boolean().default(false),broker:broker.optional()}),
+    run:async(a,_db,i)=>{requireBroker(i,null);if(a.broker)requireBroker(i,a.broker);return selectAccounting(await listExpenses({materialize:false}),a as Parameters<typeof selectAccounting>[1]);},
+  },
   {
     name:'crm_get_listing_owners',write:false,description:'Lire les propriétaires réellement liés au Listing accessible, sans inférer de vendeur depuis une adresse.',
     schema:z.strictObject({listing_id:uuid}),

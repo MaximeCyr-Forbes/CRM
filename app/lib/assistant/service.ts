@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getAuthenticatedMember } from '../auth/server';
 import { getSupabaseServiceClient } from '../supabase/server';
 import { runReadTool } from './tools';
-import { preparePrivateContext, assemblePrivateAnswer } from './privacy';
+import { preparePrivateContext, assemblePrivateAnswer, assembleLocalAnswer, type PrivateContext } from './privacy';
 import { chatInput, DISABLED_MESSAGE, MAX_PAYLOAD_BYTES, MODEL, GENERIC_PLAN_BODY, type ChatInput } from './policy';
 
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
@@ -23,6 +23,17 @@ export async function handleChat(request:Request) {
     finally {reader.releaseLock();}
     input=chatInput.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
   } catch {return json({error:'Question ou contexte invalide.'},400);}
+  try {
+    const prepared=await preparePrivateContext(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member));
+    return json({answer:assembleLocalAnswer(prepared),links:prepared.links,source:'crm'});
+  } catch (error) {
+    const denied=error instanceof Error && (error.message==='ASSISTANT_FORBIDDEN' || ('code' in error && ['FORBIDDEN','NOT_FOUND'].includes(String(error.code))));
+    return json({error:denied?'Cette recherche ne fait pas partie de vos accès CRM.':'La lecture CRM demandée a échoué. Réessayez ou ouvrez le module concerné; aucun résultat vide ne peut être confirmé.',source:'crm'},denied?403:503);
+  }
+}
+
+/** Reserved for a future explicitly selected external operation. Local queries never call this path. */
+export async function requestExternalPlan(input:ChatInput,auth:NonNullable<Awaited<ReturnType<typeof getAuthenticatedMember>>>,prepared:PrivateContext) {
   const key=process.env.OPENAI_API_KEY;
   if(process.env.ASSISTANT_ENABLED!=='true' || !key) return json({error:DISABLED_MESSAGE},503);
   const db=getSupabaseServiceClient();
@@ -31,7 +42,6 @@ export async function handleChat(request:Request) {
   const grant=reserved.data as {organizationId:string;projectId:string;expiresAt:string};
   let inputTokens=0,outputTokens=0,complete=false,attempted=false;
   try {
-    const prepared=await preparePrivateContext(input,auth.member,(name,args)=>runReadTool(name,args,auth.client,auth.member));
     if(prepared.localAnswer){complete=true;return json({answer:[prepared.localAnswer,...Object.values(prepared.sections).flat()].join('\n'),links:prepared.links});}
     {
       // Recheck live membership and cycle immediately before every external call; never retry.

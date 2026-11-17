@@ -90,3 +90,10 @@ Sources verified 2026-11-17:
 ## Verification
 
 Tests mock every OpenAI request and use an isolated PGlite database for real SQL reservations, quotas, concurrent calls, expiry, reconciliation and denied grants. Production QA uses the disabled branch; it cannot validate model quality or a live CRM-to-model response. No synthetic business record is created in Production. No API test is permitted until the financial and privacy gates are verified.
+# Correctif P0 — consultation locale indépendante (2026-11-17)
+
+`POST /api/assistant/chat` authentifie, valide puis exécute les lectures autorisées et renvoie `source: "crm"`. Aucune réservation budgétaire, clé ou activation OpenAI n'est requise. Les sections privées sont assemblées dans un ordre déterministe. Le chemin externe générique reste isolé dans `requestExternalPlan`, avec ses protections financières, sans sélection possible depuis le body du chat. Les intentions inconnues demandent une précision. Une erreur de lecture retourne une erreur ciblée, jamais un faux résultat vide.
+
+Comptabilité : `listExpenses({materialize:false})`, permissions et contexte CRM existants. Recherche des champs fournisseur, description, attribution et catégorie; correspondances exactes avant normalisées. Dépense triée par `expense_date`, paiement par `paid_at`, facture jointe par dépôt (date de facturation indisponible, explicitement indiqué). Dates manquantes et homonymes demandent une précision. Aucun téléchargement ni écriture. Les montants affichés proviennent des enregistrements; ils ne prouvent pas une transaction bancaire.
+
+L'interface distingue consultation CRM et IA externe non activée. `ASSISTANT_ENABLED=false` reste inchangé. Les restrictions V3 précédentes concernent le chemin externe; elles ne bloquent plus la consultation interne. Aucune donnée client ni question brute ne sort vers OpenAI.

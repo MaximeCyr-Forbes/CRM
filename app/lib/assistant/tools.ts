@@ -8,6 +8,7 @@ import type { MCPIdentity } from '../mcp/access';
 import { queryTools } from './query-tools';
 
 export const TOOL_NAMES = [
+  'crm_query_accounting',
   'crm_search','crm_search_contacts','crm_get_contact','crm_search_listings','crm_get_listing',
   'crm_search_transactions','crm_get_transaction','crm_get_transaction_timeline',
   'crm_get_upcoming_deadlines','crm_get_sign_inventory','crm_get_mortgage_referrals','crm_get_accounting_summary',
@@ -18,7 +19,7 @@ const allowed = [...readTools, ...queryTools].filter(tool => TOOL_NAMES.some(nam
 export const definitions = allowed.map(tool => ({ type: 'function', name: tool.name,
   description: tool.description, parameters: z.toJSONSchema(tool.schema, { io: 'input' }), strict: false }));
 export type VerifiedLink = { href: string; label: string };
-const fields = new Set(['id','first_name','last_name','phone','email','broker','address','city','civic_number','postal_code',
+const fields = new Set(['explanation','vendor','description','assigned_broker','category','expense_date','created_at','is_paid','invoice_uploaded_at','id','first_name','last_name','phone','email','broker','address','city','civic_number','postal_code',
   'status','type','purpose','price','asking_price','monthly_rent','centris_number','centrisNumber','askingPrice','monthlyRent',
   'centrisStandardStatus','centrisMlsStatus','notary_date','promise_date','notaryDate','promiseDate','notes','content',
   'deadlines','title','due_date','due_time','completed','transaction_id','label','date','time','source','form','confidence',
@@ -35,6 +36,7 @@ export function minimize(value: unknown, depth = 0): unknown {
   return undefined;
 }
 export function verifiedLinks(name: string, result: unknown): VerifiedLink[] {
+  if(name==='crm_query_accounting')return [{href:'/accounting',label:'Ouvrir Comptabilité'}];
   const links: VerifiedLink[]=[];
   function collect(value: unknown, section: string) {
     if (Array.isArray(value)) { value.slice(0,5).forEach(row=>collect(row,section)); return; }
