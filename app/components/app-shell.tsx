@@ -7,6 +7,7 @@ import { useAuth } from "../auth-context";
 import { StartupLoading } from "./startup-loading";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
+import { AssistantForbes } from "./assistant-forbes";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -48,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
   const sidebarProps = { pathname, workspaceUser, selectedBroker, navigate };
   return <div className="crm-app-shell">
+    {member && <AssistantForbes key={member.memberId} pathname={pathname} />}
     <a className="crm-skip-link" href="#crm-content">Aller au contenu</a>
     <aside className="crm-sidebar"><AppSidebar {...sidebarProps} /></aside>
     <div className="crm-workspace">

@@ -1,0 +1,10 @@
+// @vitest-environment jsdom
+import React from 'react';
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
+import {AssistantForbes} from './assistant-forbes';
+beforeEach(()=>{vi.stubGlobal('React',React);vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:false,json:async()=>({error:'Assistant désactivé'})}));HTMLDialogElement.prototype.showModal=function(){this.open=true;};HTMLDialogElement.prototype.close=function(){this.open=false;};});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+it('opening closing and rerendering never call AI',()=>{const view=render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));expect(screen.getByRole('dialog')).toBeTruthy();expect(screen.getByText(/Salut !/)).toBeTruthy();view.rerender(<AssistantForbes/>);fireEvent.click(screen.getByLabelText('Fermer l’assistant'));expect(fetch).not.toHaveBeenCalled();});
+it('only explicit question sends and disabled feedback is visible',async()=>{render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Bonjour'}});fireEvent.click(screen.getByLabelText('Envoyer la question'));await waitFor(()=>expect(screen.getByRole('alert').textContent).toBe('Assistant désactivé'));expect(fetch).toHaveBeenCalledTimes(1);});
+it('new conversation cancels and cannot display stale response',async()=>{let resolve:(value:Response)=>void=()=>{};vi.mocked(fetch).mockReturnValue(new Promise<Response>(r=>{resolve=r;}));render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Bonjour'}});fireEvent.click(screen.getByLabelText('Envoyer la question'));fireEvent.click(screen.getByRole('button',{name:'Nouvelle conversation'}));resolve(Response.json({answer:'Old answer'}));await waitFor(()=>expect((screen.getByLabelText('Votre question') as HTMLTextAreaElement).value).toBe(''));expect(screen.queryByText('Old answer')).toBeNull();});

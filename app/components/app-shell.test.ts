@@ -10,6 +10,7 @@ vi.mock("react", async original => ({ ...await original<typeof import("react")>(
 vi.mock("next/navigation", () => ({ usePathname: () => state.pathname, useRouter: () => ({ push: state.push, replace: state.replace }) }));
 vi.mock("../broker-context", () => ({ BROKERS: ["France", "Maxime", "Sandrine"], useBroker: () => ({ ...state }) }));
 vi.mock("./global-search", () => ({ GlobalSearch: () => createElement("button", { "aria-label": "Ouvrir la recherche globale" }) }));
+vi.mock("./assistant-forbes", () => ({ AssistantForbes: () => createElement("button", null, "Assistant Forbes") }));
 vi.mock("./account-menu", () => ({ AccountMenu: () => createElement("button", { "aria-label": "Menu d’accès équipe" }) }));
 vi.mock("./app-header", () => ({ AppHeader: () => createElement("header", null, "Selection header") }));
 import { AppSidebar, shellLinks } from "./app-sidebar";
