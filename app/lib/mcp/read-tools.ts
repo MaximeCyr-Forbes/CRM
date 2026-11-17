@@ -30,6 +30,18 @@ const searchEntity=async(db:SupabaseClient,table:string,columns:string,fields:st
  const rows=await checked(db.from(table).select(columns).or(whole.join(',')).order('id').range(a.page*a.limit,(a.page+1)*a.limit));
  return pageResult(rows,a.page,a.limit);
 };
+// Name-only lookup keeps accents/punctuation equivalent without a schema migration.
+// SQL narrows candidates under the caller's existing RLS; JS removes wildcard false positives.
+const nameKey=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+async function searchContactNames(db:SupabaseClient,a:Record<string,any>){
+ const tokens=nameKey(a.query).split(/\s+/).filter(Boolean);
+ if(!tokens.length)throw new MCPAccessError('INVALID_INPUT','Nom requis.');
+ const filters=tokens.map(token=>{const pattern=token.replace(/[aeiouync]/g,'_');return `or(first_name.ilike.%${pattern}%,last_name.ilike.%${pattern}%)`;});
+ const candidates=await checked(db.from('contacts').select(contactColumns).or(`and(${filters.join(',')})`).order('id').range(0,199));
+ if(candidates.length>=200)throw new MCPAccessError('INVALID_INPUT','Recherche trop large; précisez le nom.');
+ const matching=candidates.filter(r=>{const full=nameKey(`${r.first_name??''} ${r.last_name??''}`);return tokens.every(token=>full.includes(token));});
+ return pageResult(matching.slice(a.page*a.limit,(a.page+1)*a.limit+1),a.page,a.limit);
+}
 const accountingShape={...pagination,period:z.enum(['month','year','all','undated']).default('all'),category:z.enum(['all','marketing','operation','broker']).default('all'),broker:broker.optional(),year:z.string().regex(/^\d{4}$/).optional(),month:z.string().regex(/^(0[1-9]|1[0-2])$/).optional(),search:z.string().max(160).default(''),status:z.enum(['all','paid','unpaid']).default('all')};
 async function accountingRows(a:Record<string,any>,identity:MCPIdentity){
  if(a.category==='broker'){if(a.broker)requireBroker(identity,a.broker);}else requireBroker(identity,null);
@@ -41,7 +53,7 @@ export const readTools:ToolDefinition[]=[
   listings:await searchEntity(db,'listings',listingColumns,['civic_number','address','centris_number','city'],a),
   transactions:await searchEntity(db,'transactions',transactionColumns,['address','centris_number'],a),
  })),
- read('crm_search_contacts','Rechercher des contacts par nom, téléphone, courriel, adresse ou provenance. Résultats paginés; ne pas utiliser pour une modification.',{query:search,...pagination},(a,db)=>searchEntity(db,'contacts',contactColumns,['first_name','last_name','email','phone','address','client_provenance'],a)),
+ read('crm_search_contacts','Rechercher des contacts par nom, téléphone, courriel, adresse ou provenance. name_only limite aux noms, insensible aux accents. Résultats paginés; ne pas utiliser pour une modification.',{query:search,...pagination,name_only:z.boolean().default(false)},(a,db)=>a.name_only?searchContactNames(db,a):searchEntity(db,'contacts',contactColumns,['first_name','last_name','email','phone','address','client_provenance'],a)),
  read('crm_get_contact','Lire les coordonnées et la provenance d’un contact identifié. Pour chercher un identifiant, utiliser crm_search_contacts.',{contact_id:uuid},async(a,db)=>{await accessible(db,'contacts',a.contact_id);return checked(db.from('contacts').select(contactColumns+',contact_addresses(id,civic_number,address,city,province,postal_code,is_primary)').eq('id',a.contact_id).single());}),
  read('crm_search_listings','Rechercher les propriétés inscrites par adresse ou numéro Centris; ne modifie aucune inscription.',{query:search,...pagination},(a,db)=>searchEntity(db,'listings',listingColumns,['civic_number','address','city','centris_number'],a)),
  read('crm_get_listing','Lire une inscription accessible à partir de son identifiant CRM.',{listing_id:uuid},async(a,db)=>{await accessible(db,'listings',a.listing_id);return getListing(a.listing_id);}),

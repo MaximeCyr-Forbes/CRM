@@ -1,10 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Plus, Send, X } from 'lucide-react';
+import {useRouter} from 'next/navigation';
+import {parseRecordRequest,recordPath} from '../lib/assistant/record-request';
 import './assistant-forbes.css';
 type Turn={question:string;answer:string;links?:{href:string;label:string}[]};
 const welcome="Salut ! Je suis l’Assistant Forbes.\n\nJe peux t’aider à retrouver des Contacts, comprendre des Transactions, consulter les Listings et repérer les échéances importantes.\n\nQue veux-tu savoir ?";
 export function AssistantForbes({pathname=''}:{pathname?:string}) {
+ const router=useRouter();
  const [open,setOpen]=useState(false),[question,setQuestion]=useState(''),[turns,setTurns]=useState<Turn[]>([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null),controller=useRef<AbortController|null>(null),generation=useRef(0);
@@ -26,6 +29,7 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
    const result=await response.json();if(current!==generation.current)return;
    if(!response.ok)throw new Error(result.error||'Assistant temporairement indisponible.');
    setTurns(items=>[...items,{question:text,answer:result.answer,links:result.links}].slice(-4));setQuestion('');
+   if(result.source==='crm'&&parseRecordRequest(text)?.open&&recordPath(result.navigateTo)&&result.links?.some((link:{href:string})=>link.href===result.navigateTo)){close();router.push(result.navigateTo);}
   }catch(reason){if(current===generation.current&&!abort.signal.aborted)setError(reason instanceof Error?reason.message:'Connexion interrompue.');}
   finally{if(current===generation.current){sending.current=false;setBusy(false);}}
  }

@@ -3,6 +3,8 @@ import React from 'react';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 import {render,screen,fireEvent,cleanup,waitFor} from '@testing-library/react';
 import {AssistantForbes} from './assistant-forbes';
+const navigation=vi.hoisted(()=>({push:vi.fn()}));
+vi.mock('next/navigation',()=>({useRouter:()=>navigation}));
 beforeEach(()=>{vi.stubGlobal('React',React);vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:false,json:async()=>({error:'Assistant désactivé'})}));HTMLDialogElement.prototype.showModal=function(){this.open=true;};HTMLDialogElement.prototype.close=function(){this.open=false;};});
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 it('opening closing and rerendering never call AI',()=>{const view=render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));expect(screen.getByRole('dialog')).toBeTruthy();expect(screen.getByText(/Salut !/)).toBeTruthy();view.rerender(<AssistantForbes/>);fireEvent.click(screen.getByLabelText('Fermer l’assistant'));expect(fetch).not.toHaveBeenCalled();});
@@ -25,4 +27,7 @@ it('long conversation keeps only four private question hints, never answer facts
  vi.mocked(fetch).mockImplementation(async()=>Response.json({answer:'Réponse privée'}));render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));
  for(let i=0;i<7;i++){fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:`Question ${i}`}});fireEvent.click(screen.getByLabelText('Envoyer la question'));await waitFor(()=>expect((screen.getByLabelText('Votre question') as HTMLTextAreaElement).value).toBe(''));}
  const payload=JSON.parse(String(vi.mocked(fetch).mock.calls[6][1]?.body));expect(payload.history).toHaveLength(4);expect(payload.history[0].question).toBe('Question 2');expect(JSON.stringify(payload)).not.toContain('Réponse privée');
+});
+it.each(['https://evil.test','javascript:alert(1)','/contacts/not-a-uuid',`/contacts/11111111-1111-4111-8111-111111111111`])('does not navigate without a verified internal link: %s',async navigateTo=>{
+ navigation.push.mockReset();vi.mocked(fetch).mockResolvedValue(Response.json({answer:'Réponse',navigateTo,links:[]}));render(<AssistantForbes/>);fireEvent.click(screen.getByRole('button',{name:'Assistant Forbes'}));fireEvent.change(screen.getByLabelText('Votre question'),{target:{value:'Ouvre une fiche'}});fireEvent.click(screen.getByLabelText('Envoyer la question'));await waitFor(()=>expect(screen.getByText('Réponse')).toBeTruthy());expect(navigation.push).not.toHaveBeenCalled();
 });

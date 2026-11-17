@@ -2,6 +2,8 @@ import type {ChatInput} from './policy';
 import {normalize,recognizeIntent} from './intents';
 import {help,modules,type Module} from './knowledge';
 import {preparePrivateContext,assembleLocalAnswer} from './privacy';
+import {parseRecordRequest} from './record-request';
+import {resolveRecord} from './record-search';
 type Mode='HOW_TO'|'READ'|'EXPLAIN'|'SUMMARY'|'COMPARE'|'WRITE_REQUEST'|'FOLLOW_UP'|'UNKNOWN';
 type State={module?:Module;question?:string;broker?:string;mode?:Mode;action?:string};
 const moduleRules:[Module,RegExp][]=[['mortgage',/hypothec/],['inventory',/pancart|\bbac\b|inventaire|stock/],['accounting',/comptabil|depense|facture|paiement|montant|fournisseur/],['settings',/connect.*google|google.*connect|parametre/],['calendar',/calendrier|agenda/],['emails',/campagne|courriels auto/],['drive',/\bdrive\b/],['software',/logiciel|generateur|calculatrice/],['transactions',/transaction|dossier|\bpa\b/],['listings',/listing|propriete|inscription|maison/],['contacts',/contact|client/]];
@@ -13,7 +15,7 @@ export function classify(question:string){
  const explain=/c est quoi|qu est ce|que signifie|explique|definition/.test(q);
  const execute=/\b(?:cree|creer|supprime|supprimer|ajoute|ajouter|modifie|modifier|envoie|envoyer|efface|finalise|paye|marque|enregistre)\b/.test(q);
  const negated=/\b(?:ne|n )\b.*\b(?:pas|jamais|rien)\b/.test(q)&&!instructional;
- const mode:Mode=instructional?'HOW_TO':explain?'EXPLAIN':negated&&execute?'UNKNOWN':execute?'WRITE_REQUEST':/\bcompar/.test(q)?'COMPARE':/^(et\b|lesquell|lequell|celles?\b|ceux\b)|\b(?:la meme|les memes)\b/.test(q)?'FOLLOW_UP':recognizeIntent(question).intent==='summary'?'SUMMARY':recognizeIntent(question).intent!=='unknown'?'READ':'UNKNOWN';
+ const mode:Mode=instructional?'HOW_TO':explain?'EXPLAIN':negated&&execute?'UNKNOWN':execute?'WRITE_REQUEST':/\bcompar/.test(q)?'COMPARE':/^(et\b|lesquell|lequell|celles?\b|ceux\b)|\b(?:la meme|les memes)\b/.test(q)?'FOLLOW_UP':parseRecordRequest(question)?.open?'READ':recognizeIntent(question).intent==='summary'?'SUMMARY':recognizeIntent(question).intent!=='unknown'?'READ':'UNKNOWN';
  return {mode,module,action,negated};
 }
 function contextualize(question:string,state:State){
@@ -37,7 +39,7 @@ export async function answerConversation(input:ChatInput,...args:Parameters<type
  let state:State={};for(const turn of input.history.slice(-4)){const resolved=contextualize(turn.question,state);state=resolved.state;}
  const parts=input.question.split(/\?\s*(?=\S)/).map(s=>s.trim()).filter(Boolean);
  if(parts.length>2)return {answer:'Pose au plus deux questions à la fois pour garder une réponse précise.',links:[],source:'crm'};
- const answers:string[]=[],links:{href:string;label:string}[]=[];
+ const answers:string[]=[],links:{href:string;label:string}[]=[];let navigateTo:string|undefined;
  for(const question of parts.length?parts:[input.question]){
   const resolved=contextualize(question,state);state=resolved.state;
   if(resolved.clarification){answers.push(resolved.clarification);continue;}
@@ -56,7 +58,11 @@ export async function answerConversation(input:ChatInput,...args:Parameters<type
    for(const candidate of candidates){const prepared=await preparePrivateContext({...input,question:`Résume la propriété ${candidate}`,context:undefined,history:[]},...args);answers.push(assembleLocalAnswer(prepared));links.push(...prepared.links);}continue;
   }
   if(c.mode==='UNKNOWN'){answers.push(c.negated?'Aucune action ne sera effectuée. Quelle information veux-tu consulter ?':'Veux-tu de l’aide pour utiliser un écran ou rechercher une donnée ? Précisez le module et le renseignement voulu.');continue;}
+  const recordRequest=parseRecordRequest(effective);
+  if(recordRequest&&(recordRequest.section||recordRequest.open)){
+   const r=await resolveRecord(recordRequest,args[1]);answers.push(r.answer);links.push(...r.links);if(parts.length===1)navigateTo=r.navigateTo;continue;
+  }
   const prepared=await preparePrivateContext({...input,question:effective},...args);answers.push(assembleLocalAnswer(prepared));links.push(...prepared.links);
  }
- return {answer:answers.join('\n\n').slice(0,6000),links:[...new Map(links.map(l=>[l.href,l])).values()].slice(0,10),source:'crm'};
+ return {answer:answers.join('\n\n').slice(0,6000),links:[...new Map(links.map(l=>[l.href,l])).values()].slice(0,10),source:'crm',...(navigateTo?{navigateTo}:{})};
 }
