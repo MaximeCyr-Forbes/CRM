@@ -18,7 +18,7 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
   const abort=new AbortController();controller.current=abort;
   try{
    const response=await fetch('/api/assistant/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:abort.signal,
-    body:JSON.stringify({requestId:crypto.randomUUID(),question:text,history:turns.slice(-4).map(({question,answer})=>({question,answer})),
+    body:JSON.stringify({requestId:crypto.randomUUID(),question:text,
      ...(/^\/(contacts|listings|transactions)\/[0-9a-f-]{36}$/i.test(pathname)?{context:pathname}:{})})});
    const result=await response.json();if(current!==generation.current)return;
    if(!response.ok)throw new Error(result.error||'Assistant temporairement indisponible.');

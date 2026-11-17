@@ -1,4 +1,12 @@
-# Assistant Forbes V1
+# Assistant Forbes — V2, préparation confidentielle
+
+## État courant — 17 novembre 2026
+
+L’Assistant reste désactivé. Aucun cycle financier ni approbation `privacy_reviewed` n’est créé. Autorisation organisationnelle obtenue pour terminer le développement et l’audit; ce n’est ni un consentement client ni une approbation juridique. Le dossier de décision et les preuves manquantes sont dans [l’EFVP](assistant-forbes-privacy-review.md).
+
+La recherche se déroule maintenant dans le backend CRM. `privacy.ts` reconnaît des intentions bornées, exécute au plus quatre lectures autorisées puis construit une consigne fixe avec des champs structurés sélectionnés. Le modèle reçoit au plus cinq fiches pseudonymisées, sans question brute, historique, UUID, nom, adresse, téléphone, courriel, note, document ou lien. Une demande de nombre ne transmet que le total; les prix numériques ne sont permis que sur demande de prix/valeur/loyer/montant. Les coordonnées et notes renvoient localement vers la fiche autorisée. Les liens réels restent dans la réponse CRM au navigateur, jamais dans l’entrée OpenAI. Une demande ambiguë ou non prise en charge demande une précision localement. Chaque question est indépendante; le dialogue affiché n’est pas une mémoire IA.
+
+Un seul appel Responses au maximum, sans outils fournis au modèle, sans nouvelle tentative. Les fonctions d’écriture sont inaccessibles. La réserve conservatrice existante de 0,03 USD reste inchangée. Les exemples et tests sont synthétiques; aucun appel OpenAI réel n’est autorisé dans cette mission. Le rappel budgétaire existant du 19 novembre à 10 h Québec n’est pas recréé.
 
 ## V2 activation review — 2026-11-17 (pending)
 
@@ -7,7 +15,7 @@ The live Personal organization now shows USD 6.00 promotional credit, received N
 
 For this grant only, set the existing cycle budget to `min(2, verified remaining promotional credit - 1)` USD; refuse activation if the remainder is below one USD 0.03 reservation. This leaves USD 4 of the observed USD 6 unallocated. No ten-dollar cycle is authorized. Preserve the atomic database reservation. Conservative cutoff: November 18, 2026, 18:00 America/Toronto (23:00 UTC), or an earlier verified provider/key expiry. Financial evidence expires no later than 24 hours after the real verification. No cycle exists yet, and no next grant is presumed. The default Settings budget is two dollars, not a claim of an activated budget.
 
-### Privacy assessment for responsible-person review
+### Initial V2 assessment (historical, superseded by the EFVP above)
 
 | Topic | Observed implementation / outstanding validation |
 | --- | --- |
@@ -27,21 +35,21 @@ User decision on November 17: no documented privacy validation yet; leave disabl
 
 Functional gaps corrected with isolated tests: three bounded assistant-only read tools reuse the authenticated database scope, real `listing_contacts` owner relationship and existing commercial Listing service. They cover active records by authorized broker and verified contact-to-listing links, without changing MCP write tools or business workflows. The authenticated broker is supplied by the server for questions about “my” dossiers.
 
-Delivered disabled. `ASSISTANT_ENABLED=false` in Production. No API key was created or transferred and no inference request was sent during development. On 2026-11-17 the accessible Personal OpenAI organization displayed USD 0.00 and an unlinked ChatGPT benefit. Linking was blocked by automatic approval review; billing was left unchanged.
+Initial V1 delivery was disabled, without an API key or inference. Its earlier zero-credit observation was superseded by the V2 account review above; neither observation authorizes a future financial cycle.
 
 ## Architecture
 
 The authenticated app shell mounts a session-only dialog. Opening, navigating and resetting it never request inference. Only submitting a question calls `/api/assistant/chat`. Settings reads `/api/assistant/usage`, not OpenAI. The server resolves the current live Google membership with the existing CRM resolver, validates Origin and a bounded strict body, and runs an explicit subset of MCP read tools with that member's Supabase client and request context. There is no MCP write dispatcher in the assistant.
 
-Responses API, fixed `gpt-6-luna`, `store:false`, standard processing, no reasoning, 700 output tokens per call, three model calls and four local read tools per question. No retry, fallback provider, built-in paid tool, persistent conversation, files or external retrieval. Four recent conversation turns are kept only in component memory. Responses are plain React text, not HTML/Markdown; clickable links are separately constructed from IDs returned by authorized CRM reads. Browser-supplied context is a hint checked through the corresponding read service before transmission.
+Responses API, fixed `gpt-6-luna`, `store:false`, standard processing, no reasoning, 700 output tokens, at most one model call and four local read tools per question. No retry, fallback provider, built-in paid tool, persistent conversation, files or external retrieval. Conversation turns remain only in component memory and are no longer submitted by the UI. The request schema still accepts bounded legacy history but never forwards it. Responses are plain React text, not HTML/Markdown; clickable links are separately constructed from IDs returned by authorized CRM reads. Browser-supplied context is only a hint checked through the corresponding read service.
 
 ## Financial gate and operation
 
 `OPENAI_API_KEY` must be a dedicated project credential. Existing credentials for other tools must not be overwritten. No key is required to deploy disabled. A service-only `assistant_billing_cycles` row must hold independently verified organization/project IDs, key SHA-256 (never the key), grant dates, available promotional credits, no-paid-fallback and auto-recharge-off evidence, model availability and privacy approval. No cycle is created automatically. The cycle cannot exceed actual verified credit expiry; evidence expires within 24 hours and requires a new real verification. Daily evidence refresh is not a budget reset. Reuse the same cycle ID; never create a new budget for the same grant. There is no UI activation switch and no scheduled billing task.
 
-Before activation the account owner must resolve the unlinked benefit, verify the actual grant and expiry, confirm no pay-as-you-go fallback and auto-recharge, identify consumption by other projects and approve the privacy assessment. The local ledger is not the official OpenAI balance and cannot independently establish a billing guarantee. If any item is unverified, keep the flag false and cycle disabled. No card, credit purchase or recharge is authorized.
+Before activation the account owner must reverify the actual grant and expiry, confirm no pay-as-you-go fallback and auto-recharge, identify consumption by other projects and obtain the documented privacy decision. The local ledger is not the official OpenAI balance and cannot independently establish a billing guarantee. If any item is unverified, keep the flag false and cycle disabled. No card, credit purchase or recharge is authorized.
 
-An advisory transaction lock serializes all reservations and reconciliations. One pending question/member, three globally, 20/member and 60/team per Toronto day. All attempts count. Each question reserves USD 0.03 against at most USD 10 per verified grant cycle. The maximum serialized input is 48,000 UTF-8 bytes per model call, with 12,000 extra tokens of conservative framing allowance: `(60,000 × 0.125 + 700 × 0.5) × 3 / 1,000,000 = 0.02355 USD`. Input is estimated at the higher cache-write price; output includes all billed output tokens. This remains below the reserve. Review current provider prices before enabling a new verification period.
+An advisory transaction lock serializes all reservations and reconciliations. One pending question/member, three globally, 20/member and 60/team per Toronto day. All attempts count. Each question reserves USD 0.03; the schema ceiling remains USD 10 but the specific pending V2 grant is limited to USD 2 as described above. The maximum serialized input is 48,000 UTF-8 bytes, with 12,000 extra tokens of conservative framing allowance: `(60,000 × 0.125 + 700 × 0.5) / 1,000,000 = 0.00785 USD` for the single call. Input is estimated at the higher cache-write price; output includes all billed output tokens. This remains below the unchanged reserve. Review current provider prices before enabling a new verification period.
 
 Usage totals come from provider usage fields. Missing usage, timeout, provider error, interrupted execution or failed reconciliation retain the whole reservation. After five minutes a stale reservation may stop holding the concurrency slot but still consumes its entire budget. No automatic refund. Abnormal measured usage over the reserve disables the cycle. Replayed request IDs cannot make a second external call. Membership and cycle eligibility are rechecked before each external call. A flag change requires deployment; disabling the cycle blocks subsequent calls immediately.
 
