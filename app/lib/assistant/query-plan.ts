@@ -1,15 +1,21 @@
 import {z} from 'zod';
 import {recognizeIntent,normalize} from './intents';
-import {parseRecordRequest,recordPath} from './record-request';
+import {parseRecordRequest} from './record-request';
+import {isSafeCrmNavigationPath,moduleNavigationRequest} from './catalog';
+import {modules} from './knowledge';
 
 export const entityType=z.enum(['contact','listing','transaction','expense','deadline','inventory','mortgage_referral','unknown']);
-export const moduleId=z.enum(['contacts','listings','transactions','accounting','inventory','mortgage','calendar','drive','emails','statistics','software','settings']);
+export const moduleId=z.enum(Object.keys(modules) as [keyof typeof modules,...Array<keyof typeof modules>]);
 export const queryPlan=z.strictObject({
  version:z.literal(1),
  operation:z.enum(['sellers','listings','transactions','summary','conditions','deadlines','urgent','followups','inventory','search','relation','coordinates','write','unknown','accounting','mortgage']),
  accountingMode:z.enum(['latest','expenses','payment','invoice','paid_total']),
  mode:z.enum(['navigate','search','read','summarize','count','aggregate','compare','how_to','explain','clarify','write_denied']),
  module:moduleId.optional(),entityType,
+ target:z.discriminatedUnion('kind',[
+  z.strictObject({kind:z.literal('module'),moduleId,view:z.enum(['personal','team']).optional(),chooseSoftware:z.boolean().optional()}),
+  z.strictObject({kind:z.literal('record'),entityType:z.enum(['contact','listing','transaction']),lookup:z.string().max(160).optional()}),
+ ]).optional(),
  lookup:z.strictObject({query:z.string().max(160),kind:z.enum(['name','address','text'])}).optional(),
  filters:z.strictObject({broker:z.enum(['maxime','sandrine','france']).optional(),mine:z.boolean(),active:z.boolean(),listingStatus:z.enum(['all','active','upcoming','offers','conditional','closed']).optional(),purpose:z.enum(['sale','rental']).optional(),
   period:z.enum(['all','today','tomorrow','next_week','overdue','month','year']),year:z.number().int().min(1900).max(2200).optional(),month:z.number().int().min(1).max(12).optional(),payment:z.enum(['all','paid','unpaid'])}),
@@ -26,8 +32,8 @@ export type ConversationState=z.infer<typeof conversationState>;
 export const resultStatus=z.enum(['SUCCESS','CLARIFICATION','AMBIGUOUS','NOT_FOUND','FORBIDDEN','UNSUPPORTED','TECHNICAL_ERROR']);
 export const queryResult=z.strictObject({
  answer:z.string().max(6000),source:z.literal('crm'),status:resultStatus,
- links:z.array(z.strictObject({href:z.string().max(150).refine(v=>recordPath(v)||/^\/(contacts|listings|transactions|accounting|sign-inventory|mortgage-referrals|calendar|drive|automatic-emails|statistics|settings|logiciels\/generateur-courriel)$/.test(v)),label:z.string().max(400)})).max(10),
- navigateTo:z.string().refine(recordPath).optional(),state:conversationState.optional(),
+ links:z.array(z.strictObject({href:z.string().max(150).refine(isSafeCrmNavigationPath),label:z.string().max(400)})).max(10),
+ navigateTo:z.string().refine(isSafeCrmNavigationPath).optional(),state:conversationState.optional(),
  coverage:z.strictObject({truncated:z.boolean(),candidateCount:z.number().int().min(0)}).optional(),
  timing:z.strictObject({planningMs:z.number().nonnegative(),readingMs:z.number().nonnegative(),totalMs:z.number().nonnegative()}).optional(),
  mode:queryPlan.shape.mode.optional(),module:moduleId.optional(),toolCount:z.number().int().min(0).max(8),
@@ -43,7 +49,7 @@ export function buildQueryPlan(question:string,previous?:ConversationState,now=n
  let module=record?.section??moduleRules.find(([,r])=>r.test(q))?.[0];
  if(record&&!module&&!/\d/.test(record.query))module='contacts';
  const action:QueryPlan['action']=/supprim|effac/.test(q)?'delete':/modifi|corrig/.test(q)?'edit':/connect/.test(q)?'connect':/envo/.test(q)?'send':/visite/.test(q)?'visits':/pa acceptee/.test(q)&&/cre|transaction/.test(q)?'accepted-pa':/cre|ajout|nouveau/.test(q)?'create':/enregistr/.test(q)?'save':'browse';
- const how=/\bcomment\b|explique.*(?:faire|enregistr|creer)|(?:ou|etapes|procedure|marche a suivre).*(?:modifi|cre|ajout|supprim|envo|consulter)|(?:je ne trouve pas|je cherche).*(?:ou|bouton)/.test(q);
+ const how=/\bcomment\b|explique.*(?:faire|enregistr|creer)|\b(?:ou|etapes|procedure|marche a suivre)\b.*(?:modifi|cre|ajout|supprim|envo|consulter)|(?:je ne trouve pas|je cherche).*(?:ou|bouton)/.test(q);
  const write=/\b(?:cree|creer|supprime|supprimer|ajoute|ajouter|modifie|modifier|envoie|envoyer|efface|finalise|paye|marque|enregistre)\b/.test(q);
  const pronoun=/\b(?:sa fiche|son dossier|ses listings|ses proprietes|ses transactions|ses echeances|ses contacts|ses clients|ses documents|ses notes|son telephone|son courriel|ses visites|ses offres|ses pancartes|ses proprietaires)\b/.test(q)||/^ouvre[- ](?:la|le)[?.! ]*$/.test(q);
  const explicitMention=!!record?.query&&!/^(?:sa fiche|son dossier|la|le)$/.test(normalize(record.query));
@@ -54,6 +60,10 @@ export function buildQueryPlan(question:string,previous?:ConversationState,now=n
  if(['conditions','deadlines','urgent'].includes(lex.intent))entity='deadline';
  const period:QueryPlan['filters']['period']=/semaine prochaine/.test(q)?'next_week':/retard/.test(q)?'overdue':/demain/.test(q)?'tomorrow':/aujourd/.test(q)?'today':/ce mois|mois courant/.test(q)?'month':/cette annee|annee courante/.test(q)?'year':'all';
  const filters:QueryPlan['filters']={broker:lex.broker as QueryPlan['filters']['broker'],mine:!record&&(/\b(?:mes|mon|ma)\b/.test(q)||lex.intent==='followups'&&/dois.je/.test(q)),active:lex.active,period,payment:lex.unpaid?'unpaid':/\bpaye/.test(q)?'paid':'all'};
+ const navigation=!how&&!write&&!deniedNegation?moduleNavigationRequest(question):undefined;
+ if(navigation)return queryPlan.parse({version:1,operation:'unknown',accountingMode:'expenses',mode:'navigate',module:navigation.moduleId,entityType:types[navigation.moduleId]??'unknown',target:navigation,filters:{mine:true,active:false,period:'all',payment:'all'},fields:[],sort:'default',context:'none',action:'browse'});
+ if(!record&&/rendez[ -]vous/.test(q)){module='calendar';if(mode==='clarify')mode='read';}
+ if(record?.open&&!module&&/\d/.test(record.query)){module='listings';entity='listing';}
  if(record)filters.broker=undefined; // A person's name may itself be France or Maxime.
  if(module==='listings'&&!record){filters.listingStatus=/vendu|loue/.test(q)?'closed':/conditionnel/.test(q)?'conditional':/offres?/.test(q)?'offers':/a venir/.test(q)?'upcoming':lex.active?'active':'all';filters.purpose=/location|a louer/.test(q)?'rental':/a vendre/.test(q)?'sale':undefined;}
  if(period==='month'||period==='year'){const d=new Intl.DateTimeFormat('fr-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit'}).format(now);const parts=d.match(/\d+/g)!;filters.year=Number(parts[0]);if(period==='month')filters.month=Number(parts[1]);}
@@ -97,5 +107,5 @@ export function buildQueryPlan(question:string,previous?:ConversationState,now=n
  const fields:QueryPlan['fields']=[];if(/telephone|coordonnees/.test(q))fields.push('phone');if(/courriel|email|coordonnees/.test(q))fields.push('email');if(/note/.test(q))fields.push('notes');if(/provenance/.test(q))fields.push('client_provenance');
  const operation=fieldRequest?'coordinates':follow&&previous?(entity==='deadline'?/condition/.test(q)?'conditions':previous.lastPlan.operation==='conditions'?'conditions':'deadlines':previous.lastPlan.operation):lex.intent;
  if(!lookup&&mode==='search')mode='clarify';
- return queryPlan.parse({version:1,operation,accountingMode:lex.accountingMode,mode,module,entityType:entity,lookup,filters,relation,fields,sort:/plus cher|plus couteu/.test(q)?'price_desc':/dernier|derniere/.test(q)?'latest':'default',context,action:follow&&previous?.lastPlan.mode==='how_to'?previous.lastPlan.action:action});
+ return queryPlan.parse({version:1,operation,accountingMode:lex.accountingMode,mode,module,entityType:entity,lookup,...(mode==='navigate'&&['contact','listing','transaction'].includes(entity)?{target:{kind:'record',entityType:entity,lookup:lookup?.query}}:{}),filters,relation,fields,sort:/plus cher|plus couteu/.test(q)?'price_desc':/dernier|derniere/.test(q)?'latest':'default',context,action:follow&&previous?.lastPlan.mode==='how_to'?previous.lastPlan.action:action});
 }

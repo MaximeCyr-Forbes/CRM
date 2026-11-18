@@ -3,7 +3,7 @@
 import "./calendar.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useBroker } from "../broker-context";
 import { CalendarEventDeleteModal } from "../components/calendar-event-delete-modal";
 import { CalendarEventDetailModal } from "../components/calendar-event-detail-modal";
@@ -41,9 +41,16 @@ function sortEvents(events: CRMCalendarEvent[]) {
 
 export default function CalendarPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedMode: CalendarMode = searchParams.get('mode') === 'team' ? 'team' : 'personal';
   const { selectedBroker, isBrokerReady } = useBroker();
   const today = useMemo(() => todayInCalendarTimeZone(), []);
-  const [mode, setMode] = useState<CalendarMode>("personal");
+  const [mode, setCurrentMode] = useState<CalendarMode>(requestedMode);
+  useEffect(() => { setCurrentMode(requestedMode); }, [requestedMode]);
+  function setMode(next: CalendarMode) {
+    setCurrentMode(next);
+    router.replace(next === "team" ? "/calendar?mode=team" : "/calendar");
+  }
   const [view, setView] = useState<CalendarView>("month");
   const [date, setDate] = useState(today);
   const [isPeriodPickerOpen, setIsPeriodPickerOpen] = useState(false);

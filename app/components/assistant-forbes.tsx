@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Plus, Send, X } from 'lucide-react';
 import {useRouter} from 'next/navigation';
-import {recordPath} from '../lib/assistant/record-request';
+import {isSafeCrmNavigationPath} from '../lib/assistant/catalog';
 import type {ConversationState} from '../lib/assistant/query-plan';
 import './assistant-forbes.css';
 type Turn={question:string;answer:string;links?:{href:string;label:string}[]};
@@ -32,7 +32,7 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
    if(!response.ok)throw new Error(result.error||'Assistant temporairement indisponible.');
    conversation.current=result.state;
    setTurns(items=>[...items,{question:text,answer:result.answer,links:result.links}].slice(-4));setQuestion('');
-   if(result.source==='crm'&&result.status==='SUCCESS'&&recordPath(result.navigateTo)&&result.links?.some((link:{href:string})=>link.href===result.navigateTo)){close();router.push(result.navigateTo);}
+   if(result.source==='crm'&&result.status==='SUCCESS'&&isSafeCrmNavigationPath(result.navigateTo)&&result.links?.some((link:{href:string})=>link.href===result.navigateTo)){close();router.push(result.navigateTo);}
   }catch(reason){if(current===generation.current&&!abort.signal.aborted)setError(reason instanceof Error?reason.message:'Connexion interrompue.');}
   finally{if(current===generation.current){sending.current=false;setBusy(false);}}
  }

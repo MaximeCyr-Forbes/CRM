@@ -6,7 +6,7 @@ import {preparePrivateContext,assembleLocalAnswer} from './privacy';
 import {recordPath} from './record-request';
 import {resolveRecord} from './record-search';
 import {buildQueryPlan,conversationState,queryPlan,queryResult,type ConversationState,type QueryPlan} from './query-plan';
-import {moduleCapability,relationships} from './catalog';
+import {moduleCapability,relationships,isSafeCrmNavigationPath,teamCalendarPath,catalog} from './catalog';
 
 type Read=Parameters<typeof preparePrivateContext>[2];
 type Link={href:string;label:string};
@@ -41,6 +41,15 @@ function validState(input:ChatInput,member:CRMMember,now:Date){
 }
 async function execute(plan:QueryPlan,input:ChatInput,member:CRMMember,read:Read,now:Date,state?:ConversationState):Promise<Result>{
  const base=(answer:string,status:Status='SUCCESS',links:Link[]=[]):Result=>({answer,status,links,source:'crm'});
+ if(plan.mode==='navigate'&&plan.target?.kind==='module'){
+  if(!member.memberId||!member.authUserId||!member.brokers.includes(member.broker))return base('Cette destination n’est pas accessible avec la session courante.','FORBIDDEN');
+  const target=plan.target,entry=catalog.find(m=>m.id===target.moduleId);
+  if(!entry||plan.module!==entry.id)return base('Cette destination n’est pas accessible avec la session courante.','FORBIDDEN');
+  if(target.chooseSoftware)return base('Quel logiciel veux-tu ouvrir ?','CLARIFICATION',catalog.filter(m=>['software','acm','plex'].includes(m.id)).map(m=>({href:m.route,label:m.id==='software'?'Délais de promesse d’achat':m.label})));
+  const href=entry.id==='calendar'&&target.view==='team'?teamCalendarPath:entry.route;
+  if(!isSafeCrmNavigationPath(href))return base('Cette destination n’est pas accessible avec la session courante.','FORBIDDEN');
+  return {...base(entry.id==='calendar'?target.view==='team'?"J’ouvre le calendrier de l’équipe.":"J’ouvre ton calendrier.":`J’ouvre ${entry.label}.`,'SUCCESS',[{href,label:entry.label}]),navigateTo:href};
+ }
  if(plan.filters.broker&&!member.brokers.includes(plan.filters.broker))throw Error('ASSISTANT_FORBIDDEN');
  if(plan.mode==='count'&&['contact','transaction'].includes(plan.entityType)&&!plan.lookup){
   const r=await read('crm_count_records',{entity:plural[plan.entityType as 'contact'|'transaction'],active:plan.filters.active,...(plan.filters.broker||plan.filters.mine?{broker:plan.filters.broker??member.broker}:{})});
@@ -108,7 +117,7 @@ export async function answerConversation(input:ChatInput,member:CRMMember,read:R
  const links=[...new Map(answers.flatMap(a=>a.links).map(l=>[l.href,l])).values()].slice(0,10);
  const navigation=answers.length===1?answers[0].navigateTo:undefined;
  return queryResult.parse({answer:answers.map(a=>a.answer).join('\n\n').slice(0,6000),links,source:'crm',status:answers.find(a=>a.status!=='SUCCESS')?.status??'SUCCESS',
-  ...(navigation&&recordPath(navigation)?{navigateTo:navigation}:{}),state,
+  ...(navigation&&isSafeCrmNavigationPath(navigation)?{navigateTo:navigation}:{}),state,
   coverage:{truncated:answers.some(a=>a.truncated),candidateCount:answers.reduce((n,a)=>n+(a.candidateCount??0),0)},
   timing:{planningMs,readingMs,totalMs:performance.now()-started},
   mode:lastPlan?.mode,module:lastPlan?.module,toolCount:calls});

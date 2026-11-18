@@ -11,12 +11,12 @@ export function parseRecordRequest(question:string):RecordRequest|undefined{
  const bareSuffix=q.match(/^(.+?)\s+(?:dans|parmi)\s+(?:(?:mes|les|nos)\s+)?(contacts|clients|listings|transactions)$/i);
  if(bareSuffix&&!/^(?:peux|pourrais|pouvez|pourriez|je|ouvre|ouvrir|consulter|montre|trouve|cherche|recherche|retrouve|acc[èe]de|am[èe]ne)/i.test(q))q=`cherche ${q}`;
  q=q.replace(/^(?:s'il (?:te|vous) pla[îi]t[, ]+)?(?:(?:peux|pourrais|pouvez|pourriez)[ -](?:tu|vous)\s+|je (?:veux|voudrais|souhaite)\s+)?/i,'');
- const command=q.match(/^(?:(?:m'|me )?(ouvrir|consulter|trouver|chercher)|(?:ouvre|montre|trouve|cherche|recherche|retrouve)(?:-moi)?|acc[èe]de|am[èe]ne-moi)\s+/i);
+ const command=q.match(/^(?:(?:m'|me )?(ouvrir|consulter|trouver|chercher)|(?:ouvre|montre|trouve|cherche|recherche|retrouve)(?:-moi)?|acc[èe]de|am[èe]ne-moi|va)\s+/i);
  const bare=/^(?:(?:la|le|une?)\s+)?(?:fiche (?:contact|client)|contact|client|listing|propri[ée]t[ée]|transaction|dossier transaction)\s+(?:de|du|au|à)\s+/i.test(q);
  if(!command&&!bare)return;
- const open=!!command&&(/ouvr|consulter|acc[èe]de|am[èe]ne/i.test(command[0])||(/montre/i.test(command[0])&&/^(?:la\s+)?fiche\b/i.test(q.slice(command[0].length))));
+ const open=!!command&&(/ouvr|consulter|acc[èe]de|am[èe]ne|^va /i.test(command[0])||(/montre/i.test(command[0])&&/^(?:la\s+)?fiche\b/i.test(q.slice(command[0].length))));
  if(command)q=q.slice(command[0].length);
- q=q.replace(/^(?:à|a)\s+/i,'');
+ q=q.replace(/^(?:à|a|au)\s+/i,'');
  let section:RecordRequest['section'];
  const suffix=q.match(/\s+(?:dans|parmi)\s+(?:(?:les?|mes|nos|vos|tes)\s+)?(contacts|clients|listings|transactions|le CRM|CRM)$/i);
  if(suffix){section=/contact|client/i.test(suffix[1])?'contacts':/listing/i.test(suffix[1])?'listings':/transaction/i.test(suffix[1])?'transactions':undefined;q=q.slice(0,-suffix[0].length);}

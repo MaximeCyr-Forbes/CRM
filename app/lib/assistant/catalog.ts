@@ -1,5 +1,35 @@
 import {modules} from './knowledge';
 import type {QueryPlan} from './query-plan';
+import {recordPath,recordKey} from './record-request';
+
+// Exact destination nouns: residual names, addresses, dates and filters remain
+// data requests. Routes come exclusively from the verified knowledge catalogue.
+const navigationAliases:Record<keyof typeof modules,readonly string[]>={
+ dashboard:['accueil','dashboard','tableau de bord'],contacts:['contacts','contact','clients'],
+ listings:['listings','inscriptions','proprietes'],transactions:['transactions','dossiers'],
+ accounting:['comptabilite'],inventory:['inventaire','pancartes','bac','pancartes bac','pancartes et bac','stock'],
+ mortgage:['references hypothecaires','references'],calendar:['calendrier','agenda'],drive:['drive','google drive'],
+ statistics:['statistiques','stats'],emails:['courriels auto','courriels automatiques','campagnes personnalisees'],
+ settings:['parametres','reglages'],software:['logiciels','generateur courriel','generateur de courriel','generateur de delais','delais de promesse d achat'],
+ acm:['acm','generateur acm','analyse comparative de marche'],plex:['plex','calculatrice plex'],
+};
+export const teamCalendarPath=`${modules.calendar.href}?mode=team`;
+export function isSafeCrmNavigationPath(value:unknown):value is string{
+ return typeof value==='string'&&(recordPath(value)||value===teamCalendarPath||Object.values(modules).some(m=>m.href===value));
+}
+export function moduleNavigationRequest(question:string){
+ let q=recordKey(question).replace(/^(?:svp|stp|s il te plait|s il vous plait) /,'').replace(/ (?:svp|stp|s il te plait|s il vous plait)$/,'');
+ q=q.replace(/^(?:peux tu|pourrais tu|pouvez vous|pourriez vous) /,'');
+ q=q.replace(/^m ouvrir /,'ouvrir ').replace(/^me montrer /,'montrer ');
+ const command=/^(?:(?:amene|emmene|dirige)(?: moi)?|va|aller|retourne|retourner|ouvre|ouvrir|affiche|afficher|montre(?: moi)?|montrer|accede|acceder|je (?:veux|voudrais|souhaite) (?:aller|voir|consulter|ouvrir)) /;
+ if(!command.test(q))return;
+ q=q.replace(command,'').replace(/^(?:a|au|aux|dans|sur|vers) /,'').replace(/^(?:l |le |la |les |mon |ma |mes |nos |notre |ton |ta |tes )/,'');
+ const team=/ (?:de l equipe|d equipe|equipe|partage|partagee)$/.test(q);
+ if(team)q=q.replace(/ (?:de l equipe|d equipe|equipe|partage|partagee)$/,'');
+ const id=(Object.keys(modules) as Array<keyof typeof modules>).find(id=>navigationAliases[id].includes(q));
+ if(!id||team&&id!=='calendar')return;
+ return {kind:'module' as const,moduleId:id,...(id==='calendar'?{view:team?'team' as const:'personal' as const}:{}),...(id==='software'&&q==='logiciels'?{chooseSoftware:true}:{})};
+}
 
 /** Capabilities describe verified reads, not a grant of access. The tool layer still checks RLS. */
 export const relationships={
@@ -25,7 +55,7 @@ const capabilities={
 export const catalog=Object.entries(modules).map(([id,module])=>{
  const read=capabilities[id as keyof typeof capabilities];
  return {id,label:module.label,route:module.href,entity:read?.entity??'unknown',
-  capabilities:['how_to',...(read?['read']:[]),...(read?.tools.some(t=>t.startsWith('crm_search'))?['search','navigate']:[])],tools:read?.tools??[],fields:read?.fields??[],sensitiveFields:read?.sensitive??[],
+  capabilities:['how_to','navigate',...(read?['read']:[]),...(read?.tools.some(t=>t.startsWith('crm_search'))?['search']:[])],tools:read?.tools??[],fields:read?.fields??[],sensitiveFields:read?.sensitive??[],
   relations:Object.entries(relationships).filter(([,r])=>r.from===read?.entity).map(([key])=>key),
   permissions:['authenticated CRM membership','existing RLS','broker scope checked by server'],
   forbidden:['write','send','finalize','external AI','infer relationships by address'],source:module.source,
