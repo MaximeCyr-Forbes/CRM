@@ -223,7 +223,7 @@ export default function TransactionDetailPage() {
 
     <section className="transaction-detail-section" aria-labelledby="transaction-clients-title"><div className="transaction-section-heading"><div><p className="section-kicker">Relations</p><h2 id="transaction-clients-title">CLIENTS LIÉS</h2></div></div><div className="transaction-linked-clients">{linkedContacts.map((contact) => <button key={contact!.id} onClick={() => router.push(`/contacts/${contact!.id}`)} type="button"><span>{getContactName(contact!)}</span><small>{BROKER_LABELS[contact!.broker]}</small><strong>Ouvrir →</strong></button>)}{linkedContacts.length === 0 && <p>Aucun contact lié à cette transaction.</p>}</div></section>
 
-    <ListingTransactionAssociation key={transaction.id} side="transaction" id={transaction.id} />
+    <ListingTransactionAssociation key={`association-${transaction.id}`} side="transaction" id={transaction.id} />
     <TransactionAgenda onSync={async () => { const result = await syncDeadlines(transaction.id); setConfirmation(result.message ?? "Synchronisation terminée."); }} deadlines={transaction.deadlines} disabled={isSaving} onAdd={() => setDeadlineModal("new")} onEdit={setDeadlineModal} onComplete={(deadline, completed) => updateDeadline(transaction.id, deadline.id, { completed })} onDelete={async (deadline) => { const result = await deleteDeadline(transaction.id, deadline.id); setConfirmation(result.message ?? "Échéance supprimée."); }} />
 
     <DriveDocumentsSection broker={transaction.broker} entityId={transaction.id} entityType="transaction" />

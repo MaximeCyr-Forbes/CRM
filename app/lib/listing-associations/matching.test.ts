@@ -1,7 +1,14 @@
 import {it,expect} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {matchRecords,normalizeAddress,rankMatches,withLinkConflicts,type Entity,type Association} from './matching';
 import {associationView,associationSummary} from './server';
 const l:Entity={id:'listing',address:'120 Av. Exemple E., Montréal, H1A 1A1',city:'Montréal',postal:'H1A 1A1',centris:'12345678',broker:'maxime',status:'active',type:'sale',price:500000,createdAt:'2026-01-01',updatedAt:'2026-01-01'};
+it('association keys never collide with other record-keyed detail modules',()=>{
+ for(const [path,record] of [['app/transactions/[transactionId]/page.tsx','transaction'],['app/listings/[listingId]/page.tsx','listing']]){
+  const source=readFileSync(path,'utf8');
+  expect(source).toContain('<ListingTransactionAssociation key={`association-${'+record+'.id}`}');
+ }
+});
 const t:Entity={...l,id:'transaction',city:undefined,postal:undefined,address:'120 avenue Exemple Est, Montréal, QC H1A1A1',status:'new',price:490000};
 it.each(['120 avenue Exemple Est, Montréal, H1A 1A1','120 Av Exemple E Montréal QC H1A1A1','120 av. exemple est, Montreal, Quebec H1A 1A1'])('normalizes complete address: %s',address=>expect(matchRecords({...l,centris:''},{...t,centris:'',address}).kind).toBe('EXACT_ADDRESS'));
 it.each([['Boulevard','Boul.'],['Rue','R.'],['Avenue','Av'],['Saint','St'],['Sainte','Ste'],['Ouest','O.'],['Est','E'],['Québec','QC']])('equivalent %s / %s',(a,b)=>expect(normalizeAddress(a)).toBe(normalizeAddress(b)));

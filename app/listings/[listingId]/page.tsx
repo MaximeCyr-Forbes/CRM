@@ -145,7 +145,7 @@ export default function ListingDetailPage() {
         </section>
 
         <ListingMarketSnapshot listingId={listing.id} />
-        <ListingTransactionAssociation key={listing.id} side="listing" id={listing.id} />
+      <ListingTransactionAssociation key={`association-${listing.id}`} side="listing" id={listing.id} />
 
         <section className="listing-detail-section" aria-labelledby="listing-information-title">
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Mandat immobilier</p><h2 id="listing-information-title">INFORMATIONS</h2></div></div>
