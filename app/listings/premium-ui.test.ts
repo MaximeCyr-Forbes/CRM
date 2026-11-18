@@ -1,4 +1,5 @@
 import { Children, isValidElement, type ReactNode } from "react";
+vi.mock('../lib/listing-associations/use-associations', () => ({useAssociationSummary: () => ({data:null})}));
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Listing } from "../data/listing-types";

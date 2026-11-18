@@ -45,6 +45,7 @@ type LinkedTransactionRow = {
 };
 
 export type ListingOffersRepository = {
+  getDocumentaryTransactionId?: (listingId: string) => Promise<string | null>;
   listOfferRows: (listingId: string) => Promise<ListingOfferRow[]>;
   createOfferRow: (listingId: string, draft: ListingOfferDraft, actor: ListingBroker | null) => Promise<ListingOfferRow>;
   updateOfferRow: (listingId: string, offerId: string, draft: ListingOfferDraft, actor: ListingBroker | null) => Promise<ListingOfferRow>;
@@ -113,7 +114,7 @@ function mapOfferPersistenceError(error: unknown): never {
   if (/offre liée à une transaction/i.test(message)) {
     throw new ListingServiceError("offer_linked", "Cette offre est liée à une transaction et ne peut pas être supprimée.");
   }
-  if (/possède déjà une transaction/i.test(message)) {
+  if (/possède déjà une transaction|ASSOCIATION_LISTING_LINKED/i.test(message)) {
     throw new ListingServiceError("listing_already_linked", "Une transaction existe déjà pour ce Listing.");
   }
   if (/offre introuvable|listing introuvable/i.test(message)) {
@@ -132,6 +133,7 @@ export function createSupabaseListingOffersRepository(): ListingOffersRepository
     return rpcRow<ListingOfferRow>(data, "Offre introuvable.");
   };
   return {
+    getDocumentaryTransactionId,
     async listOfferRows(listingId) {
       const { data, error } = await getSupabaseAdmin().from("listing_offers").select("*")
         .eq("listing_id", listingId).order("offer_date", { ascending: false }).order("created_at", { ascending: false });
@@ -213,6 +215,7 @@ export function createListingOffersService(repository: ListingOffersRepository) 
   ) => {
     const existing = await link(listingId);
     if (existing) return existing;
+    if (await repository.getDocumentaryTransactionId?.(listingId)) throw new ListingServiceError("listing_already_linked", "Ce Listing possède déjà une Transaction associée. Ouvrez le dossier lié.");
     try {
       await repository.createTransactionLink(listingId, offerId, actor);
     } catch (error) {
@@ -243,6 +246,7 @@ export function createListingOffersService(repository: ListingOffersRepository) 
     ) {
       const existing = await link(listingId);
       if (existing) return existing;
+      if (await repository.getDocumentaryTransactionId?.(listingId)) throw new ListingServiceError("listing_already_linked", "Ce Listing possède déjà une Transaction associée. Ouvrez le dossier lié.");
 
       const purpose = await repository.getListingPurpose(listingId);
       if (purpose === null) throw new ListingServiceError("not_found", "Listing introuvable.");
@@ -293,6 +297,11 @@ export function createListingOffersService(repository: ListingOffersRepository) 
 }
 
 const offersService = createListingOffersService(createSupabaseListingOffersRepository());
+export async function getDocumentaryTransactionId(listingId: string): Promise<string | null> {
+  const {data,error}=await getSupabaseAdmin().from('listing_transaction_associations').select('transaction_id,transactions!inner(status)').eq('listing_id',listingId).eq('relation_kind','primary').is('detached_at',null).neq('transactions.status','cancelled').maybeSingle();
+  if(error)throw error;
+  return data?.transaction_id??null;
+}
 export const listListingOffers = (listingId: string) => offersService.listListingOffers(listingId);
 export const listConsumedListingOfferIds = (listingId: string) => offersService.listConsumedListingOfferIds(listingId);
 export const createListingOffer = (listingId: string, value: unknown, actor: ListingBroker | null) => offersService.createListingOffer(listingId, value, actor);

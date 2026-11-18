@@ -12,6 +12,7 @@ import { ListingMarketSnapshot } from "../../components/listing-market-snapshot"
 import { ListingPaAcceptedAction } from "../../components/listing-pa-accepted-action";
 import { ListingTracking } from "../../components/listing-tracking";
 import { CentrisPropertyDetails } from "../../components/centris-property-details";
+import { ListingTransactionAssociation } from "../../components/listing-transaction-association";
 import { useContacts } from "../../contacts-context";
 import { BROKER_LABELS, getContactName } from "../../data/contact-types";
 import {
@@ -144,6 +145,7 @@ export default function ListingDetailPage() {
         </section>
 
         <ListingMarketSnapshot listingId={listing.id} />
+        <ListingTransactionAssociation key={listing.id} side="listing" id={listing.id} />
 
         <section className="listing-detail-section" aria-labelledby="listing-information-title">
           <div className="listing-detail-section-heading"><div><p className="section-kicker">Mandat immobilier</p><h2 id="listing-information-title">INFORMATIONS</h2></div></div>

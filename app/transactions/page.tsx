@@ -16,6 +16,8 @@ import {
   type TransactionType,
 } from "../data/transaction-types";
 import { useTransactions } from "../transactions-context";
+import { useAssociationSummary } from "../lib/listing-associations/use-associations";
+import "../components/listing-transaction-association.css";
 import { currentTorontoDateTime, formatTransactionDeadlineTime, isTransactionDeadlineOverdue } from "../lib/transactions/deadline-time";
 import { transactionMatchesSearch } from "../lib/transactions/search";
 import {
@@ -47,6 +49,7 @@ function validYearFilter(value: string | null): value is `${number}` {
 }
 
 export default function TransactionsPage() {
+  const {data:associationSummary} = useAssociationSummary();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedBroker } = useBroker();
@@ -144,7 +147,7 @@ export default function TransactionsPage() {
             const isOverdue = Boolean(nextDeadline && isTransactionDeadlineOverdue(nextDeadline));
             const nextDeadlineTime = nextDeadline ? formatTransactionDeadlineTime(nextDeadline.dueTime) : null;
             return <tr className={isOverdue ? "transaction-row-overdue" : ""} key={transaction.id}>
-              <td className="tx-property"><span className="tx-type">{TRANSACTION_TYPE_LABELS[transaction.type]}</span><h2><button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">{transaction.address}</button></h2></td>
+              <td className="tx-property"><span className="tx-type">{TRANSACTION_TYPE_LABELS[transaction.type]}</span><h2><button onClick={() => router.push(`/transactions/${transaction.id}`)} type="button">{transaction.address}</button></h2>{associationSummary?.transactions.includes(transaction.id)&&<a className="association-indicator" href={`/transactions/${transaction.id}#association`}>Listing correspondant · À rattacher</a>}</td>
               <td className="tx-people" data-label="Clients"><span>{linkedContacts.length ? linkedContacts.map((contact) => getContactName(contact!)).join(" · ") : "Aucun contact lié"}</span><small>Courtier · {BROKER_LABELS[transaction.broker]}</small></td>
               <td className="tx-price" data-label={stateFilter === "sold" ? "Prix final" : "Prix"}>{formatAmount(stateFilter === "sold" && transaction.type === "sale" ? transaction.soldPrice : transaction.price)}</td>
               <td className="tx-state"><span className={`transaction-status-badge ${stateFilter === "sold" ? "status-finalized" : `status-${transaction.status}`}`}>{stateFilter === "sold" ? finalizedTransactionLabel(transaction) : TRANSACTION_STATUS_LABELS[transaction.status]}</span></td>

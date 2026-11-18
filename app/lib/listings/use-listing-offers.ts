@@ -9,7 +9,7 @@ import type {
   ListingTransactionLink,
 } from "../../data/listing-types";
 
-type OffersData = { offers: ListingOffer[]; transactionLink: ListingTransactionLink | null; consumedOfferIds: string[] };
+type OffersData = { offers: ListingOffer[]; transactionLink: ListingTransactionLink | null; consumedOfferIds: string[]; documentaryTransactionId?: string | null };
 const emptyData: OffersData = { offers: [], transactionLink: null, consumedOfferIds: [] };
 
 async function offersRequest<T>(listingId: string, path = "", init?: RequestInit) {
@@ -36,6 +36,7 @@ export function useListingOffers(listingId: string, onChanged?: () => void | Pro
   }, [listingId]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {const refresh=()=>void load(false);window.addEventListener('listing-association-changed',refresh);return()=>window.removeEventListener('listing-association-changed',refresh);}, [load]);
 
   const write = useCallback(async <T,>(path: string, method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) => {
     setIsSaving(true);

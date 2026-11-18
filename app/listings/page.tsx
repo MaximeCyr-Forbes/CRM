@@ -9,6 +9,8 @@ import { ListingEditorModal } from "../components/listing-editor-modal";
 import { ListingMedia } from "../components/listing-media";
 import { CentrisSync } from "../components/centris-sync";
 import { CentrisChangeBadge } from "../components/centris-property-details";
+import { useAssociationSummary } from "../lib/listing-associations/use-associations";
+import "../components/listing-transaction-association.css";
 import { ListingOverview } from "../components/listing-overview";
 import { ListingChecklistPreview } from "../components/listing-checklist-preview";
 import { useContacts } from "../contacts-context";
@@ -43,6 +45,7 @@ import { useListings } from "../listings-context";
 import { getListingDaysOnMarket, getListingExpirationInfo } from "../lib/listings/overview";
 
 export default function ListingsPage() {
+  const {data:associationSummary} = useAssociationSummary();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedBroker, workspaceUser, workingBroker } = useBroker();
@@ -220,6 +223,7 @@ export default function ListingsPage() {
                       <p>{addressLines[1] || "Localité à confirmer"}</p>
                     </div>
                     <strong className="listing-card-price">{listingPriceLabel(listing)}</strong>
+                    {associationSummary?.listings.includes(listing.id) && <a className="association-indicator" href={`/listings/${listing.id}#association`}>Transaction à rattacher</a>}
                     {(daysOnMarket !== null || expiration) && <div className="listing-card-market-meta">{daysOnMarket !== null && <span>{daysOnMarket === 1 ? "Jour 1" : `${daysOnMarket} jours en marché`}</span>}{expiration && <span className={`listing-card-expiration listing-card-expiration-${expiration.level}`}>{expiration.label}</span>}</div>}
                     <dl className="listing-card-details">
                       <div><dt>Courtier</dt><dd><span className={`listing-broker listing-broker-${listing.broker}`}>{BROKER_LABELS[listing.broker]}</span></dd></div>

@@ -149,6 +149,9 @@ export function ListingPaAcceptedAction({
   );
 
   if (listing.purpose !== "sale" || offers.isLoading) return null;
+  if (offers.documentaryTransactionId) {
+    return <button onClick={() => router.push(`/transactions/${offers.documentaryTransactionId}`)} type="button">OUVRIR LA TRANSACTION ASSOCIÉE</button>;
+  }
   if (offers.transactionLink) {
     return <button onClick={() => router.push(`/transactions/${offers.transactionLink!.transactionId}`)} type="button">OUVRIR LA TRANSACTION</button>;
   }

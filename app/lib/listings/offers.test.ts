@@ -19,6 +19,8 @@ const draft = {
 } satisfies ListingOfferDraft;
 
 class MemoryOffersRepository implements ListingOffersRepository {
+  documentaryTransactionId: string | null = null;
+  async getDocumentaryTransactionId() { return this.documentaryTransactionId; }
   rows: ListingOfferRow[] = [];
   links: Array<{ listing_id: string; offer_id: string; transaction_id: string; created_at: string }> = [];
   transactionRows = new Map<string, { id: string; status: string; price: number; promise_date: string; broker: "maxime" }>();
@@ -245,5 +247,19 @@ describe("service des offres Listings", () => {
       offerId: null, amount: 2500, offerDate: "2026-08-22", buyerNames: "",
     }, "maxime")).rejects.toMatchObject({ code: "invalid_purpose" });
     expect(repository.offerCreations).toBe(0);
+  });
+
+  it("préserve une association documentaire sans créer d'offre ou Transaction", async () => {
+    const repository = new MemoryOffersRepository();
+    repository.documentaryTransactionId = transactionId;
+    const service = createListingOffersService(repository);
+    await expect(service.acceptListingPurchaseAgreement(listingId, {
+      offerId: null, amount: 500000, offerDate: "2026-08-22", buyerNames: "",
+    }, "maxime")).rejects.toMatchObject({ code: "listing_already_linked" });
+    await expect(service.createTransactionFromListingOffer(listingId, offerId, "maxime"))
+      .rejects.toMatchObject({ code: "listing_already_linked" });
+    expect(repository.offerCreations).toBe(0);
+    expect(repository.transactionCreations).toBe(0);
+    expect(repository.links).toHaveLength(0);
   });
 });

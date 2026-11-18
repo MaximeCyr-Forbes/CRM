@@ -2,6 +2,7 @@ import { Children, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Transaction, TransactionDeadline, TransactionDraft } from "../data/transaction-types";
+vi.mock('../lib/listing-associations/use-associations', () => ({useAssociationSummary: () => ({data:null})}));
 
 const state = vi.hoisted(() => ({
   broker: "Maxime", query: "", transactions: [] as Transaction[], loading: false, error: null as string | null,
