@@ -156,3 +156,12 @@ Les tests `privacy.test.ts`, `service.test.ts`, `tools.test.ts`, `query-tools.te
 Référence de vérification en lecture du 17 novembre : 693 Contacts, 18 Listings, 24 Transactions, zéro cycle et zéro usage Assistant. Cron Centris inchangé : `centris-listings-sync-12h`, actif, `17 11,23 * * *`. Aucun changement SQL requis; aucun autre projet inspecté ou modifié.
 
 Validation locale de cette livraison : 97 tests ciblés réussis; suite complète 2 862 réussis, zéro échec, sept ignorés (fixtures privées/moteur source OACIQ indisponibles). TypeScript sans erreur. Le script lint existe mais ESLint et sa configuration ne sont pas installés dans ce checkout. Le build local est bloqué par l’erreur d’environnement Windows `EBADF` lors de l’écriture des types de routes générés, également après relance avec les droits autorisés; le build de déploiement Vercel doit donc être vérifié séparément avant de déclarer la livraison prête. Aucun fichier généré n’est inclus dans le diff.
+
+## Addendum du 19 novembre 2026 — crédits Pro 100
+
+Voir [l'audit d'activation](assistant-forbes-api-audit-2026-11-19.md).
+Les crédits et la compatibilité du modèle ont été vérifiés, avec un test
+entièrement synthétique dans le Playground officiel. Cela ne constitue pas une
+approbation de confidentialité. Le chemin externe Production reste désactivé;
+aucun `privacy_reviewed=true` ni cycle actif n'a été créé. Aucun renseignement
+client n'a été transmis à OpenAI. Le budget autorisé de 5 USD n'est pas activé.
