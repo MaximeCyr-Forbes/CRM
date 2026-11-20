@@ -1,0 +1,9 @@
+.manual-campaign-recipients { border: 1px solid #e4e8ed; border-radius: 12px; padding: 18px; background: #fafbfc; display: grid; gap: 12px; }
+.manual-campaign-recipients p { margin: 0; }
+.manual-campaign-recipients label { display: grid; gap: 6px; min-width: 0; font-size: 13px; }
+.manual-campaign-recipients textarea, .manual-campaign-recipients input, .manual-campaign-recipients select { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid #d9e0e8; border-radius: 7px; background: white; color: inherit; font: inherit; }
+.manual-campaign-recipients fieldset { border: 1px solid #e4e8ed; border-radius: 8px; padding: 12px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; min-width: 0; }
+.manual-campaign-recipients legend, .manual-campaign-recipients small { color: #56677a; font-size: 12px; }
+.manual-recipient-validation { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.manual-campaign-recipients button { justify-self: start; }
+@media (max-width: 600px) { .manual-campaign-recipients fieldset { grid-template-columns: 1fr; } }

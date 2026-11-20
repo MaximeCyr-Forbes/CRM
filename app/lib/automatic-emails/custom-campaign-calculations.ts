@@ -1,4 +1,5 @@
 import { resolveCustomEmailTemplate } from "../email/template";
+import { renderEmailRecipient } from "../email/template";
 export { resolveCustomEmailTemplate } from "../email/template";
 import { BROKER_LABELS } from "../../data/contact-types";
 import type { CalendarConnectionStatus } from "../../data/calendar-types";
@@ -43,6 +44,7 @@ export function calculateCustomCampaignOccurrences(
         : contact.broker === "unassigned" ? campaign.fallbackBroker : contact.broker;
       const gmail = gmailStateForBroker(connections, broker);
       const blockingReasons = [...campaignIssues];
+      blockingReasons.push(...renderEmailRecipient(step.subjectTemplate, step.bodyTemplate, contact).blockingReasons);
       if (!contact.email.trim()) blockingReasons.push("Adresse courriel manquante.");
       if (!broker) blockingReasons.push("Courtier non déterminé.");
       if (broker && !gmail.connected) blockingReasons.push(`Gmail n’est pas connecté pour ${BROKER_LABELS[broker]}.`);
@@ -57,7 +59,7 @@ export function calculateCustomCampaignOccurrences(
         contactId: contact.id,
         stepId: step.id,
         stepOrder: step.stepOrder,
-        recipientName: `${contact.firstName} ${contact.lastName}`.trim() || "Contact sans nom",
+        recipientName: `${contact.firstName} ${contact.lastName}`.trim() || contact.email || "Contact sans nom",
         recipientEmail: contact.email.trim(),
         broker,
         brokerLabel: gmail.label,

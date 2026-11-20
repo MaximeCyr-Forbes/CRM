@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { campaignRecipientKey, effectiveCampaignRecipients, normalizedCampaignEmail } from "./manual-recipients";
 import type { CalendarBroker } from "../../data/calendar-types";
 import type { ManualPreview, ManualRecipient } from "../../data/custom-email-manual-types";
 import { getCustomEmailCampaign } from "./custom-campaign-persistence";
@@ -13,13 +14,14 @@ export async function prepareManualCampaign(campaignId: string, stepId: string) 
   const history = await manualHistory(campaignId);
   const senders = new Map<CalendarBroker, Awaited<ReturnType<typeof prepareGmailSender>>>();
   const errors = new Map<CalendarBroker, string>();
-  const brokers = new Set(bundle.contacts.map((contact) => manualSenderBroker(bundle.campaign, contact)));
+  const effective = effectiveCampaignRecipients(bundle.contacts, bundle.manualRecipients);
+  const brokers = new Set(effective.map((contact) => manualSenderBroker(bundle.campaign, contact)));
   await Promise.all([...brokers].map(async (broker) => {
     if (!broker) return;
     try { senders.set(broker, await prepareGmailSender(broker)); }
     catch (error) { errors.set(broker, error instanceof Error ? error.message : "Connexion Gmail indisponible."); }
   }));
-  const recipients: ManualRecipient[] = bundle.contacts.map((contact) => {
+  const recipients: ManualRecipient[] = effective.map((contact) => {
     const rendered = renderManualRecipient(step, contact);
     const broker = manualSenderBroker(bundle.campaign, contact);
     const sender = broker ? senders.get(broker) : undefined;
@@ -30,9 +32,9 @@ export async function prepareManualCampaign(campaignId: string, stepId: string) 
     const fingerprint = createHash("sha256").update(JSON.stringify({ campaignId, stepId,
       strategy: bundle.campaign.senderStrategy, broker, contact, subject: rendered.subject, message: rendered.message,
       html, identity: sender?.identity ?? null })).digest("hex");
-    return { ...rendered, contactId: contact.id, name: `${(contact.firstName ?? "").trim()} ${(contact.lastName ?? "").trim()}`.trim(),
+    return { ...rendered, recipientId: campaignRecipientKey(contact), contactId: contact.manualRecipientId ? null : contact.id, manualRecipientId: contact.manualRecipientId ?? null, name: `${(contact.firstName ?? "").trim()} ${(contact.lastName ?? "").trim()}`.trim(),
       broker, senderEmail: sender?.identity.sendAsEmail ?? "", senderName: sender?.identity.displayName ?? "",
-      html, fingerprint, blockingReasons, deliveryStatus: history.find((row) => row.step_id === stepId && row.contact_id === contact.id)?.status ?? null };
+      html, fingerprint, blockingReasons, deliveryStatus: history.find((row) => row.step_id === stepId && ((contact.manualRecipientId ? row.manual_recipient_id === contact.manualRecipientId : row.contact_id === contact.id) || normalizedCampaignEmail(row.recipient_email ?? "") === normalizedCampaignEmail(contact.email)))?.status ?? null };
   });
   const preview: ManualPreview = { campaignId, campaignName: bundle.campaign.name, stepId, stepOrder: step.stepOrder, recipients };
   return { preview, senders };
@@ -43,7 +45,8 @@ export type ManualSendRequest = {
   batchId: string;
   attemptKey: string;
   stepId: string;
-  contactIds: string[];
+  contactIds?: string[];
+  recipientIds?: string[];
   fingerprints: Record<string, string>;
   retry: boolean;
 };
@@ -52,8 +55,8 @@ export type ManualSendRequest = {
 // background continuation or retry; an interrupted browser stops further chunks.
 export async function sendManualCampaign(campaignId: string, input: ManualSendRequest) {
   const { preview, senders } = await prepareManualCampaign(campaignId, input.stepId);
-  const recipients = input.contactIds.map((id) => {
-    const recipient = preview.recipients.find((item) => item.contactId === id);
+  const recipients = (input.recipientIds ?? input.contactIds ?? []).map((id) => {
+    const recipient = preview.recipients.find((item) => (input.recipientIds ? item.recipientId : item.contactId) === id);
     if (!recipient) throw new TypeError("Un Contact a été supprimé ou retiré de cette campagne. Actualisez l’aperçu.");
     if (recipient.fingerprint !== input.fingerprints[id]) throw new TypeError("Le Contact, le modèle ou la signature a changé. Actualisez l’aperçu avant de confirmer.");
     return recipient;
@@ -67,7 +70,7 @@ export async function sendManualCampaign(campaignId: string, input: ManualSendRe
     try {
       // Check current membership and rendered data again after the durable claim.
       const latest = await getCustomEmailCampaign(campaignId);
-      const current = latest?.contacts.find(c => c.id === recipient.contactId);
+      const current = latest ? effectiveCampaignRecipients(latest.contacts, latest.manualRecipients).find(c => campaignRecipientKey(c) === recipient.recipientId) : undefined;
       const currentStep = latest?.steps.find(s => s.id === input.stepId);
       if (!latest || !current || !currentStep) throw new GmailSendError("Contact retiré de la campagne. Aucun envoi.");
       const rendered = renderManualRecipient(currentStep, current);

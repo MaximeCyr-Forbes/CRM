@@ -1,4 +1,5 @@
 import { withCRMIdentity } from '../../../../lib/auth/route';
+import { effectiveCampaignRecipients } from "../../../../lib/automatic-emails/manual-recipients";
 import { customCampaignConfigurationIssues, isCustomEmailId, parseCustomEmailCampaignDraft } from "../../../../data/custom-email-campaign-types";
 import { requireApiAccess } from "../../../../lib/crm-access";
 import { isSameOriginRequest } from "../../../../lib/google-calendar/config";
@@ -31,7 +32,7 @@ async function PATCHHandler(request: Request, context: { params: Promise<{ campa
     const current = await getCustomEmailCampaign(campaignId);
     if (!current) return Response.json({ error: "Campagne introuvable." }, { status: 404 });
     if (draft.status === "ready") {
-      const issues = customCampaignConfigurationIssues(draft, current.contacts, current.steps);
+      const issues = customCampaignConfigurationIssues(draft, effectiveCampaignRecipients(current.contacts, current.manualRecipients), current.steps);
       if (issues.length > 0) return Response.json({ error: issues[0], issues }, { status: 400 });
     }
     return Response.json({ data: await updateCustomEmailCampaign(campaignId, draft), simulationOnly: true }, { headers: { "Cache-Control": "private, no-store" } });

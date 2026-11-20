@@ -17,7 +17,7 @@ let component: () => Node;
 const campaign = { id: "local-campaign", name: "Fixture locale", status: "ready", executionMode: "automatic", startDate: "2035-12-17", sendHour: 22, sendMinute: 37, timezone: "America/Toronto", senderStrategy: "fixed_broker", fixedBroker: "maxime", fallbackBroker: null, contactCount: 1, stepCount: 1, durationDays: 0 };
 const contact = { id: "local-contact", firstName: "QA", lastName: "Local", email: "qa@example.test", phone: "", broker: "maxime", selected: true };
 const step = { id: "local-step", campaignId: campaign.id, stepOrder: 1, delayDaysAfterPrevious: 0, subjectTemplate: "Objet QA", bodyTemplate: "Bonjour {{firstName}}" };
-const preview = { campaignId: campaign.id, campaignName: campaign.name, stepId: step.id, stepOrder: 1, recipients: [{ contactId: contact.id, name: "QA Local", to: contact.email, broker: "maxime", senderEmail: "sender@example.test", subject: "Objet QA", html: "<p>Signature QA</p>", blockingReasons: [], deliveryStatus: null, fingerprint: "local-fingerprint" }] };
+const preview = { campaignId: campaign.id, campaignName: campaign.name, stepId: step.id, stepOrder: 1, recipients: [{ recipientId: contact.id, contactId: contact.id, name: "QA Local", to: contact.email, broker: "maxime", senderEmail: "sender@example.test", subject: "Objet QA", html: "<p>Signature QA</p>", blockingReasons: [], deliveryStatus: null, fingerprint: "local-fingerprint" }] };
 let campaignDeleted = false;
 let deleteFailure = false;
 let deleteGate: Promise<void> | null = null;
@@ -56,8 +56,8 @@ beforeEach(() => {
     if (method !== "GET" && !url.includes("/manual-send")) {
       saveWrites++;
       if (saveWrites === failSaveAt) return Response.json({ error: "Échec QA de sauvegarde" }, { status: 500 });
-      if (saveWrites === 5 && finalSaveGate) await finalSaveGate;
-      if (method === "PATCH" && url.endsWith(campaign.id)) Object.assign(savedCampaign, body);
+      if (saveWrites === 1 && finalSaveGate) await finalSaveGate;
+      if (method === "POST" && url.endsWith("/save")) Object.assign(savedCampaign, body.campaign);
     }
     const history = [{ id: "qa-delivery", recipient_email: contact.email, broker: "maxime", status: "sent", error: null, gmail_message_id: "mock-id" }];
     if (url.includes("/manual-send") && method === "POST") { manualSent = true; return Response.json({ data: history }); }
@@ -69,7 +69,7 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 it("simplifies the card and identifies immediate manual sending", async () => {
   await settle(); const card = nodes().find(n => n.type === "article")!;
-  expect(nodes(card).filter(n => n.type === "dt").map(text)).toEqual(["Contacts", "Courriels", "Durée", "Expéditeur"]);
+  expect(nodes(card).filter(n => n.type === "dt").map(text)).toEqual(["Contacts", "Adresses manuelles", "Courriels", "Durée", "Expéditeur"]);
   expect(text(card)).toContain("PRÊTE POUR ENVOI MANUEL"); expect(text(card)).toContain("AUCUN ENVOI AUTOMATIQUE");
   expect(button("ENVOYER MAINTENANT").props.title).toBe("Envoi immédiat après confirmation");
 });
@@ -81,19 +81,19 @@ it("keeps simulation fields inside a closed native disclosure", async () => {
   expect(input("Date simulée").props.value).toBe(campaign.startDate); expect(input("Heure simulée").props.value).toBe("22:37"); expect(input("Mode futur").props.value).toBe("automatic");
 });
 it("saves existing simulation values without opening the disclosure", async () => {
-  await edit(); await click("ENREGISTRER"); const patches = calls.filter(c => c.method === "PATCH" && c.url.endsWith(campaign.id));
-  expect(patches).toHaveLength(2); for (const patch of patches) expect(patch.body).toMatchObject({ startDate: "2035-12-17", sendHour: 22, sendMinute: 37, executionMode: "automatic" });
+  await edit(); await click("ENREGISTRER"); const patches = calls.filter(c => c.method === "POST" && c.url.endsWith("/save"));
+  expect(patches).toHaveLength(1); for (const patch of patches) expect(patch.body.campaign).toMatchObject({ startDate: "2035-12-17", sendHour: 22, sendMinute: 37, executionMode: "automatic" });
   expect(calls.some(c => c.url.includes("manual-send"))).toBe(false);
 });
 it("retains edited simulation values through other edits and save", async () => {
   await edit(); input("Heure simulée").props.onChange({ target: { value: "07:43" } }); render();
   input("Nom de la campagne").props.onChange({ target: { value: "Nom modifié" } }); render();
   expect(input("Heure simulée").props.value).toBe("07:43"); await click("ENREGISTRER");
-  expect(calls.find(c => c.method === "PATCH")?.body).toMatchObject({ sendHour: 7, sendMinute: 43, startDate: campaign.startDate, executionMode: "automatic" });
+  expect(calls.find(c => c.method === "POST")?.body.campaign).toMatchObject({ sendHour: 7, sendMinute: 43, startDate: campaign.startDate, executionMode: "automatic" });
 });
 it("preserves defaults when creating a local draft", async () => {
   await settle(); await click("+ NOUVELLE CAMPAGNE"); input("Nom de la campagne").props.onChange({ target: { value: "Nouveau brouillon QA" } }); render(); await click("ENREGISTRER");
-  expect(calls.find(c => c.method === "POST")?.body).toMatchObject({ sendHour: 9, sendMinute: 0, executionMode: "approval", startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+  expect(calls.find(c => c.method === "POST")?.body.campaign).toMatchObject({ sendHour: 9, sendMinute: 0, executionMode: "approval", startDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
 });
 it("requires checked confirmation before the mocked manual send POST", async () => {
   h.slots = []; h.effects = []; component = () => CustomCampaignManualSend({ campaignId: campaign.id, onClose: vi.fn() }); render(); await settle();
@@ -106,7 +106,7 @@ it("requires checked confirmation before the mocked manual send POST", async () 
   final.props.onClick(); final.props.onClick(); await settle();
   expect(text(tree)).toContain("1 envoyé(s)");
   expect(button("ENVOYER MAINTENANT").props.disabled).toBe(true);
-  expect(calls.filter(c => c.method === "POST")).toEqual([{ url: `/api/automatic-emails/custom-campaigns/${campaign.id}/manual-send`, method: "POST", body: expect.objectContaining({ confirmation: "ENVOYER", stepId: step.id, contactIds: [contact.id], fingerprints: { [contact.id]: "local-fingerprint" } }) }]);
+  expect(calls.filter(c => c.method === "POST")).toEqual([{ url: `/api/automatic-emails/custom-campaigns/${campaign.id}/manual-send`, method: "POST", body: expect.objectContaining({ confirmation: "ENVOYER", stepId: step.id, recipientIds: [contact.id], fingerprints: { [contact.id]: "local-fingerprint" } }) }]);
 });
 
 
@@ -125,7 +125,7 @@ it("closes only after complete save, refreshes list and reopens persisted values
   await edit(); input("Nom de la campagne").props.onChange({ target: { value: "Nom QA sauvegardé" } }); render();
   let release!: () => void; finalSaveGate = new Promise<void>(resolve => { release = resolve; });
   button("ENREGISTRER").props.onClick(); await settle();
-  expect(saveWrites).toBe(5); expect(nodes().some(n => n.props.role === "dialog")).toBe(true);
+  expect(saveWrites).toBe(1); expect(nodes().some(n => n.props.role === "dialog")).toBe(true);
   expect(button("ENREGISTREMENT…").props.disabled).toBe(true);
   release(); await settle();
   expect(nodes().some(n => n.props.role === "dialog")).toBe(false);
@@ -133,7 +133,7 @@ it("closes only after complete save, refreshes list and reopens persisted values
   expect(calls.at(-1)).toMatchObject({ method: "GET", url: "/api/automatic-emails/custom-campaigns" });
   await click("CONFIGURER"); expect(input("Nom de la campagne").props.value).toBe("Nom QA sauvegardé");
 });
-it.each([1, 2, 3, 4, 5])("keeps draft and displays error inside modal if save operation %i fails", async operation => {
+it.each([1])("keeps draft and displays error inside modal if save operation %i fails", async operation => {
   await edit(); input("Nom de la campagne").props.onChange({ target: { value: "Brouillon QA intact" } }); render();
   failSaveAt = operation; await click("ENREGISTRER");
   const dialog = nodes().find(n => n.props.role === "dialog"); expect(dialog).toBeDefined();
@@ -142,7 +142,7 @@ it.each([1, 2, 3, 4, 5])("keeps draft and displays error inside modal if save op
   expect(saveWrites).toBe(operation); expect(button("ENREGISTRER").props.disabled).toBe(false);
 });
 it("switches manual preview by contact ID, including identical first names", async () => {
-  manualRecipients = ["Jean", "Marie-Claude", "François", "Jean"].map((name, i) => ({ ...preview.recipients[0], contactId: `qa-${i}`, name: `${name} Nom${i}`, to: `qa${i}@example.test`, subject: `Bonjour ${name}`, html: `<p>Bonjour ${name}, Nom${i}</p>` }));
+  manualRecipients = ["Jean", "Marie-Claude", "François", "Jean"].map((name, i) => ({ ...preview.recipients[0], recipientId: `qa-${i}`, contactId: `qa-${i}`, name: `${name} Nom${i}`, to: `qa${i}@example.test`, subject: `Bonjour ${name}`, html: `<p>Bonjour ${name}, Nom${i}</p>` }));
   h.slots = []; h.effects = []; component = () => CustomCampaignManualSend({ campaignId: campaign.id, onClose: vi.fn() }); render(); await settle();
   for (const recipient of manualRecipients) {
     input("Prévisualisation pour").props.onChange({ target: { value: recipient.contactId } }); render();

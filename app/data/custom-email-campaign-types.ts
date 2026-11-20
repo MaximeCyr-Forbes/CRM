@@ -23,6 +23,7 @@ export type CustomEmailCampaign = {
   sendMinute: number;
   timezone: "America/Toronto";
   contactCount: number;
+  manualRecipientCount?: number;
   stepCount: number;
   durationDays: number;
   createdAt: string;
@@ -197,7 +198,7 @@ export function customCampaignConfigurationIssues(
   if (!campaign.name.trim()) issues.push("Ajoutez un nom de campagne.");
   if (!campaign.startDate || !validDate(campaign.startDate)) issues.push("Choisissez une date de début valide.");
   if (!Number.isInteger(campaign.sendHour) || campaign.sendHour < 0 || campaign.sendHour > 23 || !Number.isInteger(campaign.sendMinute) || campaign.sendMinute < 0 || campaign.sendMinute > 59) issues.push("Choisissez une heure valide.");
-  if (contacts.length === 0) issues.push("Sélectionnez au moins un Contact.");
+  if (contacts.length === 0) issues.push("Ajoutez au moins un destinataire.");
   if (steps.length === 0) issues.push("Ajoutez au moins un courriel.");
   steps.forEach((step, index) => {
     if (index === 0 && step.delayDaysAfterPrevious !== 0) issues.push("Le premier courriel doit être prévu au Jour 0.");

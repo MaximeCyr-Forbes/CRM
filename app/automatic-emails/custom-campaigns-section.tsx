@@ -16,8 +16,11 @@ import {
   type CustomEmailCampaignStep,
 } from "../data/custom-email-campaign-types";
 
+import ManualRecipientsEditor from "./manual-recipients-editor";
+import { effectiveCampaignRecipients, type CampaignManualRecipient } from "../lib/automatic-emails/manual-recipients";
+
 type EditorStep = Pick<CustomEmailCampaignStep, "delayDaysAfterPrevious" | "subjectTemplate" | "bodyTemplate"> & { id: string | null };
-type EditorState = { id: string | null; campaign: CustomEmailCampaignDraft; contacts: CustomEmailCampaignContact[]; steps: EditorStep[]; originalStepIds: string[] };
+type EditorState = { expectedUpdatedAt: string | null; manualRecipients: CampaignManualRecipient[]; id: string | null; campaign: CustomEmailCampaignDraft; contacts: CustomEmailCampaignContact[]; steps: EditorStep[]; originalStepIds: string[] };
 type Filter = "all" | ContactBroker;
 
 const EMPTY_STEP: EditorStep = { id: null, delayDaysAfterPrevious: 0, subjectTemplate: "", bodyTemplate: "Bonjour {{firstName}},\n\n", };
@@ -36,7 +39,7 @@ function formatDate(value: string | null) {
 }
 
 function fullName(contact: CustomEmailCampaignContact) {
-  return `${contact.firstName} ${contact.lastName}`.trim() || "Contact sans nom";
+  return `${contact.firstName} ${contact.lastName}`.trim() || contact.email || "Contact sans nom";
 }
 
 async function json<T>(response: Response, fallback: string): Promise<T> {
@@ -61,6 +64,7 @@ export default function CustomCampaignsSection() {
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveInProgress = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadCampaigns() {
@@ -78,7 +82,7 @@ export default function CustomCampaignsSection() {
     setError(null);
     try {
       const contacts = await json<CustomEmailCampaignContact[]>(await fetch("/api/automatic-emails/custom-campaigns/contacts", { cache: "no-store" }), "Chargement des Contacts impossible.");
-      setEditor({ id: null, campaign: emptyCampaign(), contacts, steps: [{ ...EMPTY_STEP }], originalStepIds: [] });
+      setEditor({ expectedUpdatedAt: null, manualRecipients: [], id: null, campaign: emptyCampaign(), contacts, steps: [{ ...EMPTY_STEP }], originalStepIds: [] });
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Chargement impossible."); }
   }
 
@@ -86,11 +90,11 @@ export default function CustomCampaignsSection() {
     setError(null);
     try {
       const [bundle, contacts] = await Promise.all([
-        json<{ campaign: CustomEmailCampaign; steps: CustomEmailCampaignStep[] }>(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}`, { cache: "no-store" }), "Campagne introuvable."),
+        json<{ campaign: CustomEmailCampaign; manualRecipients: CampaignManualRecipient[]; steps: CustomEmailCampaignStep[] }>(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}`, { cache: "no-store" }), "Campagne introuvable."),
         json<CustomEmailCampaignContact[]>(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/contacts`, { cache: "no-store" }), "Chargement des Contacts impossible."),
       ]);
-      const { contactCount: _contactCount, stepCount: _stepCount, durationDays: _durationDays, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...campaign } = bundle.campaign;
-      setEditor({ id: campaignId, campaign, contacts, steps: bundle.steps.map((step) => ({ id: step.id, delayDaysAfterPrevious: step.delayDaysAfterPrevious, subjectTemplate: step.subjectTemplate, bodyTemplate: step.bodyTemplate })), originalStepIds: bundle.steps.map((step) => step.id) });
+      const { manualRecipientCount: _manualCount, contactCount: _contactCount, stepCount: _stepCount, durationDays: _durationDays, id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...campaign } = bundle.campaign;
+      setEditor({ expectedUpdatedAt: bundle.campaign.updatedAt, manualRecipients: bundle.manualRecipients ?? [], id: campaignId, campaign, contacts, steps: bundle.steps.map((step) => ({ id: step.id, delayDaysAfterPrevious: step.delayDaysAfterPrevious, subjectTemplate: step.subjectTemplate, bodyTemplate: step.bodyTemplate })), originalStepIds: bundle.steps.map((step) => step.id) });
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Chargement impossible."); }
   }
 
@@ -118,41 +122,25 @@ export default function CustomCampaignsSection() {
   }
 
   async function saveEditor() {
-    if (!editor) return;
+    if (!editor || saveInProgress.current) return;
     const pseudoSteps = editor.steps.map((step, index) => ({ ...step, id: step.id ?? `local-${index}`, campaignId: editor.id ?? "local", stepOrder: index + 1, createdAt: "", updatedAt: "" }));
-    const issues = customCampaignConfigurationIssues(editor.campaign, selectedContacts, pseudoSteps);
+    const issues = customCampaignConfigurationIssues(editor.campaign, effectiveCampaignRecipients(selectedContacts, editor.manualRecipients), pseudoSteps);
     if (editor.campaign.status === "ready" && issues.length > 0) { setError(issues[0]); return; }
+    saveInProgress.current = true;
     setSaving(true);
     setError(null);
     try {
-      const desiredStatus = editor.campaign.status;
-      const draftBody = { ...editor.campaign, status: "draft" as const };
-      let campaignId = editor.id;
-      if (campaignId) {
-        await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draftBody) }), "Enregistrement impossible.");
-      } else {
-        const created = await json<CustomEmailCampaign>(await fetch("/api/automatic-emails/custom-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draftBody) }), "Création impossible.");
-        campaignId = created.id;
-      }
-      await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/contacts`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactIds: selectedContacts.map((contact) => contact.id) }) }), "Enregistrement des destinataires impossible.");
-      const retained = new Set(editor.steps.flatMap((step) => step.id ? [step.id] : []));
-      for (const stepId of editor.originalStepIds.filter((id) => !retained.has(id))) {
-        await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/steps/${stepId}`, { method: "DELETE" }), "Suppression du courriel impossible.");
-      }
-      const savedStepIds: string[] = [];
-      for (const [stepIndex, step] of editor.steps.entries()) {
-        const body = { delayDaysAfterPrevious: stepIndex === 0 ? 0 : step.delayDaysAfterPrevious, subjectTemplate: step.subjectTemplate, bodyTemplate: step.bodyTemplate };
-        const saved = step.id
-          ? await json<CustomEmailCampaignStep>(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/steps/${step.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), "Modification du courriel impossible.")
-          : await json<CustomEmailCampaignStep>(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/steps`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), "Ajout du courriel impossible.");
-        savedStepIds.push(saved.id);
-      }
-      await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}/steps`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stepIds: savedStepIds }) }), "Réorganisation impossible.");
-      await json(await fetch(`/api/automatic-emails/custom-campaigns/${campaignId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editor.campaign, status: desiredStatus }) }), "Finalisation impossible.");
+      await json(await fetch("/api/automatic-emails/custom-campaigns/save", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          id: editor.id ?? crypto.randomUUID(), expectedUpdatedAt: editor.expectedUpdatedAt,
+          campaign: editor.campaign, contactIds: selectedContacts.map(c => c.id), manualRecipients: editor.manualRecipients,
+          steps: editor.steps.map((s, i) => ({ ...s, id: s.id ?? crypto.randomUUID(), delayDaysAfterPrevious: i === 0 ? 0 : s.delayDaysAfterPrevious })),
+        }),
+      }), "Enregistrement impossible.");
       setEditor(null);
       await loadCampaigns();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Enregistrement impossible."); }
-    finally { setSaving(false); }
+    finally { saveInProgress.current = false; setSaving(false); }
   }
 
   async function deleteCampaign() {
@@ -185,13 +173,14 @@ export default function CustomCampaignsSection() {
     <div className="custom-campaigns-heading"><div className="automatic-emails-section-title"><p className="section-kicker">Personnalisés</p><h2 id="custom-campaigns-title">CAMPAGNES PERSONNALISÉES</h2><p>Créez des campagnes sur mesure et déclenchez chaque envoi manuellement. Aucun envoi automatique.</p></div><div className="custom-campaign-heading-actions"><button aria-pressed={editMode} onClick={() => setEditMode(!editMode)} type="button">{editMode ? "TERMINER" : "MODIFIER"}</button><button onClick={() => void openNew()} type="button">+ NOUVELLE CAMPAGNE</button></div></div>
     {error && !editor && <div className="automatic-emails-alert" role="alert">{error}<button onClick={() => setError(null)} type="button">Fermer</button></div>}
     {loading ? <p className="automatic-emails-loading">Chargement des campagnes…</p> : <div className="custom-campaign-grid">
-      {campaigns.map((campaign) => <article className="custom-campaign-card" key={campaign.id}><div><span className={`automatic-email-rule-status ${campaign.status}`}>{CUSTOM_EMAIL_CAMPAIGN_STATUS_LABELS[campaign.status].toUpperCase()}</span><span aria-hidden="true">✦</span></div><h3>{campaign.name.toUpperCase()}</h3>{campaign.status === "ready" && <div className="custom-campaign-ready"><strong>PRÊTE POUR ENVOI MANUEL</strong><span>AUCUN ENVOI AUTOMATIQUE</span></div>}<dl><div><dt>Contacts</dt><dd>{campaign.contactCount}</dd></div><div><dt>Courriels</dt><dd>{campaign.stepCount}</dd></div><div><dt>Durée</dt><dd>{campaign.durationDays} jour{campaign.durationDays === 1 ? "" : "s"}</dd></div><div><dt>Expéditeur</dt><dd>{CUSTOM_EMAIL_SENDER_LABELS[campaign.senderStrategy]}{campaign.senderStrategy === "fixed_broker" && campaign.fixedBroker ? ` · ${BROKER_LABELS[campaign.fixedBroker]}` : ""}</dd></div></dl><div className="automatic-email-rule-actions"><button onClick={() => void openEditor(campaign.id)} type="button">CONFIGURER</button><button className="custom-campaign-send" onClick={() => setManualCampaignId(campaign.id)} title="Envoi immédiat après confirmation" type="button">ENVOYER MAINTENANT</button><button onClick={() => void openPreview(campaign.id)} type="button">PRÉVISUALISER</button>{editMode && <button className="custom-campaign-delete" onClick={() => { setDeleteError(""); setDeleteTarget(campaign); }} type="button">SUPPRIMER</button>}</div></article>)}
+      {campaigns.map((campaign) => <article className="custom-campaign-card" key={campaign.id}><div><span className={`automatic-email-rule-status ${campaign.status}`}>{CUSTOM_EMAIL_CAMPAIGN_STATUS_LABELS[campaign.status].toUpperCase()}</span><span aria-hidden="true">✦</span></div><h3>{campaign.name.toUpperCase()}</h3>{campaign.status === "ready" && <div className="custom-campaign-ready"><strong>PRÊTE POUR ENVOI MANUEL</strong><span>AUCUN ENVOI AUTOMATIQUE</span></div>}<dl><div><dt>Contacts</dt><dd>{campaign.contactCount}</dd></div><div><dt>Adresses manuelles</dt><dd>{campaign.manualRecipientCount ?? 0}</dd></div><div><dt>Courriels</dt><dd>{campaign.stepCount}</dd></div><div><dt>Durée</dt><dd>{campaign.durationDays} jour{campaign.durationDays === 1 ? "" : "s"}</dd></div><div><dt>Expéditeur</dt><dd>{CUSTOM_EMAIL_SENDER_LABELS[campaign.senderStrategy]}{campaign.senderStrategy === "fixed_broker" && campaign.fixedBroker ? ` · ${BROKER_LABELS[campaign.fixedBroker]}` : ""}</dd></div></dl><div className="automatic-email-rule-actions"><button onClick={() => void openEditor(campaign.id)} type="button">CONFIGURER</button><button className="custom-campaign-send" onClick={() => setManualCampaignId(campaign.id)} title="Envoi immédiat après confirmation" type="button">ENVOYER MAINTENANT</button><button onClick={() => void openPreview(campaign.id)} type="button">PRÉVISUALISER</button>{editMode && <button className="custom-campaign-delete" onClick={() => { setDeleteError(""); setDeleteTarget(campaign); }} type="button">SUPPRIMER</button>}</div></article>)}
       {campaigns.length === 0 && <div className="custom-campaign-empty"><strong>AUCUNE CAMPAGNE PERSONNALISÉE</strong><span>Créez une première séquence pour un envoi manuel.</span></div>}
     </div>}
 
     {editor && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape" && !saving) { event.stopPropagation(); setEditor(null); } }} aria-labelledby="custom-editor-title" aria-modal="true" className="automatic-email-modal custom-campaign-editor" role="dialog"><header><div><p className="section-kicker">Envoi manuel</p><h2 id="custom-editor-title">{editor.id ? "CONFIGURER LA CAMPAGNE" : "NOUVELLE CAMPAGNE"}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setEditor(null)} type="button">×</button></header><div className="custom-campaign-editor-body">
       <div className="automatic-email-editor-grid custom-campaign-basics"><label className="automatic-email-editor-wide">Nom de la campagne<input maxLength={160} onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, name: event.target.value } })} value={editor.campaign.name} /></label><label>Statut<select onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, status: event.target.value as CustomEmailCampaignStatus } })} value={editor.campaign.status}><option value="draft">Brouillon</option><option value="ready">Prête pour envoi manuel</option><option value="paused">En pause</option></select><small>Prête pour envoi manuel. Aucun envoi automatique.</small></label><label>Stratégie d’expéditeur<select onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, senderStrategy: event.target.value as CustomEmailCampaignDraft["senderStrategy"] } })} value={editor.campaign.senderStrategy}><option value="assigned_broker">Courtier attribué au Contact</option><option value="fixed_broker">Courtier fixe</option></select></label>{editor.campaign.senderStrategy === "assigned_broker" ? <label>Courtier de secours<select onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, fallbackBroker: event.target.value ? event.target.value as CustomEmailCampaignDraft["fallbackBroker"] : null } })} value={editor.campaign.fallbackBroker ?? ""}><option value="">Choisir</option>{CONTACT_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select><small>Obligatoire pour les Contacts non attribués.</small></label> : <label>Courtier fixe<select onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, fixedBroker: event.target.value ? event.target.value as CustomEmailCampaignDraft["fixedBroker"] : null } })} value={editor.campaign.fixedBroker ?? ""}><option value="">Choisir</option>{CONTACT_BROKERS.map((broker) => <option key={broker} value={broker}>{BROKER_LABELS[broker]}</option>)}</select></label>}</div>
       <section className="custom-campaign-recipients"><div><h3>DESTINATAIRES</h3><strong>{selectedContacts.length} CONTACT{selectedContacts.length === 1 ? "" : "S"} SÉLECTIONNÉ{selectedContacts.length === 1 ? "" : "S"}</strong><span>{readyContacts} prêts · {selectedContacts.length - readyContacts} sans courriel</span></div><div className="custom-campaign-contact-tools"><input aria-label="Rechercher un Contact" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher nom, courriel ou téléphone" value={search} /><div>{(["all", "maxime", "france", "sandrine", "unassigned"] as Filter[]).map((value) => <button aria-pressed={filter === value} key={value} onClick={() => setFilter(value)} type="button">{value === "all" ? "TOUS" : value === "unassigned" ? "NON ATTRIBUÉS" : BROKER_LABELS[value]}</button>)}</div><div><button onClick={() => updateContactIds(filteredContacts.map((contact) => contact.id), true)} type="button">TOUT SÉLECTIONNER</button><button onClick={() => updateContactIds(filteredContacts.map((contact) => contact.id), false)} type="button">TOUT DÉSÉLECTIONNER</button></div></div><div className="custom-campaign-contact-list">{filteredContacts.map((contact) => <label key={contact.id}><input checked={contact.selected} onChange={(event) => updateContactIds([contact.id], event.target.checked)} type="checkbox" /><span><strong>{fullName(contact)}</strong><small>{contact.email || "COURRIEL MANQUANT"} · {contact.phone || "Téléphone non renseigné"}</small></span><em>{contact.email ? BROKER_LABELS[contact.broker] : "BLOQUÉ"}</em></label>)}{filteredContacts.length === 0 && <p>Aucun Contact ne correspond à ces critères.</p>}</div></section>
+      <ManualRecipientsEditor recipients={editor.manualRecipients} contacts={selectedContacts} campaign={editor.campaign} steps={editor.steps} disabled={saving} onChange={manualRecipients => setEditor({ ...editor, manualRecipients })} />
       <section className="custom-campaign-sequence"><div><h3>SÉQUENCE DE COURRIELS</h3><button onClick={() => setEditor({ ...editor, steps: [...editor.steps, { ...EMPTY_STEP, delayDaysAfterPrevious: editor.steps.length === 0 ? 0 : 3 }] })} type="button">+ AJOUTER UN COURRIEL</button></div>{editor.steps.map((step, index) => <article key={step.id ?? `new-${index}`}><header><div><strong>COURRIEL {index + 1}</strong><span>{index === 0 ? "Jour 0" : `${step.delayDaysAfterPrevious} jour${step.delayDaysAfterPrevious === 1 ? "" : "s"} après le courriel précédent`}</span></div><div><button disabled={index === 0} onClick={() => moveStep(index, -1)} type="button">MONTER</button><button disabled={index === editor.steps.length - 1} onClick={() => moveStep(index, 1)} type="button">DESCENDRE</button><button onClick={() => { if (window.confirm("Supprimer ce courriel de la séquence?")) setEditor({ ...editor, steps: editor.steps.filter((_, stepIndex) => stepIndex !== index) }); }} type="button">SUPPRIMER</button></div></header>{index > 0 && <label>Délai après le courriel précédent (simulation)<input max="3650" min="0" onChange={(event) => setEditor({ ...editor, steps: editor.steps.map((item, stepIndex) => stepIndex === index ? { ...item, delayDaysAfterPrevious: Number(event.target.value) } : item) })} type="number" value={step.delayDaysAfterPrevious} /></label>}<label>Objet<input maxLength={250} onChange={(event) => setEditor({ ...editor, steps: editor.steps.map((item, stepIndex) => stepIndex === index ? { ...item, subjectTemplate: event.target.value } : item) })} value={step.subjectTemplate} /></label><label>Message<textarea maxLength={100000} onChange={(event) => setEditor({ ...editor, steps: editor.steps.map((item, stepIndex) => stepIndex === index ? { ...item, bodyTemplate: event.target.value } : item) })} rows={6} value={step.bodyTemplate} /></label></article>)}<div className="automatic-email-variables"><strong>Variables disponibles</strong>{CUSTOM_EMAIL_VARIABLES.map((variable) => <code key={variable}>{`{{${variable}}}`}</code>)}</div></section>
       <details className="custom-campaign-simulation"><summary>Simulation du futur mode automatique</summary><p>Ces paramètres servent uniquement à la simulation et n’ont aucun effet sur « Envoyer maintenant ».</p><div className="automatic-email-editor-grid custom-campaign-basics"><label>Date simulée<input onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, startDate: event.target.value || null } })} type="date" value={editor.campaign.startDate ?? ""} /></label><label>Heure simulée<input onChange={(event) => { const [hour, minute] = event.target.value.split(":").map(Number); setEditor({ ...editor, campaign: { ...editor.campaign, sendHour: hour, sendMinute: minute } }); }} type="time" value={`${String(editor.campaign.sendHour).padStart(2, "0")}:${String(editor.campaign.sendMinute).padStart(2, "0")}`} /></label><label>Mode futur<select onChange={(event) => setEditor({ ...editor, campaign: { ...editor.campaign, executionMode: event.target.value as CustomEmailCampaignDraft["executionMode"] } })} value={editor.campaign.executionMode}><option value="approval">À approuver</option><option value="automatic">Automatique</option></select><small>Simulation seulement. Ce mode ne déclenche aucun envoi.</small></label></div></details>
       <div className="automatic-email-simulation-warning"><strong>AUCUN ENVOI AUTOMATIQUE</strong><span>L’envoi manuel exige un aperçu avec la vraie signature Gmail et une confirmation explicite.</span></div>

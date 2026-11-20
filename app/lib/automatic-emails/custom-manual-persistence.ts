@@ -5,7 +5,7 @@ export async function manualHistory(campaignId: string): Promise<ManualHistory[]
   const rows: ManualHistory[] = [];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await getSupabaseAdmin().from("custom_email_manual_deliveries")
-      .select("id,batch_id,campaign_id,step_id,contact_id,broker,recipient_email,status,gmail_message_id,error,created_at,updated_at")
+      .select("id,batch_id,campaign_id,step_id,contact_id,manual_recipient_id,broker,recipient_email,status,gmail_message_id,error,created_at,updated_at")
       .eq("campaign_id", campaignId).order("created_at", { ascending: false }).order("id").range(offset, offset + 999);
     if (error) throw error;
     rows.push(...data as ManualHistory[]);
@@ -29,20 +29,12 @@ export async function ensureManualBatch(id: string, preview: ManualPreview) {
 export async function claimManualRecipient(batchId: string, attemptKey: string, preview: ManualPreview, recipient: ManualRecipient, retry: boolean) {
   const db = getSupabaseAdmin();
   const row = { batch_id: batchId, campaign_id: preview.campaignId, step_id: preview.stepId,
-    contact_id: recipient.contactId, broker: recipient.broker, recipient_email: recipient.to,
+    contact_id: recipient.contactId, manual_recipient_id: recipient.manualRecipientId, broker: recipient.broker, recipient_email: recipient.to,
     status: recipient.blockingReasons.length ? "blocked" : "pending", attempt_key: attemptKey,
     error: recipient.blockingReasons.join(" ") || "Envoi en cours ou résultat Gmail à vérifier.", updated_at: new Date().toISOString() };
-  if (retry) {
-    const { data, error } = await db.from("custom_email_manual_deliveries").update(row)
-      .eq("step_id", preview.stepId).eq("contact_id", recipient.contactId).eq("status", "failed")
-      .neq("attempt_key", attemptKey).select("id").maybeSingle();
-    if (error) throw error;
-    return data?.id as string | undefined;
-  }
-  const { data, error } = await db.from("custom_email_manual_deliveries").upsert(row,
-    { onConflict: "step_id,contact_id", ignoreDuplicates: true }).select("id").maybeSingle();
+  const { data, error } = await db.rpc("claim_custom_campaign_recipient", { p_row: row, p_retry: retry });
   if (error) throw error;
-  return data?.id as string | undefined;
+  return data as string | null;
 }
 
 export async function finishManualRecipient(id: string, attemptKey: string, status: "sent" | "failed" | "pending", gmailId: string | null, message: string | null) {

@@ -97,7 +97,7 @@ describe("campagnes courriel personnalisées en simulation", () => {
     const occurrences = calculateCustomCampaignOccurrences(campaign(), [noEmail], [steps()[0]], [connection("maxime")]);
     expect(occurrences[0].blockingReasons).toContain("Adresse courriel manquante.");
     expect(customCampaignConfigurationIssues(campaign({ fallbackBroker: null }), [noEmail], steps())).toContain("Choisissez le courtier de secours des Contacts non attribués.");
-    expect(customCampaignConfigurationIssues(campaign(), [], [])).toEqual(expect.arrayContaining(["Sélectionnez au moins un Contact.", "Ajoutez au moins un courriel."]));
+    expect(customCampaignConfigurationIssues(campaign(), [], [])).toEqual(expect.arrayContaining(["Ajoutez au moins un destinataire.", "Ajoutez au moins un courriel."]));
   });
 
   it("ne contient aucun runner, appel Gmail automatique ou écriture delivery", () => {

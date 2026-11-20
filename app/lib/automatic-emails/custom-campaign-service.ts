@@ -2,13 +2,16 @@ import { calculateCustomCampaignOccurrences } from "./custom-campaign-calculatio
 import { listGoogleConnectionStatuses } from "../google-calendar/service";
 import { getCustomEmailCampaign } from "./custom-campaign-persistence";
 import type { CustomEmailCampaignPreview } from "../../data/custom-email-campaign-types";
+import { effectiveCampaignRecipients } from "./manual-recipients";
 
 export async function getCustomEmailCampaignPreview(campaignId: string): Promise<CustomEmailCampaignPreview | null> {
   const [bundle, connections] = await Promise.all([getCustomEmailCampaign(campaignId), listGoogleConnectionStatuses()]);
   if (!bundle) return null;
-  const occurrences = calculateCustomCampaignOccurrences(bundle.campaign, bundle.contacts, bundle.steps, connections);
+  const recipients = effectiveCampaignRecipients(bundle.contacts, bundle.manualRecipients);
+  const occurrences = calculateCustomCampaignOccurrences(bundle.campaign, recipients, bundle.steps, connections);
   return {
     ...bundle,
+    contacts: recipients,
     occurrences,
     summary: {
       total: occurrences.length,

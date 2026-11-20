@@ -44,8 +44,8 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
         fetch(`${base}/manual-send`, { cache: "no-store" }).then(read<ManualHistory[]>),
       ]);
       if (current !== generation.current) return;
-      setPreview(data); setHistory(rows); setContactId(data.recipients[0]?.contactId ?? "");
-      setSelected(data.recipients.filter((item) => !item.deliveryStatus).map((item) => item.contactId));
+      setPreview(data); setHistory(rows); setContactId(data.recipients[0]?.recipientId ?? "");
+      setSelected(data.recipients.filter((item) => !item.deliveryStatus).map((item) => item.recipientId));
     } catch (reason) { if (current === generation.current) setError(reason instanceof Error ? reason.message : "Préparation impossible."); }
     finally { if (current === generation.current) setLoading(false); }
   }
@@ -60,15 +60,15 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
     return () => { active = false; generation.current++; };
   }, [campaignId]);
 
-  const recipient = preview?.recipients.find((item) => item.contactId === contactId);
-  const chosen = preview?.recipients.filter((item) => selected.includes(item.contactId)) ?? [];
+  const recipient = preview?.recipients.find((item) => item.recipientId === contactId);
+  const chosen = preview?.recipients.filter((item) => selected.includes(item.recipientId)) ?? [];
   const ready = chosen.filter((item) => !item.blockingReasons.length && (retry ? item.deliveryStatus === "failed" : !item.deliveryStatus));
   const blocked = chosen.length - ready.length;
   const failed = preview?.recipients.filter((item) => item.deliveryStatus === "failed" && !item.blockingReasons.length) ?? [];
 
   function begin(isRetry: boolean) {
     setRetry(isRetry);
-    if (isRetry) setSelected(failed.map((item) => item.contactId));
+    if (isRetry) setSelected(failed.map((item) => item.recipientId));
     setChecked(false); setConfirm(true);
   }
 
@@ -78,14 +78,14 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
     const batchId = crypto.randomUUID();
     const attemptKey = crypto.randomUUID();
     const eligible = chosen.filter((item) => retry ? item.deliveryStatus === "failed" : !item.deliveryStatus);
-    const ids = eligible.map((item) => item.contactId);
-    const fingerprints = Object.fromEntries(eligible.map((item) => [item.contactId, item.fingerprint]));
+    const ids = eligible.map((item) => item.recipientId);
+    const fingerprints = Object.fromEntries(eligible.map((item) => [item.recipientId, item.fingerprint]));
     try {
       for (let offset = 0; offset < ids.length; offset += 3) {
         const rows = await read<ManualHistory[]>(await fetch(`${base}/manual-send`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ confirmation: "ENVOYER", batchId, attemptKey, stepId: preview.stepId,
-            contactIds: ids.slice(offset, offset + 3), fingerprints, retry }),
+            recipientIds: ids.slice(offset, offset + 3), fingerprints, retry }),
         }));
         setHistory(rows);
       }
@@ -108,9 +108,9 @@ export default function CustomCampaignManualSend({ campaignId, onClose }: { camp
       <button disabled={busy || loading} onClick={() => void load(stepId)} type="button">ACTUALISER L’APERÇU ET L’HISTORIQUE</button>
       {loading && <p role="status">Vérification des Contacts et des signatures Gmail…</p>}
       {preview && <>
-        <label>Prévisualisation pour<select disabled={busy} value={contactId} onChange={(event) => setContactId(event.target.value)}>{preview.recipients.map((item) => <option key={item.contactId} value={item.contactId}>{item.name || item.to}</option>)}</select></label>
+        <label>Prévisualisation pour<select disabled={busy} value={contactId} onChange={(event) => setContactId(event.target.value)}>{preview.recipients.map((item) => <option key={item.recipientId} value={item.recipientId}>{item.name || item.to}</option>)}</select></label>
         {recipient && <article><p><strong>De :</strong> {recipient.senderName} &lt;{recipient.senderEmail}&gt;</p><p><strong>À :</strong> {recipient.to}</p><p><strong>Objet :</strong> {recipient.subject}</p>{recipient.html && <iframe title="Message avec signature Gmail réelle" sandbox="" referrerPolicy="no-referrer" srcDoc={recipient.html} style={{ width: "100%", height: 300, border: "1px solid #ddd", background: "white" }} />}<p>{recipient.blockingReasons.join(" ")}</p></article>}
-        <div className="custom-campaign-contact-list">{preview.recipients.map((item) => <label key={item.contactId}><input type="checkbox" disabled={busy || confirm || !!item.deliveryStatus} checked={selected.includes(item.contactId)} onChange={(event) => { setRetry(false); setSelected(event.target.checked ? [...selected, item.contactId] : selected.filter((id) => id !== item.contactId)); }} /><span>{item.name} · {item.to}<small>{item.broker ? BROKER_LABELS[item.broker] : "Sans courtier"} · {item.deliveryStatus ?? (item.blockingReasons.length ? "BLOQUÉ" : "PRÊT")}{item.blockingReasons.length > 0 && ` · ${item.blockingReasons.join(" ")}`}</small></span></label>)}</div>
+        <div className="custom-campaign-contact-list">{preview.recipients.map((item) => <label key={item.recipientId}><input type="checkbox" disabled={busy || confirm || !!item.deliveryStatus} checked={selected.includes(item.recipientId)} onChange={(event) => { setRetry(false); setSelected(event.target.checked ? [...selected, item.recipientId] : selected.filter((id) => id !== item.recipientId)); }} /><span>{item.name} · {item.to}<small>{item.broker ? BROKER_LABELS[item.broker] : "Sans courtier"} · {item.deliveryStatus ?? (item.blockingReasons.length ? "BLOQUÉ" : "PRÊT")}{item.blockingReasons.length > 0 && ` · ${item.blockingReasons.join(" ")}`}</small></span></label>)}</div>
         {!confirm ? <div className="custom-manual-actions"><button className="custom-campaign-send" disabled={busy || !chosen.some((item) => !item.deliveryStatus && !item.blockingReasons.length)} onClick={() => begin(false)} type="button">ENVOYER MAINTENANT</button><button disabled={busy || !failed.length} onClick={() => begin(true)} type="button">RÉESSAYER MANUELLEMENT LES ÉCHECS</button>{!chosen.some((item) => !item.deliveryStatus && !item.blockingReasons.length) && <p role="status">Aucun destinataire prêt pour cet envoi.</p>}</div> : <section className="custom-manual-confirmation" aria-labelledby="manual-confirm-title"><h3 id="manual-confirm-title" ref={confirmationTitle} tabIndex={-1}>CONFIRMER L’ENVOI IMMÉDIAT</h3><dl><div><dt>Campagne</dt><dd>{preview.campaignName}</dd></div><div><dt>Étape</dt><dd>Courriel {preview.stepOrder}</dd></div><div><dt>Destinataires prêts</dt><dd>{ready.length}</dd></div><div><dt>Bloqués, exclus de l’envoi</dt><dd>{blocked}</dd></div></dl><p>{(["maxime", "france", "sandrine"] as const).map((broker) => `${BROKER_LABELS[broker]} : ${ready.filter((item) => item.broker === broker).length}`).join(" · ")}</p><label><input checked={checked} disabled={busy} type="checkbox" onChange={(event) => setChecked(event.target.checked)} />Je confirme l’envoi manuel immédiat</label><button className="custom-campaign-send" disabled={!checked || busy || !ready.length} onClick={() => void send()} type="button">{busy ? "ENVOI EN COURS…" : `CONFIRMER ET ENVOYER ${ready.length} COURRIEL${ready.length === 1 ? "" : "S"} MAINTENANT`}</button><button disabled={busy} onClick={() => setConfirm(false)} type="button">ANNULER</button></section>}
       </>}
       <h3>HISTORIQUE DES ENVOIS MANUELS</h3><p>{history.filter((row) => row.status === "sent").length} envoyé(s) · {history.filter((row) => row.status === "failed").length} échec(s) · {history.filter((row) => row.status === "pending").length} en cours / à vérifier · {history.filter((row) => row.status === "blocked").length} bloqué(s)</p>

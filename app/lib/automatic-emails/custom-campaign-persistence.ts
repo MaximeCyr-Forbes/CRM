@@ -12,6 +12,7 @@ import type {
 } from "../../data/custom-email-campaign-types";
 import { customCampaignDuration } from "./custom-campaign-calculations";
 import { getSupabaseAdmin } from "../supabase/server";
+import type { CampaignManualRecipient } from "./manual-recipients";
 
 const PAGE_SIZE = 1000;
 const campaignColumns = "id, name, status, execution_mode, sender_strategy, fixed_broker, fallback_broker, start_date, send_hour, send_minute, timezone, created_at, updated_at";
@@ -70,14 +71,15 @@ function stepValues(draft: CustomEmailCampaignStepDraft) {
 }
 
 export async function listCustomEmailCampaigns(): Promise<CustomEmailCampaign[]> {
-  const [campaignRows, contactRows, stepRows] = await Promise.all([
+  const [campaignRows, contactRows, stepRows, manualRows] = await Promise.all([
     listRows<CampaignRow>("custom_email_campaigns", campaignColumns),
     listRows<CampaignContactRow>("custom_email_campaign_contacts", "campaign_id, contact_id"),
     listRows<StepRow>("custom_email_campaign_steps", stepColumns),
+    listRows<{ campaign_id: string; removed_at: string | null }>("custom_email_campaign_manual_recipients", "campaign_id,removed_at"),
   ]);
   return campaignRows.map((row) => {
     const steps = stepRows.filter((step) => step.campaign_id === row.id).map(mapStep);
-    return mapCampaign(row, contactRows.filter((contact) => contact.campaign_id === row.id).length, steps);
+    return { ...mapCampaign(row, contactRows.filter((contact) => contact.campaign_id === row.id).length, steps), manualRecipientCount: manualRows.filter(r => r.campaign_id === row.id && !r.removed_at).length };
   }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
@@ -85,8 +87,19 @@ export async function getCustomEmailCampaign(campaignId: string) {
   const { data, error } = await getSupabaseAdmin().from("custom_email_campaigns").select(campaignColumns).eq("id", campaignId).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const [contacts, steps] = await Promise.all([listCustomEmailCampaignContacts(campaignId), listCustomEmailCampaignSteps(campaignId)]);
-  return { campaign: mapCampaign(data as CampaignRow, contacts.length, steps), contacts, steps };
+  const [contacts, steps, manualRecipients] = await Promise.all([listCustomEmailCampaignContacts(campaignId), listCustomEmailCampaignSteps(campaignId), listCampaignManualRecipients(campaignId)]);
+  return { campaign: { ...mapCampaign(data as CampaignRow, contacts.length, steps), manualRecipientCount: manualRecipients.length }, contacts, steps, manualRecipients };
+}
+
+export async function listCampaignManualRecipients(campaignId: string): Promise<CampaignManualRecipient[]> {
+  const rows: CampaignManualRecipient[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await getSupabaseAdmin().from("custom_email_campaign_manual_recipients")
+      .select("id,email,first_name,last_name,broker").eq("campaign_id", campaignId).is("removed_at", null).order("id").range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []).map(r => ({ id: r.id, email: r.email, firstName: r.first_name, lastName: r.last_name, broker: r.broker })));
+    if ((data ?? []).length < PAGE_SIZE) return rows;
+  }
 }
 
 export async function createCustomEmailCampaign(draft: CustomEmailCampaignDraft) {

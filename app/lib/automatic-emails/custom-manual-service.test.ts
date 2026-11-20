@@ -7,11 +7,11 @@ vi.mock("./custom-manual-persistence", () => ({
   manualHistory: async () => state.history,
   ensureManualBatch: vi.fn(),
   claimManualRecipient: async (_batch: string, attempt: string, preview: any, recipient: any, retry: boolean) => {
-    const key = `${preview.stepId}:${recipient.contactId}`;
-    const existing = state.history.find((row) => row.contact_id === recipient.contactId);
+    const key = `${preview.stepId}:${recipient.to.toLowerCase()}`;
+    const existing = state.history.find((row) => row.recipient_email === recipient.to);
     if (retry ? !existing || existing.status !== "failed" || existing.attempt === attempt : state.claims.has(key)) return undefined;
     state.claims.add(key);
-    const row = existing ?? { id: recipient.contactId, contact_id: recipient.contactId, step_id: preview.stepId };
+    const row = existing ?? { id: recipient.recipientId, contact_id: recipient.contactId, manual_recipient_id: recipient.manualRecipientId, recipient_email: recipient.to, step_id: preview.stepId };
     Object.assign(row, { status: recipient.blockingReasons.length ? "blocked" : "pending", attempt });
     if (!existing) state.history.push(row);
     return row.id;
@@ -34,7 +34,7 @@ const contact = { id: "one", firstName: "  Marie-Claude  ", lastName: "  Roy  ",
 async function request(retry = false): Promise<ManualSendRequest> {
   const { preview } = await prepareManualCampaign("campaign", "step");
   return { confirmation: "ENVOYER", batchId: "batch", attemptKey: retry ? "retry" : "initial", stepId: "step", retry,
-    contactIds: preview.recipients.map((item) => item.contactId), fingerprints: Object.fromEntries(preview.recipients.map((item) => [item.contactId, item.fingerprint])) };
+    recipientIds: preview.recipients.map((item) => item.recipientId), fingerprints: Object.fromEntries(preview.recipients.map((item) => [item.recipientId, item.fingerprint])) };
 }
 
 beforeEach(() => {
@@ -121,7 +121,7 @@ describe("envois manuels personnalisés", () => {
     expect(state.send).toHaveBeenCalledTimes(1);
   });
   it("conserve deux succès et un échec, puis réessaie seulement l’échec une fois", async () => {
-    (state.bundle as any).contacts = [contact, { ...contact, id: "two" }, { ...contact, id: "three" }];
+    (state.bundle as any).contacts = [contact, { ...contact, id: "two", email: "two@example.test" }, { ...contact, id: "three", email: "three@example.test" }];
     state.send.mockResolvedValueOnce({ id: "one" }).mockRejectedValueOnce(new GmailSendError("Quota Gmail")).mockResolvedValueOnce({ id: "three" });
     await sendManualCampaign("campaign", await request());
     expect(state.history.map((row) => row.status)).toEqual(["sent", "failed", "sent"]);
@@ -141,6 +141,41 @@ describe("envois manuels personnalisés", () => {
 });
 
 
+describe("manual addresses — isolated Gmail mocks", () => {
+  const manual = { id: "manual-one", firstName: "Manual", lastName: "Example", email: "manual@example.test", broker: null };
+  it("previews and sends manual-only using fallback and a distinct identity", async () => {
+    Object.assign(state.bundle as object, { contacts: [], manualRecipients: [manual] });
+    const { preview } = await prepareManualCampaign("campaign", "step");
+    expect(preview.recipients[0]).toMatchObject({ contactId: null, manualRecipientId: "manual-one", recipientId: "manual:manual-one", broker: "sandrine" });
+    expect(state.send).not.toHaveBeenCalled();
+    await sendManualCampaign("campaign", await request());
+    expect(state.send).toHaveBeenCalledTimes(1);
+    expect(state.history[0]).toMatchObject({ contact_id: null, manual_recipient_id: "manual-one" });
+  });
+  it("deduplicates across CRM and manual recipients and retains the CRM source", async () => {
+    Object.assign(state.bundle as object, { manualRecipients: [{ ...manual, email: contact.email.toUpperCase() }, manual] });
+    const { preview } = await prepareManualCampaign("campaign", "step");
+    expect(preview.recipients).toHaveLength(2); expect(preview.recipients[0].contactId).toBe(contact.id);
+    await sendManualCampaign("campaign", await request()); expect(state.send).toHaveBeenCalledTimes(2);
+  });
+  it("uses fixed sender, explicit manual broker, and blocks missing sender and variables", async () => {
+    Object.assign(state.bundle as object, { contacts: [], manualRecipients: [{...manual, broker: "france"}] });
+    expect((await prepareManualCampaign("campaign","step")).preview.recipients[0].broker).toBe("france");
+    Object.assign((state.bundle as any).campaign,{senderStrategy:"fixed_broker",fixedBroker:"maxime"});
+    expect((await prepareManualCampaign("campaign","step")).preview.recipients[0].broker).toBe("maxime");
+    Object.assign((state.bundle as any).campaign,{fixedBroker:null});
+    (state.bundle as any).manualRecipients[0].firstName="";
+    const {preview}=await prepareManualCampaign("campaign","step");
+    expect(preview.recipients[0].blockingReasons).toEqual(expect.arrayContaining(["Courtier non déterminé.","Prénom manquant."]));
+    await sendManualCampaign("campaign",await request()); expect(state.send).not.toHaveBeenCalled();
+  });
+  it("rejects stale previews after manual address edits", async () => {
+    Object.assign(state.bundle as object,{contacts:[],manualRecipients:[{...manual}]});
+    const input=await request(); (state.bundle as any).manualRecipients[0].email="changed@example.test";
+    await expect(sendManualCampaign("campaign",input)).rejects.toThrow("Actualisez"); expect(state.send).not.toHaveBeenCalled();
+  });
+});
+
 describe("scale safety — synthetic recipients only, Gmail mocked", () => {
   const names = [["Jean", "Tremblay", "jean"], ["Marie-Claude", "Roy", "marie"], ["François", "Gagnon", "francois"]];
   function setup(contacts: CustomEmailCampaignContact[]) {
@@ -155,7 +190,7 @@ describe("scale safety — synthetic recipients only, Gmail mocked", () => {
     expect(new Set(preview.recipients.map(r => r.contactId)).size).toBe(contacts.length);
     const input = await request();
     // Reverse IDs so assertions cannot accidentally depend on recipient array order.
-    input.contactIds.reverse();
+    input.recipientIds!.reverse();
     await sendManualCampaign("campaign", input);
     expect(state.send).toHaveBeenCalledTimes(contacts.length);
     for (const c of contacts) {

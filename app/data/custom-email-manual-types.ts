@@ -1,7 +1,9 @@
 import type { CalendarBroker } from "./calendar-types";
 
 export type ManualRecipient = {
-  contactId: string;
+  recipientId: string;
+  contactId: string | null;
+  manualRecipientId: string | null;
   name: string;
   to: string;
   broker: CalendarBroker | null;
@@ -28,7 +30,8 @@ export type ManualHistory = {
   batch_id: string;
   campaign_id: string;
   step_id: string;
-  contact_id: string;
+  contact_id: string | null;
+  manual_recipient_id?: string | null;
   broker: CalendarBroker | null;
   recipient_email: string;
   status: "pending" | "sent" | "failed" | "blocked";

@@ -9,6 +9,12 @@ const id = "11111111-1111-4111-8111-111111111111";
 const context = { params: Promise.resolve({ campaignId: id }) };
 const valid = { confirmation: "ENVOYER", batchId: id, attemptKey: id, stepId: id, contactIds: [id], fingerprints: { [id]: "a".repeat(64) }, retry: false };
 const request = (body: unknown) => new Request(`https://crm.example/api/automatic-emails/custom-campaigns/${id}/manual-send`, { method: "POST", body: JSON.stringify(body) });
+it("accepts a separately namespaced manual identity through the mocked sender only", async () => {
+  const { contactIds: _legacy, ...base } = valid;
+  const key = `manual:${id}`;
+  expect((await POST(request({ ...base, recipientIds: [key], fingerprints: { [key]: "a".repeat(64) } }), context)).status).toBe(200);
+  expect(state.send).toHaveBeenCalledTimes(1);
+});
 beforeEach(() => { state.denied = false; state.origin = true; state.send.mockReset().mockResolvedValue([]); state.prepare.mockReset().mockResolvedValue({ preview: {} }); });
 it("refuse les accès non authentifiés en lecture et écriture", async () => {
   state.denied = true;
