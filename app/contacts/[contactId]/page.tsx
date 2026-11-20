@@ -42,6 +42,7 @@ import { getFollowUpQueue } from "../../lib/follow-up-queue";
 import { formatBirthDate } from "../../lib/birth-date";
 import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
 import { safeContactReturnTo } from "../../lib/contacts/list-pagination";
+import { formatContactCreatedDate } from "../../lib/contacts/created-date";
 import { useBroker } from "../../broker-context";
 
 type NoteEditorState = {
@@ -509,6 +510,10 @@ export default function ContactProfilePage() {
             <div className="info-group">
               <span>Statut</span>
               <strong>{contact.status === "active" ? "Actif" : "Inactif"}</strong>
+            </div>
+            <div className="info-group">
+              <span>Date d'ajout au CRM</span>
+              <strong>{formatContactCreatedDate(contact.createdAt)}</strong>
             </div>
             <button
               className="contact-profile-reassign"
