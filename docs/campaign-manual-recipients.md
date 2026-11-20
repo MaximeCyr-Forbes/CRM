@@ -69,3 +69,24 @@ Full suite: 3,801 passed, 0 failed, 7 skipped (unavailable private fixtures).
 TypeScript passed. Local build has the pre-existing Windows `.vite-temp` ENOENT
 limitation; the Vercel build is the deployment gate. ESLint is declared but absent
 from installed dependencies. No new dependency was introduced.
+
+## Pending input save correction
+
+Backup: `pre-campaign-manual-save-fix-2026-11-20` at
+`f950381d8b877f784a44878f2f2502787f83a1d6` (main / Production).
+The original child-only textarea buffer was ignored by the parent save.
+The parent now owns the full-list text, hydrates it from persisted recipients,
+and reconciles it synchronously before the existing atomic save. Invalid input
+blocks saving in every campaign status and remains editable after errors.
+Validation is optional; its action formats the full list instead of emptying it.
+Metadata matches by normalized mailbox, never line position. A compact metadata
+panel offers explicit address correction preserving UUID and metadata. Bulk
+replacement retires removed mailboxes using existing soft deletes, with no
+automatic transfer of another recipient's name or broker. Delivery snapshots stay.
+
+`manual-recipient-save.test.tsx` exercises the actual React parent and child with
+intercepted HTTP and the real SQL RPC in in-memory PGlite: direct save, remount /
+fresh session reads, 1/30/50/100 addresses, optional validation, duplicate click,
+invalid input, server failure, stale version, metadata, identity and history.
+No Production test recipients, campaign edits or Gmail sends are permitted.
+No migration or server sending logic changes are needed for this correction.

@@ -31,6 +31,18 @@ export function parseCampaignEmails(text: string, existing: readonly string[] = 
   return { accepted, invalid, duplicates };
 }
 
+// The textarea is the complete desired list. Match by mailbox, never by line
+// position: reordering/deleting lines must not transfer another person's metadata.
+export function reconcileManualRecipientText(text: string, existing: readonly CampaignManualRecipient[], createId: () => string) {
+  const parsed = parseCampaignEmails(text);
+  const byEmail = new Map(existing.map(r => [normalizedCampaignEmail(r.email), r]));
+  const recipients = parsed.accepted.map(email => {
+    const previous = byEmail.get(normalizedCampaignEmail(email));
+    return previous ? { ...previous, email } : { id: createId(), email, firstName: "", lastName: "", broker: null };
+  });
+  return { ...parsed, recipients };
+}
+
 export function parseManualRecipients(value: unknown): CampaignManualRecipient[] | null {
   if (!Array.isArray(value) || value.length > 10000) return null;
   const result: CampaignManualRecipient[] = [];
