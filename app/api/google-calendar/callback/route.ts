@@ -1,4 +1,6 @@
 import { withCRMIdentity } from '../../../lib/auth/route';
+import { consumeGoogleReauthorization, persistGoogleReauthorization } from "../../../lib/google/reauthorization";
+import { prepareGmailSender } from "../../../lib/google-gmail/service";
 import { getApplicationOrigin, getGoogleRedirectUri } from "../../../lib/google-calendar/config";
 import { verifyOAuthState, type GoogleOAuthCapability } from "../../../lib/google-calendar/oauth-state";
 import {
@@ -40,10 +42,31 @@ async function GETHandler(request: Request) {
 
   let destinationUrl = settingsUrl;
   let destinationCapability: GoogleOAuthCapability = "calendar";
+  let reauthorizing = false;
   try {
-    const { broker, capability, returnTo } = await verifyOAuthState(state);
+    const { broker, capability, returnTo, mode } = await verifyOAuthState(state);
+    reauthorizing = mode === "reauthorize";
     destinationCapability = capability;
     destinationUrl = new URL(returnTo, applicationOrigin);
+    if (reauthorizing) {
+      destinationUrl = new URL("/settings?googleReauthorize=1", applicationOrigin);
+      const existing = await consumeGoogleReauthorization(broker, state);
+      if (oauthError || !code) {
+        destinationUrl.searchParams.set("gmail", "cancelled");
+      } else {
+        const tokens = await exchangeGoogleAuthorizationCode(code, getGoogleRedirectUri(request));
+        await persistGoogleReauthorization(existing, tokens);
+        // Non-expediting Google read only. A read failure must not undo valid credentials.
+        try {
+          await prepareGmailSender(broker);
+          destinationUrl.searchParams.set("gmail", "reauthorized");
+        } catch {
+          destinationUrl.searchParams.set("gmail", "reauthorized-read-error");
+        }
+      }
+      destinationUrl.searchParams.set("broker", broker);
+      return Response.redirect(destinationUrl.toString(), 302);
+    }
     if (oauthError || !code) {
       destinationUrl.searchParams.set(capabilityFeedbackParameter(capability), "cancelled");
       return Response.redirect(destinationUrl.toString(), 302);
@@ -76,7 +99,7 @@ async function GETHandler(request: Request) {
     );
     destinationUrl.searchParams.set(
       capabilityFeedbackParameter(destinationCapability),
-      caughtError instanceof GoogleAccountRefreshTokenMismatchError
+      reauthorizing ? "reauthorization-error" : caughtError instanceof GoogleAccountRefreshTokenMismatchError
         ? GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS
         : "error",
     );

@@ -8,6 +8,7 @@ type OAuthStatePayload = {
   returnTo: string;
   expiresAt: number;
   nonce: string;
+  mode?: "reauthorize";
 };
 
 export type GoogleOAuthCapability = "calendar" | "gmail" | "drive";
@@ -49,6 +50,7 @@ export async function createOAuthState(
   broker: CalendarBroker,
   capability: GoogleOAuthCapability = "calendar",
   returnTo = "/settings",
+  mode?: "reauthorize",
 ) {
   const payload: OAuthStatePayload = {
     broker,
@@ -56,6 +58,7 @@ export async function createOAuthState(
     returnTo: sanitizeOAuthReturnTo(returnTo),
     expiresAt: Date.now() + 10 * 60 * 1000,
     nonce: crypto.randomUUID(),
+    ...(mode ? { mode } : {}),
   };
   const encodedPayload = bytesToBase64Url(
     new TextEncoder().encode(JSON.stringify(payload)),
@@ -89,6 +92,7 @@ export async function verifyOAuthState(state: string): Promise<OAuthStatePayload
   ) as OAuthStatePayload;
   if (
     !CONTACT_BROKERS.includes(payload.broker) ||
+    (payload.mode !== undefined && payload.mode !== "reauthorize") ||
     !["calendar", "gmail", "drive"].includes(payload.capability) ||
     payload.returnTo !== sanitizeOAuthReturnTo(payload.returnTo) ||
     !Number.isFinite(payload.expiresAt) ||

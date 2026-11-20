@@ -100,7 +100,7 @@ export default function SettingsPage() {
       }
     }
     void loadConnections(preserveOAuthError);
-    void syncBirthdays(false);
+    if (search.get("googleReauthorize") !== "1") void syncBirthdays(false);
   }, []);
 
   function connectCalendar(broker: CalendarBroker) {
@@ -109,6 +109,10 @@ export default function SettingsPage() {
 
   function activateGmail(broker: CalendarBroker) {
     window.location.assign(`/api/google-calendar/connect?broker=${broker}&capability=gmail&returnTo=/settings`);
+  }
+
+  function reauthorizeGoogle(broker: CalendarBroker) {
+    window.location.assign(`/api/google-calendar/connect?broker=${broker}&capability=gmail&mode=reauthorize`);
   }
 
   async function disconnectCalendar(broker: CalendarBroker) {
@@ -210,6 +214,9 @@ export default function SettingsPage() {
 
               {connection.connected ? (
                 <div className="calendar-connection-actions">
+                  <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => reauthorizeGoogle(connection.broker)} type="button">
+                    RÉAUTORISER GOOGLE
+                  </button>
                   {!connection.centrisShowings.scopeGranted && (
                     <button className="calendar-connect" disabled={activeBroker !== null} onClick={() => connectCalendar(connection.broker)} type="button">
                       AUTORISER LES VISITES CENTRIS

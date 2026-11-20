@@ -48,7 +48,12 @@ export async function refreshGoogleAccessToken(connection: GoogleConnectionRow) 
       refresh_token: refreshToken,
     }),
   });
-  if (!response.ok) throw new Error(`Renouvellement Google refusé (${response.status}).`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+    const allowed = ["invalid_grant", "invalid_client", "unauthorized_client", "invalid_scope", "temporarily_unavailable"];
+    const reason = typeof payload?.error === "string" && allowed.includes(payload.error) ? payload.error : "unknown_error";
+    throw new Error(`Renouvellement Google refusé (${response.status}, ${reason}).${reason === "invalid_grant" ? " Réautorisez Google dans Paramètres." : ""}`);
+  }
 
   const tokens = (await response.json()) as GoogleRefreshTokenResponse;
   const { data, error } = await googleConnectionDatabase(connection.broker)

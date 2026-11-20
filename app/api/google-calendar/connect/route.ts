@@ -1,4 +1,5 @@
 import { withCRMIdentity } from '../../../lib/auth/route';
+import { beginGoogleReauthorization } from "../../../lib/google/reauthorization";
 import { isCalendarBroker } from "../../../data/calendar-types";
 import {
   getApplicationOrigin,
@@ -47,6 +48,18 @@ async function GETHandler(request: Request) {
   }
 
   try {
+    if (requestUrl.searchParams.get("mode") === "reauthorize") {
+      if (capability !== "gmail") return Response.json({ error: "Réautorisation Gmail requise." }, { status: 400 });
+      const attempt = await beginGoogleReauthorization(broker);
+      const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      authorizationUrl.search = new URLSearchParams({
+        access_type: "offline", client_id: getGoogleOAuthConfig().clientId,
+        include_granted_scopes: "true", prompt: "consent", response_type: "code",
+        redirect_uri: getGoogleRedirectUri(request), login_hint: attempt.email,
+        scope: attempt.scopes.join(" "), state: attempt.state,
+      }).toString();
+      return Response.redirect(authorizationUrl.toString(), 302);
+    }
     const connections = await listGoogleConnectionStatuses();
     const connection = connections.find((item) => item.broker === broker);
     const capabilityAlreadyConnected = connection?.connected && (

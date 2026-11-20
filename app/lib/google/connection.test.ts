@@ -50,6 +50,18 @@ const connection: GoogleConnectionRow = {
 };
 
 describe("requêtes Google authentifiées", () => {
+  it("reports only the whitelisted OAuth reason, never the raw Google payload", async () => {
+    state.decrypt.mockResolvedValue("mock-refresh");
+    for (const reason of ["invalid_grant", "invalid_client", "secret-in-error"]) {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ error: reason, error_description: "sensitive-description" }, { status: 400 }));
+      const failure = await refreshGoogleAccessToken(connection).catch(error => error as Error);
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain(reason === "secret-in-error" ? "unknown_error" : reason);
+      expect((failure as Error).message).not.toContain("sensitive-description");
+      expect((failure as Error).message).not.toContain("secret-in-error");
+    }
+    expect(state.update).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.restoreAllMocks();
     state.decrypt.mockReset().mockImplementation(async (value: string) => value === "refresh-encrypted" ? "refresh-token" : "access-token");

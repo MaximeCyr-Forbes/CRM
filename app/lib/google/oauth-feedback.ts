@@ -12,6 +12,9 @@ export function getGoogleOAuthFeedback(
   capability: "calendar" | "gmail" | "drive",
   status: string | null,
 ): GoogleOAuthFeedback | null {
+  if (status === "reauthorized") return { type: "message", text: "Google réautorisé. Identité d’envoi et signature Gmail consultées. Rouvrez l’aperçu de la campagne pour actualiser les vérifications. Aucun courriel envoyé." };
+  if (status === "reauthorized-read-error") return { type: "error", text: "Google réautorisé, mais la lecture de l’identité ou de la signature Gmail reste à vérifier. Aucun courriel envoyé." };
+  if (status === "reauthorization-error") return { type: "error", text: "Réautorisation refusée. La connexion existante est conservée. Recommencez avec le même compte Google et accordez toutes les permissions demandées." };
   if (status === GOOGLE_ACCOUNT_CHANGE_REQUIRED_STATUS) {
     return { type: "error", text: GOOGLE_ACCOUNT_CHANGE_REQUIRED_MESSAGE };
   }
