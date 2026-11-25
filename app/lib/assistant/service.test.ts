@@ -10,6 +10,12 @@ const member={memberId:id,broker:'maxime',brokers:['maxime','france','sandrine']
 const request=(extra={},headers={})=>new Request('https://crm.test/api/assistant/chat',{method:'POST',headers:{origin:'https://crm.test','content-type':'application/json',...headers},body:JSON.stringify({requestId:id,question:'Trouve Exemple',...extra})});
 beforeEach(()=>{vi.stubEnv('ASSISTANT_ENABLED','false');vi.stubEnv('OPENAI_API_KEY','');mocks.auth.mockReset().mockResolvedValue({member,client:{}});mocks.rpc.mockReset();mocks.tool.mockReset().mockImplementation(async name=>({data:name==='crm_search_contacts'?{data:[{id,first_name:'Exemple'}]}:name==='crm_search'?{contacts:{data:[{id,first_name:'Exemple'}]}}:{id,first_name:'Exemple',address:'Rue Exemple'},links:[{href:`/contacts/${id}`,label:'Exemple'}]}));vi.stubGlobal('fetch',vi.fn());});
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
+it.each(['Peux tu mamener dans la section drive',"l'onglet drive"])('P0 HTTP navigation without data read or paid provider: %s',async question=>{
+ mocks.auth.mockResolvedValue({member:{...member,authUserId:id},client:{}});
+ const response=await handleChat(request({question}));expect(response.status).toBe(200);
+ expect(await response.json()).toMatchObject({status:'SUCCESS',module:'drive',navigateTo:'/drive',toolCount:0});
+ expect(mocks.tool).not.toHaveBeenCalled();expect(mocks.rpc).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();
+});
 it.each([null,false])('requires membership %s before reading',async auth=>{mocks.auth.mockResolvedValue(auth);expect((await handleChat(request())).status).toBe(401);expect(mocks.tool).not.toHaveBeenCalled();});
 it('rejects origin before auth',async()=>{expect((await handleChat(request({}, {origin:'https://evil.test'}))).status).toBe(403);expect(mocks.auth).not.toHaveBeenCalled();});
 it.each([{member_id:id},{role:'admin'},{permissions:['all']},{broker:'maxime'},{question:'x'.repeat(601)},{history:Array(5).fill({question:'a',answer:'b'})},{context:'/contacts/not-a-uuid'}])('rejects forged body %j',async body=>{expect((await handleChat(request(body))).status).toBe(400);expect(mocks.tool).not.toHaveBeenCalled();});

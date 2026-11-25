@@ -17,18 +17,30 @@ export const teamCalendarPath=`${modules.calendar.href}?mode=team`;
 export function isSafeCrmNavigationPath(value:unknown):value is string{
  return typeof value==='string'&&(recordPath(value)||value===teamCalendarPath||Object.values(modules).some(m=>m.href===value));
 }
-export function moduleNavigationRequest(question:string){
+export function moduleNavigationRequest(question:string,allowShortReply=false){
  let q=recordKey(question).replace(/^(?:svp|stp|s il te plait|s il vous plait) /,'').replace(/ (?:svp|stp|s il te plait|s il vous plait)$/,'');
- q=q.replace(/^(?:peux tu|pourrais tu|pouvez vous|pourriez vous) /,'');
- q=q.replace(/^m ouvrir /,'ouvrir ').replace(/^me montrer /,'montrer ');
- const command=/^(?:(?:amene|emmene|dirige)(?: moi)?|va|aller|retourne|retourner|ouvre|ouvrir|affiche|afficher|montre(?: moi)?|montrer|accede|acceder|je (?:veux|voudrais|souhaite) (?:aller|voir|consulter|ouvrir)) /;
- if(!command.test(q))return;
- q=q.replace(command,'').replace(/^(?:a|au|aux|dans|sur|vers) /,'').replace(/^(?:l |le |la |les |mon |ma |mes |nos |notre |ton |ta |tes )/,'');
+ q=q.replace(/^(?:peux tu|peut tu|pourrais tu|pouvez vous|pourriez vous) /,'');
+ q=q.replace(/^(?:ammene|emmenne) /,m=>m.startsWith('amm')?'amene ':'emmene ');
+ // Parse only grammatical prefixes. Never strip words inside a record name.
+ q=q.replace(/^(?:m |me )(?=ouvrir|montrer|amener|emmener|diriger|envoyer)/,'').replace(/^(?:mamener|memmener|menvoyer) /,m=>m.slice(1));
+ const command=/^(?:(?:amene|emmene|dirige|amener|emmener|diriger)(?: moi)?|envoyer(?= (?:dans|sur|vers|a|au) )|va(?: donc| me chercher)?|on va|aller|retourne|retourner|ouvre|ouvrir|affiche|afficher|montre(?: moi)?|montrer|accede|acceder|je (?:veux|voudrais|souhaite) (?:aller|voir|consulter|ouvrir)|j aimerais (?:aller|voir|consulter|ouvrir)) /;
+ const explicit=command.test(q),section=/^(?:(?:l|le|la|les) )?(?:section|onglet|menu|page|espace) /.test(q);
+ if(!explicit&&!section&&!allowShortReply)return;
+ if(explicit)q=q.replace(command,'');
+ else if(allowShortReply)q=q.replace(/^(?:non je parle de|je parlais de|c est bien) /,'').replace(/ pas de .+$/,'');
+ q=q.replace(/^(?:(?:a|au|aux|du|des|dans|sur|vers|l|le|la|les|mon|ma|mes|nos|notre|ton|ta|tes|section|onglet|menu|page|espace) )+/,'');
  const team=/ (?:de l equipe|d equipe|equipe|partage|partagee)$/.test(q);
  if(team)q=q.replace(/ (?:de l equipe|d equipe|equipe|partage|partagee)$/,'');
  const id=(Object.keys(modules) as Array<keyof typeof modules>).find(id=>navigationAliases[id].includes(q));
  if(!id||team&&id!=='calendar')return;
  return {kind:'module' as const,moduleId:id,...(id==='calendar'?{view:team?'team' as const:'personal' as const}:{}),...(id==='software'&&q==='logiciels'?{chooseSoftware:true}:{})};
+}
+
+export function moduleNavigationChoices(question:string){
+ const parts=recordKey(question).split(/\s+(?:ou|et)\s+/);
+ if(parts.length<2||parts.length>3)return [];
+ const choices=parts.map((part,i)=>moduleNavigationRequest(i===0?part:`ouvre ${part}`));
+ return choices.every(Boolean)?[...new Set(choices.map(choice=>choice!.moduleId))]:[];
 }
 
 /** Capabilities describe verified reads, not a grant of access. The tool layer still checks RLS. */

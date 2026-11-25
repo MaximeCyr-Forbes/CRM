@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {recognizeIntent,normalize} from './intents';
 import {parseRecordRequest} from './record-request';
-import {isSafeCrmNavigationPath,moduleNavigationRequest} from './catalog';
+import {isSafeCrmNavigationPath,moduleNavigationRequest,moduleNavigationChoices} from './catalog';
 import {modules} from './knowledge';
 
 export const entityType=z.enum(['contact','listing','transaction','expense','deadline','inventory','mortgage_referral','unknown']);
@@ -49,19 +49,21 @@ export function buildQueryPlan(question:string,previous?:ConversationState,now=n
  let module=record?.section??moduleRules.find(([,r])=>r.test(q))?.[0];
  if(record&&!module&&!/\d/.test(record.query))module='contacts';
  const action:QueryPlan['action']=/supprim|effac/.test(q)?'delete':/modifi|corrig/.test(q)?'edit':/connect/.test(q)?'connect':/envo/.test(q)?'send':/visite/.test(q)?'visits':/pa acceptee/.test(q)&&/cre|transaction/.test(q)?'accepted-pa':/cre|ajout|nouveau/.test(q)?'create':/enregistr/.test(q)?'save':'browse';
- const how=/\bcomment\b|explique.*(?:faire|enregistr|creer)|\b(?:ou|etapes|procedure|marche a suivre)\b.*(?:modifi|cre|ajout|supprim|envo|consulter)|(?:je ne trouve pas|je cherche).*(?:ou|bouton)/.test(q);
+ const how=/\bcomment\b|\bpourquoi\b|explique.*(?:faire|enregistr|creer)|\b(?:ou|etapes|procedure|marche a suivre)\b.*(?:modifi|cre|ajout|supprim|envo|consulter)|(?:je ne trouve pas|je cherche).*(?:ou|bouton)/.test(q);
  const write=/\b(?:cree|creer|supprime|supprimer|ajoute|ajouter|modifie|modifier|envoie|envoyer|efface|finalise|paye|marque|enregistre)\b/.test(q);
  const pronoun=/\b(?:sa fiche|son dossier|ses listings|ses proprietes|ses transactions|ses echeances|ses contacts|ses clients|ses documents|ses notes|son telephone|son courriel|ses visites|ses offres|ses pancartes|ses proprietaires)\b/.test(q)||/^ouvre[- ](?:la|le)[?.! ]*$/.test(q);
  const explicitMention=!!record?.query&&!/^(?:sa fiche|son dossier|la|le)$/.test(normalize(record.query));
  const follow=/^(?:et\b|lesquell|lequell|celles?\b|ceux\b|les plus\b)|\b(?:la meme|les memes)\b/.test(q)||(pronoun&&!explicitMention);
- const deniedNegation=write&&/\b(?:ne|n )\b.*\b(?:pas|jamais|rien)\b/.test(q);
+ const deniedNegation=/\b(?:ne|n )\b.*\b(?:pas|jamais|rien)\b|\b(?:ouvre|ouvrir|va|aller|amene|emmene|affiche|montre)\b.*\b(?:pas|jamais)\b|^pas\b/.test(q);
  let mode:QueryPlan['mode']=how?'how_to':/c est quoi|qu est ce|que signifie|explique|definition/.test(q)?'explain':deniedNegation?'clarify':write?'write_denied':/\bcompar/.test(q)?'compare':record?.open?'navigate':lex.count?'count':lex.accountingMode==='paid_total'?'aggregate':lex.intent==='summary'?'summarize':record?'search':lex.intent!=='unknown'?'read':'clarify';
  let entity=module?types[module]??'unknown':'unknown';
  if(['conditions','deadlines','urgent'].includes(lex.intent))entity='deadline';
  const period:QueryPlan['filters']['period']=/semaine prochaine/.test(q)?'next_week':/retard/.test(q)?'overdue':/demain/.test(q)?'tomorrow':/aujourd/.test(q)?'today':/ce mois|mois courant/.test(q)?'month':/cette annee|annee courante/.test(q)?'year':'all';
  const filters:QueryPlan['filters']={broker:lex.broker as QueryPlan['filters']['broker'],mine:!record&&(/\b(?:mes|mon|ma)\b/.test(q)||lex.intent==='followups'&&/dois.je/.test(q)),active:lex.active,period,payment:lex.unpaid?'unpaid':/\bpaye/.test(q)?'paid':'all'};
- const navigation=!how&&!write&&!deniedNegation?moduleNavigationRequest(question):undefined;
+ const navigation=!how&&!deniedNegation?moduleNavigationRequest(question,previous?.lastPlan.mode==='navigate'||previous?.lastPlan.mode==='clarify'):undefined;
  if(navigation)return queryPlan.parse({version:1,operation:'unknown',accountingMode:'expenses',mode:'navigate',module:navigation.moduleId,entityType:types[navigation.moduleId]??'unknown',target:navigation,filters:{mine:true,active:false,period:'all',payment:'all'},fields:[],sort:'default',context:'none',action:'browse'});
+ if(!how&&!write&&!deniedNegation&&moduleNavigationChoices(question).length>1)return queryPlan.parse({version:1,operation:'unknown',accountingMode:'expenses',mode:'clarify',entityType:'unknown',filters,fields:[],sort:'default',context:'none',action:'browse'});
+ if(deniedNegation&&!how)return queryPlan.parse({version:1,operation:'unknown',accountingMode:'expenses',mode:'clarify',module,entityType:entity,filters,fields:[],sort:'default',context:'none',action:'browse'});
  if(!record&&/rendez[ -]vous/.test(q)){module='calendar';if(mode==='clarify')mode='read';}
  if(record?.open&&!module&&/\d/.test(record.query)){module='listings';entity='listing';}
  if(record)filters.broker=undefined; // A person's name may itself be France or Maxime.

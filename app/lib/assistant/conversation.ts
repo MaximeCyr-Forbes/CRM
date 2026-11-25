@@ -6,7 +6,7 @@ import {preparePrivateContext,assembleLocalAnswer} from './privacy';
 import {recordPath} from './record-request';
 import {resolveRecord} from './record-search';
 import {buildQueryPlan,conversationState,queryPlan,queryResult,type ConversationState,type QueryPlan} from './query-plan';
-import {moduleCapability,relationships,isSafeCrmNavigationPath,teamCalendarPath,catalog} from './catalog';
+import {moduleCapability,relationships,isSafeCrmNavigationPath,teamCalendarPath,catalog,moduleNavigationChoices} from './catalog';
 
 type Read=Parameters<typeof preparePrivateContext>[2];
 type Link={href:string;label:string};
@@ -34,7 +34,6 @@ function validState(input:ChatInput,member:CRMMember,now:Date){
  let state:ConversationState|undefined;
  for(const turn of input.history.slice(-4)){
   const plan=buildQueryPlan(turn.question,state,now);
-  if(plan.mode==='clarify'){state=undefined;continue;}
   state={version:1,memberId:member.memberId,expiresAt:now.getTime()+20*60_000,turn:1,lastPlan:plan};
  }
  return state;
@@ -58,7 +57,14 @@ async function execute(plan:QueryPlan,input:ChatInput,member:CRMMember,read:Read
  }
  if(plan.mode==='how_to'){const r=help(plan.module??(plan.action==='send'?'contacts':undefined),plan.action);return {...base(r.answer),links:r.links};}
  if(plan.mode==='write_denied')return base('Lecture seule : je peux t’expliquer les étapes, mais je ne peux pas exécuter cette modification. Aucune action n’a été effectuée.','UNSUPPORTED');
- if(plan.mode==='clarify')return base('À quelle recherche fais-tu référence ? Précise le module, la personne ou la fiche à consulter.','CLARIFICATION');
+ if(plan.mode==='clarify'){
+  if(/\b(?:ne|n )\b.*\b(?:pas|jamais|rien)\b|\b(?:ouvre|ouvrir|va|aller)\b.*\b(?:pas|jamais)\b|^pas\b/.test(normalize(input.question)))return base('D’accord, je n’ouvre aucune page.','SUCCESS');
+  const choices=moduleNavigationChoices(input.question);
+  if(choices.length>1)return base('Quel module veux-tu ouvrir ?','AMBIGUOUS',catalog.filter(m=>choices.includes(m.id as keyof typeof import('./knowledge').modules)).map(m=>({href:m.route,label:`Ouvrir ${m.label}`})));
+  const entry=catalog.find(m=>m.id===plan.module);
+  return entry?base(`Veux-tu ouvrir ${entry.label}, consulter une fiche précise ou obtenir de l’aide ?`,'CLARIFICATION',[{href:entry.route,label:`Ouvrir ${entry.label}`}])
+   :base('Quel module ou quelle fiche veux-tu consulter ? Précise le nom du module, de la personne ou l’adresse recherchée.','CLARIFICATION');
+ }
  if(plan.mode==='explain'){
   const q=normalize(input.question);
   if(/pa acceptee/.test(q))return base('Dans le CRM, PA acceptée indique qu’une promesse d’achat a été acceptée. Les conditions et échéances restent à suivre; ce n’est pas une vente finalisée.','SUCCESS',[{href:'/transactions',label:'Ouvrir Transactions'}]);
