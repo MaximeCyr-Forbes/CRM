@@ -998,6 +998,7 @@ export async function deleteCalendarEventForTransactionDeadline(
 
 export async function deleteCalendarEventForContact(
   contact: Pick<Contact, "googleCalendarEventId" | "googleCalendarEventBroker">,
+  calendarId?: string,
 ) {
   if (!contact.googleCalendarEventId || !contact.googleCalendarEventBroker) {
     return;
@@ -1008,7 +1009,7 @@ export async function deleteCalendarEventForContact(
       `Google Agenda de ${contact.googleCalendarEventBroker} n’est plus connecté.`,
     );
   }
-  await deleteGoogleEvent(connection, contact.googleCalendarEventId);
+  await deleteGoogleEvent(calendarId ? { ...connection, calendar_id: calendarId } : connection, contact.googleCalendarEventId);
 }
 
 async function upsertGoogleEvent(

@@ -44,6 +44,8 @@ import { formatMortgageRenewalDate } from "../../lib/mortgage-renewal-date";
 import { safeContactReturnTo } from "../../lib/contacts/list-pagination";
 import { formatContactCreatedDate } from "../../lib/contacts/created-date";
 import { useBroker } from "../../broker-context";
+import { ContactFollowUpControl } from "../../components/contact-follow-up-control";
+import { useFollowUpHistory } from "../../lib/contacts/use-follow-up-history";
 
 type NoteEditorState = {
   mode: "create" | "edit";
@@ -92,6 +94,7 @@ export default function ContactProfilePage() {
   const [mortgageRenewalSync, setMortgageRenewalSync] = useState({ synced: 0, pending: 0, error: 0 });
   const returnTo = safeContactReturnTo(searchParams.get("returnTo"));
   const contact = contacts.find((item) => item.id === params.contactId);
+  const { history: followUpHistory, historyError, refreshHistory } = useFollowUpHistory(params.contactId, contact?.updatedAt);
   const contactName = contact ? getContactName(contact) : "";
   const followUpDate = contact ? getFollowUpDate(contact.id) : null;
   const notes = contact ? getNotesForContact(contact.id) : [];
@@ -545,6 +548,7 @@ export default function ContactProfilePage() {
                   : "Aucune relance programmée"}
               </strong>
             </div>
+            <ContactFollowUpControl key={contact.id} contact={contact} history={followUpHistory} historyError={historyError} onRefresh={refreshHistory} onSchedule={requestFollowUp} />
             <div className={`calendar-sync-state calendar-sync-${contact.googleCalendarSyncStatus}`}>
               <span>Google Agenda</span>
               <strong>
@@ -577,7 +581,7 @@ export default function ContactProfilePage() {
           entityType="contact"
         />
 
-        <ClientHistory notes={notes} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
+        <ClientHistory notes={notes} completions={followUpHistory} onAdd={requestNewNote} onDelete={setNoteToDelete} onEdit={editNote} />
 
         <div className="contact-danger-zone">
           <button className="destructive-button" onClick={() => setIsDeleteConfirmationOpen(true)} type="button">

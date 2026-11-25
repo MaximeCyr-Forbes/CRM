@@ -5,7 +5,7 @@ import { useCRMData } from "./crm-data-context";
 import { calculateFollowUpDate, type FollowUpPreset } from "./lib/follow-up";
 
 export function useFollowUps() {
-  const { contacts, updateFollowUp } = useCRMData();
+  const { contacts, updateFollowUp, retry } = useCRMData();
   const followUpDates = useMemo(
     () =>
       Object.fromEntries(
@@ -30,10 +30,18 @@ export function useFollowUps() {
 
   const completeFollowUp = useCallback(
     async (clientId: string) => {
-      const calendarSync = await updateFollowUp(clientId, null);
-      return { calendarSync };
+      const contact = contacts.find(item => item.id === clientId);
+      if (!contact?.nextFollowUpDate) throw new Error("Aucune relance programmée à confirmer.");
+      const response = await fetch(`/api/contacts/${clientId}/follow-up-completions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", scheduledFor: contact.nextFollowUpDate, version: contact.updatedAt }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Confirmation impossible.");
+      await retry();
+      return result as { calendarSync: import("./data/calendar-types").CalendarSyncResult };
     },
-    [updateFollowUp],
+    [contacts, retry],
   );
 
   return { completeFollowUp, followUpDates, getFollowUpDate, scheduleFollowUp };

@@ -3,15 +3,26 @@
 import type { ClientNote } from "../data/client-note-types";
 import { formatHistoryDateTime } from "../lib/client-notes";
 import { PencilIcon, TrashIcon } from "./action-icons";
+import { formatFollowUpCompletionTime, type ContactFollowUpCompletion } from "../data/contact-follow-up-types";
+import { BROKER_LABELS } from "../data/contact-types";
+import { formatFollowUpDate } from "../lib/follow-up";
 
 type ClientHistoryProps = {
   notes: ReadonlyArray<ClientNote>;
+  completions?: ReadonlyArray<ContactFollowUpCompletion>;
   onAdd: () => void;
   onDelete: (note: ClientNote) => void;
   onEdit: (note: ClientNote) => void;
 };
 
-export function ClientHistory({ notes, onAdd, onDelete, onEdit }: ClientHistoryProps) {
+export function ClientHistory({ notes, completions = [], onAdd, onDelete, onEdit }: ClientHistoryProps) {
+  const entries = [
+    ...notes.map(note => ({ at: note.createdAt, note, completion: null as ContactFollowUpCompletion | null, reverted: false })),
+    ...completions.flatMap(completion => [
+      { at: completion.completed_at, note: null, completion, reverted: false },
+      ...(completion.reverted_at ? [{ at: completion.reverted_at, note: null, completion, reverted: true }] : []),
+    ]),
+  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return (
     <section className="notes-section" aria-labelledby="history-title">
       <div className="notes-heading">
@@ -25,9 +36,9 @@ export function ClientHistory({ notes, onAdd, onDelete, onEdit }: ClientHistoryP
         </div>
       </div>
 
-      {notes.length > 0 ? (
+      {entries.length > 0 ? (
         <div className="notes-list">
-          {notes.map((note, index) => (
+          {entries.map(({ note, completion, reverted, at }, index) => note ? (
             <article className="note-row note-history-row" key={note.id}>
               <div className="note-marker" aria-hidden="true">
                 <span>{String(index + 1).padStart(2, "0")}</span>
@@ -46,7 +57,15 @@ export function ClientHistory({ notes, onAdd, onDelete, onEdit }: ClientHistoryP
                 <p>{note.content}</p>
               </div>
             </article>
-          ))}
+          ) : completion && <article className="note-row note-history-row" key={`${completion.id}-${reverted}`}>
+            <div className="note-marker" aria-hidden="true"><span>{String(index + 1).padStart(2, "0")}</span></div>
+            <div className="note-content">
+              <div className="note-meta"><div><time dateTime={at}>{formatFollowUpCompletionTime(at)}</time><strong>{reverted ? "CONFIRMATION ANNULÉE" : "SUIVI EFFECTUÉ"}</strong></div></div>
+              <p>Relance prévue le {formatFollowUpDate(completion.scheduled_for)}</p>
+              <p>{reverted ? "Annulé" : "Confirmé"} par {BROKER_LABELS[(reverted ? completion.reverted_by_broker : completion.completed_by_broker) as keyof typeof BROKER_LABELS] ?? "Membre de l’équipe"}</p>
+              {!reverted && completion.reverted_at && <small>Confirmation annulée le {formatFollowUpCompletionTime(completion.reverted_at)}</small>}
+            </div>
+          </article>)}
         </div>
       ) : (
         <div className="notes-empty-state">

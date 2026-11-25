@@ -27,13 +27,14 @@ describe("relances du jour sur le dashboard", () => {
     expect(dashboard).toContain("Commencer mes relances");
   });
 
-  it("centralise FAIT avec updateFollowUp(contactId, null)", () => {
+  it("centralise FAIT avec une complétion auditée côté serveur", () => {
     const followUpWorkflow = dashboard.slice(
       dashboard.indexOf("async function finishFollowUp"),
       dashboard.indexOf("if (!isBrokerReady"),
     );
     expect(followUpContext).toContain("const completeFollowUp = useCallback(");
-    expect(followUpContext).toContain("await updateFollowUp(clientId, null)");
+    expect(followUpContext).toContain("/follow-up-completions");
+    expect(followUpContext).not.toContain("await updateFollowUp(clientId, null)");
     expect(dashboard).toContain("const { completeFollowUp } = useFollowUps()");
     expect(dashboard).toContain("await completeFollowUp(contactId)");
     expect(dashboard).not.toContain("/api/complete-follow-up");
