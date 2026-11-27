@@ -179,7 +179,6 @@ export default function StatisticsPage() {
               {([
                 ["Nouveaux contacts", data.currentMonth.newContacts, "number"],
                 ["Nouveaux Listings", data.currentMonth.newListings, "number"],
-                ["PA acceptées", data.currentMonth.acceptedOffers, "number"],
                 ["Ventes", data.currentMonth.saleTransactions, "number"],
                 ["Achats", data.currentMonth.purchaseTransactions, "number"],
                 ["Volume vente", data.currentMonth.saleVolume, "currency"],
@@ -218,8 +217,8 @@ export default function StatisticsPage() {
 
           <section className="statistics-panel" aria-labelledby="brokers-title">
             <div className="statistics-section-title"><p className="section-kicker">Équipe Forbes</p><h2 id="brokers-title">ACTIVITÉ PAR COURTIER</h2></div>
-            <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>Courtier</th><th>Contacts</th><th>Listings vente</th><th>PA acceptées</th><th>Ventes</th><th>Achats</th><th>Volume vente</th><th>Volume achat</th><th>Relances</th></tr></thead><tbody>
-              {data.brokerActivity.map((item) => <tr key={item.broker}><th>{BROKER_LABELS[item.broker]}</th><td>{item.newContacts}</td><td>{item.listingsTaken}</td><td>{item.acceptedOffers}</td><td>{item.saleTransactions}</td><td>{item.purchaseTransactions}</td><td>{shortCurrency.format(item.saleVolume)}</td><td>{shortCurrency.format(item.purchaseVolume)}</td><td>{item.followUps}</td></tr>)}
+            <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>Courtier</th><th>Contacts</th><th>Listings vente</th><th>Ventes</th><th>Achats</th><th>Volume vente</th><th>Volume achat</th><th>Relances</th></tr></thead><tbody>
+              {data.brokerActivity.map((item) => <tr key={item.broker}><th>{BROKER_LABELS[item.broker]}</th><td>{item.newContacts}</td><td>{item.listingsTaken}</td><td>{item.saleTransactions}</td><td>{item.purchaseTransactions}</td><td>{shortCurrency.format(item.saleVolume)}</td><td>{shortCurrency.format(item.purchaseVolume)}</td><td>{item.followUps}</td></tr>)}
             </tbody></table></div>
           </section>
 
@@ -235,7 +234,7 @@ export default function StatisticsPage() {
             </div>
           </section>
 
-          <footer className="statistics-definitions"><strong>Règles de calcul</strong><p>{data.definitions.paDelay}</p><p>{data.definitions.saleDelay}</p><p>{data.definitions.purchaseBusinessDate}</p><p>Lorsqu’un Listing connaît plusieurs cycles, cette V1 utilise sa première date de mise en marché et sa première PA acceptée liée. Les périodes sont calculées dans le fuseau horaire du Québec.</p></footer>
+          <footer className="statistics-definitions"><strong>Règles de calcul</strong><p>{data.definitions.purchaseBusinessDate}</p><p>Les périodes sont calculées dans le fuseau horaire du Québec.</p></footer>
         </>}
       </div>
     </main>

@@ -38,9 +38,23 @@ describe("onglet Statistiques", () => {
     expect(page).toContain("TENDANCES MENSUELLES");
     expect(page).not.toContain("Les achats et les ventes sans Listing source sont strictement exclus");
     expect(page).toContain('aria-labelledby="current-month-title"');
-    expect(page).toContain('["PA acceptées", data.currentMonth.acceptedOffers, "number"]');
-    expect(page).toContain('<th>PA acceptées</th>');
-    expect(page).toContain('{item.acceptedOffers}');
+    expect(page).not.toContain('PA acceptée');
+    expect(page).not.toContain('acceptedOffers');
+    expect(page).not.toContain('data.definitions.paDelay');
+    expect(page).not.toContain('data.definitions.saleDelay');
+    expect(page).toContain('data.definitions.purchaseBusinessDate');
+    expect(page).toContain('Les périodes sont calculées dans le fuseau horaire du Québec.');
+  });
+
+  it("conserve six comparatifs et huit colonnes de courtier alignées sans case réservée", () => {
+    const page = source("app/statistics/page.tsx");
+    const monthly = page.split('className="statistics-month-grid"')[1].split('</section>')[0];
+    for (const field of ['newContacts', 'newListings', 'saleTransactions', 'purchaseTransactions', 'saleVolume', 'purchaseVolume']) expect(monthly).toContain(`data.currentMonth.${field}`);
+    expect(monthly.match(/data.currentMonth\./g)).toHaveLength(6);
+    const table = page.split('<table className="statistics-table">')[1].split('</table>')[0];
+    expect(table.split('</thead>')[0].match(/<th>/g)).toHaveLength(8);
+    expect(table.split('<tbody>')[1].match(/<(?:th|td)>/g)).toHaveLength(8);
+    for (const field of ['newContacts', 'listingsTaken', 'saleTransactions', 'purchaseTransactions', 'saleVolume', 'purchaseVolume', 'followUps']) expect(table).toContain(`item.${field}`);
   });
 
   it("retire uniquement la PA des sept KPI restants sans emplacement réservé", () => {
