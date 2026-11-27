@@ -9806,14 +9806,7 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 .statistics-month-grid .statistics-comparison.neutral { color: rgba(255, 255, 255, 0.52); }
 
 .statistics-panel { margin-top: 1rem; padding: clamp(1.2rem, 2.5vw, 2rem); border: 1px solid rgba(17, 37, 31, 0.09); border-radius: 1.2rem; background: rgba(255, 255, 255, 0.9); box-shadow: 0 14px 38px rgba(38, 33, 24, 0.055); }
-.statistics-listing-performance { border-top: 3px solid var(--crm-accent); }
-.statistics-performance-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.75rem; }
-.statistics-performance-grid article { min-height: 9.5rem; padding: 1rem; border-radius: 0.85rem; background: var(--crm-surface-muted); }
-.statistics-performance-grid article > span, .statistics-health-grid article > span, .statistics-health-grid button > span { display: block; color: var(--ink-soft); font-size: 0.67rem; font-weight: 850; letter-spacing: 0.07em; line-height: 1.35; text-transform: uppercase; }
-.statistics-performance-grid article > strong { display: block; margin: 1.5rem 0 0.3rem; font-family: var(--font-serif); font-size: 2rem; font-weight: 550; }
-.statistics-performance-grid article > small { color: var(--ink-soft); font-size: 0.71rem; }
-.statistics-performance-grid .statistics-delay-card { background: var(--ink); color: #ffffff; }
-.statistics-performance-grid .statistics-delay-card > span, .statistics-performance-grid .statistics-delay-card > small { color: rgba(255, 255, 255, 0.68); }
+.statistics-health-grid article > span, .statistics-health-grid button > span { display: block; color: var(--ink-soft); font-size: 0.67rem; font-weight: 850; letter-spacing: 0.07em; line-height: 1.35; text-transform: uppercase; }
 
 .statistics-two-column { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 1rem; }
 .statistics-provenance-list { display: grid; gap: 1rem; }
@@ -9865,7 +9858,6 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
 @media (max-width: 1050px) {
   .statistics-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .statistics-month-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .statistics-performance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .statistics-two-column, .statistics-chart-grid { grid-template-columns: 1fr; }
 }
 
@@ -9883,8 +9875,6 @@ button.statistics-kpi-card:hover { transform: translateY(-2px); border-color: va
   .statistics-kpi-card { min-height: 8.8rem; padding: 1rem; }
   .statistics-kpi-card > strong { font-size: 1.7rem; }
   .statistics-kpi-card > small { display: none; }
-  .statistics-performance-grid { grid-template-columns: 1fr 1fr; }
-  .statistics-performance-grid article { min-height: 8rem; }
   .statistics-health-grid { grid-template-columns: 1fr 1fr; }
   .statistics-provenance-list article > div:first-child { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
   .statistics-chart-heading { align-items: flex-start; flex-direction: column; }

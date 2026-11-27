@@ -30,12 +30,27 @@ describe("onglet Statistiques", () => {
     const page = source("app/statistics/page.tsx");
     expect(page).toContain('value: "custom"');
     expect(page).toContain('value: "team"');
-    expect(page).toContain("PERFORMANCE DES LISTINGS");
+    expect(page).not.toContain("PERFORMANCE DES LISTINGS");
+    expect(page).not.toContain('className="statistics-panel statistics-listing-performance"');
     expect(page).toContain("PROVENANCE DES CLIENTS");
     expect(page).toContain("ACTIVITÉ PAR COURTIER");
     expect(page).toContain("SANTÉ DES CONTACTS");
     expect(page).toContain("TENDANCES MENSUELLES");
-    expect(page).toContain("Les achats et les ventes sans Listing source sont strictement exclus");
+    expect(page).not.toContain("Les achats et les ventes sans Listing source sont strictement exclus");
+    expect(page).toContain('aria-labelledby="current-month-title"');
+    expect(page).toContain('["PA acceptées", data.currentMonth.acceptedOffers, "number"]');
+    expect(page).toContain('<th>PA acceptées</th>');
+    expect(page).toContain('{item.acceptedOffers}');
+  });
+
+  it("retire uniquement la PA des sept KPI restants sans emplacement réservé", () => {
+    const page = source("app/statistics/page.tsx");
+    const kpis = page.split('const kpis = data ? [')[1].split('] : [];')[0];
+    expect(kpis).not.toContain('acceptedOffers');
+    expect(kpis).not.toContain('PA acceptées');
+    for (const label of ['Nouveaux contacts', 'Nouveaux Listings', 'Transactions de vente', 'Transactions d’achat', 'Volume de vente', 'Volume d’achat', 'Listings actifs']) expect(kpis).toContain(label);
+    expect(kpis.match(/label:/g)).toHaveLength(7);
+    expect(page).toContain('kpis.map((item) =>');
   });
 
   it("relie les indicateurs aux listes déjà filtrables", () => {

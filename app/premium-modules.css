@@ -117,11 +117,7 @@ button.statistics-kpi-card:hover { transform: none; border-color: var(--crm-acce
 .statistics-month-grid .statistics-comparison.negative { color: var(--crm-danger); }
 .statistics-month-grid .statistics-comparison.neutral { color: var(--crm-text-muted); }
 .statistics-panel { padding: 24px; }
-.statistics-performance-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.statistics-performance-grid article { min-height: 128px; }
-.statistics-performance-grid article > strong, .statistics-health-grid strong { font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums; }
-.statistics-performance-grid .statistics-delay-card { background: var(--crm-accent-soft); color: var(--crm-accent); }
-.statistics-performance-grid .statistics-delay-card > span, .statistics-performance-grid .statistics-delay-card > small { color: var(--crm-text-muted); }
+.statistics-health-grid strong { font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums; }
 .statistics-table tbody th, .statistics-chart-heading > strong { font-family: var(--font-sans); font-size: 13px; font-weight: 550; }
 .statistics-table-wrap { max-width: 100%; border: 1px solid var(--crm-border); border-radius: var(--crm-radius-sm); }
 .statistics-table th, .statistics-table td { padding: 16px; font-variant-numeric: tabular-nums; }
@@ -213,7 +209,6 @@ button.statistics-kpi-card:hover { transform: none; border-color: var(--crm-acce
   .calendar-connection-card { flex-direction: row; align-items: center; justify-content: space-between; }
   .calendar-connection-actions { margin-top: 0; max-width: 240px; }
   .statistics-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .statistics-performance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .statistics-two-column, .statistics-chart-grid { grid-template-columns: 1fr; }
   .drive-root-grid { grid-template-columns: 1fr; }
 }
@@ -242,7 +237,6 @@ button.statistics-kpi-card:hover { transform: none; border-color: var(--crm-acce
   .statistics-kpi-card > span:first-child { max-width: none; }
   .statistics-kpi-card > strong { font-size: 23px; overflow-wrap: anywhere; }
   .statistics-panel, .statistics-month-panel { padding: 16px; }
-  .statistics-performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .statistics-custom-dates label { display: grid; flex: 1 1 120px; }
   .automatic-emails-lock { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
   .automatic-emails-lock > strong { grid-column: 1 / -1; text-align: center; }

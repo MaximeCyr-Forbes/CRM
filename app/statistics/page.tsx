@@ -45,10 +45,6 @@ function Comparison({ comparisonLabel, value }: { comparisonLabel: string; value
   return <span className={`statistics-comparison ${className}`}>{text}</span>;
 }
 
-function days(value: number | null) {
-  return value === null ? "—" : `${value} j`;
-}
-
 export default function StatisticsPage() {
   const router = useRouter();
   const currentYear = defaultStatisticsYear(new Date());
@@ -116,7 +112,6 @@ export default function StatisticsPage() {
   const kpis = data ? [
     { label: "Nouveaux contacts", value: data.kpis.newContacts, kind: "number" as const, href: "/contacts" },
     { label: "Nouveaux Listings", value: data.kpis.newListings, kind: "number" as const, href: "/listings" },
-    { label: "PA acceptées", value: data.kpis.acceptedOffers, kind: "number" as const },
     { label: "Transactions de vente", value: data.kpis.saleTransactions, kind: "number" as const, href: `/transactions?type=sale&state=sold&year=${year}` },
     { label: "Transactions d’achat", value: data.kpis.purchaseTransactions, kind: "number" as const, href: `/transactions?type=purchase&state=sold&year=${year}` },
     { label: "Volume de vente", value: data.kpis.saleVolume, kind: "currency" as const },
@@ -190,19 +185,6 @@ export default function StatisticsPage() {
                 ["Volume vente", data.currentMonth.saleVolume, "currency"],
                 ["Volume achat", data.currentMonth.purchaseVolume, "currency"],
               ] as const).map(([label, value, kind]) => <article key={label}><span>{label}</span><strong>{formatValue(value.current, kind)}</strong><Comparison comparisonLabel={data.monthContext.comparisonLabel} value={value} /></article>)}
-            </div>
-          </section>
-
-          <section className="statistics-panel statistics-listing-performance" aria-labelledby="listing-performance-title">
-            <div className="statistics-section-title"><p className="section-kicker">Vente seulement</p><h2 id="listing-performance-title">PERFORMANCE DES LISTINGS</h2><p>Les achats et les ventes sans Listing source sont strictement exclus de ces délais.</p></div>
-            <div className="statistics-performance-grid">
-              <article><span>Listings pris</span><strong>{integer.format(data.listingPerformance.listingsTaken)}</strong></article>
-              <article><span>PA acceptées</span><strong>{integer.format(data.listingPerformance.listingsWithAcceptedPa)}</strong></article>
-              <article><span>Listings vendus</span><strong>{integer.format(data.listingPerformance.listingsSold)}</strong></article>
-              <article><span>Taux Listing → PA</span><strong>{data.listingPerformance.listingToPaRate === null ? "—" : `${data.listingPerformance.listingToPaRate} %`}</strong></article>
-              <article><span>Taux PA → vendu</span><strong>{data.listingPerformance.paToSoldRate === null ? "—" : `${data.listingPerformance.paToSoldRate} %`}</strong></article>
-              <article className="statistics-delay-card"><span>Délai Listing → PA</span><strong>{days(data.listingPerformance.averagePaDays)}</strong><small>Médiane {days(data.listingPerformance.medianPaDays)} · n={data.listingPerformance.paDelaySampleSize}</small></article>
-              <article className="statistics-delay-card"><span>Délai Listing → vente</span><strong>{days(data.listingPerformance.averageSaleDays)}</strong><small>Médiane {days(data.listingPerformance.medianSaleDays)} · n={data.listingPerformance.saleDelaySampleSize}</small></article>
             </div>
           </section>
 
