@@ -36,6 +36,7 @@ describe("onglet Statistiques", () => {
     expect(page).toContain("ACTIVITÉ PAR COURTIER");
     expect(page).toContain("SANTÉ DES CONTACTS");
     expect(page).toContain("TENDANCES MENSUELLES");
+    expect(page).toContain('<InteractiveTrends key={requestUrl} snapshot={data} query={requestUrl} />');
     expect(page).not.toContain("Les achats et les ventes sans Listing source sont strictement exclus");
     expect(page).toContain('aria-labelledby="current-month-title"');
     expect(page).not.toContain('PA acceptée');

@@ -176,13 +176,13 @@ function comparison(current: number, previous: number): StatisticsComparison {
   };
 }
 
-function transactionDate(transaction: StatisticsTransactionRow) {
+export function transactionDate(transaction: StatisticsTransactionRow) {
   if (isStatisticsDate(transaction.notaryDate)) return transaction.notaryDate;
   const finalizedAt = transaction.type === "sale" ? transaction.saleFinalizedAt : transaction.purchaseFinalizedAt;
   return quebecDateKey(finalizedAt ?? "");
 }
 
-function transactionAmount(transaction: StatisticsTransactionRow) {
+export function transactionAmount(transaction: StatisticsTransactionRow) {
   return transaction.type === "sale" ? transaction.soldPrice : transaction.price;
 }
 
@@ -215,19 +215,22 @@ function linkedSaleTransactions(dataset: StatisticsDataset) {
     .filter((item): item is { link: typeof item.link; transaction: StatisticsTransactionRow } => item.transaction?.type === "sale");
 }
 
+export function intervalContributors(dataset: Pick<StatisticsDataset, "listings" | "transactions">, range: StatisticsPeriodRange, broker: StatisticsBroker) {
+  const listings = dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && inRange(listing.listingDate, range));
+  const transactions = dataset.transactions.filter((transaction) => matchesBroker(transaction.broker, broker)
+    && isConcluded(transaction) && inRange(transactionDate(transaction), range));
+  return { listings, sales: transactions.filter((item) => item.type === "sale"), purchases: transactions.filter((item) => item.type === "purchase") };
+}
+
 function intervalKpis(dataset: StatisticsDataset, range: StatisticsPeriodRange, broker: StatisticsBroker) {
   const accepted = validAcceptedOffers(dataset).filter((offer) => {
     const listing = dataset.listings.find((item) => item.id === offer.listingId);
     return Boolean(listing && matchesBroker(listing.broker, broker) && inRange(offer.offerDate, range));
   });
-  const transactions = dataset.transactions.filter((transaction) => matchesBroker(transaction.broker, broker)
-    && isConcluded(transaction)
-    && inRange(transactionDate(transaction), range));
-  const sales = transactions.filter((transaction) => transaction.type === "sale");
-  const purchases = transactions.filter((transaction) => transaction.type === "purchase");
+  const { listings, sales, purchases } = intervalContributors(dataset, range, broker);
   return {
     newContacts: dataset.contacts.filter((contact) => matchesBroker(contact.broker, broker) && inRange(quebecDateKey(contact.createdAt), range)).length,
-    newListings: dataset.listings.filter((listing) => matchesBroker(listing.broker, broker) && inRange(listing.listingDate, range)).length,
+    newListings: listings.length,
     acceptedOffers: accepted.length,
     saleTransactions: sales.length,
     purchaseTransactions: purchases.length,
@@ -321,7 +324,7 @@ function monthComparisonRanges(today: string, year: StatisticsYear) {
   };
 }
 
-function trendRanges(range: StatisticsPeriodRange) {
+export function trendRanges(range: StatisticsPeriodRange) {
   const months: string[] = [];
   let cursor = shiftMonthStart(range.from, 0);
   const lastMonth = shiftMonthStart(range.to, 0);

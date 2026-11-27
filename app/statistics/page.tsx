@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import InteractiveTrends from "./interactive-trends";
 import { BROKER_LABELS } from "../data/contact-types";
 import {
   STATISTICS_YEARS,
@@ -107,8 +108,6 @@ export default function StatisticsPage() {
     return () => controller.abort();
   }, [customIsValid, requestUrl]);
 
-  const activityMaximum = Math.max(1, ...(data?.trends.flatMap((item) => [item.listings, item.sales, item.purchases]) ?? [1]));
-  const volumeMaximum = Math.max(1, ...(data?.trends.flatMap((item) => [item.saleVolume, item.purchaseVolume]) ?? [1]));
   const kpis = data ? [
     { label: "Nouveaux contacts", value: data.kpis.newContacts, kind: "number" as const, href: "/contacts" },
     { label: "Nouveaux Listings", value: data.kpis.newListings, kind: "number" as const, href: "/listings" },
@@ -224,14 +223,7 @@ export default function StatisticsPage() {
 
           <section className="statistics-panel" aria-labelledby="trends-title">
             <div className="statistics-section-title"><p className="section-kicker">Évolution</p><h2 id="trends-title">TENDANCES MENSUELLES</h2></div>
-            <div className="statistics-chart-grid">
-              <article className="statistics-chart"><div className="statistics-chart-heading"><strong>Activité</strong><span><i className="listing" /> Listings <i className="sale" /> Ventes <i className="purchase" /> Achats</span></div><div className="statistics-bar-chart">
-                {data.trends.map((item) => <div className="statistics-bar-column" key={item.month}><div className="statistics-bars"><span className="listing" style={{ height: `${Math.max(3, item.listings / activityMaximum * 100)}%` }} title={`${item.listings} Listings`} /><span className="sale" style={{ height: `${Math.max(3, item.sales / activityMaximum * 100)}%` }} title={`${item.sales} ventes`} /><span className="purchase" style={{ height: `${Math.max(3, item.purchases / activityMaximum * 100)}%` }} title={`${item.purchases} achats`} /></div><small>{item.label}</small></div>)}
-              </div></article>
-              <article className="statistics-chart"><div className="statistics-chart-heading"><strong>Volumes</strong><span>Vente / Achat</span></div><div className="statistics-volume-chart">
-                {data.trends.map((item) => <div key={item.month}><span>{item.label}</span><div><i className="sale" style={{ width: `${Math.max(item.saleVolume ? 2 : 0, item.saleVolume / volumeMaximum * 100)}%` }} /><i className="purchase" style={{ width: `${Math.max(item.purchaseVolume ? 2 : 0, item.purchaseVolume / volumeMaximum * 100)}%` }} /></div><strong>{shortCurrency.format(item.saleVolume + item.purchaseVolume)}</strong></div>)}
-              </div></article>
-            </div>
+            <InteractiveTrends key={requestUrl} snapshot={data} query={requestUrl} />
           </section>
 
           <footer className="statistics-definitions"><strong>Règles de calcul</strong><p>{data.definitions.purchaseBusinessDate}</p><p>Les périodes sont calculées dans le fuseau horaire du Québec.</p></footer>
