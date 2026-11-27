@@ -7,6 +7,9 @@
   ],
   "design": "Réutiliser les tokens Forbes, titres sans surtitres décoratifs, aides métier repliables, contrôles existants.",
   "entries": [
+    {"file":"app/contacts/[contactId]/page.tsx","old":"Fiche contact / Historique résidentiel","replacement":"","category":"C","action":"Retirer deux surtitres redondants constatés en QA","risk":"faible","test":"Nom, adresses et actions conservés"},
+    {"file":"app/contacts/page.tsx","old":"Nouveau contact","replacement":"","category":"C","action":"Retirer le doublon du titre Ajouter un contact; conserver Attribution obligatoire","risk":"faible","test":"Les deux étapes et leurs contrôles sont conservés"},
+    {"file":"app/lib/tools/email/template.ts","old":"Outil de transaction; introduction hero; Documents; Message client","replacement":"","category":"C","action":"Retirer quatre textes décoratifs; préserver la notice de confidentialité et tous les contrôles","risk":"faible","test":"Structure HTML et identifiants des contrôles conservés"},
     {
       "file": "app/dashboard/page.tsx",
       "old": "<p className=\"eyebrow\">Équipe Forbes · CRM</p>",

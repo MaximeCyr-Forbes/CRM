@@ -408,7 +408,7 @@ export default function ContactProfilePage() {
                 .join("") || "?"}
             </div>
             <div>
-              <p className="section-kicker">Fiche contact</p>
+
               <h1>{contactName}</h1>
               <div className="profile-tags">
                 <span className={`contact-broker-badge broker-${contact.broker}`}>
@@ -566,7 +566,7 @@ export default function ContactProfilePage() {
         </section>
 
         <section className="profile-addresses-section" aria-labelledby="profile-addresses-title">
-          <div className="profile-section-heading"><div><p className="section-kicker">Historique résidentiel</p><h2 id="profile-addresses-title">ADRESSES</h2></div><button onClick={() => setIsManagingAddresses(true)} type="button">GÉRER LES ADRESSES</button></div>
+          <div className="profile-section-heading"><div><h2 id="profile-addresses-title">ADRESSES</h2></div><button onClick={() => setIsManagingAddresses(true)} type="button">GÉRER LES ADRESSES</button></div>
           <div className="profile-address-list">
             {contact.addresses.map((address) => <article key={address.id}><strong>{address.isPrimary ? "PRINCIPALE" : address.label.toLocaleUpperCase("fr-CA")}</strong><address>{getContactAddressLines(address).map((line) => <span key={line}>{line}</span>)}</address></article>)}
             {contact.addresses.length === 0 && <p>Aucune adresse enregistrée.</p>}
