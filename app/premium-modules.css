@@ -276,7 +276,8 @@ button.statistics-kpi-card:hover { transform: none; border-color: var(--crm-acce
   .automatic-email-schedule-list > article > span { justify-self: start; }
 }
 /* Shared, scoped presentation: no visibility rules on business content. */
-:is(.contacts-header, .contacts-premium .profile-hero, .listings-header, .transactions-header, .calendar-page-header,
+body :is(.dashboard-premium .dashboard-header, .contacts-header, .contacts-premium .profile-hero,
+    .listings-header, .listing-detail-header, .transactions-header, .transaction-detail-header, .calendar-page-header,
     .drive-heading, .statistics-heading, .accounting-header, .sign-header,
     .automatic-emails-heading, .settings-header) h1 {
   margin: 0;
