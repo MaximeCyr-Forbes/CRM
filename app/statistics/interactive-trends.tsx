@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { StatisticsSnapshot } from "../data/statistics-types";
 import { BROKER_LABELS } from "../data/contact-types";
+import { LISTING_STATUS_LABELS } from "../data/listing-types";
+import { TRANSACTION_STATUS_LABELS } from "../data/transaction-types";
 import { METRIC_LABELS, trendCaption, type StatisticsDrilldown, type StatisticsMetric } from "../lib/statistics/drilldown";
 
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 });
@@ -60,7 +62,7 @@ export function StatisticsDetail({ selection, snapshot, query, onClose }: { sele
       <ul>{result.rows.map((row) => <li key={row.id}>
         <strong>{row.address || "Adresse non renseignée"}</strong>
         <p>{BROKER_LABELS[row.broker as keyof typeof BROKER_LABELS] ?? row.broker} · {row.kind === "listing" ? "Prise de Listing" : "Date retenue"} : {row.date}</p>
-        <p>{row.kind === "sale" ? "Vente" : row.kind === "purchase" ? "Achat" : "Listing"} · Statut : {row.status}{row.amount !== null && <> · {money.format(row.amount)} CAD</>}</p>
+        <p>{row.kind === "sale" ? "Vente" : row.kind === "purchase" ? "Achat" : "Listing"} · Statut : {((row.kind === "listing" ? LISTING_STATUS_LABELS : TRANSACTION_STATUS_LABELS) as Record<string, string>)[row.status] ?? row.status}{row.amount !== null && <> · {money.format(row.amount)} CAD</>}</p>
         <a href={`/${row.kind === "listing" ? "listings" : "transactions"}/${row.id}`} target="_blank" rel="noopener noreferrer">{row.kind === "listing" ? "Ouvrir la fiche" : "Ouvrir la Transaction"} ↗</a>
       </li>)}</ul>
       {result.count > result.pageSize && <nav aria-label="Pages du détail"><button type="button" disabled={page === 1} onClick={() => setPage(page - 1)}>Précédent</button><span>Page {page} / {Math.ceil(result.count / result.pageSize)}</span><button type="button" disabled={page * result.pageSize >= result.count} onClick={() => setPage(page + 1)}>Suivant</button></nav>}

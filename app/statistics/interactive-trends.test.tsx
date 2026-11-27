@@ -69,6 +69,8 @@ it("conserve les totaux sur plusieurs pages et les liens exacts; avertit lors d'
   render(<InteractiveTrends snapshot={snapshot} query={query} />);
   fireEvent.click(screen.getByRole("button", { name: /Transactions de vente/ }));
   await screen.findByText("Adresse synthétique");
+  expect(screen.getByText(/Statut : Terminée/)).toBeTruthy();
+  expect(screen.queryByText(/Statut : completed/)).toBeNull();
   expect(screen.getByRole("link").getAttribute("href")).toBe(`/transactions/${row.id}`);
   expect(screen.getByRole("link").getAttribute("target")).toBe("_blank");
   expect(screen.getByText(/Données mises à jour/)).toBeTruthy();
