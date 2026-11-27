@@ -27,7 +27,7 @@ export function ClientHistory({ notes, completions = [], onAdd, onDelete, onEdit
     <section className="notes-section" aria-labelledby="history-title">
       <div className="notes-heading">
         <div>
-          <p className="section-kicker">Suivi du client</p>
+
           <h2 id="history-title">HISTORIQUE</h2>
         </div>
         <div className="notes-heading-actions">

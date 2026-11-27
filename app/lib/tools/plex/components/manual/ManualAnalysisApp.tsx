@@ -1404,19 +1404,12 @@ export function ManualAnalysisApp() {
     <main className="analysis-app">
       <div className="editorial-hero" role="region" aria-labelledby="analysis-title">
         <div className="editorial-hero-title">
-          <span className="eyebrow">Analyse immobilière</span>
+
           <h1 id="analysis-title">
             Analyse d’immeuble à revenus
           </h1>
         </div>
-        <div className="editorial-hero-copy">
-          <span className="editorial-rule" aria-hidden="true" />
-          <p>
-            Importez votre fiche Centris, ajustez les hypothèses et analysez
-            instantanément la rentabilité, le financement et le cashflow de
-            l’immeuble.
-          </p>
-        </div>
+
       </div>
 
       <header className="plex-header">

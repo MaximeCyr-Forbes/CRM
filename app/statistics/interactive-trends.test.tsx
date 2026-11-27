@@ -71,7 +71,7 @@ it("conserve les totaux sur plusieurs pages et les liens exacts; avertit lors d'
   await screen.findByText("Adresse synthétique");
   expect(screen.getByRole("link").getAttribute("href")).toBe(`/transactions/${row.id}`);
   expect(screen.getByRole("link").getAttribute("target")).toBe("_blank");
-  expect(screen.getByText(/Les données ont été actualisées/)).toBeTruthy();
+  expect(screen.getByText(/Données mises à jour/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   expect(String(vi.mocked(fetch).mock.calls[1][0])).toContain("page=2");

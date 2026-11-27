@@ -38,7 +38,7 @@ export function ListingVisitModal({ visit, isSaving, onClose, onSave }: {
   return (
     <div className="listing-editor-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()} role="presentation">
       <section aria-labelledby="listing-visit-title" aria-modal="true" className="listing-visit-modal" role="dialog">
-        <header className="listing-editor-heading"><div><p className="section-kicker">Suivi de mise en marché</p><h2 id="listing-visit-title">{visit ? "MODIFIER LA VISITE" : "AJOUTER UNE VISITE"}</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></header>
+        <header className="listing-editor-heading"><div><h2 id="listing-visit-title">{visit ? "MODIFIER LA VISITE" : "AJOUTER UNE VISITE"}</h2></div><button aria-label="Fermer" onClick={onClose} type="button">×</button></header>
         <form className="listing-visit-form" onSubmit={submit}>
           <div className="listing-visit-fields">
             <label><span>Date *</span><input autoFocus required type="date" value={draft.visitDate} onChange={(event) => update("visitDate", event.target.value)} /></label>

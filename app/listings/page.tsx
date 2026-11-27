@@ -105,9 +105,9 @@ export default function ListingsPage() {
       <div className="listings-shell">
         <header className="listings-header">
           <div>
-            <p className="section-kicker">Inventaire de l’équipe</p>
+
             <h1>LISTINGS</h1>
-            <p>Suivi des propriétés en mise en marché.</p>
+
           </div>
           <div className="listings-header-actions">
             <CentrisSync onSynced={() => { retry(); setOverviewRefreshToken(value => value + 1); }} />

@@ -121,7 +121,7 @@ export default function TransactionsPage() {
     <main className="transactions-page transactions-premium">
       <div className="transactions-shell">
         <header className="transactions-header">
-          <div><p className="section-kicker">Dossiers immobiliers</p><h1>Transactions</h1><p>Suivi des dossiers actifs, achats et ventes.</p></div>
+          <div><h1>Transactions</h1></div>
           <button className="transaction-new" onClick={() => setIsCreating(true)} type="button">+ Nouvelle transaction</button>
         </header>
 

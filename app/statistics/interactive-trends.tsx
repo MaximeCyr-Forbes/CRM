@@ -48,13 +48,13 @@ export function StatisticsDetail({ selection, snapshot, query, onClose }: { sele
   const expectedTotal = selection.metric === "listings" ? 0 : selection.metric === "sales" || selection.metric === "sale_volume" ? selection.trend.saleVolume : selection.metric === "combined_volume" ? selection.trend.saleVolume + selection.trend.purchaseVolume : selection.trend.purchaseVolume;
   const updated = result && (result.count !== expectedCount || result.total !== expectedTotal);
   return <dialog className="statistics-detail" ref={dialog} aria-labelledby="statistics-detail-title" onCancel={onClose}>
-    <header><div><p className="section-kicker">Dossiers contributifs</p><h2 id="statistics-detail-title">{METRIC_LABELS[selection.metric]} — {caption.title}</h2><p>{snapshot.broker === "team" ? "Équipe" : BROKER_LABELS[snapshot.broker]} · Du {caption.from} au {caption.to}{caption.partial ? " · Période partielle" : ""}</p></div><button type="button" onClick={onClose} autoFocus>Fermer</button></header>
+    <header><div><h2 id="statistics-detail-title">{METRIC_LABELS[selection.metric]} — {caption.title}</h2><p>{snapshot.broker === "team" ? "Équipe" : BROKER_LABELS[snapshot.broker]} · Du {caption.from} au {caption.to}{caption.partial ? " · Période partielle" : ""}</p></div><button type="button" onClick={onClose} autoFocus>Fermer</button></header>
     {loading && <p role="status">Chargement des dossiers…</p>}
     {error && <div role="alert"><p>{error}</p><button type="button" onClick={() => { revision.current = null; setPage(1); setAttempt((value) => value + 1); }}>Réessayer / actualiser</button></div>}
     {result && <>
       <p>{result.count} dossier{result.count === 1 ? "" : "s"}{selection.metric !== "listings" && <> · Total : <strong>{money.format(result.total)} CAD</strong></>}</p>
-      {updated && <p role="status">Les données ont été actualisées depuis le chargement du graphique. Le détail présente les valeurs actuelles.</p>}
-      <small>Détail actualisé à l’ouverture. Les liens ouvrent les fiches dans un nouvel onglet pour conserver vos filtres.</small>
+      {updated && <p role="status">Données mises à jour depuis l’ouverture du graphique.</p>}
+
       {selection.metric === "combined_volume" && <p>Vente : {money.format(result.saleVolume)} CAD · Achat : {money.format(result.purchaseVolume)} CAD</p>}
       {result.count === 0 && <p>Aucun dossier pour cette période.</p>}
       <ul>{result.rows.map((row) => <li key={row.id}>

@@ -275,7 +275,7 @@ export function SettingsRecommendations() {
   return (
     <section className="settings-recommendations" aria-labelledby="recommendations-title">
       <header className="settings-recommendations-heading">
-        <p className="section-kicker">Amélioration du CRM</p>
+
         <h2 id="recommendations-title">RECOMMANDATIONS</h2>
         <p>Vous avez une idée pour améliorer le CRM? Envoyez-la directement à l’administration.</p>
       </header>

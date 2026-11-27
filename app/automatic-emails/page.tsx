@@ -163,7 +163,7 @@ export default function AutomaticEmailsPage() {
   }
 
   return <main className="automatic-emails-page"><div className="automatic-emails-shell">
-    <header className="automatic-emails-heading"><div><h1>Courriels</h1><p>Campagnes et communications de l’Équipe Forbes.</p></div></header>
+    <header className="automatic-emails-heading"><div><h1>Courriels</h1></div></header>
     <EmailTabs activeTab={activeTab} onSelect={selectTab} />
     <div hidden={activeTab !== "campaigns"} id="email-campaigns"><CustomCampaignsSection /></div>
 
@@ -171,20 +171,20 @@ export default function AutomaticEmailsPage() {
     {activeTab !== "campaigns" && loadingRules && <div className="automatic-emails-loading" role="status">Chargement des règles…</div>}
 
     <div hidden={activeTab !== "automations"} id="email-automations">
-      <div className="email-workspace-intro"><h2>Automatisations</h2><p>Préparez les communications récurrentes de l’Équipe Forbes.</p></div>
+      <div className="email-workspace-intro"><h2>Automatisations</h2></div>
       <aside className="email-protection"><div><strong>Automatisations protégées</strong><p>Seules les fonctions explicitement autorisées peuvent envoyer un courriel.</p></div><button type="button" onClick={() => selectTab("settings")}>Voir les paramètres</button></aside>
       {simulation.summaryError && <p role="status">Simulation temporairement indisponible.<button onClick={() => setRevision(v => v + 1)} type="button">Réessayer</button></p>}
-      <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><p className="section-kicker">À venir</p><h2>Envois prévus · simulation</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>envoi{todayCount === 1 ? "" : "s"} prévu{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>envoi{tomorrowCount === 1 ? "" : "s"} prévu{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>7 prochains jours</span><strong>{weekCount}</strong><small>envoi{weekCount === 1 ? "" : "s"} prévu{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
+      <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><h2>Envois prévus · simulation</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>envoi{todayCount === 1 ? "" : "s"} prévu{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>envoi{tomorrowCount === 1 ? "" : "s"} prévu{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>7 prochains jours</span><strong>{weekCount}</strong><small>envoi{weekCount === 1 ? "" : "s"} prévu{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
 
       <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><h2 id="automatic-rules-title">Communications récurrentes</h2></div><div className="automatic-email-rule-grid">
         {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "À compléter" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status]}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType]}</h3>{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); }} />}<p className="email-rule-trigger">{triggerLabel(rule)}</p><dl><div><dt>Destinataires</dt><dd>{count} dans les 30 prochains jours</dd></div><div><dt>Prochain envoi prévu</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucun dans les 30 jours"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
       </div></section>
 
 
-      <details className="automatic-emails-history"><summary>Historique</summary>{deliveries.length === 0 ? <p>Aucune file persistante n’a été créée. Les simulations affichées sur cette page ne sont pas enregistrées comme des envois.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</details>
+      <details className="automatic-emails-history"><summary>Historique</summary>{deliveries.length === 0 ? <p>Aucun envoi enregistré. Les simulations ne figurent pas dans cet historique.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</details>
     </div>
     <div hidden={activeTab !== "settings"} id="email-settings">
-      <div className="email-workspace-intro"><h2>Paramètres</h2><p>Vos connexions et les protections des communications.</p></div>
+      <div className="email-workspace-intro"><h2>Paramètres</h2></div>
       <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><h2>Connexions Gmail</h2>{loadingConnections && <p role="status">Vérification des connexions…</p>}</div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail connecté ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature Gmail est ajoutée automatiquement à chaque envoi autorisé.</p></section>
 
       <section className="email-security"><h2>Sécurité des automatisations</h2>
@@ -193,10 +193,10 @@ export default function AutomaticEmailsPage() {
         <p>Les secours se règlent individuellement dans Automatisations. Les autres règles restent verrouillées.</p>
       </section>
       <details className="email-advanced"><summary>Paramètres avancés</summary>
-        <p>Fuseau horaire : America/Toronto</p><p>MODE SIMULATION : les aperçus ne déclenchent aucun envoi.</p>
+        <p>Heure du Québec</p><p>MODE SIMULATION : les aperçus ne déclenchent aucun envoi.</p>
         <p>AUTOMATISATIONS GÉNÉRALES VERROUILLÉES</p>
         <p>{security ? security.runnerAvailable ? "Exécution générale disponible." : "Exécution générale indisponible : les protections restent actives." : "Vérification des protections…"}</p>
-        <p>Les modes prévus, modèles et délais sont accessibles dans « Configurer » pour chaque règle.</p>
+
       </details>
     </div>
   </div>
@@ -217,7 +217,7 @@ export default function AutomaticEmailsPage() {
       <div className="automatic-email-editor-section automatic-email-editor-wide"><h3>HEURE PRÉVUE</h3><div>
         <label>Heure<input disabled={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary"} max="23" min="0" onChange={(event) => setEditing({ ...editing, sendHour: Number(event.target.value) })} type="number" value={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary" ? 17 : editing.sendHour} /></label>
         <label>Minute<input disabled={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary"} max="59" min="0" onChange={(event) => setEditing({ ...editing, sendMinute: Number(event.target.value) })} type="number" value={editing.ruleType === "birthday" || editing.ruleType === "purchase_anniversary" ? 0 : editing.sendMinute} /></label>
-      </div><small>Fuseau horaire : America/Toronto</small></div>
+      </div><small>Heure du Québec</small></div>
       {editing.ruleType === "google_review" && <label className="automatic-email-editor-wide">Lien direct pour donner un avis Google<div className="automatic-email-url-row"><input onChange={(event) => setEditing({ ...editing, triggerConfig: { ...editing.triggerConfig, googleReviewUrl: event.target.value } })} placeholder="https://..." type="url" value={editing.triggerConfig.googleReviewUrl ?? ""} /><button disabled={!isHttpsUrl(editing.triggerConfig.googleReviewUrl)} onClick={() => window.open(editing.triggerConfig.googleReviewUrl ?? "", "_blank", "noopener,noreferrer")} type="button">TESTER LE LIEN</button></div><small>HTTPS obligatoire. Ce bouton ouvre seulement le lien dans un nouvel onglet.</small></label>}
       <label className="automatic-email-editor-wide">Objet<input onChange={(event) => setEditing({ ...editing, subjectTemplate: event.target.value })} value={editing.subjectTemplate} /></label>
       <label className="automatic-email-editor-wide">Message<textarea onChange={(event) => setEditing({ ...editing, bodyTemplate: event.target.value })} rows={8} value={editing.bodyTemplate} /></label>

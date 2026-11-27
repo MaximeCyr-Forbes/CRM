@@ -65,7 +65,7 @@ export function CentrisSync({ onSynced }: { onSynced: () => void }) {
       }}>
       <button type="button" className="centris-sync-close" aria-label="Fermer la synchronisation Centris" disabled={busy} onClick={() => setOpen(false)}><X size={18} /></button>
       <h2 id="centris-sync-title">Synchronisation Centris</h2>
-      <p>Les données Centris sont actualisées. Vos notes, offres, propriétaires et suivis sont conservés.</p>
+
       {busy && <p role="status">{result?.dryRun ? 'Synchronisation…' : 'Vérification Centris…'}</p>}
       {error && <p role="alert">{error}</p>}
       {result && <>

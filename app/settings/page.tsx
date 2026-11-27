@@ -145,12 +145,9 @@ export default function SettingsPage() {
     <main className="settings-page">
       <section className="settings-shell" aria-labelledby="settings-title">
         <header className="settings-header">
-          <p className="section-kicker">Votre espace de travail</p>
+
           <h1 id="settings-title">PARAMÈTRES</h1>
-          <p>
-            Chaque courtier connecte son propre calendrier. Les relances restent
-            toujours séparées.
-          </p>
+
           <button className="calendar-connect" disabled={isSyncingBirthdays} onClick={() => void syncBirthdays()} type="button">{isSyncingBirthdays ? "SYNCHRONISATION…" : "SYNCHRONISER LES ANNIVERSAIRES"}</button>
         </header>
 

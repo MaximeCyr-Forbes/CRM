@@ -86,7 +86,7 @@ export function ContactPropertyHistory({
   return (
     <section className="contact-property-history" aria-labelledby="contact-property-history-title">
       <header>
-        <p className="section-kicker">RELATION CLIENT</p>
+
         <h2 id="contact-property-history-title">HISTORIQUE IMMOBILIER</h2>
         <p>{dossierCountLabel(summary.dossiers)}</p>
       </header>

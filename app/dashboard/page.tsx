@@ -210,9 +210,9 @@ export default function Dashboard() {
         <header className="dashboard-header">
           <div className="dashboard-identity">
             <div>
-              <p className="eyebrow">Équipe Forbes · CRM</p>
+
               <h1>Bonjour {workspaceUser === "immoplus" ? "Immoplus" : selectedBroker}</h1>
-              <p className="dash-intro">Vue d’ensemble de votre journée.</p>
+
             </div>
           </div>
           <div className="dash-context"><span>{workspaceUser === "immoplus" ? "Courtier de travail" : "Votre espace"}</span><strong>{selectedBroker}</strong></div>
@@ -245,7 +245,7 @@ export default function Dashboard() {
           <section className="follow-ups-section" aria-labelledby="follow-ups-title">
             <div className="follow-ups-heading">
               <div>
-                <p className="section-kicker">Priorités</p>
+
                 <h2 id="follow-ups-title">RELANCES DU JOUR</h2>
               </div>
               {followUpQueue.length > 0 ? (

@@ -40,7 +40,7 @@ export function ListingOverview({ broker, purpose, refreshToken }: {
   useEffect(() => { void refreshToken; void listingsVersion; void load(); }, [load, refreshToken, listingsVersion]);
 
   return <section className="listing-overview" aria-labelledby="listing-overview-title">
-    <div className="listing-overview-heading"><div><p className="section-kicker">Pilotage de l’inventaire</p><h2 id="listing-overview-title">VUE D’ENSEMBLE</h2></div>{broker && <span>Statistiques · {BROKER_LABELS[broker]}</span>}</div>
+    <div className="listing-overview-heading"><div><h2 id="listing-overview-title">VUE D’ENSEMBLE</h2></div>{broker && <span>Statistiques · {BROKER_LABELS[broker]}</span>}</div>
     {error && <div className="listing-overview-error" role="alert"><span>{error}</span><button onClick={() => void load()} type="button">Réessayer</button></div>}
     {!error && <div className="listing-overview-stats" aria-busy={isLoading}>{[
       { label: "Listings actifs", value: data ? String(data.activeListings) : "—", accent: true },

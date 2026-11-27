@@ -91,7 +91,7 @@ function DriveFolderSelector({
     <div className="drive-link-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()} role="presentation">
       <section aria-labelledby="drive-link-modal-title" aria-modal="true" className="drive-link-modal" role="dialog">
         <header>
-          <div><p className="section-kicker">Racines autorisées seulement</p><h2 id="drive-link-modal-title">LIER UN DOSSIER DRIVE</h2></div>
+          <div><p className="section-kicker">Dossiers autorisés</p><h2 id="drive-link-modal-title">LIER UN DOSSIER DRIVE</h2></div>
           <button aria-label="Fermer" disabled={isSaving} onClick={onClose} type="button">×</button>
         </header>
         {listing ? (

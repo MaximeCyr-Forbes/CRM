@@ -6,7 +6,7 @@ import {isSafeCrmNavigationPath} from '../lib/assistant/catalog';
 import type {ConversationState} from '../lib/assistant/query-plan';
 import './assistant-forbes.css';
 type Turn={question:string;answer:string;links?:{href:string;label:string}[]};
-const welcome="Salut ! Je suis l’Assistant Forbes.\n\nJe peux t’aider à retrouver des Contacts, comprendre des Transactions, consulter les Listings et repérer les échéances importantes.\n\nQue veux-tu savoir ?";
+const welcome="Quel contact, dossier ou échéance souhaitez-vous retrouver ?";
 export function AssistantForbes({pathname=''}:{pathname?:string}) {
  const router=useRouter();
  const [open,setOpen]=useState(false),[question,setQuestion]=useState(''),[turns,setTurns]=useState<Turn[]>([]);
@@ -39,7 +39,7 @@ export function AssistantForbes({pathname=''}:{pathname?:string}) {
  return <>
   <button ref={trigger} type="button" className="forbes-assistant-launch" onClick={()=>setOpen(true)} aria-haspopup="dialog" aria-expanded={open}><MessageCircle size={18}/><span>Assistant Forbes</span></button>
   <dialog ref={dialog} className="forbes-assistant-panel" aria-labelledby="assistant-title" onCancel={close} onClick={event=>{if(event.target===event.currentTarget)close();}}>
-   <header><div><h2 id="assistant-title">ASSISTANT FORBES</h2><p>Consultation CRM disponible</p><small>IA externe non activée</small></div><button type="button" onClick={close} aria-label="Fermer l’assistant"><X size={20}/></button></header>
+   <header><div><h2 id="assistant-title">ASSISTANT FORBES</h2><p>Consultation du CRM</p><small>IA externe non activée</small></div><button type="button" onClick={close} aria-label="Fermer l’assistant"><X size={20}/></button></header>
    <div className="forbes-assistant-toolbar"><span>Lecture seule</span><button type="button" onClick={reset}><Plus size={15}/>Nouvelle conversation</button></div>
    <div ref={messages} className="forbes-assistant-messages" role="log" aria-live="polite"><p>{welcome}</p>
     {turns.map((turn,index)=><div key={index}><p className="assistant-question">{turn.question}</p><p>{turn.answer}</p>{turn.links?.map(link=><a key={link.href} href={link.href} onClick={close}>{link.label} →</a>)}</div>)}

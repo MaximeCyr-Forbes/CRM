@@ -112,7 +112,7 @@ export function ContactEmailModal({
     <div className="contact-modal-backdrop contact-modal-top" onMouseDown={(event) => event.target === event.currentTarget && !isSending && onClose()} role="presentation">
       <section aria-labelledby="contact-email-title" aria-modal="true" className="contact-modal contact-email-modal" role="dialog">
         <header className="contact-modal-header">
-          <div><p className="section-kicker">Communication client</p><h2 id="contact-email-title">ENVOYER UN COURRIEL</h2><small>{contactName}</small></div>
+          <div><h2 id="contact-email-title">ENVOYER UN COURRIEL</h2><small>{contactName}</small></div>
           <button aria-label="Fermer" disabled={isSending} onClick={onClose} type="button">×</button>
         </header>
 

@@ -478,9 +478,9 @@ export default function DrivePage() {
       <div className="drive-shell">
         <header className="drive-heading">
           <div>
-            <p className="section-kicker">DOSSIERS PARTAGÉS AVEC LE CRM</p>
+
             <h1>GOOGLE DRIVE</h1>
-            <p>Consultez uniquement les dossiers explicitement autorisés pour le courtier sélectionné.</p>
+
           </div>
           <div className="drive-heading-actions">
             <div><span>Courtier consulté</span><strong>{broker ? BROKER_LABELS[broker] : "Aucun"}</strong></div>
@@ -523,7 +523,7 @@ export default function DrivePage() {
         {broker && connection?.driveEnabled && !isLoading && driveLocation.mode === "roots" && (
           <section aria-labelledby="drive-roots-title">
             <div className="drive-section-title">
-              <p className="section-kicker">Accès autorisés</p>
+
               <h2 id="drive-roots-title">DOSSIERS RACINES</h2>
             </div>
             {roots.length === 0 ? (
@@ -593,7 +593,7 @@ export default function DrivePage() {
               </nav>
             </div>
             <div className="drive-section-title drive-folder-heading">
-              <div><p className="section-kicker">Dossier autorisé</p><h2 id="drive-folder-title">{activeListing.folder.name}</h2></div>
+              <div><h2 id="drive-folder-title">{activeListing.folder.name}</h2></div>
               {activeListing.folder.webViewLink && <a href={activeListing.folder.webViewLink} rel="noopener noreferrer" target="_blank">OUVRIR DANS GOOGLE DRIVE ↗</a>}
             </div>
             {activeListing.items.length === 0 ? (
@@ -622,7 +622,7 @@ export default function DrivePage() {
           <section aria-labelledby="drive-search-results-title" ref={driveContentRef}>
             <div className="drive-section-title drive-folder-heading">
               <div>
-                <p className="section-kicker">Dans les racines autorisées seulement</p>
+                <p className="section-kicker">Dans les dossiers autorisés</p>
                 <h2 id="drive-search-results-title">RÉSULTATS POUR « {driveLocation.query} »</h2>
                 <p>{searchResults.length} RÉSULTAT{searchResults.length === 1 ? "" : "S"}</p>
               </div>

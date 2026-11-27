@@ -1,0 +1,713 @@
+{
+  "baseline": "bae214efb43fa2d28d4a6c098ef97b8da650f207",
+  "invariants": [
+    "Données, calculs, permissions, contrats API et handlers inchangés",
+    "Aucun envoi, aucune écriture métier",
+    "Alertes de suppression, simulation/envoi, connexion et confidentialité conservées"
+  ],
+  "design": "Réutiliser les tokens Forbes, titres sans surtitres décoratifs, aides métier repliables, contrôles existants.",
+  "entries": [
+    {
+      "file": "app/dashboard/page.tsx",
+      "old": "<p className=\"eyebrow\">Équipe Forbes · CRM</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/dashboard/page.tsx",
+      "old": "<p className=\"section-kicker\">Priorités</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/contacts/page.tsx",
+      "old": "<p className=\"section-kicker\">Analyse avant insertion</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/listings/page.tsx",
+      "old": "<p className=\"section-kicker\">Inventaire de l’équipe</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/listings/[listingId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Mandat immobilier</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/listings/[listingId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Dates du mandat</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/listings/[listingId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Contacts liés</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/listings/[listingId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Suivi interne</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/page.tsx",
+      "old": "<p className=\"section-kicker\">Dossiers immobiliers</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/[transactionId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Date importante</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/[transactionId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Résultat final</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/[transactionId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Origine du dossier</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/[transactionId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Relations</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/transactions/[transactionId]/page.tsx",
+      "old": "<p className=\"section-kicker\">Dossier</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/calendar/page.tsx",
+      "old": "<p className=\"section-kicker\">Équipe Forbes · CRM</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/drive/page.tsx",
+      "old": "<p className=\"section-kicker\">DOSSIERS PARTAGÉS AVEC LE CRM</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/drive/page.tsx",
+      "old": "<p className=\"section-kicker\">Accès autorisés</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/drive/page.tsx",
+      "old": "<p className=\"section-kicker\">Dossier autorisé</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Pilotage d’équipe</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Vue d’ensemble</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Comparatif</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Développement</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Répertoire</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Équipe Forbes</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p className=\"section-kicker\">Évolution</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/statistics/interactive-trends.tsx",
+      "old": "<p className=\"section-kicker\">Dossiers contributifs</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/mortgage-referrals/page.tsx",
+      "old": "<p className=\"section-kicker\">SUIVI DES CLIENTS RÉFÉRÉS EN FINANCEMENT</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/settings/page.tsx",
+      "old": "<p className=\"section-kicker\">Votre espace de travail</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/client-history.tsx",
+      "old": "<p className=\"section-kicker\">Suivi du client</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/contact-property-history.tsx",
+      "old": "<p className=\"section-kicker\">RELATION CLIENT</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/contact-editor-modal.tsx",
+      "old": "<p className=\"section-kicker\">FICHE CLIENT</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/contact-email-modal.tsx",
+      "old": "<p className=\"section-kicker\">Communication client</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/contact-address-manager.tsx",
+      "old": "<p className=\"section-kicker\">HISTORIQUE RÉSIDENTIEL</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/centris-property-details.tsx",
+      "old": "<p className=\"section-kicker\">Données Centris</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/listing-market-snapshot.tsx",
+      "old": "<p className=\"section-kicker\">Lecture rapide</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/listing-overview.tsx",
+      "old": "<p className=\"section-kicker\">Pilotage de l’inventaire</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/listing-tracking.tsx",
+      "old": "<p className=\"section-kicker\">Pilotage du mandat</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/listing-visit-modal.tsx",
+      "old": "<p className=\"section-kicker\">Suivi de mise en marché</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/transaction-agenda.tsx",
+      "old": "<p className=\"section-kicker\">Suivi du dossier</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/settings-recommendations.tsx",
+      "old": "<p className=\"section-kicker\">Amélioration du CRM</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/components/global-search.tsx",
+      "old": "<p className=\"section-kicker\">Accès rapide</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/automatic-emails/custom-campaigns-section.tsx",
+      "old": "<p className=\"section-kicker\">Personnalisés</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "<p className=\"section-kicker\">À venir</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer le surtitre redondant",
+      "risk": "faible",
+      "test": "Titre, actions, données et alertes conservés"
+    },
+    {
+      "file": "app/contacts/page.tsx",
+      "old": "<p>Votre base clients et vos suivis.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/listings/page.tsx",
+      "old": "<p>Suivi des propriétés en mise en marché.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/transactions/page.tsx",
+      "old": "<p>Suivi des dossiers actifs, achats et ventes.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/calendar/page.tsx",
+      "old": "<p>Votre horaire immobilier, synchronisé avec Google Agenda.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p>Une lecture claire du développement des affaires et de la performance immobilière.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/accounting/page.tsx",
+      "old": "<p>Suivi des dépenses de l’Équipe Forbes.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/sign-inventory/page.tsx",
+      "old": "<p>Le bon matériel, à la bonne adresse.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "<p>Campagnes et communications de l’Équipe Forbes.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/drive/page.tsx",
+      "old": "<p>Consultez uniquement les dossiers explicitement autorisés pour le courtier sélectionné.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/dashboard/page.tsx",
+      "old": "<p className=\"dash-intro\">Vue d’ensemble de votre journée.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/contacts/page.tsx",
+      "old": "Répertoire de l’équipe · {isLoading ? \"…\" : contacts.length} contacts",
+      "replacement": "{isLoading ? \"…\" : contacts.length} contacts",
+      "category": "C",
+      "action": "Simplifier / contextualiser",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/accounting/page.tsx",
+      "old": "<p className=\"accounting-eyebrow\">REGISTRE PARTAGÉ · ÉQUIPE FORBES</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/accounting/expense-modal.tsx",
+      "old": "<p className=\"accounting-eyebrow\">COMPTABILITÉ · ÉQUIPE FORBES</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/accounting/page.tsx",
+      "old": "<p>Centralisez les factures et les dépenses de votre équipe.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/sign-inventory/page.tsx",
+      "old": "<p className=\"sign-eyebrow\">OUTILS D’ÉQUIPE</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/statistics/interactive-trends.tsx",
+      "old": "<small>Détail actualisé à l’ouverture. Les liens ouvrent les fiches dans un nouvel onglet pour conserver vos filtres.</small>",
+      "replacement": "",
+      "category": "D",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/statistics/interactive-trends.tsx",
+      "old": "Les données ont été actualisées depuis le chargement du graphique. Le détail présente les valeurs actuelles.",
+      "replacement": "Données mises à jour depuis l’ouverture du graphique.",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<footer className=\"statistics-definitions\"><strong>Règles de calcul</strong><p>{data.definitions.purchaseBusinessDate}</p><p>Les périodes sont calculées dans le fuseau horaire du Québec.</p></footer>",
+      "replacement": "<details className=\"statistics-definitions crm-context-help\"><summary>Règles de calcul</summary><p>{data.definitions.purchaseBusinessDate}</p></details>",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/statistics/page.tsx",
+      "old": "<p>{data.monthContext.description}</p>",
+      "replacement": "<details className=\"crm-context-help\"><summary>Période de comparaison</summary><p>{data.monthContext.description}</p></details>",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/settings/page.tsx",
+      "old": "<p>\n            Chaque courtier connecte son propre calendrier. Les relances restent\n            toujours séparées.\n          </p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "<p>Préparez les communications récurrentes de l’Équipe Forbes.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "<p>Vos connexions et les protections des communications.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "Aucune file persistante n’a été créée. Les simulations affichées sur cette page ne sont pas enregistrées comme des envois.",
+      "replacement": "Aucun envoi enregistré. Les simulations ne figurent pas dans cet historique.",
+      "category": "D",
+      "action": "Simplifier / contextualiser",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "<p>Les modes prévus, modèles et délais sont accessibles dans « Configurer » pour chaque règle.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/page.tsx",
+      "old": "Fuseau horaire : America/Toronto",
+      "replacement": "Heure du Québec",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/automatic-emails/custom-campaigns-section.tsx",
+      "old": "Créez des campagnes sur mesure et déclenchez chaque envoi manuellement. Aucun envoi automatique.",
+      "replacement": "Envoi manuel uniquement. Aucun envoi automatique.",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/components/centris-sync.tsx",
+      "old": "<p>Les données Centris sont actualisées. Vos notes, offres, propriétaires et suivis sont conservés.</p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/components/assistant-forbes.tsx",
+      "old": "Salut ! Je suis l’Assistant Forbes.\\n\\nJe peux t’aider à retrouver des Contacts, comprendre des Transactions, consulter les Listings et repérer les échéances importantes.\\n\\nQue veux-tu savoir ?",
+      "replacement": "Quel contact, dossier ou échéance souhaitez-vous retrouver ?",
+      "category": "C",
+      "action": "Simplifier / contextualiser",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/components/assistant-forbes.tsx",
+      "old": "Consultation CRM disponible",
+      "replacement": "Consultation du CRM",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/components/drive-documents-section.tsx",
+      "old": "Racines autorisées seulement",
+      "replacement": "Dossiers autorisés",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/drive/page.tsx",
+      "old": "Dans les racines autorisées seulement",
+      "replacement": "Dans les dossiers autorisés",
+      "category": "B",
+      "action": "Simplifier / contextualiser",
+      "risk": "modéré",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/logiciels/generateur-acm/page.tsx",
+      "old": "<div className=\"hero__eyebrow\">\n            <span className=\"hero__eyebrow-line\" />\n            Espace courtier\n          </div>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/logiciels/generateur-acm/page.tsx",
+      "old": "<p>\n              Rassemblez vos fiches Centris et feuillets JLR dans un espace structuré, puis\n              préparez une analyse claire et cohérente pour vos clients.\n            </p>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/lib/tools/plex/components/manual/ManualAnalysisApp.tsx",
+      "old": "<span className=\"eyebrow\">Analyse immobilière</span>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    },
+    {
+      "file": "app/lib/tools/plex/components/manual/ManualAnalysisApp.tsx",
+      "old": "<div className=\"editorial-hero-copy\">\n          <span className=\"editorial-rule\" aria-hidden=\"true\" />\n          <p>\n            Importez votre fiche Centris, ajustez les hypothèses et analysez\n            instantanément la rentabilité, le financement et le cashflow de\n            l’immeuble.\n          </p>\n        </div>",
+      "replacement": "",
+      "category": "C",
+      "action": "Supprimer",
+      "risk": "faible",
+      "test": "Rendu, clavier, alertes et actions inchangées"
+    }
+  ]
+}

@@ -148,7 +148,7 @@ export default function ListingDetailPage() {
       <ListingTransactionAssociation key={`association-${listing.id}`} side="listing" id={listing.id} />
 
         <section className="listing-detail-section" aria-labelledby="listing-information-title">
-          <div className="listing-detail-section-heading"><div><p className="section-kicker">Mandat immobilier</p><h2 id="listing-information-title">INFORMATIONS</h2></div></div>
+          <div className="listing-detail-section-heading"><div><h2 id="listing-information-title">INFORMATIONS</h2></div></div>
           <dl className="listing-detail-information">
             <div><dt>Numéro Centris</dt><dd>{listing.centrisNumber || "Non renseigné"}</dd></div>
             <div><dt>Type de propriété</dt><dd>{LISTING_PROPERTY_TYPE_LABELS[listing.propertyType]}</dd></div>
@@ -180,14 +180,14 @@ export default function ListingDetailPage() {
         </section>
 
         <section className="listing-detail-section listing-contract" aria-labelledby="listing-contract-title">
-          <div className="listing-detail-section-heading"><div><p className="section-kicker">Dates du mandat</p><h2 id="listing-contract-title">CONTRAT DE COURTAGE</h2></div></div>
+          <div className="listing-detail-section-heading"><div><h2 id="listing-contract-title">CONTRAT DE COURTAGE</h2></div></div>
           <dl className="listing-detail-information">
             <div><dt>Signature du contrat de courtage</dt><dd>{formatListingDate(listing.contractSignedDate ?? null)}</dd></div>
           </dl>
         </section>
 
         <section className="listing-detail-section" aria-labelledby="listing-owners-title">
-          <div className="listing-detail-section-heading"><div><p className="section-kicker">Contacts liés</p><h2 id="listing-owners-title">PROPRIÉTAIRES</h2></div><span>{owners.length}</span></div>
+          <div className="listing-detail-section-heading"><div><h2 id="listing-owners-title">PROPRIÉTAIRES</h2></div><span>{owners.length}</span></div>
           {owners.length === 0 ? <p className="listing-detail-empty">Aucun propriétaire lié à ce Listing.</p> : (
             <div className="listing-owner-list">
               {owners.map(({ contactId, contact }) => contact ? (
@@ -213,7 +213,7 @@ export default function ListingDetailPage() {
         <ListingTracking listing={listing} key={listing.updatedAt} ownerNames={owners.flatMap(({ contact }) => contact ? [getContactName(contact)] : [])} onListingChanged={retry} />
 
         <section className="listing-detail-section" aria-labelledby="listing-notes-title">
-          <div className="listing-detail-section-heading"><div><p className="section-kicker">Suivi interne</p><h2 id="listing-notes-title">NOTES INTERNES</h2></div></div>
+          <div className="listing-detail-section-heading"><div><h2 id="listing-notes-title">NOTES INTERNES</h2></div></div>
           <p className={listing.generalNotes ? "listing-detail-notes" : "listing-detail-empty"}>{listing.generalNotes || "Aucune note interne pour le moment."}</p>
         </section>
       </div>

@@ -31,7 +31,7 @@ export default function SignInventoryPage(){
  const property=(a:Assignment)=><PropertyAddress row={a} history={view==='history'}/>;
  const history=(a:Assignment)=><div className="sign-history-dates"><small>Attribué le {inventoryDate(a.created_at)} · {a.created_by}</small>{a.returned_at&&<small>Retourné le {inventoryDate(a.returned_at)} · {a.returned_by}</small>}</div>;
  return <main className="sign-page">
-  <header className="sign-header"><div><p className="sign-eyebrow">OUTILS D’ÉQUIPE</p><h1>Pancartes / BAC</h1><p>Le bon matériel, à la bonne adresse.</p></div><div className="sign-header-actions">
+  <header className="sign-header"><div><h1>Pancartes / BAC</h1></div><div className="sign-header-actions">
    <button className="sign-primary" disabled={!data||loading} onClick={()=>setEditing(null)}><ShellIcon name="plus"/>Attribuer</button>
    <button className="sign-secondary" disabled={!data||loading} onClick={()=>setReturning(null)}><ShellIcon name="return"/>Retourner</button>
    <button className="sign-tertiary" disabled={!data||loading} onClick={()=>setStockOpen(true)}><ShellIcon name="inventory"/>Gérer l’inventaire</button>

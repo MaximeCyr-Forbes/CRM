@@ -68,7 +68,7 @@ export function GlobalSearch() {
         <div className="global-search-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setIsOpen(false)} role="presentation">
           <section aria-labelledby="global-search-title" aria-modal="true" className="global-search-panel" role="dialog">
             <header>
-              <div><p className="section-kicker">Accès rapide</p><h2 id="global-search-title">RECHERCHE GLOBALE</h2></div>
+              <div><h2 id="global-search-title">RECHERCHE GLOBALE</h2></div>
               <button aria-label="Fermer la recherche" onClick={() => setIsOpen(false)} type="button">×</button>
             </header>
             <label className="global-search-input">

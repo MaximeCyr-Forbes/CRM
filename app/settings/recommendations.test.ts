@@ -16,7 +16,7 @@ describe("interface des recommandations dans Paramètres", () => {
 
   it("affiche un formulaire structuré et les confirmations demandées", () => {
     const component = source("app/components/settings-recommendations.tsx");
-    expect(component).toContain("Amélioration du CRM");
+    expect(component).not.toContain('<p className="section-kicker">Amélioration du CRM</p>');
     expect(component).toContain("RECOMMANDATIONS");
     expect(component).toContain("maxLength={120}");
     expect(component).toContain("maxLength={4000}");

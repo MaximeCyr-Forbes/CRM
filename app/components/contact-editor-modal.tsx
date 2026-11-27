@@ -71,7 +71,7 @@ export function ContactEditorModal({
     <div className="contact-modal-backdrop contact-modal-top" onMouseDown={(event) => event.target === event.currentTarget && onCancel()} role="presentation">
       <section aria-labelledby="contact-editor-title" aria-modal="true" className={`contact-modal contact-editor-modal${mode === "full" ? "" : " contact-editor-modal-targeted"}`} role="dialog">
         <header className="contact-modal-header">
-          <div><p className="section-kicker">FICHE CLIENT</p><h2 id="contact-editor-title">{title}</h2></div>
+          <div><h2 id="contact-editor-title">{title}</h2></div>
           <button aria-label="Fermer" onClick={onCancel} type="button">×</button>
         </header>
         <form className="contact-editor-form" onSubmit={submit}>

@@ -65,7 +65,7 @@ export function ListingTracking({ listing, ownerNames, onListingChanged }: { lis
 
   return (
     <section className="listing-detail-section listing-tracking" aria-labelledby="listing-tracking-title">
-      <div className="listing-detail-section-heading"><div><p className="section-kicker">Pilotage du mandat</p><h2 id="listing-tracking-title">SUIVI DE MISE EN MARCHÉ</h2></div></div>
+      <div className="listing-detail-section-heading"><div><h2 id="listing-tracking-title">SUIVI DE MISE EN MARCHÉ</h2></div></div>
       {tracking.error && <p className="listing-editor-error" role="alert">{tracking.error}</p>}
 
       <div className="listing-tracking-grid">

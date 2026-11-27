@@ -42,7 +42,7 @@ export function ExpenseModal({expense,brokers=[],brokerView=false,defaultBroker,
   }
   return <><dialog ref={dialog} className="accounting-modal" aria-labelledby="expense-title" onCancel={e=>{if(busy)e.preventDefault();else onClose();}}>
     <form onSubmit={submit}>
-      <header><div><p className="accounting-eyebrow">COMPTABILITÉ · ÉQUIPE FORBES</p><h2 id="expense-title">{saved?"Modifier la dépense":"Ajouter une dépense"}</h2></div><button type="button" aria-label="Fermer" disabled={busy} onClick={onClose}>×</button></header>
+      <header><div><h2 id="expense-title">{saved?"Modifier la dépense":"Ajouter une dépense"}</h2></div><button type="button" aria-label="Fermer" disabled={busy} onClick={onClose}>×</button></header>
       <fieldset disabled={busy} className="accounting-form-fields">
         <div className="accounting-invoice-field"><span className="accounting-field-label">Facture <span className="accounting-muted">facultative</span></span>
           <div className={`accounting-dropzone ${drag?"dragging":""}`} onDragOver={e=>{e.preventDefault();if(!busy)setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);if(!busy){if(e.dataTransfer.files.length!==1)setError("Choisissez une seule facture.");else choose(e.dataTransfer.files[0]);}}}>

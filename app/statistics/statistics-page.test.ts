@@ -44,7 +44,8 @@ describe("onglet Statistiques", () => {
     expect(page).not.toContain('data.definitions.paDelay');
     expect(page).not.toContain('data.definitions.saleDelay');
     expect(page).toContain('data.definitions.purchaseBusinessDate');
-    expect(page).toContain('Les périodes sont calculées dans le fuseau horaire du Québec.');
+    expect(page).toContain('<summary>Règles de calcul</summary>');
+    expect(page).toContain('<summary>Période de comparaison</summary>');
   });
 
   it("conserve six comparatifs et huit colonnes de courtier alignées sans case réservée", () => {

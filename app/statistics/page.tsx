@@ -128,7 +128,7 @@ export default function StatisticsPage() {
     <main className="statistics-page">
       <div className="statistics-shell">
         <header className="statistics-heading">
-          <div><p className="section-kicker">Pilotage d’équipe</p><h1>STATISTIQUES</h1><p>Une lecture claire du développement des affaires et de la performance immobilière.</p></div>
+          <div><h1>STATISTIQUES</h1></div>
           <div className="statistics-context"><span>Période analysée</span><strong>{data?.period.label ?? "—"}</strong></div>
         </header>
 
@@ -161,7 +161,7 @@ export default function StatisticsPage() {
 
         {data && !isLoading && <>
           <section aria-labelledby="statistics-kpis-title">
-            <div className="statistics-section-title"><p className="section-kicker">Vue d’ensemble</p><h2 id="statistics-kpis-title">INDICATEURS CLÉS</h2></div>
+            <div className="statistics-section-title"><h2 id="statistics-kpis-title">INDICATEURS CLÉS</h2></div>
             <div className="statistics-kpi-grid">
               {kpis.map((item) => {
                 const content = <><span>{item.label}</span><strong>{item.value === null ? "—" : formatValue(item.value, item.kind)}</strong>{"note" in item && item.note && <em>{item.note}</em>}{item.href && <small>Ouvrir <span aria-hidden="true">→</span></small>}</>;
@@ -173,7 +173,7 @@ export default function StatisticsPage() {
           </section>
 
           <section className="statistics-month-panel" aria-labelledby="current-month-title">
-            <div className="statistics-section-title"><p className="section-kicker">Comparatif</p><h2 id="current-month-title">{data.monthContext.title}</h2><p>{data.monthContext.description}</p></div>
+            <div className="statistics-section-title"><h2 id="current-month-title">{data.monthContext.title}</h2><details className="crm-context-help"><summary>Période de comparaison</summary><p>{data.monthContext.description}</p></details></div>
             <div className="statistics-month-grid">
               {([
                 ["Nouveaux contacts", data.currentMonth.newContacts, "number"],
@@ -188,7 +188,7 @@ export default function StatisticsPage() {
 
           <div className="statistics-two-column">
             <section className="statistics-panel" aria-labelledby="provenance-title">
-              <div className="statistics-section-title"><p className="section-kicker">Développement</p><h2 id="provenance-title">PROVENANCE DES CLIENTS</h2></div>
+              <div className="statistics-section-title"><h2 id="provenance-title">PROVENANCE DES CLIENTS</h2></div>
               <div className="statistics-provenance-list">
                 {data.provenance.map((item) => <article key={item.key}>
                   <div><strong>{item.label}</strong><span>{item.contacts} contact{item.contacts === 1 ? "" : "s"} · {item.share} %</span></div>
@@ -199,7 +199,7 @@ export default function StatisticsPage() {
             </section>
 
             <section className="statistics-panel" aria-labelledby="health-title">
-              <div className="statistics-section-title"><p className="section-kicker">Répertoire</p><h2 id="health-title">SANTÉ DES CONTACTS</h2></div>
+              <div className="statistics-section-title"><h2 id="health-title">SANTÉ DES CONTACTS</h2></div>
               <div className="statistics-health-grid">
                 <article><span>Total</span><strong>{data.contactHealth.totalContacts}</strong></article>
                 <button onClick={() => router.push("/contacts?broker=unassigned")} type="button"><span>Non attribués</span><strong>{data.contactHealth.unassigned}</strong><small>Ouvrir →</small></button>
@@ -215,18 +215,18 @@ export default function StatisticsPage() {
           </div>
 
           <section className="statistics-panel" aria-labelledby="brokers-title">
-            <div className="statistics-section-title"><p className="section-kicker">Équipe Forbes</p><h2 id="brokers-title">ACTIVITÉ PAR COURTIER</h2></div>
+            <div className="statistics-section-title"><h2 id="brokers-title">ACTIVITÉ PAR COURTIER</h2></div>
             <div className="statistics-table-wrap"><table className="statistics-table"><thead><tr><th>Courtier</th><th>Contacts</th><th>Listings vente</th><th>Ventes</th><th>Achats</th><th>Volume vente</th><th>Volume achat</th><th>Relances</th></tr></thead><tbody>
               {data.brokerActivity.map((item) => <tr key={item.broker}><th>{BROKER_LABELS[item.broker]}</th><td>{item.newContacts}</td><td>{item.listingsTaken}</td><td>{item.saleTransactions}</td><td>{item.purchaseTransactions}</td><td>{shortCurrency.format(item.saleVolume)}</td><td>{shortCurrency.format(item.purchaseVolume)}</td><td>{item.followUps}</td></tr>)}
             </tbody></table></div>
           </section>
 
           <section className="statistics-panel" aria-labelledby="trends-title">
-            <div className="statistics-section-title"><p className="section-kicker">Évolution</p><h2 id="trends-title">TENDANCES MENSUELLES</h2></div>
+            <div className="statistics-section-title"><h2 id="trends-title">TENDANCES MENSUELLES</h2></div>
             <InteractiveTrends key={requestUrl} snapshot={data} query={requestUrl} />
           </section>
 
-          <footer className="statistics-definitions"><strong>Règles de calcul</strong><p>{data.definitions.purchaseBusinessDate}</p><p>Les périodes sont calculées dans le fuseau horaire du Québec.</p></footer>
+          <details className="statistics-definitions crm-context-help"><summary>Règles de calcul</summary><p>{data.definitions.purchaseBusinessDate}</p></details>
         </>}
       </div>
     </main>

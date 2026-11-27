@@ -23,7 +23,7 @@ export function TransactionAgenda({ deadlines, disabled, onAdd, onEdit, onComple
     try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "La modification de l’échéance a échoué. Réessayez."); } finally { busy.current = false; setPending(false); }
   }
   return <section className="transaction-detail-section" aria-labelledby="transaction-deadlines-title">
-    <div className="transaction-section-heading"><div><p className="section-kicker">Suivi du dossier</p><h2 id="transaction-deadlines-title">AGENDA DE LA TRANSACTION</h2></div><button className="transaction-add-deadline" disabled={disabled} onClick={onAdd} type="button">+ Ajouter une échéance</button></div>
+    <div className="transaction-section-heading"><div><h2 id="transaction-deadlines-title">AGENDA DE LA TRANSACTION</h2></div><button className="transaction-add-deadline" disabled={disabled} onClick={onAdd} type="button">+ Ajouter une échéance</button></div>
     {error && <p role="alert" className="transaction-form-error">{error}</p>}
     <p className="oaciq-notice">Google Agenda : synchronisation automatique avec l’agenda du courtier responsable, si connecté.</p>
     <button className="transaction-add-deadline" disabled={disabled || pending} onClick={() => void change(onSync)} type="button">Synchroniser les échéances</button>

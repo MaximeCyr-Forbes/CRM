@@ -17,7 +17,7 @@ export function CentrisPropertyDetails({ listing }: { listing: Listing }) {
   ] : [];
   const standard = listing.centrisStandardStatus;
   return <section className="listing-detail-section centris-property" aria-labelledby="centris-property-title">
-    <div className="listing-detail-section-heading"><div><p className="section-kicker">Données Centris</p><h2 id="centris-property-title">CARACTÉRISTIQUES DE LA PROPRIÉTÉ</h2></div></div>
+    <div className="listing-detail-section-heading"><div><h2 id="centris-property-title">CARACTÉRISTIQUES DE LA PROPRIÉTÉ</h2></div></div>
     <p className="centris-source-status">Statut Centris : <strong>{standard || 'Non renseigné'}</strong>{listing.centrisMlsStatus && listing.centrisMlsStatus !== standard && ` · ${listing.centrisMlsStatus}`}</p>
     <CentrisChangeBadge listing={listing} />
     {getListingDisplayStatus(listing).source === 'centris'

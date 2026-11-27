@@ -690,7 +690,7 @@ export default function ContactsPage() {
       <div className="contacts-shell">
         <DataStatus />
         <header className="contacts-header">
-          <div><p className="section-kicker">Répertoire de l’équipe · {isLoading ? "…" : contacts.length} contacts</p><h1>Contacts</h1><p>Votre base clients et vos suivis.</p></div>
+          <div><p className="section-kicker">{isLoading ? "…" : contacts.length} contacts</p><h1>Contacts</h1></div>
           <div className="contacts-main-actions">
             <button className="contact-action contact-action-primary" disabled={isSaving} onClick={openManualModal} type="button">Ajouter un contact</button>
             <button className="contact-action" disabled={isSaving} onClick={() => setImportKind("csv")} type="button">Importer CSV</button>
@@ -744,7 +744,7 @@ export default function ContactsPage() {
       </section></div>}
 
       {importKind && <div className="contact-modal-backdrop"><section aria-labelledby="contact-import-title" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setImportKind(null); } }} aria-modal="true" className="contact-modal contact-modal-medium" role="dialog">
-        <header className="contact-modal-header"><div><p className="section-kicker">Analyse avant insertion</p><h2 id="contact-import-title">Importer {importKind === "csv" ? "un CSV" : "une vCard"}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setImportKind(null)} type="button">×</button></header>
+        <header className="contact-modal-header"><div><h2 id="contact-import-title">Importer {importKind === "csv" ? "un CSV" : "une vCard"}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setImportKind(null)} type="button">×</button></header>
         <div className={`import-drop-zone ${isDragging ? "import-drop-zone-active" : ""}`} onDragEnter={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDragOver={(event) => event.preventDefault()} onDrop={(event: DragEvent<HTMLDivElement>) => { event.preventDefault(); setIsDragging(false); const file = event.dataTransfer.files[0]; if (file) void processImportFile(file); }}>
           <span className="import-file-mark">{importKind === "csv" ? "CSV" : "VCF"}</span><h3>Déposez votre fichier ici</h3><p>Aucun contact ne sera inséré avant votre validation.</p><button onClick={() => fileInputRef.current?.click()} type="button">Sélectionner un fichier</button><input accept={importKind === "csv" ? ".csv,text/csv" : ".vcf,text/vcard"} className="sr-only" onChange={(event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (file) void processImportFile(file); event.target.value = ""; }} ref={fileInputRef} type="file" />
         </div>{importError && <p className="import-error">{importError}</p>}
