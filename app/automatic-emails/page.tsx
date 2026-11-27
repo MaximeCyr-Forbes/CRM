@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CalendarConnectionStatus } from "../data/calendar-types";
 import { BROKER_LABELS, CONTACT_BROKERS } from "../data/contact-types";
 import {
@@ -80,6 +80,9 @@ export default function AutomaticEmailsPage() {
   const [deliveries, setDeliveries] = useState<AutomaticEmailDelivery[]>([]);
 
   const [connections, setConnections] = useState<CalendarConnectionStatus[]>([]);
+  const [showArchives, setShowArchives] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<AutomaticEmailRule | null>(null);
+  const mutationGuard = useRef(false);
   const [editing, setEditing] = useState<AutomaticEmailRule | null>(null);
   const [previewRuleId, setPreviewRuleId] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
@@ -123,19 +126,20 @@ export default function AutomaticEmailsPage() {
   const visibleOccurrences = scheduleFilter === "google_review"
     ? occurrences.filter((item) => item.ruleType === "google_review")
     : occurrences;
-  const cardData = useMemo(() => rules.map((rule) => {
+  const cardData = useMemo(() => rules.filter(rule => !rule.archivedAt).map((rule) => {
     const item = simulation.summary?.rules.find(item => item.ruleId === rule.id);
     const issues = ruleConfigurationIssues(rule);
     return { rule, issues, count: simulation.loadingSummary ? "—" : item?.count30Days ?? "—", next: item?.nextDate ? { scheduledDate: item.nextDate, scheduledTime: item.nextTime } : null };
   }), [simulation.summary, simulation.loadingSummary, rules]);
 
   async function saveRule() {
-    if (!editing) return;
+    if (!editing || mutationGuard.current) return;
     const issues = ruleConfigurationIssues(editing);
     if (editing.status === "ready" && issues.length > 0) {
       setError("La règle ne peut pas être marquée Prête tant que sa configuration est incomplète.");
       return;
     }
+    mutationGuard.current = true;
     setIsSaving(true);
     setError(null);
     try {
@@ -143,7 +147,7 @@ export default function AutomaticEmailsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ruleType: editing.ruleType, name: editing.name, status: editing.status, executionMode: editing.executionMode,
+          version: editing.version, ruleType: editing.ruleType, name: editing.name, status: editing.status, executionMode: editing.executionMode,
           defaultBroker: editing.defaultBroker, subjectTemplate: editing.subjectTemplate, bodyTemplate: editing.bodyTemplate,
           sendHour: editing.sendHour, sendMinute: editing.sendMinute, timezone: editing.timezone, triggerConfig: editing.triggerConfig,
         }),
@@ -152,14 +156,33 @@ export default function AutomaticEmailsPage() {
       if (!response.ok || !body.data) throw new Error(body.error ?? "Enregistrement impossible.");
       setRules((current) => current.map((rule) => rule.id === body.data!.id ? body.data! : rule));
       setEditing(null);
-      setConfirmation("Configuration enregistrée en mode verrouillé.");
+      setConfirmation("Communication enregistrée.");
       window.setTimeout(() => setConfirmation(null), 4000);
       setRevision(v => v + 1);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Enregistrement impossible.");
     } finally {
+      mutationGuard.current = false;
       setIsSaving(false);
     }
+  }
+
+  async function archiveOrRestore(rule: AutomaticEmailRule, action: "archive" | "restore") {
+    if (mutationGuard.current) return;
+    mutationGuard.current = true; setIsSaving(true); setError(null);
+    try {
+      const response = await fetch(`/api/automatic-emails/rules/${rule.id}`, {
+        method: action === "archive" ? "DELETE" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version: rule.version, ...(action === "restore" ? { action } : {}) }),
+      });
+      const payload = await response.json() as { data?: AutomaticEmailRule; error?: string };
+      if (!response.ok || !payload.data) throw new Error(payload.error ?? "Modification impossible.");
+      setRules(current => current.map(item => item.id === rule.id ? payload.data! : item));
+      setArchiveTarget(null); setPreviewRuleId(null); setRevision(value => value + 1);
+      setConfirmation(action === "archive" ? "Communication supprimée. Historique conservé." : "Communication restaurée en pause. Aucun secours réactivé.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Modification impossible."); }
+    finally { mutationGuard.current = false; setIsSaving(false); }
   }
 
   return <main className="automatic-emails-page"><div className="automatic-emails-shell">
@@ -176,13 +199,23 @@ export default function AutomaticEmailsPage() {
       {simulation.summaryError && <p role="status">Simulation temporairement indisponible.<button onClick={() => setRevision(v => v + 1)} type="button">Réessayer</button></p>}
       <section className="automatic-emails-upcoming"><div className="automatic-emails-section-title"><h2>Envois prévus · simulation</h2></div><div><article><span>Aujourd’hui</span><strong>{todayCount}</strong><small>envoi{todayCount === 1 ? "" : "s"} prévu{todayCount === 1 ? "" : "s"}</small></article><article><span>Demain</span><strong>{tomorrowCount}</strong><small>envoi{tomorrowCount === 1 ? "" : "s"} prévu{tomorrowCount === 1 ? "" : "s"}</small></article><article><span>7 prochains jours</span><strong>{weekCount}</strong><small>envoi{weekCount === 1 ? "" : "s"} prévu{weekCount === 1 ? "" : "s"}</small></article><button onClick={() => setShowSchedule(true)} type="button">VOIR LES ENVOIS PRÉVUS <span aria-hidden="true">→</span></button></div></section>
 
-      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><h2 id="automatic-rules-title">Communications récurrentes</h2></div><div className="automatic-email-rule-grid">
-        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "À compléter" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status]}</span><span aria-hidden="true">◈</span></div><h3>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType]}</h3>{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); }} />}<p className="email-rule-trigger">{triggerLabel(rule)}</p><dl><div><dt>Destinataires</dt><dd>{count} dans les 30 prochains jours</dd></div><div><dt>Prochain envoi prévu</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucun dans les 30 jours"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">CONFIGURER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button></div></article>)}
+      <section aria-labelledby="automatic-rules-title"><div className="automatic-emails-section-title"><h2 id="automatic-rules-title">Communications récurrentes</h2><button className="recurring-archives-link" type="button" onClick={() => setShowArchives(value => !value)} aria-expanded={showArchives}>COMMUNICATIONS SUPPRIMÉES ({rules.filter(rule => rule.archivedAt).length})</button></div><div className="automatic-email-rule-grid">
+        {cardData.map(({ rule, issues, count, next }) => <article className="automatic-email-rule-card" key={rule.id}><div className="automatic-email-rule-top"><span className={`automatic-email-rule-status ${issues.length ? "incomplete" : rule.status}`}>{issues.length ? "À compléter" : AUTOMATIC_EMAIL_STATUS_LABELS[rule.status]}</span><span aria-hidden="true">◈</span></div><h3>{rule.name}</h3>{rule.name !== AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType] && <small>{AUTOMATIC_EMAIL_RULE_LABELS[rule.ruleType]}</small>}{(rule.ruleType === "birthday" || rule.ruleType === "purchase_anniversary") && <BirthdayFallback rule={rule} connections={connections} onChange={enabled => { setRules(current => current.map(r => r.id === rule.id ? { ...r, triggerConfig: { ...r.triggerConfig, [rule.ruleType === "birthday" ? "birthdayFallbackEnabled" : "purchaseAnniversaryFallbackEnabled"]: enabled } } : r)); setRevision(v => v + 1); setReloadRules(v => v + 1); }} />}<p className="email-rule-trigger">{triggerLabel(rule)}</p><dl><div><dt>Destinataires</dt><dd>{count} dans les 30 prochains jours</dd></div><div><dt>Prochain envoi prévu</dt><dd>{simulation.loadingSummary ? "Calcul…" : next ? `${formatDate(next.scheduledDate)} · ${next.scheduledTime}` : simulation.summaryError ? "Indisponible" : "Aucun dans les 30 jours"}</dd></div></dl>{issues.length > 0 && <p className="automatic-email-rule-issues">{issues[0]}</p>}<div className="automatic-email-rule-actions"><button onClick={() => setEditing({ ...rule, triggerConfig: { ...rule.triggerConfig, ...(rule.ruleType === "google_review" ? { transactionTypes: googleReviewTransactionTypes(rule.triggerConfig) } : {}) } })} type="button">MODIFIER</button><button onClick={() => setPreviewRuleId(rule.id)} type="button">PRÉVISUALISER</button><button className="recurring-archive-action" onClick={() => { setError(null); setArchiveTarget(rule); }} type="button">SUPPRIMER</button></div></article>)}
       </div></section>
 
 
       <details className="automatic-emails-history"><summary>Historique</summary>{deliveries.length === 0 ? <p>Aucun envoi enregistré. Les simulations ne figurent pas dans cet historique.</p> : <div>{deliveries.map((delivery) => <article key={delivery.id}><strong>{delivery.status === "queued" ? "Simulation en attente" : "Aperçu"}</strong><span>{delivery.recipientEmail}</span><span>{new Intl.DateTimeFormat("fr-CA", { dateStyle: "long", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(delivery.scheduledFor))}</span></article>)}</div>}</details>
     </div>
+
+      {activeTab === "automations" && showArchives && <section aria-label="Communications supprimées" className="automatic-email-rule-grid">
+        {rules.filter(rule => rule.archivedAt).map(rule => <article className="automatic-email-rule-card" key={rule.id}>
+          <h3>{rule.name}</h3><p>Supprimée · historique conservé</p>
+          <p>La restauration remet cette communication en pause, sans réactiver son secours.</p>
+          <div className="automatic-email-rule-actions"><button type="button" disabled={isSaving} onClick={() => void archiveOrRestore(rule, "restore")}>RESTAURER</button></div>
+        </article>)}
+        {!rules.some(rule => rule.archivedAt) && <p>Aucune communication supprimée.</p>}
+      </section>}
+
     <div hidden={activeTab !== "settings"} id="email-settings">
       <div className="email-workspace-intro"><h2>Paramètres</h2></div>
       <section className="automatic-emails-connections"><div className="automatic-emails-section-title"><h2>Connexions Gmail</h2>{loadingConnections && <p role="status">Vérification des connexions…</p>}</div><div>{CONTACT_BROKERS.map((broker) => { const status = connections.find((item) => item.broker === broker); return <article key={broker}><strong>{BROKER_LABELS[broker]}</strong><span>{status?.gmailSendEnabled ? "Gmail connecté ✓" : "Gmail à connecter"}</span><span>{status?.gmailSignatureEnabled ? "Signature autorisée ✓" : "Signature à autoriser"}</span></article>; })}</div><p>La signature Gmail est ajoutée automatiquement à chaque envoi autorisé.</p></section>
@@ -200,6 +233,15 @@ export default function AutomaticEmailsPage() {
       </details>
     </div>
   </div>
+
+
+  {archiveTarget && <div className="automatic-email-modal-backdrop" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="archive-rule-title" className="automatic-email-modal recurring-archive-dialog" onKeyDown={event => { if (event.key === "Escape" && !isSaving) { event.stopPropagation(); setArchiveTarget(null); } if (event.key === "Tab") { const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"); const first = buttons[0], last = buttons[buttons.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } } }}>
+    <header><h2 id="archive-rule-title">Supprimer cette communication ?</h2></header>
+    <p><strong>{archiveTarget.name}</strong></p>
+    <p>Cette communication sera retirée de vos automatisations et désactivée. Son historique sera conservé.</p>
+    {error && <p role="alert">{error}</p>}
+    <footer><button autoFocus type="button" disabled={isSaving} onClick={() => setArchiveTarget(null)}>ANNULER</button><button type="button" disabled={isSaving} onClick={() => void archiveOrRestore(archiveTarget, "archive")}>{isSaving ? "SUPPRESSION…" : "SUPPRIMER"}</button></footer>
+  </section></div>}
 
   {editing && <div className="automatic-email-modal-backdrop" role="presentation"><section onKeyDown={(event) => { if (event.key === "Escape" && !isSaving) { event.stopPropagation(); setEditing(null); } }} aria-labelledby="automatic-email-editor-title" aria-modal="true" className="automatic-email-modal automatic-email-editor" role="dialog">
     <header><div><p className="section-kicker">Configuration verrouillée</p><h2 id="automatic-email-editor-title">{AUTOMATIC_EMAIL_RULE_LABELS[editing.ruleType].toUpperCase()}</h2></div><button autoFocus aria-label="Fermer" onClick={() => setEditing(null)} type="button">×</button></header>

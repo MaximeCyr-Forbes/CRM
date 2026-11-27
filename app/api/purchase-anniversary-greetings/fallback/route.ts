@@ -20,6 +20,7 @@ async function PATCHHandler(request: Request) {
       return Response.json({ enabled: false }, { headers: { "Cache-Control": "private, no-store" } });
     }
     const rule = await purchaseRule();
+    if (rule.archivedAt || rule.status === "paused") return Response.json({ error: "Restaurez la communication et retirez la pause avant d’activer son secours." }, { status: 409 });
     const issues = ruleConfigurationIssues(rule);
     const invalidSyntax = /\{\{|\}\}/.test(`${rule.subjectTemplate}\n${rule.bodyTemplate}`.replace(/\{\{\s*(firstName|lastName|fullName|purchaseDate)\s*\}\}/g, ""));
     if (body.enabled && (issues.length || invalidSyntax)) return Response.json({ error: issues[0] ?? "Variable du modèle invalide." }, { status: 400 });

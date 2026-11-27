@@ -41,6 +41,23 @@ beforeEach(() => {
   state.sender.mockReset().mockImplementation(async broker => ({ connection: { broker }, identity: { signature: `<b>${broker}</b>` } }));
   state.send.mockReset().mockResolvedValue({ id: "gmail-one" });
 });
+it("archived rule blocks mocked cron and manual send while retaining Done",async()=>{
+ vi.stubGlobal("fetch",vi.fn(()=>{throw new Error("Real network forbidden");}));
+ try {
+  state.rules[0].archivedAt="2026-09-22T12:00:00Z";
+  await runPurchaseAnniversaryFallback(); await actOnPurchase("purchase","one","manual","maxime");
+  expect(state.send).not.toHaveBeenCalled(); expect(state.sender).not.toHaveBeenCalled();
+  await actOnPurchase("purchase","one","done","maxime");
+  expect(state.rows[0].status).toBe("manual_done"); expect(state.send).not.toHaveBeenCalled();
+ } finally {vi.unstubAllGlobals();}
+});
+it("restored paused rule and archive during preparation never send",async()=>{
+ state.rules[0].status="paused";
+ await runPurchaseAnniversaryFallback(); expect(state.send).not.toHaveBeenCalled();
+ state.rules[0].status="ready";
+ state.sender.mockImplementation(async()=>{state.rules[0].archivedAt="2026-09-22T12:00:00Z";return {};});
+ await runPurchaseAnniversaryFallback(); expect(state.send).not.toHaveBeenCalled();
+});
 afterEach(() => vi.useRealTimers());
 describe("purchase anniversary workflow", () => {
   it.each(["france","maxime","sandrine"] as const)("uses assigned %s independently of default", broker => expect(birthdaySender({ ...contact, broker }, rule)).toBe(broker));

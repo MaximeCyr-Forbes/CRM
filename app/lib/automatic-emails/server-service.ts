@@ -76,7 +76,7 @@ export async function loadAutomaticEmailPreviewDataset(rules?: readonly Automati
 }
 
 export async function getAutomaticEmailOccurrences(input: { from: string; to: string; ruleId?: string | null; today: string; mode?: string | null }) {
-  const rules = await listAutomaticEmailRules();
+  const rules = (await listAutomaticEmailRules()).filter(rule => !rule.archivedAt);
   const selectedRules: AutomaticEmailRule[] = input.ruleId ? rules.filter((rule) => rule.id === input.ruleId) : rules;
   if (input.ruleId && selectedRules.length === 0) return null;
   const dataset = await loadAutomaticEmailPreviewDataset(selectedRules);

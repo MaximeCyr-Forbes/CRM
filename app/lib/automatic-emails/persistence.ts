@@ -9,7 +9,7 @@ import { mapAutomaticEmailRuleRow } from "../../data/automatic-email-types";
 import type { CalendarBroker } from "../../data/calendar-types";
 import { getSupabaseAdmin } from "../supabase/server";
 
-const ruleColumns = "id, rule_type, name, status, execution_mode, default_broker, subject_template, body_template, send_hour, send_minute, timezone, trigger_config, created_at, updated_at";
+const ruleColumns = "id, rule_type, name, status, execution_mode, default_broker, subject_template, body_template, send_hour, send_minute, timezone, trigger_config, created_at, updated_at, archived_at, version";
 const deliveryColumns = "id, rule_id, contact_id, transaction_id, broker, recipient_email, occurrence_key, scheduled_for, status, created_at, updated_at";
 
 type DeliveryRow = {
@@ -54,15 +54,16 @@ export async function createAutomaticEmailRule(draft: AutomaticEmailRuleDraft) {
   return mapAutomaticEmailRuleRow(data as AutomaticEmailRuleRow);
 }
 
-export async function updateAutomaticEmailRule(ruleId: string, draft: AutomaticEmailRuleDraft) {
-  if (draft.ruleType === "birthday" || draft.ruleType === "purchase_anniversary") {
-    const { data, error } = await getSupabaseAdmin().rpc(draft.ruleType === "birthday" ? "update_birthday_rule" : "update_purchase_anniversary_rule", { p_id: ruleId, p_values: rowValues(draft) });
-    if (error) throw error;
-    return data?.[0] ? mapAutomaticEmailRuleRow(data[0] as AutomaticEmailRuleRow) : null;
-  }
-  const { data, error } = await getSupabaseAdmin().from("automatic_email_rules").update(rowValues(draft)).eq("id", ruleId).select(ruleColumns).maybeSingle();
+export async function mutateAutomaticEmailRule(ruleId: string, version: number, action: "update" | "archive" | "restore", draft?: AutomaticEmailRuleDraft) {
+  const { data, error } = await getSupabaseAdmin().rpc("mutate_recurring_email_rule", {
+    p_id: ruleId, p_version: version, p_action: action, p_values: draft ? rowValues(draft) : {},
+  });
   if (error) throw error;
-  return data ? mapAutomaticEmailRuleRow(data as AutomaticEmailRuleRow) : null;
+  return data?.[0] ? mapAutomaticEmailRuleRow(data[0] as AutomaticEmailRuleRow) : null;
+}
+
+export async function updateAutomaticEmailRule(ruleId: string, draft: AutomaticEmailRuleDraft, version: number) {
+  return mutateAutomaticEmailRule(ruleId, version, "update", draft);
 }
 
 export async function listAutomaticEmailDeliveries(): Promise<AutomaticEmailDelivery[]> {

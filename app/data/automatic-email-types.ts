@@ -22,6 +22,8 @@ export type AutomaticEmailTriggerConfig = {
 };
 
 export type AutomaticEmailRule = {
+  archivedAt?: string | null;
+  version?: number;
   id: string;
   ruleType: AutomaticEmailRuleType;
   name: string;
@@ -43,6 +45,8 @@ export type AutomaticEmailRuleDraft = Pick<AutomaticEmailRule,
 >;
 
 export type AutomaticEmailRuleRow = {
+  archived_at?: string | null;
+  version?: number;
   id: string;
   rule_type: AutomaticEmailRuleType;
   name: string;
@@ -246,7 +250,13 @@ export function mapAutomaticEmailRuleRow(row: AutomaticEmailRuleRow): AutomaticE
     sendHour: row.send_hour, sendMinute: row.send_minute, timezone: row.timezone, triggerConfig: row.trigger_config,
   });
   if (!draft) throw new Error("Règle de courriel automatique Supabase invalide.");
-  return { id: row.id, ...draft, createdAt: row.created_at, updatedAt: row.updated_at };
+  return { id: row.id, ...draft, archivedAt: row.archived_at ?? null, version: row.version ?? 1, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+export function recurringFallbackEnabled(rule: AutomaticEmailRule) {
+  return !rule.archivedAt && rule.status !== "paused" && (rule.ruleType === "birthday"
+    ? rule.triggerConfig.birthdayFallbackEnabled === true
+    : rule.ruleType === "purchase_anniversary" && rule.triggerConfig.purchaseAnniversaryFallbackEnabled === true);
 }
 
 export function gmailStateForBroker(connections: readonly CalendarConnectionStatus[], broker: CalendarBroker | null) {

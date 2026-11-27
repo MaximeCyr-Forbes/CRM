@@ -20,6 +20,10 @@
 .automatic-emails-page .automatic-emails-upcoming article strong { font-size: 27px; margin: 6px 0; }
 .automatic-emails-page .automatic-emails-section-title h2 { font: 600 17px/1.4 var(--font-sans); }
 .automatic-emails-page .automatic-email-rule-card { padding: 20px; }
+.automatic-emails-page .recurring-archives-link { margin-top: 8px; padding: 8px 0; border: 0; background: transparent; color: var(--crm-text-muted); font: 600 11px/1.5 var(--font-sans); cursor: pointer; }
+.automatic-emails-page .automatic-email-rule-actions { flex-wrap: wrap; }
+.automatic-emails-page .automatic-email-rule-actions .recurring-archive-action { flex-basis: 100%; min-height: 36px; border-color: transparent; color: var(--crm-text-muted); font-weight: 500; }
+.recurring-archive-dialog > p { margin: 16px 24px; line-height: 1.6; }
 .automatic-emails-page .automatic-email-rule-card h3 { margin: 12px 0; }
 .automatic-emails-page .automatic-email-rule-card dl { margin: 14px 0; gap: 12px; }
 .automatic-emails-page .email-rule-trigger { margin: 0; font-size: 13px; color: var(--crm-text-muted); }

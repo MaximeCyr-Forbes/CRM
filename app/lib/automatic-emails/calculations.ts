@@ -252,7 +252,7 @@ export function calculateAutomaticEmailOccurrences(
 ) {
   if (!DATE_PATTERN.test(from) || !DATE_PATTERN.test(to) || from > to) throw new TypeError("Période de simulation invalide.");
   const unique = new Map<string, AutomaticEmailOccurrence>();
-  for (const rule of rules) for (const item of occurrencesForRule(rule, dataset, from, to)) {
+  for (const rule of rules.filter(rule => !rule.archivedAt)) for (const item of occurrencesForRule(rule, dataset, from, to)) {
     unique.set(`${rule.id}:${item.occurrenceKey}`, item);
   }
   return [...unique.values()].sort((first, second) => `${first.scheduledDate}:${first.scheduledTime}:${first.recipientName}`.localeCompare(`${second.scheduledDate}:${second.scheduledTime}:${second.recipientName}`));

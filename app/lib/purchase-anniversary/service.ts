@@ -1,3 +1,4 @@
+import { recurringFallbackEnabled } from "../../data/automatic-email-types";
 import { getSupabaseAdmin } from "../supabase/server";
 import { listAutomaticEmailRules } from "../automatic-emails/persistence";
 import { isPurchaseAnniversary, purchaseDateLabel, type PurchaseTransaction, type PurchaseGreeting } from "./model";
@@ -35,7 +36,8 @@ async function finish(claim: PurchaseGreeting, values: Record<string, unknown>) 
 export async function actOnPurchase(transactionId: string, id: string, action: "done" | "manual" | "auto", actor: string) {
   await purchaseContext(transactionId, id);
   const clock = birthdayClock();
-  if (action === "auto" && (!clock.afterFive || !(await purchaseRule()).triggerConfig.purchaseAnniversaryFallbackEnabled)) return { status: "skipped" };
+  if (action !== "done" && (await purchaseRule()).archivedAt) return { status: "skipped" };
+  if (action === "auto" && (!clock.afterFive || !recurringFallbackEnabled(await purchaseRule()))) return { status: "skipped" };
   const { data, error } = await getSupabaseAdmin().rpc("claim_purchase_anniversary_greeting", {
     p_transaction_id: transactionId, p_contact_id: id, p_occurrence: clock.today, p_action: action, p_actor: actor,
   });
@@ -48,18 +50,20 @@ export async function actOnPurchase(transactionId: string, id: string, action: "
     // Re-read after claiming: neither the UI nor the scheduler supplies recipient or broker.
     const { contact, transaction } = await purchaseContext(transactionId, id);
     const rule = await purchaseRule();
+    if (rule.archivedAt) throw new Error("Communication supprimée.");
     const broker = birthdaySender(contact, rule);
     if (!broker) throw new TypeError("Choisissez l’expéditeur des contacts non attribués.");
     const message = validateGmailMessage(renderBirthday(contact, rule, { purchaseDate: purchaseDateLabel(transaction.notary_date!) }));
     const sender = await prepareGmailSender(broker);
     // Last possible kill-switch read, after Gmail identity/refresh calls.
-    if (action === "auto" && (!birthdayClock().afterFive || birthdayClock().today !== clock.today || !(await purchaseRule()).triggerConfig.purchaseAnniversaryFallbackEnabled)) {
+    if (action === "auto" && (!birthdayClock().afterFive || birthdayClock().today !== clock.today || !recurringFallbackEnabled(await purchaseRule()))) {
       await finish(claim, { status: "failed", error_message: "Envoi arrêté par le bouton OFF ou le changement de journée." });
       return { status: "stopped" };
     }
     const { contact: latest, transaction: latestTransaction } = await purchaseContext(transactionId, id);
     if (latestTransaction.notary_date !== transaction.notary_date || latestTransaction.purchase_finalized_at !== transaction.purchase_finalized_at || latest.broker !== contact.broker || latest.email !== contact.email || latest.first_name !== contact.first_name || latest.last_name !== contact.last_name) throw new Error("Le contact a changé. Actualisez avant de réessayer.");
     await finish(claim, { sender_broker: broker });
+    if ((await purchaseRule()).archivedAt) throw new Error("Communication supprimée.");
     const result = await sendPreparedGmailMessage(sender, message);
     accepted = true;
     const status = action === "manual" ? "manual_email_sent" : "auto_email_sent";
@@ -92,14 +96,14 @@ export async function todayPurchaseCandidates() {
 export async function runPurchaseAnniversaryFallback() {
   const start = birthdayClock();
   const counts = { sent: 0, skipped: 0, failed: 0 };
-  if (!start.afterFive || !(await purchaseRule()).triggerConfig.purchaseAnniversaryFallbackEnabled) return counts;
+  if (!start.afterFive || !recurringFallbackEnabled(await purchaseRule())) return counts;
   const states = new Map((await todayPurchaseGreetings()).map(g => [`${g.transaction_id}:${g.contact_id}`, g]));
   const eligible = (await todayPurchaseCandidates()).filter(({ contact, transaction }) => {
     const state = states.get(`${transaction.id}:${contact.id}`);
     return !state || (state.status === "failed" && !state.automatic_attempted_at);
   });
   for (const { contact, transaction } of eligible.slice(0, 20)) {
-    if (birthdayClock().today !== start.today || !(await purchaseRule()).triggerConfig.purchaseAnniversaryFallbackEnabled) break;
+    if (birthdayClock().today !== start.today || !recurringFallbackEnabled(await purchaseRule())) break;
     try {
       const result = await actOnPurchase(transaction.id, contact.id, "auto", "scheduler");
       if (result.status === "auto_email_sent") counts.sent++; else counts.skipped++;

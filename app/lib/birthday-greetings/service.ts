@@ -1,3 +1,4 @@
+import { recurringFallbackEnabled } from "../../data/automatic-email-types";
 import { getSupabaseAdmin } from "../supabase/server";
 import { listAutomaticEmailRules } from "../automatic-emails/persistence";
 import { birthdayMatchesDate } from "../dashboard/daily-notifications";
@@ -30,7 +31,8 @@ async function finish(claim: BirthdayGreeting, values: Record<string, unknown>) 
 export async function actOnBirthday(id: string, action: "done" | "manual" | "auto", actor: string) {
   await birthdayContact(id);
   const clock = birthdayClock();
-  if (action === "auto" && (!clock.afterFive || !(await birthdayRule()).triggerConfig.birthdayFallbackEnabled)) return { status: "skipped" };
+  if (action !== "done" && (await birthdayRule()).archivedAt) return { status: "skipped" };
+  if (action === "auto" && (!clock.afterFive || !recurringFallbackEnabled(await birthdayRule()))) return { status: "skipped" };
   const { data, error } = await getSupabaseAdmin().rpc("claim_birthday_greeting", {
     p_contact_id: id, p_occurrence: clock.today, p_action: action, p_actor: actor,
   });
@@ -43,18 +45,20 @@ export async function actOnBirthday(id: string, action: "done" | "manual" | "aut
     // Re-read after claiming: neither the UI nor the scheduler supplies recipient or broker.
     const contact = await birthdayContact(id);
     const rule = await birthdayRule();
+    if (rule.archivedAt) throw new Error("Communication supprimée.");
     const broker = birthdaySender(contact, rule);
     if (!broker) throw new TypeError("Choisissez l’expéditeur des contacts non attribués.");
     const message = validateGmailMessage(renderBirthday(contact, rule));
     const sender = await prepareGmailSender(broker);
     // Last possible kill-switch read, after Gmail identity/refresh calls.
-    if (action === "auto" && (!birthdayClock().afterFive || birthdayClock().today !== clock.today || !(await birthdayRule()).triggerConfig.birthdayFallbackEnabled)) {
+    if (action === "auto" && (!birthdayClock().afterFive || birthdayClock().today !== clock.today || !recurringFallbackEnabled(await birthdayRule()))) {
       await finish(claim, { status: "failed", error_message: "Envoi arrêté par le bouton OFF ou le changement de journée." });
       return { status: "stopped" };
     }
     const latest = await birthdayContact(id);
     if (latest.broker !== contact.broker || latest.email !== contact.email || latest.first_name !== contact.first_name || latest.last_name !== contact.last_name) throw new Error("Le contact a changé. Actualisez avant de réessayer.");
     await finish(claim, { sender_broker: broker });
+    if ((await birthdayRule()).archivedAt) throw new Error("Communication supprimée.");
     const result = await sendPreparedGmailMessage(sender, message);
     accepted = true;
     const status = action === "manual" ? "manual_email_sent" : "auto_email_sent";
@@ -71,7 +75,7 @@ export async function actOnBirthday(id: string, action: "done" | "manual" | "aut
 export async function runBirthdayFallback() {
   const start = birthdayClock();
   const counts = { sent: 0, skipped: 0, failed: 0 };
-  if (!start.afterFive || !(await birthdayRule()).triggerConfig.birthdayFallbackEnabled) return counts;
+  if (!start.afterFive || !recurringFallbackEnabled(await birthdayRule())) return counts;
   // Small sequential batch; the next schedule handles remaining contacts, never yesterday.
   const contacts: BirthdayContact[] = [];
   for (let offset = 0; ; offset += 1000) {
@@ -83,7 +87,7 @@ export async function runBirthdayFallback() {
   const states = new Map((await todayGreetings()).map(g => [g.contact_id, g]));
   const eligible = contacts.filter(c => birthdayMatchesDate(c.birth_date ?? "", start.today) && (!states.has(c.id) || (states.get(c.id)?.status === "failed" && !states.get(c.id)?.automatic_attempted_at)));
   for (const contact of eligible.slice(0, 20)) {
-    if (birthdayClock().today !== start.today || !(await birthdayRule()).triggerConfig.birthdayFallbackEnabled) break;
+    if (birthdayClock().today !== start.today || !recurringFallbackEnabled(await birthdayRule())) break;
     try {
       const result = await actOnBirthday(contact.id, "auto", "scheduler");
       if (result.status === "auto_email_sent") counts.sent++; else counts.skipped++;
